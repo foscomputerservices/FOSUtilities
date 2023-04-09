@@ -7,6 +7,8 @@ import FOSFoundation
 import Foundation
 import XCTest
 
+/** This file provides a number of *XCTAssert-style* functions that make writing tests easier and more succinct  **/
+
 /// Performs tests to ensure that the `Codable`s implementation can encode and decode properly
 ///
 /// - Parameter codableType: A `System.Type` of a type that conforms to `Codable`
