@@ -1,4 +1,4 @@
-// swift-tools-version: 5.7
+// swift-tools-version: 5.6
 
 import PackageDescription
 
@@ -10,6 +10,7 @@ let package = Package(
         .macCatalyst(.v13),
         .tvOS(.v12),
         .watchOS(.v6)
+        // .windows()
         // .linux()
     ],
     products: [
