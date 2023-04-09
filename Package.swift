@@ -10,6 +10,7 @@ let package = Package(
         .macCatalyst(.v13),
         .tvOS(.v12),
         .watchOS(.v6)
+        // .windows()
         // .linux()
     ],
     products: [
