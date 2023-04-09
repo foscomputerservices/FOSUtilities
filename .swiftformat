@@ -1,0 +1,14 @@
+--allman false
+--commas inline
+--ifdef no-indent
+--nospaceoperators ...,..<
+--patternlet inline
+--self init-only
+--stripunusedargs closure-only
+--binarygrouping none
+--decimalgrouping none
+--hexgrouping none
+--octalgrouping none
+--disable wrapMultilineStatementBraces
+--swiftversion 5.7.2
+--header "{file}\n\nCopyright © {year} FOS Services, LLC. All rights reserved.\n"

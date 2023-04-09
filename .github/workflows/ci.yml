@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  run_tests:
+    runs-on: macos-12
+    steps:
+     - uses: actions/checkout@v2
+
+     - name: Run Tests
+       run: swift test --enable-code-coverage
+
+  analyze_code_coverage:
+    runs-on: macos-12
+    steps:
+     - uses: actions/checkout@v2
+
+     - name: Generate an xcodeproj
+       run: swift package generate-xcodeproj
+
+     - name: Run Tests w/ code coverage
+       run: xcodebuild test -scheme CryptoScraper-Package -destination platform="macOS" -enableCodeCoverage YES
+
+     - name: Upload coverage reports to Codecov
+       uses: codecov/codecov-action@v3

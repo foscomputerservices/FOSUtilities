@@ -1,0 +1,21 @@
+included:
+  - Sources
+excluded:
+reporter: "junit"
+
+disabled_rules:
+  - line_length
+  - file_length
+  - identifier_name
+  - todo
+  - cyclomatic_complexity
+  - function_body_length
+  - nesting
+  - large_tuple
+  - function_parameter_count
+  - trailing_whitespace # Xcode just puts too much whitespace in the file to keep up
+  - trailing_comma
+  - type_name # Apple intruduced 'ID' type alias in Identifable, which is only 2 chars long
+  - mark # It confuses REMARK with MARK
+  - inclusive_language
+  - comment_spacing
