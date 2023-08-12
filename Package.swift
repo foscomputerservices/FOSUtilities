@@ -23,6 +23,10 @@ let package = Package(
             targets: ["FOSTesting"]
         )
     ],
+    dependencies: [
+        // 🍎 frameworks
+        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "2.4.0"))
+    ],
     targets: [
         .target(
             name: "FOSFoundation"

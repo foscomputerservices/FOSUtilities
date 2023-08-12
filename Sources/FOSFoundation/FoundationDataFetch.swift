@@ -9,23 +9,44 @@ import FoundationNetworking
 #endif
 
 public enum DataFetchError: Error {
-    case message(_ message: String)
-    case badStatus(_ httpStatusCode: Int)
+    case message(_ message: String, responseData: Data? = nil)
+    case decoding(error: DecodingError, responseData: Data)
+    case badStatus(httpStatusCode: Int)
+    case noDataReceived
+    case badResponseMimeType(_ mimeType: String)
 
     public var localizedDescription: String {
         switch self {
-        case .message(let message): return message
-        case .badStatus(let code): return "Status code: \(code)"
+        case .message(let message, let responseData):
+            if let responseData, let responseStr = String(data: responseData, encoding: .utf8) {
+                return "\(message) - \(responseStr)"
+            } else {
+                return message
+            }
+        case .decoding(let error, let responseData):
+            if let responseStr = String(data: responseData, encoding: .utf8) {
+                return "\(error.localizedDescription) - \(responseStr)"
+            } else {
+                return error.localizedDescription
+            }
+        case .badStatus(let code):
+            return "Status code: \(code)"
+        case .noDataReceived:
+            return "No data received"
+        case .badResponseMimeType(let mimeTime):
+            return "Received unexpected mime type: '\(mimeTime)'"
         }
     }
 }
 
-private struct DummyError: Decodable, Error {}
-
+/// A simplified  interface for performing REST-Style requests
 public final class FoundationDataFetch {
     private let urlSession: URLSession
 
-    public static let `default`: FoundationDataFetch = .init(urlSession: FoundationDataFetch.UrlSession())
+    /// Returns an instance that uses ``FoundationDataFetch.UrlSessionConfiguration``
+    public static let `default`: FoundationDataFetch = .init(
+        urlSession: .init(configuration: FoundationDataFetch.urlSessionConfiguration())
+    )
 
     /// Fetches the given data of type ``ResultValue`` from the given ``URL``
     ///
@@ -33,7 +54,7 @@ public final class FoundationDataFetch {
     ///   - url: The ``URL`` that identifies the source of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///
-    /// - Note: The following headers are automatically sent to all requests:
+    /// - Note: The following headers are automatically sent to all requests unless they are provided in *headers*:
     ///
     ///  | Key | Value |
     ///  | ---------------------- | ---------------------------------- |
@@ -41,7 +62,12 @@ public final class FoundationDataFetch {
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Encoding | deflate, gzip |
     public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]?) async throws -> ResultValue {
-        try await fetch(url.absoluteString, headers: headers, errorType: DummyError.self)
+        try await send(
+            to: url.absoluteString,
+            httpMethod: "GET",
+            headers: headers,
+            errorType: DummyError.self
+        )
     }
 
     /// Fetches the given data of type ``ResultValue`` from the given ``URL``
@@ -51,7 +77,7 @@ public final class FoundationDataFetch {
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///   - errorType: An ``Error`` type to attempt to decode returned data as an error if unable to decode as ``ResultValue``
     ///
-    /// - Note: The following headers are automatically sent to all requests:
+    /// - Note: The following headers are automatically sent to all requests unless they are provided in *headers*:
     ///
     ///  | Key | Value |
     ///  | ---------------------- | ---------------------------------- |
@@ -59,38 +85,23 @@ public final class FoundationDataFetch {
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Encoding | deflate, gzip |
     public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
-        try await fetch(url.absoluteString, headers: headers, errorType: errorType)
+        try await send(
+            to: url.absoluteString,
+            httpMethod: "GET",
+            headers: headers,
+            errorType: errorType
+        )
     }
 
-    public func send<ResultValue: Decodable>(data: Data, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, callback: @escaping (Result<ResultValue, DataFetchError>) -> Void) {
-        guard let url = URL(string: urlStr) else {
-            callback(.failure(.message("Unable to convert \(urlStr) to URL???")))
-            return
-        }
-
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = httpMethod
-        urlRequest.httpBody = data
-        urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("deflate, gzip", forHTTPHeaderField: "Accept-Encoding")
-
-        if let headers {
-            for header in headers {
-                urlRequest.setValue(header.value, forHTTPHeaderField: header.field)
-            }
-        }
-
-        urlSession
-            .dataTask(with: urlRequest) { data, response, error in
-                Self.completionHandler(
-                    responseData: data,
-                    response: response,
-                    error: error,
-                    callback: callback
-                )
-            }
-            .resume()
-    }
+//    public func send<ResultValue: Decodable>(data: Data, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+//        try await send(
+//            data: data,
+//            to: url.absoluteString,
+//            httpMethod: httpMethod,
+//            headers: headers,
+//            errorType: errorType
+//        )
+//    }
 
     // MARK: Initialization Methods
 
@@ -98,116 +109,165 @@ public final class FoundationDataFetch {
         self.urlSession = urlSession
     }
 
-    public static func UrlSession(forUserToken: String? = nil) -> URLSession {
+    /// Returns a 'standard' ``URLSessionConfiguration``
+    ///
+    /// - Parameters:
+    ///   - userToken: A *Bearer* token that is sent in the *Authorization* HTTP header
+    ///   - allowCellular: Allow requests to be made over cellular connections (default: true)
+    public static func urlSessionConfiguration(forUserToken userToken: String? = nil, allowCellular: Bool = true) -> URLSessionConfiguration {
         let sessionConfig = URLSessionConfiguration.default
-        sessionConfig.allowsCellularAccess = true
+        sessionConfig.allowsCellularAccess = allowCellular
         sessionConfig.isDiscretionary = false
+        if let userToken {
+            sessionConfig.httpAdditionalHeaders = [
+                "Authorization": "Bearer \(userToken)"
+            ]
+        }
 
-        return URLSession(configuration: sessionConfig)
+        return sessionConfig
     }
 }
 
 private extension FoundationDataFetch {
-    func fetch<ResultValue: Decodable, ResultError: Decodable & Error>(_ urlStr: String, headers: [(field: String, value: String)]?, errorType: ResultError.Type) async throws -> ResultValue {
+    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         guard let url = URL(string: urlStr) else {
             throw DataFetchError.message("Unable to convert \(urlStr) to URL???")
         }
 
         var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "Get"
-        urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Accept")
-        urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("deflate, gzip", forHTTPHeaderField: "Accept-Encoding")
+        urlRequest.httpMethod = httpMethod
+
+        var acceptSpecified = false
+        var contentTypeSpecified = false
+        var acceptEncodingSpecified = false
+
+        var expectedMimeType: String?
 
         if let headers {
             for header in headers {
                 urlRequest.setValue(header.value, forHTTPHeaderField: header.field)
+
+                switch header.field.lowercased() {
+                case "accept":
+                    acceptSpecified = true
+                    expectedMimeType = header.value
+                case "content-type": contentTypeSpecified = true
+                case "accept-encoding": acceptEncodingSpecified = true
+                default: continue
+                }
             }
         }
 
+        if !acceptSpecified {
+            urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Accept")
+            expectedMimeType = "application/json"
+        }
+        if !contentTypeSpecified {
+            urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Content-Type")
+        }
+        if !acceptEncodingSpecified {
+            urlRequest.setValue("deflate, gzip, *", forHTTPHeaderField: "Accept-Encoding")
+        }
+
+        let mimeType = expectedMimeType // Remove mutability
+
         return try await withCheckedThrowingContinuation { continuation in
             urlSession
-                .dataTask(with: urlRequest) { data, _, e in
-                    var result: ResultValue?
-                    var error: Error?
+                .dataTask(with: urlRequest) { data, response, e in
+                    do {
+                        let result: ResultValue = try Self.completionHandler(
+                            responseData: data,
+                            response: response,
+                            error: e,
+                            expectedMimeType: mimeType,
+                            errorType: errorType
+                        )
 
-                    if let data {
-                        do {
-                            if ResultValue.self is String.Type {
-                                result = String(data: data, encoding: .utf8) as? ResultValue
-                            } else if ResultValue.self is String?.Type {
-                                result = String(data: data, encoding: .utf8) as? ResultValue
-                            } else {
-                                result = try data.fromJSON()
-                            }
-                        } catch let e as DecodingError {
-                            guard errorType != DummyError.self, let errorResult: ResultError? = try? data.fromJSON() else {
-                                continuation.resume(throwing: DataFetchError.message(e.localizedDescription))
-                                return
-                            }
-
-                            error = errorResult
-                        } catch let e {
-                            error = DataFetchError.message(e.localizedDescription)
-                        }
-                    } else if let e {
-                        error = DataFetchError.message(e.localizedDescription)
-                    } else {
-                        error = DataFetchError.message("Unable to retrieve data, unknown error")
-                    }
-
-                    if let result {
                         continuation.resume(returning: result)
-                    } else {
-                        continuation.resume(throwing: error!)
+                    } catch let e {
+                        continuation.resume(throwing: e)
                     }
                 }
                 .resume()
         }
     }
 
-    static func completionHandler<ResultValue: Decodable>(responseData: Data?, response: URLResponse?, error: Error?, callback: (Result<ResultValue, DataFetchError>) -> Void) {
-        let httpResponse: HTTPURLResponse
-        let checkedResponse = Self.checkResponse(response: response, error: error)
+    private static func completionHandler<ResultValue: Decodable, ResultError: Decodable & Error>(responseData: Data?, response: URLResponse?, error: Error?, expectedMimeType: String?, errorType: ResultError.Type) throws -> ResultValue {
+        do {
+            try Self.checkResponse(
+                response: response,
+                error: error,
+                expectedMimeType: expectedMimeType
+            )
 
-        if let error = checkedResponse.1 {
-            callback(.failure(error))
-            return
-        } else if let resp = checkedResponse.0 {
-            httpResponse = resp
-        } else {
-            callback(.failure(.message("One of response or error should have been set!")))
-            return
-        }
+            if let responseData {
+                let result: ResultValue
 
-        if let mimeType = httpResponse.mimeType, mimeType == "application/json" {
-            if let data = responseData {
-                do {
-                    try callback(.success(data.fromJSON()))
-                } catch let e {
-                    callback(.failure(.message(e.localizedDescription)))
+                if ResultValue.self is String.Type || ResultValue.self is String?.Type {
+                    result = String(data: responseData, encoding: .utf8) as! ResultValue
+                } else {
+                    result = try responseData.fromJSON()
                 }
+
+                return result
             } else {
-                callback(.failure(.message("Response data was nil")))
+                throw DataFetchError.noDataReceived
             }
-        } else {
-            callback(.failure(.message("Unknown mime type: \(String(describing: httpResponse.mimeType))")))
+        } catch let e as DecodingError {
+            // We couldn't convert the data to the expected success type, so
+            // attempt to convert the server's response to ResultError type
+            if errorType != DummyError.self, let responseData, let resultError: ResultError = try? responseData.fromJSON() {
+                throw resultError
+            } else if let responseData {
+                // We couldn't convert to to ResultError, so surface the DecodingError
+                throw DataFetchError.decoding(error: e, responseData: responseData)
+            } else {
+                throw DataFetchError.message("Unable to retrieve data, unknown error")
+            }
+        } catch let e as DataFetchError {
+            if errorType != DummyError.self, let responseData, let resultError: ResultError = try? responseData.fromJSON() {
+                throw resultError
+            }
+
+            throw e
+        } catch let e {
+            if errorType != DummyError.self, let responseData, let resultError: ResultError = try? responseData.fromJSON() {
+                throw resultError
+            }
+
+            throw DataFetchError.message(e.localizedDescription, responseData: responseData)
         }
     }
 
-    static func checkResponse(response: URLResponse?, error: Swift.Error?) -> (HTTPURLResponse?, DataFetchError?) {
+    @discardableResult private static func checkResponse(response: URLResponse?, error: Swift.Error?, expectedMimeType: String?) throws -> HTTPURLResponse {
         if let error {
-            return (nil, .message(error.localizedDescription))
+            throw DataFetchError.message(error.localizedDescription)
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            return (nil, .message("Expected to receive an 'HTTPURLResponse', but received '\(String(describing: type(of: response.self)))'"))
+            throw DataFetchError.message("Expected to receive an 'HTTPURLResponse', but received '\(String(describing: type(of: response.self)))'")
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
-            return (nil, .badStatus(httpResponse.statusCode))
+            throw DataFetchError.badStatus(httpStatusCode: httpResponse.statusCode)
         }
 
-        return (httpResponse, nil)
+        try checkMimeType(response: httpResponse, expectedMimeType: expectedMimeType)
+
+        return httpResponse
+    }
+
+    private static func checkMimeType(response: HTTPURLResponse, expectedMimeType: String?) throws {
+        guard let expectedMimeType else { return }
+
+        guard let mimeType = response.mimeType else {
+            throw DataFetchError.badResponseMimeType("<None Received>")
+        }
+
+        guard mimeType.lowercased().starts(with: expectedMimeType.lowercased()) else {
+            throw DataFetchError.badResponseMimeType(mimeType)
+        }
     }
 }
+
+private struct DummyError: Decodable, Error {}

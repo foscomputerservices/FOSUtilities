@@ -10,7 +10,7 @@ public enum JSONDecoderError: Error {
 }
 
 public extension JSONDecoder {
-    @nonobjc static let defaultDecoder: JSONDecoder = {
+    static var defaultDecoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder -> Date in
             let container = try decoder.singleValueContainer()
@@ -36,5 +36,5 @@ public extension JSONDecoder {
         }
 
         return decoder
-    }()
+    }
 }

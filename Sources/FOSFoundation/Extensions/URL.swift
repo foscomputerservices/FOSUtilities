@@ -20,7 +20,8 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     func fetch<ResultValue: Decodable>(_ dataFetch: FoundationDataFetch? = nil, headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
-        try await (dataFetch ?? FoundationDataFetch.default).fetch(self, headers: headers)
+        try await (dataFetch ?? FoundationDataFetch.default)
+            .fetch(self, headers: headers)
     }
 
     /// Fetches the given data of type ``ResultValue`` from the given ``URL``
@@ -38,6 +39,7 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     func fetch<ResultValue: Decodable>(_ dataFetch: FoundationDataFetch? = nil, headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
-        try await (dataFetch ?? FoundationDataFetch.default).fetch(self, headers: headers, errorType: errorType)
+        try await (dataFetch ?? FoundationDataFetch.default)
+            .fetch(self, headers: headers, errorType: errorType)
     }
 }
