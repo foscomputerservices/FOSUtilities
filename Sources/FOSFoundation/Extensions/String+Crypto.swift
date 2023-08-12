@@ -13,7 +13,7 @@ import Crypto
 #endif
 
 public extension String {
-    #if os(iOS) || os(macOS) || os(Linux)
+    #if canImport(Crypto) || canImport(CryptoKit)
     // Encrypts the string using *sha256* encryption
     func sha256() -> String? {
         guard let data = data(using: .utf8) else { return nil }
