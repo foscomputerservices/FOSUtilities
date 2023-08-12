@@ -7,7 +7,7 @@ import Foundation
 
 extension DateFormatter {
     /// Formats dates without times using GMT-0
-    @nonobjc static let dateFormatter: DateFormatter = {
+    static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -16,7 +16,7 @@ extension DateFormatter {
     }()
 
     /// Formats dates with times using GMT-0
-    @nonobjc static let dateTimeFormatter: DateFormatter = {
+    static let dateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -25,7 +25,7 @@ extension DateFormatter {
     }()
 
     /// A full date-time representation for encoding in JSON using GMT-0
-    @nonobjc static let JSONDateTimeFormatter: DateFormatter = {
+    static let JSONDateTimeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -33,7 +33,7 @@ extension DateFormatter {
         return formatter
     }()
 
-    @nonobjc static let ISO8601Formatter: DateFormatter = {
+    static let ISO8601Formatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .iso8601)
         formatter.locale = Locale(identifier: "en_US_POSIX")

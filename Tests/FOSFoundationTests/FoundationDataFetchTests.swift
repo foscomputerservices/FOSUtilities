@@ -11,11 +11,20 @@ final class FoundationDataFetchTests: XCTestCase {
         let url = URL(string: "https://google.com")!
         let dataFetch = FoundationDataFetch.default
 
-        let result: String? = try await dataFetch.fetch(url, headers: nil)
+        do {
+            let result: String? = try await dataFetch.fetch(
+                url,
+                headers: [
+                    ("Accept", "text/html")
+                ]
+            )
 
-        XCTAssertNotNil(result)
-        guard let result else { return }
+            XCTAssertNotNil(result)
+            guard let result else { return }
 
-        XCTAssertFalse(result.isEmpty)
+            XCTAssertFalse(result.isEmpty)
+        } catch let e {
+            XCTFail("Failed with exception: \(e.localizedDescription)")
+        }
     }
 }
