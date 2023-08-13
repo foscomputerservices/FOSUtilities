@@ -11,10 +11,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["5.7", "5.8"]
+        swift: ["5.7", "5.8.1"]
         include:
           - os: windows-latest
-            swift: "5.8"
+            swift: "5.8.1"
       fail-fast: false
     steps:
       - uses: foscomputerservices/setup-swift@swift-5.8.1-support # swift-actions/setup-swift@v1
