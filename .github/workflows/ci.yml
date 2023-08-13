@@ -15,6 +15,7 @@ jobs:
         include:
           - os: windows-latest
             swift: "5.8"
+      fail-fast: false
     steps:
       - uses: foscomputerservices/setup-swift@swift-5.8.1-support # swift-actions/setup-swift@v1
         with:
