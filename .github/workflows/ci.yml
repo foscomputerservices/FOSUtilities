@@ -11,15 +11,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["5.7", "5.8.1"]
-        include:
-          - os: windows-latest
-            swift: "5.6.3"
-          - os: windows-latest
-            swift: "5.8.1"
+        swift: ["5.7", "5.8"]
       fail-fast: false
     steps:
-      - uses: foscomputerservices/setup-swift@swift-5.8.1-support # swift-actions/setup-swift@v1
+      - uses: swift-actions/setup-swift@v1
         with:
           swift-version: ${{ matrix.swift }}
       - uses: actions/checkout@v2
@@ -27,6 +22,24 @@ jobs:
       - name: Run Tests
         run: swift test
 
+  run_tests_windows:
+    name: Test Swift v${{ matrix.swift }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+        swift: ["5.7", "5.8"]
+      fail-fast: false
+    steps:
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-${{ matrix.swift }}-release
+          tag: ${{ matrix.swift }}-release
+      - uses: actions/checkout@v2
+
+      - name: Run Tests
+        run: swift test
+      
   #####################################
   # swift 5.8 has removed generate-xcodeproj, so we'll need to find a different
   # way to do this.  I'm sure there will be an update soon.
