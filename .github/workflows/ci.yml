@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: compnerd/gha-setup-swift@main
         with:
-          branch: swift-${{ matrix.swift }}-RELEASE
+          branch: swift-${{ matrix.swift }}-release
           tag: ${{ matrix.swift }}-RELEASE
       - uses: actions/checkout@v2
 
