@@ -8,7 +8,7 @@ let package = Package(
         .iOS(.v15),
         .macOS(.v12),
         .macCatalyst(.v13),
-        .tvOS(.v12),
+        .tvOS(.v13),
         .watchOS(.v6)
         // .windows()
         // .linux()
