@@ -25,7 +25,7 @@ let package = Package(
     ],
     dependencies: [
         // 🍎 frameworks
-        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "2.4.0"))
+        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.1.0"))
     ],
     targets: [
         .target(
