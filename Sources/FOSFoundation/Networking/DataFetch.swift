@@ -412,13 +412,13 @@ private extension DataFetch {
 
             if let responseData {
                 do {
-                    let result: ResultValue =
-                        if ResultValue.self is String.Type || ResultValue.self is String?.Type {
-                            // swiftlint:disable:next force_cast
-                            String(decoding: responseData, as: UTF8.self) as! ResultValue
-                        } else {
-                            try responseData.fromJSON()
-                        }
+                    let result: ResultValue
+                    if ResultValue.self is String.Type || ResultValue.self is String?.Type {
+                        // swiftlint:disable:next force_cast
+                        result = String(decoding: responseData, as: UTF8.self) as! ResultValue
+                    } else {
+                        result = try responseData.fromJSON()
+                    }
 
                     return result
                 } catch let jsonError as JSONError {

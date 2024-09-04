@@ -1,4 +1,4 @@
-// swift-tools-version: 5.6
+// swift-tools-version: 5.8
 
 import PackageDescription
 
@@ -25,6 +25,7 @@ let package = Package(
     ],
     dependencies: [
         // 🍎 frameworks
+        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.7.0")),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
 
         // Third 🥳 frameworks
