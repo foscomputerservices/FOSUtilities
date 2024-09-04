@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["5.8", "5.9", "5.10"]
+        swift: ["5.8", "5.9", "5.10.1"]
       fail-fast: false
     steps:
       - uses: swift-actions/setup-swift@v1
