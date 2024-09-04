@@ -1,7 +1,7 @@
 included:
   - Sources
 excluded:
-reporter: "junit"
+reporter: "xcode"
 
 disabled_rules:
   - line_length
