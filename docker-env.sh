@@ -1,7 +1,7 @@
 #!/bin/bash
 
-SWIFT_VERSION="5.10.1"
-CONTAINER="swift:${SWIFT_VERSION}"
+SWIFT_VERSION="nightly-rhel-ubi9" # "5.10.1"
+CONTAINER="swiftlang/swift:${SWIFT_VERSION}"
 
 ## NOTE: To run LLDB, uncomment the following line:
 RESTRICTED='--privileged=true'
