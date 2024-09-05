@@ -217,7 +217,7 @@ private extension YamlStore {
         }
 
         // Try a 'base' locale
-        #if !os(Linux)
+        #if !os(Linux) && !os(Windows)
         if #available(macOS 15, iOS 16, tvOS 16, watchOS 9, visionOS 1, macCatalyst 16, *) {
             let localeComps = Locale.Language.Components(identifier: locale)
             let baseLocale = localeComps.languageCode?.identifier.lowercased() ?? "n/a"
