@@ -20,7 +20,9 @@ import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+#if canImport(Vapor)
 import Vapor
+#endif
 
 public enum SystemVersionError: Error {
     case invalidSystemVersionString(_ str: String)
@@ -156,6 +158,7 @@ public extension HTTPURLResponse {
     }
 }
 
+#if canImport(Vapor)
 public extension Vapor.Request {
     /// - Returns: the ``SystemVersion`` specified in the HTTPHeader
     ///
@@ -185,6 +188,7 @@ public extension Vapor.Request {
         }
     }
 }
+#endif
 
 private struct DefaultSystemVersion: SystemVersion {
     static let currentVersion = Self(majorVersion: 1, minorVersion: 2, patchVersion: 3)
