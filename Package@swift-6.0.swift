@@ -56,7 +56,7 @@ let package = Package(
             ],
             swiftSettings: [
             ],
-            plugins: [.plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")]
+            plugins: plugins
         ),
         .target(
             name: "FOSTesting",
