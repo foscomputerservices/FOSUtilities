@@ -34,7 +34,12 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Run Tests
+        if: ${{ matrix.os == 'macos-latest' }}
         run: swift test
+
+      - name: Run Build
+        if: ${{ matrix.os != 'macos-latest' }}
+        run: swift build # swift 6.0 required for swift-testing
 
   # Ensure that compilation succeeds on iOS-based platforms
   run_ios_build_tests:
