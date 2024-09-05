@@ -9,8 +9,8 @@ let package = Package(
         .iOS(.v15),
         .macOS(.v13),
         .macCatalyst(.v13),
-        .tvOS(.v13),
-        .watchOS(.v6),
+        .tvOS(.v15),
+        .watchOS(.v8),
         .visionOS(.v1)
         // .windows(),
         // .linux(),
@@ -45,7 +45,7 @@ let package = Package(
             name: "FOSFoundation",
             swiftSettings: [
             ],
-            plugins: [.plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")]
+            plugins: plugins
         ),
         .target(
             name: "FOSMVVM",
@@ -56,7 +56,7 @@ let package = Package(
             ],
             swiftSettings: [
             ],
-            plugins: [.plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")]
+            plugins: plugins
         ),
         .target(
             name: "FOSTesting",
@@ -88,3 +88,11 @@ let package = Package(
         )
     ]
 )
+
+#if os(macOS)
+let plugins: [PackageDescription.Target.PluginUsage]? = [
+    .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")
+]
+#else
+let plugins: [PackageDescription.Target.PluginUsage]? = nil
+#endif
