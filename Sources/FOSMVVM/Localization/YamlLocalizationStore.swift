@@ -17,7 +17,9 @@
 
 import FOSFoundation
 import Foundation
+#if canImport(Vapor)
 import Vapor
+#endif
 import Yams
 
 public enum YamlStoreError: Error {
@@ -26,6 +28,7 @@ public enum YamlStoreError: Error {
     case fileError(path: URL, error: any Error)
 }
 
+#if canImport(Vapor)
 public extension Application {
     var localizationStore: LocalizationStore? {
         get {
@@ -57,9 +60,10 @@ public extension Application {
         lifecycle.use(YamlLocalizationInitializer(config: config))
     }
 }
+#endif
 
-/// An extension on Bundle to allow tests to initialize the YamlStore
-extension Bundle {
+/// An extension on Bundle to allow initialization of the YamlStore
+public extension Bundle {
     func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
         let config = yamlStoreConfig(
             resourceDirectoryName: resourceDirectoryName
@@ -99,6 +103,7 @@ private extension Bundle {
     }
 }
 
+#if canImport(Vapor)
 private struct YamlLocalizationInitializer: LifecycleHandler {
     let config: YamlStoreConfig
 
@@ -114,6 +119,7 @@ private struct YamlLocalizationInitializer: LifecycleHandler {
 private struct YamlLocalizationStore: StorageKey {
     typealias Value = LocalizationStore
 }
+#endif
 
 private struct YamlStore: LocalizationStore {
     let config: YamlStoreConfig

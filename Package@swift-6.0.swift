@@ -51,7 +51,7 @@ let package = Package(
             name: "FOSMVVM",
             dependencies: [
                 .byName(name: "FOSFoundation"),
-                .product(name: "Vapor", package: "Vapor"),
+                .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
             ],
             swiftSettings: [
@@ -79,7 +79,7 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
                 .byName(name: "FOSTesting"),
-                .product(name: "Vapor", package: "Vapor"),
+                .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Testing", package: "swift-testing")
             ],
             resources: [
