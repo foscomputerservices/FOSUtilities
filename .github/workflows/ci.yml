@@ -10,14 +10,28 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
         swift: ["6.0"]
       fail-fast: false
     steps:
       - uses: SwiftyLab/setup-swift@latest
+        if: ${{ matrix.os == 'macos-latest' }}
         with:
           development: true
-          swift-version: ${{ matrix.swift }}
+          swift-version: 'https://download.swift.org/swift-6.0-branch/xcode/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a-osx.pkg'
+
+      - uses: SwiftyLab/setup-swift@latest
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          development: true
+          swift-version: 'https://download.swift.org/swift-6.0-branch/ubuntu2204/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a-ubuntu22.04.tar.gz'
+  
+      - uses: SwiftyLab/setup-swift@latest
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          development: true
+          swift-version: 'https://download.swift.org/swift-6.0-branch/windows10/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a-windows10.exe'
+
       - uses: actions/checkout@v2
 
       - name: Run Tests
