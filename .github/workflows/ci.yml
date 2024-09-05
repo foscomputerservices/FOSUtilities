@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        swift: ["5.9"] # , "5.10.1"]
+        swift: ["5.9", "5.10"]
       fail-fast: false
     steps:
       - uses: swift-actions/setup-swift@v1
@@ -21,8 +21,10 @@ jobs:
           swift-version: ${{ matrix.swift }}
       - uses: actions/checkout@v2
 
+      # dgh - Tests only run on swift 6.0+, which is
+      #       not currently available via setup-swift
       - name: Run Tests
-        run: swift test
+        run: swift build # test
 
   run_tests_windows:
     name: Test Swift v${{ matrix.swift }} on ${{ matrix.os }}
@@ -30,7 +32,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest]
-        swift: ["5.9"] #, "5.10.1"]
+        swift: ["5.9", "5.10"]
       fail-fast: false
     steps:
       - uses: compnerd/gha-setup-swift@main
@@ -39,8 +41,10 @@ jobs:
           tag: ${{ matrix.swift }}-RELEASE
       - uses: actions/checkout@v2
 
+      # dgh - Tests only run on swift 6.0+, which is
+      #       not currently available via setup-swift
       - name: Run Tests
-        run: swift test
+        run: swift build # test
 
   # Ensure that compilation succeeds on iOS-based platforms
   run_ios_build_tests:
