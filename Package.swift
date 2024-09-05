@@ -6,12 +6,13 @@ let package = Package(
     name: "FOSUtilities",
     platforms: [
         .iOS(.v15),
-        .macOS(.v12),
+        .macOS(.v13),
         .macCatalyst(.v13),
-        .tvOS(.v13),
-        .watchOS(.v6)
-        // .windows()
-        // .linux()
+        .tvOS(.v15),
+        .watchOS(.v8)
+        // .windows(),
+        // .linux(),
+        // .wasm()
     ],
     products: [
         .library(

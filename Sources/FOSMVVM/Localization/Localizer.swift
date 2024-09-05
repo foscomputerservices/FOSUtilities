@@ -198,10 +198,13 @@ private extension Locale {
         if let groupingSeparator {
             numFmt.groupingSeparator = groupingSeparator
         }
+
+        #if os(macOS) || os(Linux)
         numFmt.hasThousandSeparators = true
         if let decimalSeparator {
             numFmt.thousandSeparator = decimalSeparator
         }
+        #endif
         numFmt.minimumFractionDigits = minimumFractionDigits
         numFmt.maximumFractionDigits = maximumFractionDigits
 
