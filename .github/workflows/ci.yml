@@ -1,5 +1,3 @@
-# https://download.swift.org/swift-5.8.1-release/windows10/swift-5.8.1-RELEASE/swift-5.8.1-RELEASE-windows10.exe
-
 name: CI
 
 on:
@@ -12,39 +10,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        swift: ["5.9", "5.10.1"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        swift: ["6.0"]
       fail-fast: false
     steps:
-      - uses: swift-actions/setup-swift@v1
+      - uses: SwiftyLab/setup-swift@latest
         with:
+          development: true
           swift-version: ${{ matrix.swift }}
       - uses: actions/checkout@v2
 
-      # dgh - Tests only run on swift 6.0+, which is
-      #       not currently available via setup-swift
       - name: Run Tests
-        run: swift build # test
-
-  run_tests_windows:
-    name: Test Swift v${{ matrix.swift }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest]
-        swift: ["5.10"]
-      fail-fast: false
-    steps:
-      - uses: compnerd/gha-setup-swift@main
-        with:
-          branch: swift-${{ matrix.swift }}-release
-          tag: ${{ matrix.swift }}-RELEASE
-      - uses: actions/checkout@v2
-
-      # dgh - Tests only run on swift 6.0+, which is
-      #       not currently available via setup-swift
-      - name: Run Tests
-        run: swift build # test
+        run: swift test
 
   # Ensure that compilation succeeds on iOS-based platforms
   run_ios_build_tests:
