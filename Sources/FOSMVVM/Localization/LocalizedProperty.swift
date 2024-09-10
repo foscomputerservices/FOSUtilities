@@ -1,6 +1,6 @@
 // LocalizedProperty.swift
 //
-// Created by David Hunt on 6/23/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -20,6 +20,13 @@ import Foundation
 
 public enum LocalizedPropertyError: Error {
     case internalError(_ message: String)
+
+    public var localizedDescription: String {
+        switch self {
+        case .internalError(let message):
+            message
+        }
+    }
 }
 
 /// # View-Model Property Binding
@@ -158,14 +165,16 @@ public extension ViewModel {
     typealias LocalizeSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
 
-@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Stubbable where Model: ViewModel, Value: Localizable {
+@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Sendable, Stubbable where Model: ViewModel, Value: Localizable {
+    private typealias WrappedValueBinder = @Sendable (Model, String, Encoder) throws -> Value
+
     public var wrappedValue: Value
     public var projectedValue: Value { wrappedValue }
 
     // Identifies this property for property name binding through
     // ViewModel.propertyNames()
     let localizationId: LocalizableId
-    private let bindWrappedValue: ((Model, String, Encoder) throws -> Value)?
+    private let bindWrappedValue: WrappedValueBinder?
 
     /// Initializes the ``LocalizedString`` property wrapper
     ///
@@ -271,7 +280,7 @@ public extension ViewModel {
     ///   - separatorKeyPath:  An optional ``KeyPath`` to a property of type ``LocalizedString``
     ///       that contains the **String** to place between each **String** in the
     ///       pieces array
-    public init(pieces piecesKeyPath: KeyPath<Model, _LocalizedArrayProperty<Model, LocalizableString>>, separator separatorKeyPath: KeyPath<Model, _LocalizedProperty<Model, LocalizableString>>? = nil) where Value == LocalizableCompoundValue<LocalizableString> {
+    public init(pieces piecesKeyPath: KeyPath<Model, _LocalizedArrayProperty<Model, LocalizableString>> & Sendable, separator separatorKeyPath: (KeyPath<Model, _LocalizedProperty<Model, LocalizableString>> & Sendable)? = nil) where Value == LocalizableCompoundValue<LocalizableString> {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, _, encoder throws in
@@ -332,7 +341,7 @@ public extension ViewModel {
     /// - Parameters:
     ///   - substitutions: A ``KeyPath`` to a property of type ``LocalizedStrings``
     ///       that contains the **String** pieces to combine into a single **String**
-    public init(substitutions: KeyPath<Model, [String: some Localizable]>) where Value == LocalizableSubstitutions {
+    public init(substitutions: KeyPath<Model, [String: some Localizable]> & Sendable) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
@@ -349,7 +358,7 @@ public extension ViewModel {
         }
     }
 
-    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: any Localizable]>) where Value == LocalizableSubstitutions {
+    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: any Localizable]> & Sendable) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in

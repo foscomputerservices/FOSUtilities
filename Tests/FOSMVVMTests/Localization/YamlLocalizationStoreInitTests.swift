@@ -1,6 +1,6 @@
 // YamlLocalizationStoreInitTests.swift
 //
-// Created by David Hunt on 6/21/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if canImport(Vapor)
 import FOSFoundation
 @testable import FOSMVVM
 import Foundation
@@ -23,18 +24,30 @@ import Vapor
 
 @Suite("YamlLocalizationStore Initialization Tests")
 struct YamlLocalizationStoreInitTests {
-    @Test func testYamlStoreConfig() {
+    @Test func testYamlStoreConfig() throws {
         let paths = paths
-        let config = YamlStoreConfig(searchPaths: paths)
+        let config = try YamlStoreConfig(searchPaths: paths)
         #expect(config.searchPaths.count == paths.count)
     }
 
-    @Test func testYamlStoreInit() {
+    @Test func testYamlStoreInit() throws {
         let app = Application()
-        app.initYamlLocalization(
+        try app.initYamlLocalization(
             bundle: Bundle.module,
             resourceDirectoryName: "TestYAML"
         )
+        app.shutdown()
+    }
+
+    @Test func testBadYamlStoreInit() throws {
+        let app = Application()
+
+        #expect(throws: YamlStoreError.self) {
+            try app.initYamlLocalization(
+                bundle: Bundle.module,
+                resourceDirectoryName: "_TestYAML_"
+            )
+        }
         app.shutdown()
     }
 }
@@ -48,3 +61,4 @@ private extension YamlLocalizationStoreInitTests {
         return Set(paths)
     }
 }
+#endif

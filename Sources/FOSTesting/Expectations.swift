@@ -1,7 +1,7 @@
 // Expectations.swift
 //
-// Created by David Hunt on 4/9/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,13 @@ import Testing
 ///
 /// - Parameter codableType: A `System.Type` of a type that conforms to **Codable** and **Stubbable**
 /// - Parameter message: An optional message to add to error messages (default message contains the missing key information)
-public func expectCodable<C>(_ codableType: C.Type, _ message: @autoclosure () -> String = "") throws where C: Codable, C: Stubbable {
+public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "") throws where C: Codable, C: Stubbable {
     let instance = codableType.stub()
     let message = message() + ": "
 
     let encodedData: Data
     do {
-        let encoder = JSONEncoder()
+        let encoder = encoder ?? JSONEncoder()
         encodedData = try encoder.encode(instance)
 
         if encodedData.count == 0 {
@@ -40,13 +40,20 @@ public func expectCodable<C>(_ codableType: C.Type, _ message: @autoclosure () -
     }
 
     do {
-        let decoder = JSONDecoder()
+        let decoder = decoder ?? JSONDecoder()
         _ = try decoder.decode(codableType, from: encodedData)
     } catch let e {
+        // swiftlint:disable:next optional_data_string_conversion
         throw FOSCodableError.error(message + "Exception decoding \(C.self): \(e.localizedDescription) from json \(String(decoding: encodedData, as: UTF8.self))")
     }
 }
 
 enum FOSCodableError: Error {
     case error(_ message: String)
+
+    var localizedDescription: String {
+        switch self {
+        case .error(let message): message
+        }
+    }
 }

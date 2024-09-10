@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest] # , ubuntu-latest, windows-latest] -- Restore when Swift 6.0 is available
         swift: ["6.0"]
       fail-fast: false
     steps:

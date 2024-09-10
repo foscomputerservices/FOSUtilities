@@ -1,6 +1,6 @@
 // URLSession+MockingSupport.swift
 //
-// Created by David Hunt on 8/22/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -45,6 +45,6 @@ extension URLSession: URLSessionProtocol, @unchecked Sendable {
         //   required.  This is a workaround for that error.
 
         // swiftlint:disable:next force_cast
-        URLSession.init(configuration: config) as! Self
+        URLSession(configuration: config) as! Self
     }
 }

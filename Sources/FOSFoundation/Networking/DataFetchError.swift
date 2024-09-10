@@ -1,6 +1,6 @@
 // DataFetchError.swift
 //
-// Created by David Hunt on 8/23/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -41,6 +41,9 @@ public enum DataFetchError: Error {
 
     case badURL(_ message: String)
 
+    case utf8EncodingError
+    case utf8DecodingError
+
     static func fromJSONError(_ jsonError: JSONError) -> any Error {
         switch jsonError {
         case .decodingError(let error, let data):
@@ -51,12 +54,15 @@ public enum DataFetchError: Error {
             DataFetchError.badDateFormat("Unknown JSON date format: \(dateString)")
         case .noData:
             DataFetchError.noDataReceived
+        case .utf8EncodingError:
+            DataFetchError.utf8EncodingError
         }
     }
 
     public var localizedDescription: String {
         switch self {
         case .decoding(let error, let responseData):
+            // swiftlint:disable:next optional_data_string_conversion
             "\(error.localizedDescription) - \(String(decoding: responseData, as: UTF8.self))"
         case .encoding(let error):
             error.localizedDescription
@@ -68,6 +74,10 @@ public enum DataFetchError: Error {
             "Received unexpected mime type: '\(mimeTime)'"
         case .badDateFormat(let message), .badURL(let message):
             message
+        case .utf8EncodingError:
+            "Unable to encode the data to UTF-8"
+        case .utf8DecodingError:
+            "Unable to decode the data from UTF-8"
         }
     }
 }

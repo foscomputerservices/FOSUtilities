@@ -1,6 +1,6 @@
 // Localizable.swift
 //
-// Created by David Hunt on 6/20/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -38,7 +38,7 @@ public typealias LocalizableId = String
 ///    - Greatly reduced footprint of the client application
 ///    - Typos can be fixed without deploying new updates to app
 ///    - New localizations can be provided without updating the app
-public protocol Localizable: Codable, Hashable, Identifiable, Stubbable {
+public protocol Localizable: Codable, Hashable, Identifiable, Sendable, Stubbable {
     /// - Returns: **true** if the localized value has no output
     var isEmpty: Bool { get }
 

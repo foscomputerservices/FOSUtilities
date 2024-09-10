@@ -1,6 +1,6 @@
 // ViewModel.swift
 //
-// Created by David Hunt on 6/22/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -18,7 +18,7 @@
 import FOSFoundation
 import Foundation
 
-public protocol ViewModel: Codable, Stubbable {
+public protocol ViewModel: Codable, ServerRequestBody, Stubbable {
     var vmId: ViewModelId { get }
     var displayName: LocalizableString { get }
 }

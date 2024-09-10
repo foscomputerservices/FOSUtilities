@@ -1,7 +1,7 @@
 // DataFetch.swift
 //
-// Created by David Hunt on 4/11/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -107,6 +107,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Encoding | deflate, gzip |
+    ///  | Accept-Language | <provided locale> |
     ///
     /// ## Example
     ///
@@ -124,11 +125,13 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     /// - Parameters:
     ///   - url: The **URL** that identifies the source of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
-    public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
+    ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
+    public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
         try await send(
             to: url.absoluteString,
             httpMethod: "GET",
-            headers: headers
+            headers: headers,
+            locale: locale
         )
     }
 
@@ -141,16 +144,19 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Encoding | deflate, gzip |
+    ///  | Accept-Language | <provided locale> |
     ///
     /// - Parameters:
     ///   - url: The **URL** that identifies the source of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
+    ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
     ///   - errorType: An **Error** type to attempt to decode returned data as an error if unable to decode as **ResultValue**
-    public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]? = nil, locale: Locale? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await send(
             to: url.absoluteString,
             httpMethod: "GET",
             headers: headers,
+            locale: locale,
             errorType: errorType
         )
     }
@@ -183,7 +189,8 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             data: jsonData,
             to: url.absoluteString,
             httpMethod: "POST",
-            headers: headers
+            headers: headers,
+            locale: nil
         )
     }
 
@@ -217,6 +224,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             to: url.absoluteString,
             httpMethod: "DELETE",
             headers: headers,
+            locale: nil,
             errorType: errorType
         )
     }
@@ -249,7 +257,8 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             data: jsonData,
             to: url.absoluteString,
             httpMethod: "DELETE",
-            headers: headers
+            headers: headers,
+            locale: nil
         )
     }
 
@@ -283,6 +292,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             to: url.absoluteString,
             httpMethod: "DELETE",
             headers: headers,
+            locale: nil,
             errorType: errorType
         )
     }
@@ -314,13 +324,14 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
 private extension DataFetch {
     /// - Throws: ``DataFetchError`` or **errorType**
-    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?) async throws -> ResultValue {
+    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?) async throws -> ResultValue {
         do {
             return try await send(
                 data: data,
                 to: urlStr,
                 httpMethod: httpMethod,
                 headers: headers,
+                locale: locale,
                 errorType: DummyError.self
             )
         } catch let error as DataFetchError {
@@ -334,7 +345,7 @@ private extension DataFetch {
     }
 
     /// - Throws: ``DataFetchError`` or **errorType**
-    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         let urlStr = urlStr.trimmingSuffix("?")
         guard let url = URL(string: urlStr) else {
             throw DataFetchError.badURL("Unable to convert \(urlStr) to URL???")
@@ -362,6 +373,13 @@ private extension DataFetch {
                 default: continue
                 }
             }
+        }
+
+        if let locale {
+            urlRequest.setValue(
+                locale.identifier,
+                forHTTPHeaderField: "Accept-Language"
+            )
         }
 
         if !acceptSpecified {
@@ -412,12 +430,14 @@ private extension DataFetch {
 
             if let responseData {
                 do {
-                    let result: ResultValue
-                    if ResultValue.self is String.Type || ResultValue.self is String?.Type {
-                        // swiftlint:disable:next force_cast
-                        result = String(decoding: responseData, as: UTF8.self) as! ResultValue
+                    let result: ResultValue = if ResultValue.self is String.Type || ResultValue.self is String?.Type {
+                        // swiftlint:disable force_cast
+                        // swiftlint:disable optional_data_string_conversion
+                        String(decoding: responseData, as: UTF8.self) as! ResultValue
+                        // swiftlint:enable force_cast
+                        // swiftlint:enable optional_data_string_conversion
                     } else {
-                        result = try responseData.fromJSON()
+                        try responseData.fromJSON()
                     }
 
                     return result

@@ -1,6 +1,6 @@
 // ViewModelId.swift
 //
-// Created by David Hunt on 6/22/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -18,7 +18,7 @@
 import FOSFoundation
 import Foundation
 
-public struct ViewModelId: Codable, Hashable {
+public struct ViewModelId: Codable, Hashable, Sendable {
     private let id: String
     private let isRandom: Bool
     private let timestamp: TimeInterval

@@ -1,6 +1,6 @@
 // LocalizedArrayProperty.swift
 //
-// Created by David Hunt on 6/30/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -26,12 +26,14 @@ public extension ViewModel {
     typealias LocalizedStrings = _LocalizedArrayProperty<Self, LocalizableString>
 }
 
-@propertyWrapper public struct _LocalizedArrayProperty<Model, Value>: Codable, Stubbable where Model: ViewModel, Value: Localizable {
+@propertyWrapper public struct _LocalizedArrayProperty<Model, Value>: Codable, Sendable, Stubbable where Model: ViewModel, Value: Localizable {
     public var wrappedValue: LocalizableArray<Value>
     public var projectedValue: LocalizableArray<Value> { wrappedValue }
 
+    private typealias WrappedValueBinder = @Sendable (Model, String) -> LocalizableArray<Value>
+
     let localizationId: LocalizableId
-    private let bindWrappedValue: ((Model, String) -> LocalizableArray<Value>)?
+    private let bindWrappedValue: WrappedValueBinder?
 
     /// Initializes the ``LocalizedStrings`` property wrapper
     ///

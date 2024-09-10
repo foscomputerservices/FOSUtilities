@@ -1,6 +1,6 @@
 // JSONError.swift
 //
-// Created by David Hunt on 8/23/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -24,6 +24,9 @@ public enum JSONError: Error {
 
     /// An **EncodingError** was received while encoding the data
     case encodingError(error: EncodingError)
+
+    /// Unable to encode the data to UTF-8 format
+    case utf8EncodingError
 
     /// An unknown **Date** format was received during the decoding
     /// of JSON data
