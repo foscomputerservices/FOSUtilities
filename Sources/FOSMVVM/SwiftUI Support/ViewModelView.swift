@@ -97,11 +97,12 @@ public extension ViewModelView where VM: RequestableViewModel {
         if let viewModel = viewModel.wrappedValue {
             Self(viewModel: viewModel)
         } else {
+            let binding = viewModel
             MVVMEnvironmentView { mvvmEnv, locale in
                 mvvmEnv.loadingView()
                     .task {
                         do {
-                            viewModel.wrappedValue =
+                            binding.wrappedValue =
                                 try await mvvmEnv.serverBaseURL
                                     .appending(serverRequest: request)?
                                     .fetch(locale: locale)
