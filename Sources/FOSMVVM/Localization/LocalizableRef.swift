@@ -1,6 +1,6 @@
 // LocalizableRef.swift
 //
-// Created by David Hunt on 6/20/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -18,7 +18,7 @@
 import Foundation
 
 /// A reference to a value in the ``LocalizationStore``
-public indirect enum LocalizableRef: Hashable, Identifiable, CustomStringConvertible {
+public indirect enum LocalizableRef: Hashable, Identifiable, CustomStringConvertible, Sendable {
     /// Points to an `Any` value in the unified LocalizationStore
     ///
     /// The *key* is a '.' separated string that points to a location in the LocalizationStore

@@ -1,7 +1,7 @@
 // DateFormatter.swift
 //
-// Created by David Hunt on 2/7/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.

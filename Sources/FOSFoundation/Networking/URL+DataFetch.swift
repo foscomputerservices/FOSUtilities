@@ -1,7 +1,7 @@
 // URL+DataFetch.swift
 //
-// Created by David Hunt on 4/9/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ public extension URL {
     ///
     /// - Parameters:
     ///   - headers: Any extra HTTP headers that need to be sent with the request
+    ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
     ///
     /// - Note: The following headers are automatically sent to all requests:
     ///
@@ -33,9 +34,11 @@ public extension URL {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
-    func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
+    ///  | Accept-Language | <provided locale> |
+    /// - Returns: <#description#>
+    func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
-            .fetch(self, headers: headers)
+            .fetch(self, headers: headers, locale: locale)
     }
 
     /// Fetches the given data of type **ResultValue** from the given **URL**
@@ -51,9 +54,10 @@ public extension URL {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
-    func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    ///  | Accept-Language | <provided locale> |
+    func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
-            .fetch(self, headers: headers, errorType: errorType)
+            .fetch(self, headers: headers, locale: locale, errorType: errorType)
     }
 
     /// Sends **Data** to, and process the return of type **ResultValue** from, the given **URL**

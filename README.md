@@ -36,8 +36,6 @@ FOSFoundation is a library of protocols, patterns, types and routines that I hav
 For guides, articles, and API documentation see the 
 [library's documentation on the Web][docs] or in Xcode.
 
-- [Getting Started with FOS Foundation](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosfoundation/gettingstarted)
-
 ## FOSMVVM
 
 FOSMVVM is a library that implements the [Model-View-ViewModel](https://w.wiki/4T5B) pattern for binding SwiftUI projects
@@ -46,7 +44,7 @@ to [Vapor](https://docs.vapor.codes) web services.
 For guides, articles, and API documentation see the 
 [library's documentation on the Web][docs] or in Xcode.
 
-- [Getting Started with FOS MVVM](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosmvvm/gettingstarted)
+- [Getting Started with FOS MVVM](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosmvvm)
 
 ## FOSTesting
 
@@ -94,8 +92,8 @@ All contributions are welcome!  Please see [CONTRIBUTING.md](https://github.com/
 
 ## Maintainers
 
-This project is maintained by [David Hunt](https://www.linkedin.com/in/davidhun/) owner of [FOS Computer Services, LLC](https://www.linkedin.com/company/1856731).
+This project is maintained by [David Hunt](https://www.linkedin.com/in/davidhun/) owner of [FOS Computer Services, LLC](https://www.linkedin.com/company/fos-computer-services).
 
 ## License
 
-FOSUtilities is under the MIT License.  See the [LICENSE](https://github.com/foscomputerservices/FOSUtilities/blob/main/LICENSE) file for more information.
+FOSUtilities is under the Apache License.  See the [LICENSE](https://github.com/foscomputerservices/FOSUtilities/blob/main/LICENSE) file for more information.

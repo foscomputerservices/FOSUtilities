@@ -1,7 +1,7 @@
 // FoundationDataFetchTests.swift
 //
-// Created by David Hunt on 4/9/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,10 @@ import FOSFoundation
 import FOSTesting
 import Foundation
 import Testing
+
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @Suite("Foundation Data Fetch Test", .tags(.networking, .json))
 struct FoundationDataFetchTests {

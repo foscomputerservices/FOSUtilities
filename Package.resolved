@@ -1,12 +1,13 @@
 {
+  "originHash" : "57bce7479b38976f2f68e36644e522d87d13983ef6378ac27089fbecc25238dd",
   "pins" : [
     {
       "identity" : "async-http-client",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/async-http-client.git",
       "state" : {
-        "revision" : "e8babad8226b9b3f956a252d5b80e36b0c9d62a9",
-        "version" : "1.22.0"
+        "revision" : "11205411bb60612f0a1a04f733fa71b4fb864ab9",
+        "version" : "1.22.1"
       }
     },
     {
@@ -86,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-docc-plugin",
       "state" : {
-        "revision" : "2eb22993b3dfd0c0d32729b357c8dabb6cd44680",
-        "version" : "1.4.2"
+        "revision" : "85e4bb4e1cd62cec64a4b8e769dcefdf0c5b9d64",
+        "version" : "1.4.3"
       }
     },
     {
@@ -181,6 +182,15 @@
       }
     },
     {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "515f79b522918f83483068d99c68daeb5116342d",
+        "version" : "600.0.0-prerelease-2024-09-04"
+      }
+    },
+    {
       "identity" : "swift-system",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
@@ -190,12 +200,30 @@
       }
     },
     {
+      "identity" : "swift-testing",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-testing.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a0c8fc63787680ebfd0e9084a844a2cc9f0b9804"
+      }
+    },
+    {
+      "identity" : "swiftlintplugins",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SimplyDanny/SwiftLintPlugins",
+      "state" : {
+        "revision" : "7c80ce6f142164b0201871e580b021d1b2c69804",
+        "version" : "0.57.0"
+      }
+    },
+    {
       "identity" : "vapor",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/vapor/vapor.git",
       "state" : {
-        "revision" : "7aa836b77626bf07e71d5f50b9ad87cbe439ed81",
-        "version" : "4.105.0"
+        "revision" : "a4d7d4d32ef4a21dd10bc6375f4d20da3c5594e4",
+        "version" : "4.105.2"
       }
     },
     {
@@ -217,5 +245,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

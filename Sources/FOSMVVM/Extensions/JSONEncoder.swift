@@ -1,6 +1,6 @@
 // JSONEncoder.swift
 //
-// Created by David Hunt on 6/22/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -122,7 +122,7 @@ private final class ViewModelEncoder: JSONEncoder {
         let parentViewModel = userInfo[.currentViewModelKey]
         let parentPropertyNames = userInfo[.propertyNamesKey]
 
-        if let viewModel = value as? ViewModel {
+        if let viewModel = value as? (any ViewModel) {
             userInfo[.propertyNamesKey] = viewModel.propertyNames()
             userInfo[.currentViewModelKey] = viewModel
         }
@@ -227,6 +227,21 @@ extension KeyPath {
         return nil
     }
 }
+
+#if canImport(Vapor)
+import Vapor
+
+public extension Request {
+    var viewModelEncoder: JSONEncoder {
+        get throws {
+            try JSONEncoder.localizingEncoder(
+                locale: requireLocale(),
+                localizationStore: application.requireLocalizationStore()
+            )
+        }
+    }
+}
+#endif
 
 private extension CodingUserInfoKey {
     static var localeKey: CodingUserInfoKey {

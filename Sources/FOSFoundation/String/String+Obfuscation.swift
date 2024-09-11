@@ -1,6 +1,6 @@
 // String+Obfuscation.swift
 //
-// Created by David Hunt on 8/21/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -53,6 +53,6 @@ public extension String {
             return nil
         }
 
-        return String(decoding: data, as: UTF8.self).rot47()
+        return String(data: data, encoding: .utf8)?.rot47()
     }
 }

@@ -1,6 +1,6 @@
 // LocalizableSubstitutionsTests.swift
 //
-// Created by David Hunt on 6/23/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -17,6 +17,8 @@
 
 import FOSFoundation
 import FOSMVVM
+import FOSTesting
+import Foundation
 import Testing
 
 @Suite("Localizable Substitutions Tests")
@@ -163,6 +165,9 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
 
     let locStore: LocalizationStore
     init() async throws {
-        self.locStore = try await Self.loadLocalizationStore()
+        self.locStore = try await Self.loadLocalizationStore(
+            bundle: Bundle.module,
+            resourceDirectoryName: "TestYAML"
+        )
     }
 }

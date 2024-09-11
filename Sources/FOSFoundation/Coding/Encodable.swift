@@ -1,7 +1,7 @@
 // Encodable.swift
 //
-// Created by David Hunt on 4/11/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -34,10 +34,14 @@ public extension Encodable {
     ///   **String** (default: **JSONEncoder**.defaultEncoder)
     func toJSON(encoder: JSONEncoder? = nil) throws -> String {
         do {
-            return try String(
-                decoding: toJSONData(encoder: encoder),
-                as: UTF8.self
-            )
+            guard let result = try String(
+                data: toJSONData(encoder: encoder),
+                encoding: .utf8
+            ) else {
+                throw JSONError.utf8EncodingError
+            }
+
+            return result
         } catch let e {
             throw JSONError.jsonCodingError(e)
         }

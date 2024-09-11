@@ -1,7 +1,7 @@
 // ServerRequest.swift
 //
-// Created by David Hunt on 4/11/23
-// Copyright 2023 FOS Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,11 @@
 // limitations under the License.
 
 import Foundation
+
+#if !canImport(Vapor)
+public protocol Content {}
+public protocol AsyncResponseEncodable {}
+#endif
 
 /// Interact with web server resources over HTTP
 ///
@@ -45,7 +50,7 @@ import Foundation
 ///     }
 /// }
 /// ```
-public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable {
+public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable, Sendable {
     associatedtype Query: ServerRequestQuery
     associatedtype Fragment: ServerRequestFragment
     associatedtype RequestBody: ServerRequestBody
@@ -57,7 +62,9 @@ public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable {
     var query: Query? { get }
     var fragment: Fragment? { get }
     var requestBody: RequestBody? { get }
-    var responseBody: ResponseBody? { get set }
+    var responseBody: ResponseBody? { get }
+
+    init(query: Query?, fragment: Fragment?, requestBody: RequestBody?, responseBody: ResponseBody?)
 }
 
 public extension ServerRequest {
@@ -68,26 +75,61 @@ public extension ServerRequest {
     /// The default implementation uses ``path(for:)`` to generate a
     /// path based on Self.self.  This serves as the base URL for the request.
     ///
-    /// The ``RequestBody`` and ``ResponseBody`` are then used to
+    /// The ``ServerRequest/RequestBody`` and ``ServerRequest/ResponseBody`` are then used to
     /// extend the path using the ``subPath`` property  This guarantees a unique
     /// automatically generated path for every ``ServerRequest``
     /// implementation.
     static var path: String {
-        Self.path(for: Self.self)
-    }
-
-    /// Generates the *path* based on  **Request.Type**
-    static func path<Request: ServerRequest>(for request: Request.Type) -> String {
-        let basePath = String(describing: Request.self)
+        let basePath = String(describing: Self.self)
         let requestBodyPath = RequestBody.bodyPath.cleanBodyPath
         let responseBodyPath = ResponseBody.bodyPath.cleanBodyPath
 
         return basePath
             .cleanBasePath
-            .appending(requestBodyPath + "_" + responseBodyPath)
+            .appending(requestBodyPath + responseBodyPath)
             .snakeCased()
             .trimmingCharacters(in: .init(charactersIn: "_"))
     }
+}
+
+public extension URL {
+    func appending<Request: ServerRequest>(serverRequest: Request) throws -> URL? {
+        guard let extraPath = Request.path
+            .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) else {
+            return nil
+        }
+        let result = appendingPathComponent(extraPath)
+
+        if let queryItems = try queryItems(from: serverRequest) {
+            return result.appending(queryItems: queryItems)
+        } else {
+            return result
+        }
+    }
+
+    private func queryItems(from serverRequest: some ServerRequest) throws -> [URLQueryItem]? {
+        guard let query = serverRequest.query else {
+            return nil
+        }
+
+        return try [.init(name: "query", value: query.toJSON())]
+    }
+}
+
+public extension ServerRequest where Query == EmptyQuery {
+    var query: EmptyQuery { .init() }
+}
+
+public extension ServerRequest where Fragment == EmptyFragment {
+    var fragment: EmptyFragment { .init() }
+}
+
+public extension ServerRequest where RequestBody == EmptyBody {
+    var requestBody: EmptyBody { .init() }
+}
+
+public extension ServerRequest where ResponseBody == EmptyBody {
+    var responseBody: EmptyBody { .init() }
 }
 
 // MARK: Equatable
@@ -98,9 +140,10 @@ public func == <S: ServerRequest>(lhs: S, rhs: S) -> Bool {
 
 private extension String {
     var cleanBasePath: String {
-        // Reviewed - dgh - throw should not occur as we are parsing
+        // REVIEWED dgh: throw should not occur as we are parsing
         //      a constant string.  If the string is not parsable, it
         //      will be caught through testing.
+
         // swiftlint:disable:next force_try
         try! replacingOccurrences(of: "Request", with: "")
             .replacing(pattern: "<(.+)>", with: "$1")
@@ -111,7 +154,7 @@ private extension String {
     }
 
     var cleanBodyPath: String {
-        self == "empty_body" || self == "request_body"
+        isEmpty || self == "empty_body" || self == "request_body"
             ? ""
             : "_\(self)"
     }
@@ -169,7 +212,7 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
 }
 
 /// Data that will be encoded into the HTTP Query
-public protocol ServerRequestQuery: Codable {}
+public protocol ServerRequestQuery: Codable, Sendable, Content {}
 
 /// Represents an empty query
 ///
@@ -188,7 +231,7 @@ public struct EmptyQuery: ServerRequestQuery {
 }
 
 /// Represents data that will be encoded into the HTTP Fragment
-public protocol ServerRequestFragment: Codable {}
+public protocol ServerRequestFragment: Codable, Sendable, Content {}
 
 /// Represents an empty query
 ///
@@ -205,7 +248,7 @@ public protocol ServerRequestFragment: Codable {}
 public struct EmptyFragment: ServerRequestFragment {}
 
 /// Data that will be encoded into the HTTP request's body and/or response
-public protocol ServerRequestBody: Codable {
+public protocol ServerRequestBody: Codable, Sendable, AsyncResponseEncodable {
     /// Describes a sub-path that is used to request the body
     ///
     /// By default the type name of the ``ServerRequestBody`` is used
@@ -253,3 +296,51 @@ public struct EmptyBody: ServerRequestBody {
 
     public static var bodyPath: String { "" }
 }
+
+#if canImport(Vapor)
+import Vapor
+
+public extension ServerRequestBody where Self: ServerRequestBody {
+    // MARK: AsyncResponseEncodable Protocol
+
+    // NOTE: It is intentional NOT to use Vapor's standard Content
+    //   encoding as Vapor only allows setting the encoder
+    //   globally (https://docs.vapor.codes/basics/content/#global).
+    //   The encoder needs to take into account the request's
+    //   locale to localize the model during encoding, which
+    //   can only be done locally.
+    //
+    //   Also, Vapor's ContentEncoder protocol cannot be used
+    //   as it doesn't provide access to Vapor.Request during
+    //   encoding (https://docs.vapor.codes/basics/content/#content_1).
+    //
+    //   Additionally, the api version and other headers are
+    //   added to the Response.  This is all done in vaporResponse().
+    //
+    //   Thus, we use the AsyncResponseEncodable protocol.
+
+    func encodeResponse(for req: Request) async throws -> Response {
+        var headers = HTTPHeaders()
+
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
+        headers.replaceOrAdd(
+            name: .contentType,
+            value: "application/json; charset=utf-8"
+        )
+
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
+        // https://www.smashingmagazine.com/2017/11/understanding-vary-header/
+        headers.replaceOrAdd(name: .vary, value: "*")
+        headers.replaceOrAdd(name: .cacheControl, value: "no-store")
+
+        // try response.addApplicationVersion()
+
+        // NOTE: Use the *viewModelEncoder* to localize the response
+        return try .init(
+            status: .ok,
+            headers: headers,
+            body: .init(data: toJSONData(encoder: req.viewModelEncoder))
+        )
+    }
+}
+#endif

@@ -52,45 +52,15 @@ en:
 Each of the following examples accomplishes the same task, just with different supported mechanisms.
 
 
-## Preferred Example: ViewModel and Property Wrapper
+## ViewModel and Property Wrapper
 
 ```swift
 struct MyViewModel: ViewModel {
-   @I18nProperty("property") let property
+   @LocalizedString var property
 
    init() { }
 }
 ```
-
-### Alternative Example: Manual Binding
-
-``` swift
-struct MyViewModel {
-   let property: LocalizableString
-
-   init() {
-     self.property = .localized(.init(for: Self.self, propertyName: "property"))
-   }
-}
-```
-
-### Alternative Example: Property Field Wrapper
-
-```swift
-struct MyViewModel {
-   @I18nPropertyField<MyType, LocalizableString>("property") let property: LocalizableString
-
-   init() { }
-}
-```
-
-- NOTE: If the View-Model is a generic type, the final type will be stripped of its
-         generic substitution and only the base type name will
-         be used as the key name.  (i.e., `MyGenericViewModel<T>` will become `MyGenericViewModel`).
-         Please note that this means that localization using @I18nProperty **cannot** be bound based
-         on the Generic type substitution ('T').  If that is required, one of the other mechanisms must
-         be used.
-
 ### Nested Type Support
 
 In some situations View-Models contain nested types that need their properties bound.  The *parentType* parameter
@@ -130,9 +100,9 @@ A key discriminator expects a dictionary under the property name key in the YAML
 
 ```swift
 struct UserViewModel: ViewModel {
-     @I18nProperty("property", discriminatorKey: "shortTitle") let shortTitle
-     @I18nProperty("property", discriminatorKey: "longTitle") let longTitle
-     @I18nProperty("property", discriminatorKey: "display") let property
+     @LocalizedString("property", discriminatorKey: "shortTitle") var shortTitle
+     @LocalizedString("property", discriminatorKey: "longTitle") var longTitle
+     @LocalizedString("property", discriminatorKey: "display") var property
 }
 ```
 
@@ -153,9 +123,9 @@ An index discriminator expects an array under the property name key in the YAML.
 
 ```swift
 struct UserViewModel: ViewModel {
-     @I18nProperty("property", discriminatorIndex: 0) let shortTitle
-     @I18nProperty("property", discriminatorIndex: 1) let longTitle
-     @I18nProperty("property", discriminatorIndex: 2) let property
+     @LocalizedString("property", index: 0) var shortTitle
+     @LocalizedString("property", index: 1) var longTitle
+     @LocalizedString("property", index: 2) var property
 }
 ```
 

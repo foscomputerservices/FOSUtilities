@@ -1,6 +1,6 @@
 // YamlLocalizationStore.swift
 //
-// Created by David Hunt on 6/21/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -26,9 +26,46 @@ public enum YamlStoreError: Error {
     case typeError(reason: String)
     case yamlError(error: YamlError)
     case fileError(path: URL, error: any Error)
+    case fileDecodingError(path: URL)
+    case noPaths
+    case noLocalizationStore
+    case noLocaleFound
+
+    public var localizedDescription: String {
+        switch self {
+        case .typeError(let reason): reason
+        case .yamlError(let error): error.localizedDescription
+        case .fileError(let path, let error): "\(path) - \(error.localizedDescription)"
+        case .fileDecodingError(let path): "\(path) -- Unable to decode contents of file to UTF-8"
+        case .noPaths: "No YAML search paths were provided or the paths provided didn't match any real files or directories."
+        case .noLocalizationStore: "The LocalizationStore is missing from the Application.  Generally this means that Application.initYamlLocalization() was not called during application startup."
+        case .noLocaleFound: "No Locale could be inferred from the Request's acceptLanguage headers"
+        }
+    }
 }
 
 #if canImport(Vapor)
+public extension Request {
+    var locale: Locale? {
+        var result: Locale?
+
+        let accepts = headers[HTTPHeaders.Name.acceptLanguage]
+        for lang in accepts where result == nil {
+            result = Locale(identifier: lang)
+        }
+
+        return result
+    }
+
+    func requireLocale() throws -> Locale {
+        guard let locale else {
+            throw YamlStoreError.noLocaleFound
+        }
+
+        return locale
+    }
+}
+
 public extension Application {
     var localizationStore: LocalizationStore? {
         get {
@@ -37,6 +74,14 @@ public extension Application {
         set {
             storage[YamlLocalizationStore.self] = newValue
         }
+    }
+
+    func requireLocalizationStore() throws -> LocalizationStore {
+        guard let localizationStore else {
+            throw YamlStoreError.noLocalizationStore
+        }
+
+        return localizationStore
     }
 
     /// Initializes the YAML Localization services for the Vapor application
@@ -53,8 +98,8 @@ public extension Application {
     /// - Parameters:
     ///   - bundle: The application's resource bundle
     ///   - resourceDirectoryName: The name of the directory containing yml files
-    func initYamlLocalization(bundle: Bundle, resourceDirectoryName: String) {
-        let config = bundle.yamlStoreConfig(
+    func initYamlLocalization(bundle: Bundle, resourceDirectoryName: String) throws {
+        let config = try bundle.yamlStoreConfig(
             resourceDirectoryName: resourceDirectoryName
         )
         lifecycle.use(YamlLocalizationInitializer(config: config))
@@ -65,7 +110,7 @@ public extension Application {
 /// An extension on Bundle to allow initialization of the YamlStore
 public extension Bundle {
     func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
-        let config = yamlStoreConfig(
+        let config = try yamlStoreConfig(
             resourceDirectoryName: resourceDirectoryName
         )
 
@@ -80,26 +125,48 @@ struct YamlStoreConfig: Sendable { // Internal for testing
         try await YamlStore(config: self)
     }
 
-    init(searchPaths: some Collection<URL>) {
-        self.searchPaths = searchPaths.filter { $0.isFileURL && $0.hasDirectoryPath }
+    init(searchPaths: some Collection<URL>) throws {
+        guard !searchPaths.isEmpty else {
+            throw YamlStoreError.noPaths
+        }
+
+        self.searchPaths = searchPaths.filter {
+            $0.isFileURL && $0.hasDirectoryPath
+        }
+
+        guard !self.searchPaths.isEmpty else {
+            throw YamlStoreError.noPaths
+        }
     }
 }
 
 private extension Bundle {
-    func yamlStoreConfig(resourceDirectoryName: String) -> YamlStoreConfig {
-        .init(
+    func yamlStoreConfig(resourceDirectoryName: String) throws -> YamlStoreConfig {
+        try .init(
             searchPaths: yamlSearchPaths(
                 resourceDirectoryName: resourceDirectoryName
             )
         )
     }
 
-    func yamlSearchPaths(resourceDirectoryName: String) -> Set<URL> {
-        let paths = paths(forResourcesOfType: "yml", inDirectory: "TestYAML").map {
-            URL(fileURLWithPath: $0).deletingLastPathComponent()
+    func yamlSearchPaths(resourceDirectoryName: String) throws -> Set<URL> {
+        let resourceURLs = [
+            /* Packages */ bundleURL
+                .appending(path: "Contents/Resources")
+                .appending(path: resourceDirectoryName),
+            /* xcodeproj */ bundleURL
+                .appending(path: resourceDirectoryName)
+        ]
+
+        var result = Set<URL>()
+        for resourceURL in resourceURLs {
+            for file in resourceURL.findFiles(withExtension: "yml") {
+                let url = file.deletingLastPathComponent()
+                result.insert(url.absoluteURL)
+            }
         }
 
-        return Set(paths)
+        return result
     }
 }
 
@@ -184,15 +251,23 @@ private extension YamlStore {
     static func loadFlattenedYAML(config: YamlStoreConfig) throws -> [String: [String: YamlValue]] {
         var result: [String: [String: YamlValue]] = [:]
 
+        guard !config.searchPaths.isEmpty else {
+            throw YamlStoreError.noPaths
+        }
+
         for searchPath in config.searchPaths {
             let filePaths = searchPath.findFiles(withExtension: "yml")
 
             for filePath in filePaths {
                 do {
-                    let fileData = try String(
-                        decoding: Data(contentsOf: filePath),
-                        as: UTF8.self
-                    )
+                    guard let fileData = try String(
+                        data: Data(contentsOf: filePath),
+                        encoding: .utf8
+                    ) else {
+                        throw YamlStoreError.fileDecodingError(
+                            path: filePath
+                        )
+                    }
 
                     if let nextResult = try Yams.load(yaml: fileData) as? [String: Any] {
                         try nextResult.loadYaml(into: &result)

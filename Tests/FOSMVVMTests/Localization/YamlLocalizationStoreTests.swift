@@ -1,6 +1,6 @@
 // YamlLocalizationStoreTests.swift
 //
-// Created by David Hunt on 6/21/24
+// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -17,15 +17,19 @@
 
 import FOSFoundation
 @testable import FOSMVVM
+import FOSTesting
 import Foundation
 import Testing
 
 @Suite("YAML Localization Store Tests")
 struct YamlLocalizationStoreTests: LocalizableTestCase {
+    #warning("Restore test on Linux after 6.0 compiler is released")
+    #if !os(Linux) // -- Swift 6.0 beta - Linux swift compiler crashes on this
     @Test func testKeyExists() {
         #expect(locStore.keyExists("test", locale: en))
         #expect(locStore.keyExists("test", locale: es))
     }
+    #endif
 
     @Test func testTranslate() {
         #expect(locStore.t("test", locale: en) == "Test")
@@ -81,6 +85,9 @@ struct YamlLocalizationStoreTests: LocalizableTestCase {
 
     let locStore: LocalizationStore
     init() async throws {
-        self.locStore = try await Self.loadLocalizationStore()
+        self.locStore = try await Self.loadLocalizationStore(
+            bundle: Bundle.module,
+            resourceDirectoryName: "TestYAML"
+        )
     }
 }
