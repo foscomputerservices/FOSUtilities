@@ -1,5 +1,5 @@
 {
-  "originHash" : "57bce7479b38976f2f68e36644e522d87d13983ef6378ac27089fbecc25238dd",
+  "originHash" : "7797125224cf79267a9df9293b6b70a08480e938599820addc7d497a55bee4b3",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -205,7 +205,7 @@
       "location" : "https://github.com/swiftlang/swift-testing.git",
       "state" : {
         "branch" : "main",
-        "revision" : "a0c8fc63787680ebfd0e9084a844a2cc9f0b9804"
+        "revision" : "9548fa2842697400ed77efae5c7c16482a8f94f1"
       }
     },
     {
