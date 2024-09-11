@@ -63,6 +63,11 @@ struct YamlLocalizationStoreTests: LocalizableTestCase {
         #expect(locStore.t("carHood", locale: enGB) == "Bonnet")
     }
 
+    @Test func testFallbackTranslation() {
+        #expect(locStore.t("test", locale: enGB) == "Test")
+        #expect(locStore.t("test", locale: Locale(identifier: "en_gb")) == "Test")
+    }
+
     @Test func testCaseSensitiveKeyTranslation() {
         #expect(locStore.t("carHood", locale: enUS) == "Hood")
         #expect(locStore.t("carhood", locale: enUS) == nil)

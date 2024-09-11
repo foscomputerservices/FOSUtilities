@@ -306,6 +306,7 @@ private extension YamlStore {
     }
 
     private func polyfillLanguage(_ key: String, locale: String) -> Any? {
+        let locale = locale.replacingOccurrences(of: "_", with: "-")
         let localeComps = locale.split(separator: "-")
         let baseLocale = localeComps.first?.lowercased() ?? "n/a"
         return yamlTree[baseLocale]?[key]?.value
