@@ -105,7 +105,7 @@ public extension ViewModelView where VM: RequestableViewModel {
                                 try await mvvmEnv.serverBaseURL
                                     .appending(serverRequest: request)?
                                     .fetch(locale: locale)
-                        } catch let e {
+                        } catch { // let e {
                             // TODO: Error handling
                             // Probably want to handle errors out-of-band.
                             // That is, no need to put an error view here,

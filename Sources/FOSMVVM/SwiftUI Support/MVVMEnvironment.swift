@@ -45,7 +45,7 @@ import SwiftUI
 ///  }
 /// ```
 @Observable
-public final class MVVMEnvironment {
+public final class MVVMEnvironment: Sendable {
     /// The URL of the web service
     public let serverBaseURL: URL
 
@@ -53,9 +53,9 @@ public final class MVVMEnvironment {
     /// from the web service
     ///
     /// > Note: A non-localized "Loading..." is presented if no view is provided
-    public let loadingView: () -> AnyView
+    public let loadingView: @Sendable () -> AnyView
 
-    public init(serverBaseURL: URL, loadingView: (() -> AnyView)? = nil) {
+    public init(serverBaseURL: URL, loadingView: (@Sendable () -> AnyView)? = nil) {
         self.serverBaseURL = serverBaseURL
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
     }

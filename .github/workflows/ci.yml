@@ -47,8 +47,8 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        ios_platform: ["ios", "watchos", "tvos"] # , "visionos"]
-        xcode_version: ["15.0"]
+        ios_platform: ["ios", "watchos", "tvos", "visionos"]
+        xcode_version: ["16.0"]
 
     steps:
       # - uses: maxim-lobanov/setup-xcode@v1
