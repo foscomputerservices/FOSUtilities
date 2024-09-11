@@ -45,7 +45,7 @@ let package = Package(
         .target(
             name: "FOSFoundation",
             dependencies: [
-              .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))  
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))
             ],
             swiftSettings: [
             ],
