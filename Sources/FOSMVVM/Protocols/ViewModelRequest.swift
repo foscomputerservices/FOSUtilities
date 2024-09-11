@@ -52,10 +52,7 @@
 ///   }
 /// }
 /// ```
-public protocol ViewModelRequest: ServerRequest where ResponseBody: RequestableViewModel {
-    typealias Fragment = EmptyFragment
-    typealias RequestBody = EmptyBody
-}
+public protocol ViewModelRequest: ServerRequest where ResponseBody: RequestableViewModel, Fragment == EmptyFragment, RequestBody == EmptyBody {}
 
 public extension ViewModelRequest {
     var action: ServerRequestAction {

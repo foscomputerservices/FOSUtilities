@@ -33,6 +33,6 @@
 /// ```
 public protocol RequestableViewModel: ViewModel {
     /// The ``ViewModelRequest`` that will be used to request
-    /// instances of ``ViewModel`` from the web servcie
+    /// instances of ``ViewModel`` from the web service
     associatedtype Request: ViewModelRequest
 }

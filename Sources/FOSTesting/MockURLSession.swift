@@ -17,6 +17,9 @@
 
 import FOSFoundation
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// An implementation of **URLSessionProtocol** used for testing
 ///

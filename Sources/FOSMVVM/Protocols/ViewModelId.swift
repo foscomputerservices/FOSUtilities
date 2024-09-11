@@ -18,7 +18,7 @@
 import FOSFoundation
 import Foundation
 
-public struct ViewModelId: Codable, Hashable, Sendable {
+public struct ViewModelId: Codable, Hashable, Comparable, Sendable {
     private let id: String
     private let isRandom: Bool
     private let timestamp: TimeInterval
@@ -27,10 +27,14 @@ public struct ViewModelId: Codable, Hashable, Sendable {
         .init(parent: self, childId: name)
     }
 
-    public init() {
-        self.id = String.unique()
-        self.isRandom = true
+    public init(id: String? = nil) {
+        self.id = id ?? String.unique()
+        self.isRandom = id == nil
         self.timestamp = Date().timeIntervalSince1970
+    }
+
+    public init(id: Int) {
+        self.init(id: "\(id)")
     }
 
     // MARK: Codable Protocol
@@ -64,6 +68,12 @@ public struct ViewModelId: Codable, Hashable, Sendable {
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.id == rhs.id && lhs.timestamp == rhs.timestamp
+    }
+
+    // MARK: Comparable
+
+    public static func < (lhs: Self, rhs: Self) -> Bool {
+        lhs.timestamp < rhs.timestamp
     }
 }
 

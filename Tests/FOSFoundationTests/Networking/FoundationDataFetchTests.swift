@@ -20,6 +20,10 @@ import FOSTesting
 import Foundation
 import Testing
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 @Suite("Foundation Data Fetch Test", .tags(.networking, .json))
 struct FoundationDataFetchTests {
     // MARK: Fetch

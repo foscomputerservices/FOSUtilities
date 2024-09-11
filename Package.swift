@@ -34,6 +34,7 @@ let package = Package(
         // 🍎 frameworks
         .package(url: "https://github.com/swiftlang/swift-testing.git", branch: "main"),
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.3.0")),
 
         // Third 🥳 frameworks
         .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.102.0")),
@@ -43,6 +44,9 @@ let package = Package(
     targets: [
         .target(
             name: "FOSFoundation",
+            dependencies: [
+              .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))  
+            ],
             swiftSettings: [
             ],
             plugins: plugins
