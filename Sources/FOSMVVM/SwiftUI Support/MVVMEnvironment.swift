@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 9/9/24
+// Created by David Hunt on 9/11/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -44,8 +44,8 @@ import SwiftUI
 ///      }
 ///  }
 /// ```
-@Observable @MainActor
-public final class MVVMEnvironment: Sendable {
+@Observable
+public final class MVVMEnvironment {
     /// The base URL of the web service
     public let serverBaseURL: URL
 
@@ -56,15 +56,15 @@ public final class MVVMEnvironment: Sendable {
     /// from the web service
     ///
     /// > Note: A non-localized "Loading..." is presented if no view is provided
-    public let loadingView: @Sendable () -> AnyView
-    
+    public let loadingView: () -> AnyView
+
     /// Initializes the ``MMVEnvironment``
     ///
     /// - Parameters:
     ///   - serverBaseURL: The base URL of the web service used to retrieve ``ViewModel``s
     ///   - imagesBaseURL: The base URL of the web service used to retrieve images (default: ``serverBaseURL``)
     ///   - loadingView: <#loadingView description#>
-    public init(serverBaseURL: URL, imagesBaseURL: URL? = nil, loadingView: (@Sendable () -> AnyView)? = nil) {
+    public init(serverBaseURL: URL, imagesBaseURL: URL? = nil, loadingView: (() -> AnyView)? = nil) {
         self.serverBaseURL = serverBaseURL
         self.imagesBaseURL = imagesBaseURL ?? serverBaseURL
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
