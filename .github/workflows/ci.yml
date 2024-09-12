@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest] # , ubuntu-latest, windows-latest] -- Restore when Swift 6.0 is available
+        os: [macos-latest, ubuntu-latest] #, windows-latest] -- Restore when Swift 6.0 is available
         swift: ["6.0"]
       fail-fast: false
     steps:
@@ -20,10 +20,11 @@ jobs:
           development: true
           swift-version: 'https://download.swift.org/development/xcode/swift-DEVELOPMENT-SNAPSHOT-2024-09-06-a/swift-DEVELOPMENT-SNAPSHOT-2024-09-06-a-osx.pkg'
 
-      - uses: swift-actions/setup-swift@v1
+      - uses: SwiftyLab/setup-swift@latest
         if: ${{ matrix.os == 'ubuntu-latest' }}
         with:
-          swift-version: '5.9'
+          development: true
+          swift-version: 'https://download.swift.org/swift-6.0-branch/ubuntu2204/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a/swift-6.0-DEVELOPMENT-SNAPSHOT-2024-08-22-a-ubuntu22.04.tar.gz'
 
       - uses: compnerd/gha-setup-swift@main
         if: ${{ matrix.os == 'windows-latest' }}
@@ -32,6 +33,9 @@ jobs:
           tag: 5.10-RELEASE
 
       - uses: actions/checkout@v2
+
+      - name: Get swift version
+        run: swift --version
 
       - name: Run Tests
         if: ${{ matrix.os == 'macos-latest' }}
