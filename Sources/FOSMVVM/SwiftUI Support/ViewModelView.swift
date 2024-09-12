@@ -52,6 +52,35 @@ public protocol ViewModelView: View {
     init(viewModel: VM)
 }
 
+/// A host to store a ``ViewModel``
+///
+/// ``VMHost`` is used by SwiftUI Views to bind a child view to a ``ViewModel``
+/// that is to be retrieved from the web service.
+///
+/// ## Example
+///
+/// ```swift
+/// struct ParentView: View {
+///   @State var host = VMHost<MyViewModel>()
+///
+///   var body: some View {
+///     MyView.bind(
+///        host: host,
+///        using: MyViewModelRequest()
+///     )
+///   }
+/// }
+/// ```
+@Observable
+public final class VMHost<VM: ViewModel> {
+    /// The ``ViewModel`` that has been retrieved from the web service
+    public fileprivate(set) var viewModel: VM?
+
+    public init() {
+        self.viewModel = nil
+    }
+}
+
 public extension ViewModelView where VM: RequestableViewModel {
     /// Retrieves a ``RequestableViewModel`` from the web service and binds it to the
     /// [View](https://developer.apple.com/documentation/swiftui/view)
@@ -72,11 +101,11 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// }
     ///
     /// struct ParentView: View {
-    ///   @State var viewModel: MyViewModel
+    ///   @State var host = VMHost<MyViewModel>()
     ///
     ///   var body: some View {
     ///     MyView.bind(
-    ///        viewModel: $viewModel,
+    ///        host: host,
     ///        using: MyViewModelRequest()
     ///     )
     ///   }
@@ -84,8 +113,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// ```
     ///
     /// - Parameters:
-    ///   - viewModel: A [Binding](https://developer.apple.com/documentation/swiftui/binding)
-    ///     used to store the retrieved ``ViewModel``
+    ///   - host: A ``VMHost`` used to store the retrieved ``ViewModel``
     ///   - request: A ``ViewModelRequest`` to specify information regarding the
     ///     required ``ViewModel`` instance
     ///
@@ -93,8 +121,13 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: Binding<VM.Request.ResponseBody?>, using request: VM.Request) -> some View where VM.Request.ResponseBody == Self.VM {
-        if let viewModel = viewModel.wrappedValue {
+    @ViewBuilder static func bind(host: VMHost<VM.Request.ResponseBody>, using request: VM.Request) -> some View where VM.Request.ResponseBody == Self.VM {
+
+        // NOTE: I previously tried to use Binding<VM.Request.ResponseBody?>
+        //       however the Swift 6.1 compiler did not like that Binding<>
+        //       wasn't sendable and I couldn't access it in the task {}.
+
+        if let viewModel = host.viewModel {
             Self(viewModel: viewModel)
         } else {
             MVVMEnvironmentView { mvvmEnv, locale in
@@ -102,7 +135,7 @@ public extension ViewModelView where VM: RequestableViewModel {
                 return mvvmEnv.loadingView()
                     .task {
                         do {
-                            viewModel.wrappedValue =
+                            host.viewModel =
                                 try await serverBaseURL
                                     .appending(serverRequest: request)?
                                     .fetch(locale: locale)

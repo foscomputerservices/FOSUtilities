@@ -91,11 +91,11 @@ To request the ``ViewModel`` we add the view to a view that hosts the ``ViewMode
 
 ```swift
 struct HostView: View {
-    @State var viewModel: LandingPageViewModel?
+    @State var host = VMHost<LandingPageViewModel>()
 
     var body: some View {
         LandingPageView.bind(
-            viewModel: $viewModel,
+            host: host,
             using: LandingPageRequest()
         )
     }
@@ -113,12 +113,12 @@ To configure ``FOSMVVM``, attach an ``MVVMEnvironment`` instance to the environm
 ```swift
 @main
 struct MyApp: App {
-    @State var viewModel: LandingPageViewModel?
+    @State var host = VMHost<LandingPageViewModel>()
 
     var body: some Scene {
         WindowGroup {
             LandingPageView.bind(
-                viewModel: $viewModel,
+                host: host,
                 using: LandingPageRequest()
             )
         }
