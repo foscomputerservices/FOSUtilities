@@ -23,8 +23,8 @@ import Testing
 @Suite("Deployment Tests")
 struct DeploymentTests {
     @Test func overriddenCurrent() async {
-        await Deployment.overrideDeployment(to: .release)
-        #expect(await Deployment.current == .release)
+        await Deployment.overrideDeployment(to: .production)
+        #expect(await Deployment.current == .production)
     }
 
     @Test func defaultCurrent() async {
@@ -32,7 +32,7 @@ struct DeploymentTests {
     }
 
     @Test(arguments: [
-        (deployment: Deployment.release, id: "release"),
+        (deployment: Deployment.production, id: "production"),
         (deployment: Deployment.staging, id: "staging"),
         (deployment: Deployment.debug, id: "debug"),
         (deployment: Deployment.custom(name: "_custom"), id: "_custom")
@@ -42,7 +42,7 @@ struct DeploymentTests {
     }
 
     @Test(arguments: [
-        (deployment: Deployment.release, env: "release"),
+        (deployment: Deployment.production, env: "production"),
         // Checks that an empty string doesn't use .custom(name: "")
         (deployment: Deployment.debug, env: ""),
         (deployment: Deployment.staging, env: "staging"),
@@ -54,7 +54,7 @@ struct DeploymentTests {
     }
 
     @Test(arguments: [
-        Deployment.release,
+        Deployment.production,
         .staging,
         .debug,
         .custom(name: "_custom")
