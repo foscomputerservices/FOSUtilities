@@ -32,7 +32,7 @@ import Foundation
 /// ```swift
 /// static func baseURL() async {
 ///   switch await Deployment.current {
-///   case .release: return "https://production.webservice"
+///   case .production: return "https://production.webservice"
 ///   case .staging: return "https://staging.webservice"
 ///   case .debug: return "http://localhost:8080"
 ///   case .custom(let name): return "https://\(name).webservice"
@@ -42,10 +42,10 @@ import Foundation
 public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringConvertible, CustomDebugStringConvertible {
     /// The deployment configuration for a production release
     ///
-    /// The **release** deployment indicates that the application is configured for end-user
+    /// The **production** deployment indicates that the application is configured for end-user
     /// access.  Client applications will connect to the production
     /// web service and server applications will connect to the production database.
-    case release
+    case production
 
     /// The deployment configuration for a staging release
     ///
@@ -139,7 +139,7 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
     /// The stable identity of the deployment configuration
     public var id: String {
         switch self {
-        case .release: "release"
+        case .production: "production"
         case .staging: "staging"
         case .debug: "debug"
         case .custom(let name): name
@@ -153,8 +153,8 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
 
     fileprivate init(string: String) {
         switch string {
-        case "release":
-            self = .release
+        case "production":
+            self = .production
         case "staging":
             self = .staging
         case "debug":

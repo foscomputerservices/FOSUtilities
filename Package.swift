@@ -97,9 +97,6 @@ let package = Package(
 
 let swiftSettings: [SwiftSetting] = [
     .unsafeFlags([
-        "-warn-concurrency",
-        "-enable-actor-data-race-checks",
-        "-strict-concurrency=complete"
     ])
 ]
 
