@@ -47,8 +47,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))
             ],
-            swiftSettings: [
-            ],
+            swiftSettings: swiftSettings,
             plugins: plugins
         ),
         .target(
@@ -58,8 +57,7 @@ let package = Package(
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
             ],
-            swiftSettings: [
-            ],
+            swiftSettings: swiftSettings,
             plugins: plugins
         ),
         .target(
@@ -68,7 +66,8 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
                 .product(name: "Testing", package: "swift-testing")
-            ]
+            ],
+            swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "FOSFoundationTests",
@@ -76,7 +75,8 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSTesting"),
                 .product(name: "Testing", package: "swift-testing")
-            ]
+            ],
+            swiftSettings: swiftSettings
         ),
         .testTarget(
             name: "FOSMVVMTests",
@@ -89,10 +89,19 @@ let package = Package(
             ],
             resources: [
                 .copy("TestYAML")
-            ]
+            ],
+            swiftSettings: swiftSettings
         )
     ]
 )
+
+let swiftSettings: [SwiftSetting] = [
+    .unsafeFlags([
+        "-warn-concurrency",
+        "-enable-actor-data-race-checks",
+        "-strict-concurrency=complete"
+    ])
+]
 
 #if os(macOS)
 let plugins: [PackageDescription.Target.PluginUsage]? = [
