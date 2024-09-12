@@ -100,7 +100,7 @@ public extension ViewModelView where VM: RequestableViewModel {
             MVVMEnvironmentView { mvvmEnv, locale in
                 let serverBaseURL = mvvmEnv.serverBaseURL
                 return mvvmEnv.loadingView()
-                    .task { @MainActor in
+                    .task {
                         do {
                             viewModel.wrappedValue =
                                 try await serverBaseURL
