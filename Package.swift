@@ -96,6 +96,10 @@ let package = Package(
 )
 
 let swiftSettings: [SwiftSetting] = [
+    .unsafeFlags([
+        "-Xswiftc -swift-version",
+        "-Xswiftc 6"
+    ])
 ]
 
 #if os(macOS)

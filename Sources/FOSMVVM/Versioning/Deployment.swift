@@ -146,6 +146,14 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
         }
     }
 
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+
     // MARK: CustomDebugStringConvertible, CustomDebugStringConvertible
 
     public var description: String { id }

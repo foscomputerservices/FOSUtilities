@@ -35,7 +35,7 @@ jobs:
 
       - name: Run Tests
         if: ${{ matrix.os == 'macos-latest' }}
-        run: swift test -Xswiftc -swift-version -Xswiftc "6"
+        run: swift test
 
       - name: Run Build
         if: ${{ matrix.os != 'macos-latest' }}

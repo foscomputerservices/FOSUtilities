@@ -50,7 +50,7 @@ struct DeploymentTests {
         (deployment: Deployment.custom(name: "_custom"), env: "_custom")
     ]) func testEnvUpdate(tuple: (deployment: Deployment, env: String)) async {
         setenv(Deployment.envKey, tuple.env, 1)
-        #expect(await Deployment.current == tuple.deployment)
+        #expect(await Deployment.current.id == tuple.deployment.id)
     }
 
     @Test(arguments: [
