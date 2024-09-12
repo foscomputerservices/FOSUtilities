@@ -96,8 +96,6 @@ let package = Package(
 )
 
 let swiftSettings: [SwiftSetting] = [
-    .unsafeFlags([
-    ])
 ]
 
 #if os(macOS)
