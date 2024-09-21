@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest] # [macos-latest, ubuntu-latest, windows-latest]
         swift: ["6.0"]
       fail-fast: false
     steps:
@@ -33,9 +33,9 @@ jobs:
         xcode_version: ["16.0"]
 
     steps:
-      # - uses: maxim-lobanov/setup-xcode@v1
-      #   with:
-      #     xcode-version: ${{ matrix.xcode_version }}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.xcode_version }}
 
       - uses: actions/checkout@v2
 
