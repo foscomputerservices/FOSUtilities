@@ -71,6 +71,7 @@ final class AsyncSemaphoreTests {
         }
 
         maxCount += 1
-        sleep(1)
+        // 1 seconds
+        try! await Task.sleep(nanoseconds: UInt64(1000000000))
     }
 }

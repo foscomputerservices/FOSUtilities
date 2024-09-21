@@ -16,5 +16,5 @@ trap cleanup SIGINT
 
 sudo -v -B
 ./toggle-sudo.sh -a
-act -j run_tests --container-architecture linux/amd64 -P macos-latest=-self-hosted --verbose
+act -j run_tests --container-architecture linux/amd64 -P macos-latest=-self-hosted # --verbose
 cleanup
