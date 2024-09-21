@@ -1,8 +1,15 @@
-# Getting Started With YAML and Localization
+# Getting Started With Localization
 
-Organize localized strings in YAML files.
+Patterns and APIs to streamline cross-platform application localization.
 
 ## Overview
+
+When writing applications that exclusively use Apple's APIs, [Apple provides Localization APIs](https://developer.apple.com/localization/) that work very well and should be considered as opposed to these APIs.  ``FOSFoundation``'s Localization APIs should be considered for applications that have any of the following criteria:
+
+- Require (or desire) localization to be performed on the server instead of the client application
+- Swift applications that will run on non-Apple platforms or a combination of Apple and non-Apple platforms (e.g., [WASM Applications](https://swiftwasm.org/), [Vapor Leaf](https://docs.vapor.codes/leaf/getting-started/), [Ignite](https://github.com/twostraws/Ignite), [Skip.tools](https://skip.tools), [Tokamak](https://github.com/TokamakUI/Tokamak), etc.)
+
+## YAML
 
 The default Localization model uses [YAML](https://yaml.org/) files to store the localized strings.
 YAML provides a very rich set of primitives for organizing data.  The ``LocalizableRef`` enum
@@ -35,24 +42,17 @@ en-gb:
     carFrontCover: 'Bonnet'
 ```
 
-## View-Model Property Binding
+## ViewModel Property Binding
 
-`LocalizableRef` has direct support for binding between a View-Model's property and its YAML value
+``LocalizableRef`` has direct support for binding between a ``ViewModel``'s property and its YAML value
 
-To use this mechanism, the top key under the Locale key must correspond exactly to the Swift type of the View-Model.
-
-For the following examples, we will use the following YAML:
-
-```yaml
-en:
-  MyViewModel:
-    property: "This is the localized string!"
-```
-
-Each of the following examples accomplishes the same task, just with different supported mechanisms.
-
+To use this mechanism, the top key under the Locale key must correspond exactly to the Swift type of the ``ViewModel``.
 
 ## ViewModel and Property Wrapper
+
+To simplify ``ViewModel`` specification, property wrappers have been provided for standardized mappings and patterns.
+
+### Simple String Support
 
 ```swift
 struct MyViewModel: ViewModel {
@@ -61,10 +61,19 @@ struct MyViewModel: ViewModel {
    init() { }
 }
 ```
+
+```yaml
+  en:
+    MyViewModel:
+      property: "My Property"
+```
+
+> Note: It is suggested that the file containing the Yaml be the same as the file of the ``ViewModel``, but with the .yml suffix.  Thus, in this example there would be a file *MyViewModel.swift* and a file *MyViewModel.yml*.
+
 ### Nested Type Support
 
-In some situations View-Models contain nested types that need their properties bound.  The *parentType* parameter
-provides support for these situations.  Consider the following View-Model:
+In some situations ``ViewModel``s contain nested types that need their properties bound.  The *parentType* parameter
+provides support for these situations.  Consider the following ``ViewModel``:
 
 ```swift
 struct ParentViewModel: ViewModel {

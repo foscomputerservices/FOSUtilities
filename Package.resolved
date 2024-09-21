@@ -1,13 +1,13 @@
 {
-  "originHash" : "7797125224cf79267a9df9293b6b70a08480e938599820addc7d497a55bee4b3",
+  "originHash" : "f6a2203394bc8052f2b63c5906b8d7e97c215f3c897c6975e0cb296bab70f493",
   "pins" : [
     {
       "identity" : "async-http-client",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-server/async-http-client.git",
       "state" : {
-        "revision" : "11205411bb60612f0a1a04f733fa71b4fb864ab9",
-        "version" : "1.22.1"
+        "revision" : "6df8e1c17e68f0f93de2443b8c8cafca9ddcc89a",
+        "version" : "1.22.2"
       }
     },
     {
@@ -78,8 +78,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-crypto.git",
       "state" : {
-        "revision" : "9f95b4d033a4edd3814b48608db3f2ca90c7218b",
-        "version" : "3.7.0"
+        "revision" : "81bee98e706aee68d39ed5996db069ef2b313d62",
+        "version" : "3.7.1"
       }
     },
     {
@@ -186,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
-        "revision" : "515f79b522918f83483068d99c68daeb5116342d",
-        "version" : "600.0.0-prerelease-2024-09-04"
+        "revision" : "cb53fa1bd3219b0b23ded7dfdd3b2baff266fd25",
+        "version" : "600.0.0"
       }
     },
     {
@@ -205,7 +205,7 @@
       "location" : "https://github.com/swiftlang/swift-testing.git",
       "state" : {
         "branch" : "main",
-        "revision" : "9548fa2842697400ed77efae5c7c16482a8f94f1"
+        "revision" : "9d1bb5f574952f8388a4bccd0b07bb5fdaf197fa"
       }
     },
     {

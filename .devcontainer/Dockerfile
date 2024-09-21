@@ -1,5 +1,5 @@
-ARG VARIANT=nightly-6.0-jammy
-FROM swiftlang/swift:${VARIANT}
+ARG VARIANT=6.0.0-noble
+FROM swift:${VARIANT}
 
 # [Option] Install zsh
 ARG INSTALL_ZSH="true"

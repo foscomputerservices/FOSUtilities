@@ -64,7 +64,7 @@ struct LandingPageView: ViewModelView {
 
 SwiftUI views that are based on ``ViewModel``s should inherit from ``ViewModelView`` as opposed to [View](https://developer.apple.com/documentation/swiftui/view) directly.  This will provide support for requesting the view model from the server in the view that hosts this view.
 
-We can also easily preview our view by using the ``Stubbable`` protocol to give a stub implementation of our ``ViewModel``.
+We can also easily preview our view by using the **Stubbable** protocol to give a stub implementation of our ``ViewModel``.
 
 ### ViewRequests
 
@@ -83,7 +83,7 @@ public final class LandingPageRequest: ViewModelRequest {
 }
 ```
 
-In this simplified example, no query is communicated to the server as the landing page is unique on its own.  The only item that is specified is that of the **responseBody**, which will be the ``ViewModel`` returned by the server.
+In this simplified example, no query is communicated to the server as the landing page is unique on its own.  The only item that is specified is that of the **responseBody**, which will be the ``ViewModel`` returned by the server.  (The ``ViewModel`` will be constructed via ``ViewModelFactory``.)
 
 #### SwiftUI Usage
 
@@ -95,41 +95,13 @@ struct HostView: View {
 
     var body: some View {
         LandingPageView.bind(
-            viewModel: $viewModel,
-            using: LandingPageRequest()
+            viewModel: $viewModel
         )
     }
 }
 ```
 
 Our ``ViewModel`` is now hosted in **HostView** and the model will automatically be requested when **HostView** requires it.
-
-### SwiftUI Application Initialization
-
-The only remaining piece is to tell ``FOSMVVM`` information about where our server is located.  This should be done at the top of the SwiftUI view hierarchy; generally in the SwiftUI [App](https://developer.apple.com/documentation/swiftui/app).
-
-To configure ``FOSMVVM``, attach an ``MVVMEnvironment`` instance to the environment as follows: 
-
-```swift
-@main
-struct MyApp: App {
-    @State var viewModel: LandingPageViewModel?
-
-    var body: some Scene {
-        WindowGroup {
-            LandingPageView.bind(
-                viewModel: $viewModel,
-                using: LandingPageRequest()
-            )
-        }
-        .environment(
-            MVVMEnvironment(
-                serverBaseURL: URL(string: "http://localhost:8080")!
-            )
-        )
-    }
-}
-```
 
 ### Creating ViewModel Instances
 
