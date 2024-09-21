@@ -6,7 +6,7 @@
 		"dockerfile": "Dockerfile",
 		"args": {
 			// Update the VARIANT arg to pick a Swift version 
-			"VARIANT": "nightly-6.0-jammy",
+			"VARIANT": "6.0-noble",
 			// Options
 			"NODE_VERSION": "none",
 			"UPGRADE_PACKAGES": "true"
