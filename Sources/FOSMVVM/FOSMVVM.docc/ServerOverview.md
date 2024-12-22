@@ -18,6 +18,30 @@ app.initYamlLocalization(
 )
 ```
 
+
+#### Initialize the Server Version
+
+The version of the server should be set by adding the following code to your application's initialization routine.  As the version is updated, make sure to update the values.
+
+```swift
+SystemVersion.setCurrentVersion(.currentApplicationVersion)
+
+// This setting makes the server *fully* backwards compatible, but
+// can be moved forward as older versions are no longer supported. 
+SystemVersion.setMinimumSupportedVersion(.vInitial)
+```
+
+> NOTE: It is suggested that your client application and server application have a shared location to store the current version.  This could be accomplished with a global variable in a library that is shared between the applications and also the tests.
+>
+> ```swift
+> public extension SystemVersion {
+>     public static var currentApplicationVersion: Self { .init(
+>       major: 1,
+>       minor: 2,
+>       patch: 3
+>     ) }
+> ```
+
 #### Initializing Routes
 
 For each ``ViewModel``, an entry needs to be added to the servers [Routing](https://docs.vapor.codes/basics/routing/):

@@ -1,6 +1,6 @@
-// ViewModelFactory.swift
+// Versionable.swift
 //
-// Created by David Hunt on 9/4/24
+// Created by David Hunt on 9/23/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -15,26 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import Foundation
-import Vapor
 
-public enum ViewModelFactoryError: Error {
-    /// The client requested a version of the ``ViewModel`` that is not supported
-    case versionNotSupported(_ version: String)
-
-    public var localizedDescription: String {
-        switch self {
-        case .versionNotSupported(let version):
-            "Unsupported version: \(version)"
-        }
-    }
+public protocol Versionable: Codable, Sendable {
+    var vFirst: SystemVersion { get }
+    var vLast: SystemVersion? { get }
 }
 
-public protocol ViewModelFactory {
-    associatedtype Request: ViewModelRequest
-
-    static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self
+public extension Versionable {
+    var vFirst: SystemVersion { .vInitial }
+    var vLast: SystemVersion? { nil }
 }
-#endif

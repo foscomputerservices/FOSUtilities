@@ -1,6 +1,6 @@
-// MVVMEnvirontmentView.swift
+// VersionedFactoryMethodMacro.swift
 //
-// Created by David Hunt on 9/21/24
+// Created by David Hunt on 12/11/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -15,22 +15,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(SwiftUI)
+import FOSFoundation
+import SwiftSyntax
+import SwiftSyntaxBuilder
+import SwiftSyntaxMacros
 
-import SwiftUI
+// Ideas: https://swiftylion.com/articles/swift-macros
+// Expand on Swift Macros: https://developer.apple.com/videos/play/wwdc2023/10167/
 
-struct MVVMEnvironmentView<Base: View>: View {
-    @Environment(MVVMEnvironment.self) private var mvvmEnv
-    @Environment(\.locale) private var locale
-    private let baseViewFunc: (MVVMEnvironment, Locale) -> Base
-
-    var body: some View {
-        baseViewFunc(mvvmEnv, locale)
-    }
-
-    init(baseViewFunc: @escaping (MVVMEnvironment, Locale) -> Base) {
-        self.baseViewFunc = baseViewFunc
+public struct ViewModelFactoryMethodMacro: PeerMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        []
     }
 }
-
-#endif

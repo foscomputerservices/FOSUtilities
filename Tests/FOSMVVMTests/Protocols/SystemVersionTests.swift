@@ -15,80 +15,196 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import FOSMVVM
+import FOSFoundation
+@testable import FOSMVVM
 import FOSTesting
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 import Testing
+#if canImport(Vapor)
+import Vapor
+#endif
 
-@Suite("SystemVersion Tests")
+// NOTE: These tests must be serialized due to the shared
+//       global state SystemVersion.current.
+//
+//       This is generally not an issue with client/server
+//       applications, as this shared state is set during
+//       initialization in a single thread and then only
+//       consumed thereafter.  However, in tests, we are
+//       modifying and reading this state, so serialization
+//       is absolutely required for the tests to function
+//       correctly.
+
+@Suite("SystemVersion Tests", .serialized)
 struct SystemVersionTests {
-    @Test func testVersionStr() {
-        let sv = MySystemVersion()
-        #expect(sv.versionString == "\(MySystemVersion.defaultMajor).\(MySystemVersion.defaultMinor).\(MySystemVersion.defaultPatch)")
+    // MARK: HTTPURLResponse Tests
+
+    @Test func testHTTPURLResponseVersion() throws {
+        let major = 1
+        let minor = 2
+        let patch = 3
+
+        SystemVersion.setCurrentVersion(
+            .init(major: major, minor: minor, patch: patch)
+        )
+
+        let compatibleResponse = HTTPURLResponse.response(
+            withVersion: SystemVersion.current
+        )
+        do {
+            try compatibleResponse.requireCompatibleSystemVersion()
+        } catch let e {
+            #expect(Bool(false), "requireCompatibleSystemVersion threw: \(e) when a compatible response was expected")
+        }
+
+        let incompatibleResponse = HTTPURLResponse.response(
+            withVersion: SystemVersion(major: major + 1, minor: minor, patch: patch)
+        )
+        #expect(throws: SystemVersionError.self) {
+            try incompatibleResponse.requireCompatibleSystemVersion()
+        }
     }
 
-    @Test func testCodable() throws {
-        try expectCodable(MySystemVersion.self)
+    @Test func testMissingResponseVersionHeader() throws {
+        let response = HTTPURLResponse()
+        #expect(throws: SystemVersionError.self) {
+            try response.systemVersion
+        }
     }
 
-    @Test func testURLRequestVersioningHeader() throws {
-        let url = URL(string: "http://foo.com")!
-        var urlRequest = URLRequest(url: url)
-        let sv = MySystemVersion.currentVersion
-        urlRequest.addSystemVersioningHeader(systemVersion: sv)
-
-        #expect(urlRequest.value(forHTTPHeaderField: URLRequest.systemVersioningHeader) == sv.versionString)
+    @Test(arguments: [
+        (
+            a: SystemVersion.first,
+            b: SystemVersion.second,
+            aIsLess: true
+        ),
+        (
+            a: SystemVersion.second,
+            b: SystemVersion.first,
+            aIsLess: false
+        ),
+        (
+            a: SystemVersion.second,
+            b: SystemVersion.forth,
+            aIsLess: true
+        ),
+        (
+            a: SystemVersion.forth,
+            b: SystemVersion.second,
+            aIsLess: false
+        ),
+        (
+            a: SystemVersion.forth,
+            b: SystemVersion.second,
+            aIsLess: false
+        )
+    ]) func testComparable(tuple: (a: SystemVersion, b: SystemVersion, aIsLess: Bool)) throws {
+        #expect((tuple.a < tuple.b) == tuple.aIsLess)
+        #expect((tuple.a > tuple.b) == !tuple.aIsLess)
     }
 
-    @Test func testHTTPURLResponseVersioningHeader() throws {
-        let url = URL(string: "http://foo.com")!
-        let sv = MySystemVersion.currentVersion
-        let urlResponse = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
-            URLRequest.systemVersioningHeader: sv.versionString
-        ])!
-
-        #expect(try urlResponse.systemVersion.isSameVersion(as: sv))
+    @Test(arguments: [
+        (
+            random: [SystemVersion.first, .second, .third],
+            expected: [SystemVersion.first, .second, .third]
+        ),
+        (
+            random: [SystemVersion.second, .third, .first],
+            expected: [SystemVersion.first, .second, .third]
+        ),
+        (
+            random: [SystemVersion.fifth, .third, .first],
+            expected: [SystemVersion.first, .third, .fifth]
+        ),
+        (
+            random: [SystemVersion.fifth, .third, .second],
+            expected: [SystemVersion.second, .third, .fifth]
+        )
+    ]) func testSorted(tuple: (random: [SystemVersion], expected: [SystemVersion])) throws {
+        #expect(tuple.random.sorted() == tuple.expected)
     }
 
-    @Test func testIsSameVersion() {
-        #expect(MySystemVersion().isSameVersion(as: MySystemVersion()))
-        #expect(!MySystemVersion(majorVersion: 99, minorVersion: 99, patchVersion: 99).isSameVersion(as: MySystemVersion()))
+    // MARK: Vapor Request Tests
+
+    #if canImport(Vapor)
+    @Test func testVaporRequestVersion() throws {
+        let major = 1
+        let minor = 2
+        let patch = 3
+
+        SystemVersion.setCurrentVersion(
+            .init(major: major, minor: minor, patch: patch)
+        )
+
+        let compatibleRequest = Request.request(
+            withVersion: SystemVersion.current
+        )
+        do {
+            try compatibleRequest.requireCompatibleSystemVersion()
+        } catch let e {
+            #expect(Bool(false), "requireCompatibleSystemVersion threw: \(e) when a compatible response was expected")
+        }
+
+        let incompatibleRequest = Request.request(
+            withVersion: SystemVersion(major: major + 1, minor: minor, patch: patch)
+        )
+        #expect(throws: SystemVersionError.self) {
+            try incompatibleRequest.requireCompatibleSystemVersion()
+        }
     }
 
-    @Test func testIsCompatible() {
-        #expect(MySystemVersion().isCompatible(with: MySystemVersion()))
+    @Test func testMissingRequestVersionHeader() throws {
+        let app = Application.app()
+        let request = Request(
+            application: app,
+            on: app.eventLoopGroup.next()
+        )
+        #expect(throws: SystemVersionError.self) {
+            try request.systemVersion
+        }
+    }
+    #endif
+}
 
-        // Differing Patches shouldn't matter
-        #expect(MySystemVersion(patchVersion: MySystemVersion.defaultPatch + 1).isCompatible(with: MySystemVersion()))
-        #expect(MySystemVersion(patchVersion: MySystemVersion.defaultPatch - 1).isCompatible(with: MySystemVersion()))
-
-        // Incrementing minors
-        #expect(!MySystemVersion(minorVersion: MySystemVersion.defaultMinor + 1).isCompatible(with: MySystemVersion()))
-        #expect(MySystemVersion(minorVersion: MySystemVersion.defaultMinor - 1).isCompatible(with: MySystemVersion()))
-
-        // Differing Majors
-        #expect(!MySystemVersion(majorVersion: MySystemVersion.defaultMajor + 1).isCompatible(with: MySystemVersion()))
-        #expect(!MySystemVersion(majorVersion: MySystemVersion.defaultMajor - 1).isCompatible(with: MySystemVersion()))
+private extension HTTPURLResponse {
+    static func response(withVersion version: SystemVersion) -> HTTPURLResponse {
+        HTTPURLResponse(
+            url: URL(string: "http://localhost:8080")!,
+            statusCode: 200,
+            httpVersion: nil, headerFields: [
+                URLRequest.systemVersioningHeader: version.versionString
+            ]
+        )!
     }
 }
 
-struct MySystemVersion: SystemVersion {
-    let majorVersion: Int
-    let minorVersion: Int
-    let patchVersion: Int
+private extension Request {
+    static func request(withVersion version: SystemVersion) -> Request {
+        let app = Application.app()
 
-    static let currentVersion = Self()
-
-    static let defaultMajor = 1
-    static let defaultMinor = 2
-    static let defaultPatch = 3
-
-    init(majorVersion: Int = Self.defaultMajor, minorVersion: Int = Self.defaultMinor, patchVersion: Int = Self.defaultPatch) {
-        self.majorVersion = majorVersion
-        self.minorVersion = minorVersion
-        self.patchVersion = patchVersion
+        return .init(
+            application: app,
+            headers: .init([
+                (URLRequest.systemVersioningHeader, version.versionString)
+            ]),
+            on: app.eventLoopGroup.next()
+        )
     }
+}
+
+private extension Application {
+    static func app() -> Application {
+        .init()
+    }
+}
+
+private extension SystemVersion {
+    static var first: SystemVersion { .init(major: 1, minor: 0) }
+    static var second: SystemVersion { .init(major: 1, minor: 1) }
+    static var third: SystemVersion { .init(major: 1, minor: 1, patch: 3) }
+    static var forth: SystemVersion { .init(major: 2, minor: 0, patch: 0) }
+    static var fifth: SystemVersion { .init(major: 3, minor: 3, patch: 1) }
 }

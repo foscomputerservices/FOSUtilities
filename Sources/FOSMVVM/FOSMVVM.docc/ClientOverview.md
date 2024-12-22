@@ -6,7 +6,22 @@ Quickly and easily connect your MVVM clients to their corresponding servers
 
 ### SwiftUI Environment Configuration
 
-In order to access the server from a client SwiftUI application, an ``MVVMEnvironment`` instance needs to be configured and added to the [SwiftUI Environment](https://developer.apple.com/documentation/swiftui/environment).  At a minimum a base URL should be provided for each ``Deployment`` that is expected to be targeted by the application.
+In order to access the server from a client SwiftUI application, an ``MVVMEnvironment`` instance needs to be configured and added to the [SwiftUI Environment](https://developer.apple.com/documentation/swiftui/environment).
+
+#### Base URLs and Application Version
+
+> NOTE: It is suggested that your client application and server application have a shared location to store the current version.  This could be accomplished with a global variable in a library that is shared between the applications and also the tests.
+>
+> ```swift
+> public extension SystemVersion {
+>     public static var currentApplicationVersion: Self { .init(
+>       major: 1,
+>       minor: 2,
+>       patch: 3
+>     ) }
+> ```
+
+At a minimum a base URL should be provided for each ``Deployment`` that is expected to be targeted by the application.
 
 ```swift
 import FOSFoundation
@@ -21,6 +36,7 @@ struct MyApp: App {
         }
         .environment(
            MVVMEnvironment(
+               currentVersion: .currentApplicationVersion,
                deploymentURLs: [
                   .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
                   .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
@@ -49,7 +65,12 @@ struct MyApp: App {
         }
         .environment(
             MVVMEnvironment(
-               deploymentURLs: [
+                currentVersion: .init(
+                     major: 1,
+                     minor: 0,
+                     patch: 0
+                ),
+                deploymentURLs: [
                   .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
                   .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
                   .debug, .init(serverBaseURL: URL(string: "http://localhost:8080")!)

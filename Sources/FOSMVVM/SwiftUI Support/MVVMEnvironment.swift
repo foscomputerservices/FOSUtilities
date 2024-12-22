@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 9/11/24
+// Created by David Hunt on 12/11/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import FOSFoundation
 #if canImport(SwiftUI)
 import Foundation
 import SwiftUI
@@ -63,6 +64,7 @@ public final class MVVMEnvironment {
         /// - Parameters:
         ///   - serverBaseURL: The base URL of the web service used to retrieve ``ViewModel``s
         ///   - resourcesBaseURL: The base URL of the web service used to retrieve images (default: ``serverBaseURL``)
+        ///   - currentVersion: <#currentVersion description#>
         public init(serverBaseURL: URL, resourcesBaseURL: URL? = nil) {
             self.serverBaseURL = serverBaseURL
             self.resourcesBaseURL = resourcesBaseURL ?? serverBaseURL
@@ -107,11 +109,13 @@ public final class MVVMEnvironment {
     /// Initializes the ``MMVEnvironment``
     ///
     /// - Parameters:
+    ///   - currentVersion: The current ``SystemVersion`` of the application
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: <#loadingView description#>
-    public init(deploymentURLs: [Deployment: URLPackage], loadingView: (() -> AnyView)? = nil) {
+    public init(currentVersion: SystemVersion, deploymentURLs: [Deployment: URLPackage], loadingView: (() -> AnyView)? = nil) {
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
+        SystemVersion.setCurrentVersion(currentVersion)
     }
 
     /// Initializes the ``MVVMEnvironment``
@@ -119,10 +123,12 @@ public final class MVVMEnvironment {
     /// This convenience initializer uses each deployment URL for both the *serverBaseURL* and the *resourcesBaseURL*.
     ///
     /// - Parameters:
+    ///   - currentVersion: The current ``SystemVersion`` of the application
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: <#loadingView description#>
-    public convenience init(deploymentURLs: [Deployment: URL], loadingView: (() -> AnyView)? = nil) {
+    public convenience init(currentVersion: SystemVersion, deploymentURLs: [Deployment: URL], loadingView: (() -> AnyView)? = nil) {
         self.init(
+            currentVersion: currentVersion,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair
