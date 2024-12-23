@@ -105,7 +105,7 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
                 return envSpecified
             }
 
-            if Bundle.isTestFlightInstall {
+            if Bundle.main.isTestFlightInstall {
                 return .staging
             }
 

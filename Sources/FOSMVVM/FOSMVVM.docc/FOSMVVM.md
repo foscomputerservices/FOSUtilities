@@ -6,24 +6,27 @@ A library that provides support for implementing the **Model-View-ViewModel** pa
 
 FOSMVVM is a full end-to-end implementation of the Model-View-ViewModel pattern, including the following services:
 
-- **Localization**
-    - Strongly Typed
-        - The binding between the ViewModel property and the entry in the localization (YAML) file is determined by the name of the swift type and property
-    - Automatically Verified with no manual testing required
-        - All localized properties are automatically tested to ensure:
-            - No missing bindings in any locales
-            - No unintentional duplicates across locales
-            - All localizations are properly formatted
-- **Resources**
-    - Attach images and other resources to properties of the ViewModel
-        - The binding can be managed automatically using the swift type and property name or manually specified using a URL
-    - Automatically Verified with no manual testing required
-    - Fully versioned allowing different versions of the resource for different versions of the ViewModel
-    - Image and Resource bindings can be localized
-- **Automatic Routing**
-    - Server routes for ViewModel resources are automatically generated and maintained, no manual management naming schemes is code required
-- **Versioning**
-    - Easily support multiple versions of each ViewModel ensuring backwards and forwards compatibility of the ViewModel and all attached resources
+### View Localization
+- Strongly Typed
+    - The binding between the ViewModel property and the entry in the localization (YAML) file is determined by the name of the swift type and property
+- Automatically Verified with no manual testing required
+    - All localized properties are automatically tested to ensure:
+        - No missing bindings in any locales
+        - No unintentional duplicates across locales
+        - All localizations are properly formatted
+
+### Resources
+- Attach images and other resources to properties of the ViewModel
+    - The binding can be managed automatically using the swift type and property name or manually specified using a URL
+- Automatically Verified with no manual testing required
+- Fully versioned allowing different versions of the resource for different versions of the ViewModel
+- Image and Resource bindings can be localized
+
+### Automatic Routing
+- Server routes for ViewModel resources are automatically generated and maintained, no manual management naming schemes is code required
+
+### ViewModel Versioning
+- Easily support multiple versions of each ViewModel ensuring backwards and forwards compatibility of the ViewModel and all attached resources
 
 ## Definitions
 
@@ -35,9 +38,8 @@ In FOS's implementation of the [Model-View-ViewModel](https://w.wiki/4T5B) patte
 
 ## Topics
 
-### Localization
-
-- ``clientoverview``
-- ``serveroverview``
-- ``viewmodelandviewmodelrequest``
-- ``localization``
+- <doc:ClientOverview>
+- <doc:ServerOverview>
+- <doc:Localization>
+- <doc:Versioning>
+- <doc:ViewModelandViewModelRequest>

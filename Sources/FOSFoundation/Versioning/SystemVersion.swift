@@ -1,6 +1,6 @@
 // SystemVersion.swift
 //
-// Created by David Hunt on 12/11/24
+// Created by David Hunt on 12/21/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -21,6 +21,31 @@ public enum SystemVersionError: Error {
     case invalidSystemVersionString(_ str: String)
     case missingSystemVersion
     case incompatibleSystemAPIVersion(_ version: String)
+
+    /// The version string set in the Application's Bundle is in the incorrect format.  It is expected
+    /// to be of the form 'major.minor.patch' (e.g. '2.1' or '2.1.5').  This specification is usually found
+    /// in the application's .xcodeproj in the General tab in the Identity section and the Version field.
+    case incompatibleApplicationVersionString(_ str: String)
+
+    /// The build string set in the Application's bundle is is in the incorrect format.  It is expected
+    /// to be an integer (e.g. '325').  This specification is usually found in the application's .xcodeproj
+    /// in the General tab in the Identity section and the Build field.
+    case incompatibleBundleVersionString(_ version: String)
+
+    func localizedDescription() -> String {
+        switch self {
+        case .invalidSystemVersionString(let str):
+            "Invalid system version string: \(str)"
+        case .missingSystemVersion:
+            "Missing system version"
+        case .incompatibleSystemAPIVersion(let version):
+            "Incompatible system API version: \(version)"
+        case .incompatibleApplicationVersionString(let str):
+            "CFBundleShortVersionString is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
+        case .incompatibleBundleVersionString(let str):
+            "CFBundleVersion is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
+        }
+    }
 }
 
 /// Represents the version of the Application
@@ -39,7 +64,7 @@ public struct SystemVersion: Codable, Hashable, LosslessStringConvertible, Stubb
 
     /// Returns the current version of the application or server
     ///
-    /// In **Client** applications, this value is set via ``MVVMEnvironment``.  In
+    /// In **Client** applications, this value is set via *MVVMEnvironment*.  In
     /// **Server** applications, this value is set by calling ``setCurrentVersion(_:)``
     /// in the application's initialization routine.
     public private(set) nonisolated(unsafe) static var current: Self = .vInitial

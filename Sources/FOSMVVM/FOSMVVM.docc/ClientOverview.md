@@ -10,15 +10,19 @@ In order to access the server from a client SwiftUI application, an ``MVVMEnviro
 
 #### Base URLs and Application Version
 
-> NOTE: It is suggested that your client application and server application have a shared location to store the current version.  This could be accomplished with a global variable in a library that is shared between the applications and also the tests.
+> NOTE: It is suggested that your client and server applications have a shared location to store the current version (see: <doc:Versioning>).
 >
 > ```swift
 > public extension SystemVersion {
->     public static var currentApplicationVersion: Self { .init(
->       major: 1,
->       minor: 2,
->       patch: 3
->     ) }
+>     // My application's current version
+>     public static var currentApplicationVersion: Self { .v3_0_0 }
+> 
+>     // My application's versions
+>     public static var v1_0_0: Self { .vInitial }
+>     public static var v2_0_0: Self { .init(major: 2) }
+>     public static var v2_1_0: Self { .init(major: 2, minor: 1) }
+>     public static var v3_0_0: Self { .init(major: 3) }
+> }
 > ```
 
 At a minimum a base URL should be provided for each ``Deployment`` that is expected to be targeted by the application.
@@ -87,8 +91,8 @@ That is all that needs to be done to communicate between the client and server a
 
 ## Topics
 
-- ``serveroverview``
-- ``viewmodelandviewmodelrequest``
+- <doc:ServerOverview>
+- <doc:ViewModelandViewModelRequest>
 - ``ViewModel``
 - ``ViewModelRequest``
 - ``RequestableViewModel``

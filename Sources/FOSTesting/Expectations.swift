@@ -20,9 +20,11 @@ import Foundation
 import Testing
 
 /// Performs tests to ensure that the **Codable**s implementation can encode and decode properly
-///
+/// 
 /// - Parameter codableType: A `System.Type` of a type that conforms to **Codable** and **Stubbable**
 /// - Parameter message: An optional message to add to error messages (default message contains the missing key information)
+/// - Parameter encoder: An optional *JSONEncoder* to use to encode the data (default: **JSONEncoder()**)
+/// - Parameter decoder: n optional *JSONDecoder* to use to decode the data (default: **JSONDecoder()**)
 public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "") throws where C: Codable, C: Stubbable {
     let instance = codableType.stub()
     let message = message() + ": "

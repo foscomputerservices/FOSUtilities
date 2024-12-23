@@ -37,9 +37,9 @@ public extension URLRequest {
 }
 
 public extension HTTPURLResponse {
-    /// - Returns:  the ``SystemVersion`` specified in the HTTPHeader
+    /// - Returns:  the *SystemVersion* specified in the HTTPHeader
     ///
-    /// - Throws: ``SystemVersionError`` if the ``HTTPURLResponse`` does not specify a version
+    /// - Throws: *SystemVersionError* if the ``HTTPURLResponse`` does not specify a version
     var systemVersion: SystemVersion {
         get throws {
             guard let str = value(forHTTPHeaderField: URLRequest.systemVersioningHeader) else {
@@ -55,11 +55,9 @@ public extension HTTPURLResponse {
     }
 
     /// Checks to see if the HTTPHeader contains a version specification and if it
-    /// is compatible with the current ``SystemVersion``
+    /// is compatible with the current *SystemVersion*
     ///
-    /// - Parameter type: The type of the ``SystemVersion`` that defines the *current*
-    ///
-    /// - Throws: ``SystemVersionError`` If the specification is missing or is not compatible
+    /// - Throws: *SystemVersionError* If the specification is missing or is not compatible
     func requireCompatibleSystemVersion() throws {
         let sv = try systemVersion
 
@@ -71,9 +69,9 @@ public extension HTTPURLResponse {
 
 #if canImport(Vapor)
 public extension Vapor.Request {
-    /// - Returns: the ``SystemVersion`` specified in the HTTPHeader
+    /// - Returns: the *SystemVersion* specified in the HTTPHeader
     ///
-    /// - Throws: ``SystemVersionError.missingSystemVersion`` if there is no value for URLRequest.systemVersioningHeader in Request's headers
+    /// - Throws: **SystemVersionError.missingSystemVersion** if there is no value for URLRequest.systemVersioningHeader in Request's headers
     ///    does not specify a version
     var systemVersion: SystemVersion {
         get throws {
@@ -90,11 +88,9 @@ public extension Vapor.Request {
     }
 
     /// Checks to see if the HTTPHeader contains a version specification and if it
-    /// is compatible with the current ``SystemVersion``
+    /// is compatible with the current *SystemVersion*
     ///
-    /// - Parameter type: The type of the ``SystemVersion`` that defines the *current*
-    ///
-    /// - Throws: ``SystemVersionError.incompatibleSystemAPIVersion`` If the specification is missing or is not compatible
+    /// - Throws: **SystemVersionError.incompatibleSystemAPIVersion** If the specification is missing or is not compatible
     func requireCompatibleSystemVersion() throws {
         let sv = try systemVersion
 

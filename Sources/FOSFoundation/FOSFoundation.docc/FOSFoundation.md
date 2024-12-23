@@ -20,10 +20,6 @@ FOSFoundation is a library that provides extensions and patterns to Apple's Foun
 - ``JSONError``
 - ``WebSocketError``
 
-### Localization
-
-- <doc:LocalizationSupport>
-
 ### Extensions
 
 - <doc:FoundationExtensions>

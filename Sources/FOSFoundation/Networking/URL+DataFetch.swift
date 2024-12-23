@@ -35,20 +35,20 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Language | <provided locale> |
-    /// - Returns: <#description#>
     func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .fetch(self, headers: headers, locale: locale)
     }
 
     /// Fetches the given data of type **ResultValue** from the given **URL**
-    ///
+    /// 
     /// - Parameters:
     ///   - headers: Any extra HTTP headers that need to be sent with the request
+    ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
     ///   - errorType: An **Error** type to attempt to decode returned data as an error if unable to decode as **ResultValue**
     ///
     /// - Note: The following headers are automatically sent to all requests:
-    ///
+    /// 
     ///  | Key | Value |
     ///  | ---------------------- | ---------------------------------- |
     ///  | Accept | application/json;charset=utf-8 |
