@@ -36,7 +36,7 @@ import Testing
 ///      let locStore: LocalizationStore
 ///      var locales: Set<Locale> {[Self.en, Self.es]}
 ///      init() async throws {
-///          self.locStore = try await Self.loadLocalizationStore()
+///          self.locStore = try await Self.loadLocalizationStore(bundle: .module)
 ///      }
 ///  }
 ///  ```

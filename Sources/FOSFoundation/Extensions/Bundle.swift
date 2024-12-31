@@ -21,7 +21,7 @@ import Foundation
 public extension Bundle {
     /// Returns **true** if the Application *Bundle* is running in a simulator
     ///
-    /// - Example:
+    /// ## Example
     ///
     /// ```
     /// print("Application is \(Bundle.main.isSimulator ? "" : "NOT ")running in the simulator.")
@@ -34,7 +34,7 @@ public extension Bundle {
 
     /// Returns **true** if the Application *Bundle* was installed on the current device through *TestFlight*
     ///
-    /// - Example:
+    /// ## Example
     ///
     /// ```
     /// print("Application is \(Bundle.main.isTestFlightInstall ? "" : "NOT ")a Test Flight install.")

@@ -192,7 +192,7 @@ extension UserViewModel: ViewModelFactory {
 
 ## Versioned Testing
 
-** TBD **
+Tools are provided in **FOSTesting** to automatically ensure that all versions of a ``ViewModel`` are usable. 
 
 ## Application Versions
 
