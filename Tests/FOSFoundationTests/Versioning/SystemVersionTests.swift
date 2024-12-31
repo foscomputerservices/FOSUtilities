@@ -18,6 +18,9 @@
 @testable import FOSFoundation
 import FOSTesting
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 
 // NOTE: These tests must be serialized due to the shared

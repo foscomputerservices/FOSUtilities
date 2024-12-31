@@ -69,7 +69,7 @@ struct SystemVersionTests {
     }
 
     @Test func testMissingResponseVersionHeader() throws {
-        let response = HTTPURLResponse()
+        let response = HTTPURLResponse(url: URL(string: "https://www.github.com")!, statusCode: 0, httpVersion: nil, headerFields: nil)!
         #expect(throws: SystemVersionError.self) {
             try response.systemVersion
         }
