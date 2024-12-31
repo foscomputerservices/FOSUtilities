@@ -17,6 +17,9 @@
 
 import FOSFoundation
 import FOSMVVM
+
+// TODO: Need to remove vapor requirement from ViewModelFactory
+#if canImport(Vapor)
 import Vapor
 
 extension SystemVersion {
@@ -154,6 +157,7 @@ extension TestVersionedViewModel: ViewModelFactory {
 //        throw ViewModelFactoryError.versionNotSupported(version.versionString)
 //    }
 
+
     @Version(.v1_0_0)
     static func model_v1_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
         try await .init(p1: P1.model(req, vmRequest: vmRequest))
@@ -177,3 +181,4 @@ extension TestVersionedViewModel: ViewModelFactory {
         try await .init(p4: P4.model(req, vmRequest: vmRequest))
     }
 }
+#endif

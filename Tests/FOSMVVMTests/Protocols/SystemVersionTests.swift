@@ -181,6 +181,7 @@ private extension HTTPURLResponse {
     }
 }
 
+#if canImport(Vapor)
 private extension Request {
     static func request(withVersion version: SystemVersion) -> Request {
         let app = Application.app()
@@ -200,6 +201,7 @@ private extension Application {
         .init()
     }
 }
+#endif
 
 private extension SystemVersion {
     static var first: SystemVersion { .init(major: 1, minor: 0) }
