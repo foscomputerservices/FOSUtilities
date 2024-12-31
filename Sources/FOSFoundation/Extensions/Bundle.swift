@@ -17,7 +17,7 @@
 
 import Foundation
 
-#if os(iOS) || os(tvOS) || os(watchOS) || os(macOS)
+#if os(iOS) || os(tvOS) || os(watchOS) || os(macOS) || os(visionOS)
 public extension Bundle {
     /// Returns **true** if the Application *Bundle* is running in a simulator
     ///
