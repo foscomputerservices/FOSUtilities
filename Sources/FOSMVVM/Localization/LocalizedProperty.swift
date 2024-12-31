@@ -165,11 +165,16 @@ public extension ViewModel {
     typealias LocalizeSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
 
-@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Sendable, Stubbable where Model: ViewModel, Value: Localizable {
+@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Sendable, Stubbable, Versionable where Model: ViewModel, Value: Localizable {
     private typealias WrappedValueBinder = @Sendable (Model, String, Encoder) throws -> Value
 
     public var wrappedValue: Value
     public var projectedValue: Value { wrappedValue }
+
+    // MARK: Versionable Protocol
+
+    public var vFirst: SystemVersion
+    public var vLast: SystemVersion?
 
     // Identifies this property for property name binding through
     // ViewModel.propertyNames()
@@ -186,11 +191,13 @@ public extension ViewModel {
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
     ///
     /// - See also: ``LocalizableRef``*.init()*
-    public init(parentKey: String? = nil, propertyName: String? = nil, index: Int? = nil) where Value == LocalizableString {
+    public init(parentKey: String? = nil, propertyName: String? = nil, index: Int? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
         self.init(
             parentKeys: parentKey == nil ? [] : [parentKey!],
             propertyName: propertyName,
-            index: index
+            index: index,
+            vFirst: vFirst,
+            vLast: vLast
         )
     }
 
@@ -204,8 +211,14 @@ public extension ViewModel {
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
     ///
     /// - See also: ``LocalizableRef``*.init()*
-    public init(parentKeys: String..., propertyName: String? = nil, index: Int? = nil) where Value == LocalizableString {
-        self.init(parentKeys: Array(parentKeys), propertyName: propertyName, index: index)
+    public init(parentKeys: String..., propertyName: String? = nil, index: Int? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
+        self.init(
+            parentKeys: Array(parentKeys),
+            propertyName: propertyName,
+            index: index,
+            vFirst: vFirst,
+            vLast: vLast
+        )
     }
 
     /// Initializes the ``LocalizedString`` property wrapper
@@ -218,7 +231,7 @@ public extension ViewModel {
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
     ///
     /// - See also: ``LocalizableRef``*.init()*
-    public init(parentKeys: [String], propertyName: String? = nil, index: Int? = nil) where Value == LocalizableString {
+    public init(parentKeys: [String], propertyName: String? = nil, index: Int? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
         self.wrappedValue = .empty // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { _, autoPropName, _ in
@@ -234,6 +247,8 @@ public extension ViewModel {
                 index: index
             ))
         }
+        self.vFirst = vFirst ?? SystemVersion.vInitial
+        self.vLast = vLast
     }
 
     /// Initializes the ``LocalizedInt`` property wrapper
@@ -252,7 +267,7 @@ public extension ViewModel {
     ///      separated with the grouping separator (default: true)
     ///   - groupingSize: The number of digits in the group, if showing a grouping
     ///      separator (default: 3)
-    public init(value: Int? = nil, showGroupingSeparator: Bool = true, groupingSize: Int = 3) where Value == LocalizableInt {
+    public init(value: Int? = nil, showGroupingSeparator: Bool = true, groupingSize: Int = 3, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableInt {
         self.localizationId = .random(length: 10)
         self.wrappedValue = .init(
             value: value ?? 0,
@@ -260,6 +275,8 @@ public extension ViewModel {
             groupingSize: groupingSize
         )
         self.bindWrappedValue = nil
+        self.vFirst = vFirst ?? .vInitial
+        self.vLast = vLast
     }
 
     /// Initializes the ``LocalizeCompoundString`` property wrapper
@@ -280,7 +297,7 @@ public extension ViewModel {
     ///   - separatorKeyPath:  An optional ``KeyPath`` to a property of type ``LocalizedString``
     ///       that contains the **String** to place between each **String** in the
     ///       pieces array
-    public init(pieces piecesKeyPath: KeyPath<Model, _LocalizedArrayProperty<Model, LocalizableString>> & Sendable, separator separatorKeyPath: (KeyPath<Model, _LocalizedProperty<Model, LocalizableString>> & Sendable)? = nil) where Value == LocalizableCompoundValue<LocalizableString> {
+    public init(pieces piecesKeyPath: KeyPath<Model, _LocalizedArrayProperty<Model, LocalizableString>> & Sendable, separator separatorKeyPath: (KeyPath<Model, _LocalizedProperty<Model, LocalizableString>> & Sendable)? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableCompoundValue<LocalizableString> {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, _, encoder throws in
@@ -317,6 +334,8 @@ public extension ViewModel {
                 separator: localizedSeparator
             )
         }
+        self.vFirst = vFirst ?? .vInitial
+        self.vLast = vLast
     }
 
     /// Initializes the ``LocalizeSubs`` property wrapper
@@ -341,7 +360,7 @@ public extension ViewModel {
     /// - Parameters:
     ///   - substitutions: A ``KeyPath`` to a property of type ``LocalizedStrings``
     ///       that contains the **String** pieces to combine into a single **String**
-    public init(substitutions: KeyPath<Model, [String: some Localizable]> & Sendable) where Value == LocalizableSubstitutions {
+    public init(substitutions: KeyPath<Model, [String: some Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
@@ -356,9 +375,11 @@ public extension ViewModel {
                 substitutions: model[keyPath: substitutions]
             )
         }
+        self.vFirst = vFirst ?? .vInitial
+        self.vLast = vLast
     }
 
-    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: any Localizable]> & Sendable) where Value == LocalizableSubstitutions {
+    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: any Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
@@ -373,6 +394,8 @@ public extension ViewModel {
                 substitutions: model[keyPath: substitutions]
             )
         }
+        self.vFirst = vFirst ?? .vInitial
+        self.vLast = vLast
     }
 }
 
@@ -385,6 +408,7 @@ public extension _LocalizedProperty {
         self.localizationId = .random(length: 10)
         self.wrappedValue = try container.decode(Value.self)
         self.bindWrappedValue = nil
+        self.vFirst = .current
     }
 
     func encode(to encoder: any Encoder) throws {

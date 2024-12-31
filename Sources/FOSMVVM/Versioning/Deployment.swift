@@ -105,9 +105,11 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
                 return envSpecified
             }
 
-            if Bundle.isTestFlightInstall {
+            #if os(iOS) || os(tvOS) || os(watchOS) || os(macOS) || os(visionOS)
+            if Bundle.main.isTestFlightInstall {
                 return .staging
             }
+            #endif
 
             #if DEBUG
             return .debug

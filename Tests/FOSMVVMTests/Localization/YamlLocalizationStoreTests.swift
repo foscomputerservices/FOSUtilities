@@ -23,13 +23,11 @@ import Testing
 
 @Suite("YAML Localization Store Tests")
 struct YamlLocalizationStoreTests: LocalizableTestCase {
-    #warning("Restore test on Linux after 6.0 compiler is released")
-    #if !os(Linux) // -- Swift 6.0 beta - Linux swift compiler crashes on this
+
     @Test func testKeyExists() {
         #expect(locStore.keyExists("test", locale: en))
         #expect(locStore.keyExists("test", locale: es))
     }
-    #endif
 
     @Test func testTranslate() {
         #expect(locStore.t("test", locale: en) == "Test")

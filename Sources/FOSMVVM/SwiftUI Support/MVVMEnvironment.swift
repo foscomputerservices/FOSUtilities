@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 9/11/24
+// Created by David Hunt on 12/11/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import FOSFoundation
 #if canImport(SwiftUI)
 import Foundation
 import SwiftUI
@@ -58,7 +59,7 @@ public final class MVVMEnvironment {
         /// The base  URL for images
         public let resourcesBaseURL: URL
 
-        /// Initializes the ``MMVEnvironment``
+        /// Initializes the ``MVVMEnvironment``
         ///
         /// - Parameters:
         ///   - serverBaseURL: The base URL of the web service used to retrieve ``ViewModel``s
@@ -104,14 +105,18 @@ public final class MVVMEnvironment {
         }
     }
 
-    /// Initializes the ``MMVEnvironment``
+    /// Initializes the ``MVVMEnvironment``
     ///
     /// - Parameters:
+    ///   - currentVersion: The current SystemVersion of the application
+    ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: <#loadingView description#>
-    public init(deploymentURLs: [Deployment: URLPackage], loadingView: (() -> AnyView)? = nil) {
+    public init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (() -> AnyView)? = nil) {
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
+        Self.ensureVersionsEqual(currentVersion: currentVersion, appBundle: appBundle)
+        SystemVersion.setCurrentVersion(currentVersion)
     }
 
     /// Initializes the ``MVVMEnvironment``
@@ -119,10 +124,14 @@ public final class MVVMEnvironment {
     /// This convenience initializer uses each deployment URL for both the *serverBaseURL* and the *resourcesBaseURL*.
     ///
     /// - Parameters:
+    ///   - currentVersion: The current SystemVersion of the application
+    ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: <#loadingView description#>
-    public convenience init(deploymentURLs: [Deployment: URL], loadingView: (() -> AnyView)? = nil) {
+    public convenience init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (() -> AnyView)? = nil) {
         self.init(
+            currentVersion: currentVersion,
+            appBundle: appBundle,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair
@@ -142,6 +151,22 @@ public enum MVVMEnvironmentError: Error {
 private struct DefaultLoadingView: View {
     var body: some View {
         ProgressView()
+    }
+}
+
+private extension MVVMEnvironment {
+    static func ensureVersionsEqual(currentVersion: SystemVersion, appBundle: Bundle) {
+        do {
+            let bundleVersion = try appBundle.appleOSVersion
+
+            guard bundleVersion == currentVersion else {
+                fatalError("The app bundle version (\(bundleVersion)) does not match the current system version (\(currentVersion)). Please update your app bundle version to \(currentVersion) in the project settings.")
+            }
+        } catch let error as SystemVersionError {
+            fatalError("Unable to retrieve SystemVersion from Bundle: \(error.localizedDescription)")
+        } catch let e {
+            fatalError("Error retrieving SystemVersion: \(e.localizedDescription)")
+        }
     }
 }
 #endif

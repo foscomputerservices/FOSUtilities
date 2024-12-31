@@ -1,4 +1,4 @@
-// ViewModelFactory.swift
+// FOSMacros.swift
 //
 // Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Services, LLC
@@ -15,26 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
-import FOSFoundation
-import Foundation
-import Vapor
+#if canImport(SwiftCompilerPlugin)
+import SwiftCompilerPlugin
+import SwiftSyntaxMacros
 
-public enum ViewModelFactoryError: Error {
-    /// The client requested a version of the ``ViewModel`` that is not supported
-    case versionNotSupported(_ version: String)
-
-    public var localizedDescription: String {
-        switch self {
-        case .versionNotSupported(let version):
-            "Unsupported version: \(version)"
-        }
-    }
-}
-
-public protocol ViewModelFactory {
-    associatedtype Request: ViewModelRequest
-
-    static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self
+@main
+struct FOSMacros: CompilerPlugin {
+    let providingMacros: [Macro.Type] = [
+        ViewModelFactoryMacro.self,
+        ViewModelFactoryMethodMacro.self
+    ]
 }
 #endif

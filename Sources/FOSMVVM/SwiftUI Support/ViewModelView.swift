@@ -1,6 +1,6 @@
 // ViewModelView.swift
 //
-// Created by David Hunt on 9/12/24
+// Created by David Hunt on 9/21/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -27,7 +27,7 @@ import SwiftUI
 /// protocol.  This will enable services to work with ``ViewModel``s.
 ///
 /// Views that conform to ``ViewModelView`` have an extra static method
-/// ``ViewModelView/bind(viewModel:using:)`` that allows the
+/// ``ViewModelView/bind(viewModel:query:fragment:)`` that allows the
 /// parent view to retrieve the ``ViewModel`` from the web service and create an
 /// instance of the view bound to the retrieved instance.
 ///
@@ -55,25 +55,25 @@ public protocol ViewModelView: View {
 public extension ViewModelView where VM: RequestableViewModel {
     /// Retrieves a ``RequestableViewModel`` from the web service and binds it to the
     /// [View](https://developer.apple.com/documentation/swiftui/view)
-    ///
+    /// 
     /// ## Example
-    ///
+    /// 
     /// ```swift
     /// public struct MyViewModel: RequestableViewModel {
     ///   @LocalizedString public var pageTitle
     /// }
-    ///
+    /// 
     /// struct MyView: ViewModelView {
     ///   let viewModel: MyViewModel
-    ///
+    /// 
     ///   var body: some View {
     ///     Text(viewModel.pageTitle)
     ///   }
     /// }
-    ///
+    /// 
     /// struct ParentView: View {
     ///   @State var viewModel: MyViewModel
-    ///
+    /// 
     ///   var body: some View {
     ///     MyView.bind(
     ///        viewModel: $viewModel,
@@ -82,16 +82,16 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   }
     /// }
     /// ```
-    ///
+    /// 
     /// - Parameters:
     ///   - viewModel: A [Binding](https://developer.apple.com/documentation/swiftui/binding)
     ///     used to store the retrieved ``ViewModel``
-    ///   - request: A ``ViewModelRequest`` to specify information regarding the
-    ///     required ``ViewModel`` instance
+    ///   - query: A *SystemQuery* to be sent to the server to indicate how to compose the ``ViewModel``
+    ///   - fragment: *Future*
     ///
     /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
-    ///
+    /// 
     /// - See Also: ``MVVMEnvironment/loadingView``
     @ViewBuilder static func bind(viewModel: Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == Self.VM {
         if let viewModel = viewModel.wrappedValue {

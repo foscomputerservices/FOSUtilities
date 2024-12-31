@@ -216,7 +216,7 @@ public protocol ServerRequestQuery: Codable, Sendable, Content {}
 
 /// Represents an empty query
 ///
-/// When implementing a ``SystemRequest`` that does not
+/// When implementing a *SystemRequest* that does not
 /// have a query element, the request can be defined as:
 ///
 /// ```swift
@@ -235,7 +235,7 @@ public protocol ServerRequestFragment: Codable, Sendable, Content {}
 
 /// Represents an empty query
 ///
-/// When implementing a ``SystemRequest`` that does not
+/// When implementing a *SystemRequest* that does not
 /// have a query element, the request can be defined as:
 ///
 /// ```swift

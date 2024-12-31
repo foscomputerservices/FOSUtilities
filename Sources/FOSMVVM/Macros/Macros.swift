@@ -1,6 +1,6 @@
-// Plugins.swift
+// Macros.swift
 //
-// Created by David Hunt on 9/4/24
+// Created by David Hunt on 12/11/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -15,12 +15,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import SwiftCompilerPlugin
-import SwiftSyntaxMacros
+import FOSFoundation
 
-@main
-struct MacrosPlugin: CompilerPlugin {
-    let providingMacros: [Macro.Type] = [
-        ViewModelMacroImpl.self
-    ]
-}
+@attached(member, names: named(model))
+public macro VersionedFactory() = #externalMacro(
+    module: "FOSMacros",
+    type: "ViewModelFactoryMacro"
+)
+
+@attached(peer, names: arbitrary)
+public macro Version(_ version: SystemVersion) = #externalMacro(
+    module: "FOSMacros",
+    type: "ViewModelFactoryMethodMacro"
+)
