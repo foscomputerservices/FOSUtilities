@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest] # [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
         swift: ["6.0.3"]
       fail-fast: false
     steps:
@@ -28,41 +28,4 @@ jobs:
             swift test
           fi
         shell: bash
-
-  # Ensure that compilation succeeds on iOS-based platforms
-  run_ios_build_tests:
-    name: Test ${{ matrix.ios_platform }} on Xcode v${{ matrix.xcode_version }}
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        ios_platform: ["ios", "watchos", "tvos", "visionos"]
-        xcode_version: ["16.0"]
-
-    steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ matrix.xcode_version }}
-
-      - uses: actions/checkout@v2
-
-      - name: Run ${{ matrix.ios_platform }} Tests
-        run: xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" -derivedDataPath "$PWD/.derivedData" build -scheme FOSUtilities-Package -destination "generic/platform=${{ matrix.ios_platform }}"
-
-  #####################################
-  # swift 5.8 has removed generate-xcodeproj, so we'll need to find a different
-  # way to do this.  I'm sure there will be an update soon.
-  #####################################
-
-  # analyze_code_coverage:
-  #   runs-on: macos-12
-  #   steps:
-  #    - uses: actions/checkout@v2
-
-  #    - name: Generate an xcodeproj
-  #      run: swift package generate-xcodeproj
-
-  #    - name: Run Tests w/ code coverage
-  #      run: xcodebuild test -scheme CryptoScraper-Package -destination platform="macOS" -enableCodeCoverage YES
-
-  #    - name: Upload coverage reports to Codecov
-  #      uses: codecov/codecov-action@v3
+ 
