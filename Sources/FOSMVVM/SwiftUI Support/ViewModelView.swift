@@ -93,15 +93,15 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == Self.VM {
-        if let viewModel = viewModel.wrappedValue {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == Self.VM {
+        if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
             MVVMEnvironmentView { mvvmEnv, locale in
                 mvvmEnv.loadingView()
                     .task {
                         do {
-                            viewModel.wrappedValue =
+                            viewModel().wrappedValue =
                                 try await mvvmEnv.serverBaseURL
                                     .appending(serverRequest: VM.Request(
                                         query: query,
@@ -160,15 +160,15 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == Self.VM, VM.Request.Query == EmptyQuery {
-        if let viewModel = viewModel.wrappedValue {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == Self.VM, VM.Request.Query == EmptyQuery {
+        if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
             MVVMEnvironmentView { mvvmEnv, locale in
                 mvvmEnv.loadingView()
                     .task {
                         do {
-                            viewModel.wrappedValue =
+                            viewModel().wrappedValue =
                                 try await mvvmEnv.serverBaseURL
                                     .appending(serverRequest: VM.Request(
                                         query: nil,
