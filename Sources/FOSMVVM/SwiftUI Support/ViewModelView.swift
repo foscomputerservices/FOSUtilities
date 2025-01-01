@@ -1,6 +1,6 @@
 // ViewModelView.swift
 //
-// Created by David Hunt on 9/21/24
+// Created by David Hunt on 12/11/24
 // Copyright 2024 FOS Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -55,34 +55,34 @@ public protocol ViewModelView: View {
 public extension ViewModelView where VM: RequestableViewModel {
     /// Retrieves a ``RequestableViewModel`` from the web service and binds it to the
     /// [View](https://developer.apple.com/documentation/swiftui/view)
-    /// 
+    ///
     /// ## Example
-    /// 
+    ///
     /// ```swift
     /// public struct MyViewModel: RequestableViewModel {
     ///   @LocalizedString public var pageTitle
     /// }
-    /// 
+    ///
     /// struct MyView: ViewModelView {
     ///   let viewModel: MyViewModel
-    /// 
+    ///
     ///   var body: some View {
     ///     Text(viewModel.pageTitle)
     ///   }
     /// }
-    /// 
+    ///
     /// struct ParentView: View {
     ///   @State var viewModel: MyViewModel
-    /// 
+    ///
     ///   var body: some View {
     ///     MyView.bind(
     ///        viewModel: $viewModel,
-    ///        using: MyViewModelRequest()
+    ///        query: .init( ... )
     ///     )
     ///   }
     /// }
     /// ```
-    /// 
+    ///
     /// - Parameters:
     ///   - viewModel: A [Binding](https://developer.apple.com/documentation/swiftui/binding)
     ///     used to store the retrieved ``ViewModel``
@@ -91,7 +91,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///
     /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
-    /// 
+    ///
     /// - See Also: ``MVVMEnvironment/loadingView``
     @ViewBuilder static func bind(viewModel: Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == Self.VM {
         if let viewModel = viewModel.wrappedValue {
@@ -103,8 +103,12 @@ public extension ViewModelView where VM: RequestableViewModel {
                         do {
                             viewModel.wrappedValue =
                                 try await mvvmEnv.serverBaseURL
-                                    .appending(serverRequest: VM.Request(query: query, fragment: fragment, requestBody: nil, responseBody: nil))?
-                                    .fetch(locale: locale)
+                                    .appending(serverRequest: VM.Request(
+                                        query: query,
+                                        fragment: fragment,
+                                        requestBody: nil,
+                                        responseBody: nil
+                                    ))?.fetch(locale: locale)
                         } catch { // let e {
                             // TODO: Error handling
                             // Probably want to handle errors out-of-band.
@@ -119,6 +123,43 @@ public extension ViewModelView where VM: RequestableViewModel {
         }
     }
 
+    /// Retrieves a ``RequestableViewModel`` from the web service and binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view)
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// public struct MyViewModel: RequestableViewModel {
+    ///   @LocalizedString public var pageTitle
+    /// }
+    ///
+    /// struct MyView: ViewModelView {
+    ///   let viewModel: MyViewModel
+    ///
+    ///   var body: some View {
+    ///     Text(viewModel.pageTitle)
+    ///   }
+    /// }
+    ///
+    /// struct ParentView: View {
+    ///   @State var viewModel: MyViewModel
+    ///
+    ///   var body: some View {
+    ///     MyView.bind(
+    ///        viewModel: $viewModel
+    ///     )
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - viewModel: A [Binding](https://developer.apple.com/documentation/swiftui/binding)
+    ///     used to store the retrieved ``ViewModel``
+    ///
+    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
+    ///   *Self* if the ``ViewModel`` has been successfully retrieved
+    ///
+    /// - See Also: ``MVVMEnvironment/loadingView``
     @ViewBuilder static func bind(viewModel: Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == Self.VM, VM.Request.Query == EmptyQuery {
         if let viewModel = viewModel.wrappedValue {
             Self(viewModel: viewModel)
@@ -129,8 +170,12 @@ public extension ViewModelView where VM: RequestableViewModel {
                         do {
                             viewModel.wrappedValue =
                                 try await mvvmEnv.serverBaseURL
-                                    .appending(serverRequest: VM.Request(query: nil, fragment: nil, requestBody: nil, responseBody: nil))?
-                                    .fetch(locale: locale)
+                                    .appending(serverRequest: VM.Request(
+                                        query: nil,
+                                        fragment: nil,
+                                        requestBody: nil,
+                                        responseBody: nil
+                                    ))?.fetch(locale: locale)
                         } catch { // let e {
                             // TODO: Error handling
                             // Probably want to handle errors out-of-band.

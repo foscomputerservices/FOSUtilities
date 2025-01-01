@@ -51,6 +51,10 @@ import SwiftUI
 /// ```
 @Observable
 public final class MVVMEnvironment {
+    // NOTE: This is an @Observable final class only because SwiftUI's
+    //       Environment implementation requires this; otherwise it
+    //       could be a simple struct.
+
     /// A set of base URLs that define where the server resources can be found
     public struct URLPackage: Sendable {
         /// The base URL of the web service
@@ -111,7 +115,8 @@ public final class MVVMEnvironment {
     ///   - currentVersion: The current SystemVersion of the application
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
-    ///   - loadingView: <#loadingView description#>
+    ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
+    ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
     public init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (() -> AnyView)? = nil) {
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
@@ -127,7 +132,8 @@ public final class MVVMEnvironment {
     ///   - currentVersion: The current SystemVersion of the application
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
-    ///   - loadingView: <#loadingView description#>
+    ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
+    ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
     public convenience init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (() -> AnyView)? = nil) {
         self.init(
             currentVersion: currentVersion,
