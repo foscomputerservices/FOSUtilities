@@ -39,9 +39,8 @@ let package = Package(
 
         // Third 🥳 frameworks
         .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.102.0")),
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.2"),
-        .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.56.0")
-    ],
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.2")
+    ] + extraDeps,
     targets: [
         .target(
             name: "FOSFoundation",
@@ -132,7 +131,12 @@ let swiftSettings: [SwiftSetting] = [
 let plugins: [PackageDescription.Target.PluginUsage]? = [
     .plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLintPlugins")
 ]
+let extraDeps: [Package.Dependency] = [
+    .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.56.0")
+]
 #else
 let plugins: [PackageDescription.Target.PluginUsage]? = [
+]
+let extraDeps: [Package.Dependency] = [
 ]
 #endif

@@ -45,12 +45,8 @@ jobs:
 
       - uses: actions/checkout@v2
 
-      - name: Install xcpretty
-        run: |
-          gem install xcpretty --silent --quiet --no-document
-        
       - name: Run ${{ matrix.ios_platform }} Tests
-        run: xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" -derivedDataPath "$PWD/.derivedData" build -scheme FOSUtilities-Package -destination "generic/platform=${{ matrix.ios_platform }}" | xcpretty
+        run: xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" -derivedDataPath "$PWD/.derivedData" build -scheme FOSUtilities-Package -destination "generic/platform=${{ matrix.ios_platform }}"
 
   #####################################
   # swift 5.8 has removed generate-xcodeproj, so we'll need to find a different
