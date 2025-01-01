@@ -72,7 +72,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// }
     ///
     /// struct ParentView: View {
-    ///   @State var viewModel: MyViewModel
+    ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
     ///     MyView.bind(
@@ -142,7 +142,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// }
     ///
     /// struct ParentView: View {
-    ///   @State var viewModel: MyViewModel
+    ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
     ///     MyView.bind(

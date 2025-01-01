@@ -124,7 +124,8 @@ public extension LocalizableArray {
 
     var id: String {
         switch self {
-        case .constant(let array):
+        // TODO: Finish implementation
+        case .constant:
             fatalError("NYI!")
         case .empty:
             "_empty_"
