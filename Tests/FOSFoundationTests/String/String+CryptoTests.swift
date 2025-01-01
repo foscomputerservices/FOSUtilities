@@ -15,6 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if canImport(Crypto) || canImport(CryptoKit)
+
+#if canImport(CryptoKit)
+import CryptoKit
+#endif
+#if canImport(Crypto)
+import Crypto
+#endif
+
 import FOSFoundation
 import Foundation
 import Testing
@@ -34,3 +43,4 @@ struct StringCryptoTests {
         #expect("foo".hmacSha256(key: "abc123") != "foo")
     }
 }
+#endif

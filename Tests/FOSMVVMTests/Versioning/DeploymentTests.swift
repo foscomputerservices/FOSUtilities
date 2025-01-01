@@ -15,6 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if !os(Windows) // setenv()
 import FOSFoundation
 @testable import FOSMVVM
 import Foundation
@@ -68,3 +69,4 @@ struct DeploymentTests {
         await Deployment.testingReset()
     }
 }
+#endif

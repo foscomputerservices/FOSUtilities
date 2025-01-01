@@ -24,10 +24,13 @@ import Testing
 @Suite("YAML Localization Store Tests")
 struct YamlLocalizationStoreTests: LocalizableTestCase {
 
+    #if !os(macOS)
+    // TODO: This crashes the Swift compiler on GitHub 🤷‍♂️
     @Test func testKeyExists() {
         #expect(locStore.keyExists("test", locale: en))
         #expect(locStore.keyExists("test", locale: es))
     }
+    #endif
 
     @Test func testTranslate() {
         #expect(locStore.t("test", locale: en) == "Test")

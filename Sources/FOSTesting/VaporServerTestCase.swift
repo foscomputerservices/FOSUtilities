@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
+#if canImport(Vapor) && DEBUG
 import FOSFoundation
 @testable import FOSMVVM
 import Foundation

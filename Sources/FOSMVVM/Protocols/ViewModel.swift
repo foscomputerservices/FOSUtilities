@@ -59,7 +59,7 @@ import Foundation
 /// ### Swift View ID
 ///
 /// A ``ViewModelId`` can also be used to set a SwiftUI View's [identity](https://developer.apple.com/documentation/swiftui/view/id(_:) )
-public protocol ViewModel: Codable, ServerRequestBody, Stubbable {
+public protocol ViewModel: ServerRequestBody, Stubbable {
     var vmId: ViewModelId { get }
 }
 
