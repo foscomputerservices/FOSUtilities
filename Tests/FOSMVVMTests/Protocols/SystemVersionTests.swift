@@ -142,6 +142,7 @@ struct SystemVersionTests {
         let compatibleRequest = Request.request(
             withVersion: SystemVersion.current
         )
+        defer { compatibleRequest.application.shutdown() }
         do {
             try compatibleRequest.requireCompatibleSystemVersion()
         } catch let e {
@@ -151,6 +152,7 @@ struct SystemVersionTests {
         let incompatibleRequest = Request.request(
             withVersion: SystemVersion(major: major + 1, minor: minor, patch: patch)
         )
+        defer { incompatibleRequest.application.shutdown() }
         #expect(throws: SystemVersionError.self) {
             try incompatibleRequest.requireCompatibleSystemVersion()
         }
@@ -158,6 +160,7 @@ struct SystemVersionTests {
 
     @Test func testMissingRequestVersionHeader() throws {
         let app = Application.app()
+        defer { app.shutdown() }
         let request = Request(
             application: app,
             on: app.eventLoopGroup.next()
