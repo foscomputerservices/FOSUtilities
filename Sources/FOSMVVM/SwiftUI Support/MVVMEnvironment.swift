@@ -50,7 +50,7 @@ import SwiftUI
 ///  }
 /// ```
 @Observable
-public final class MVVMEnvironment {
+public final class MVVMEnvironment: Sendable {
     // NOTE: This is an @Observable final class only because SwiftUI's
     //       Environment implementation requires this; otherwise it
     //       could be a simple struct.
@@ -81,7 +81,7 @@ public final class MVVMEnvironment {
     /// from the web service
     ///
     /// > Note: A non-localized "Loading..." is presented if no view is provided
-    public let loadingView: () -> AnyView
+    public let loadingView: @Sendable () -> AnyView
 
     /// Returns the URL for the web server that provides ``ViewModel``s for the current ``Deployment``
     @MainActor
@@ -117,7 +117,7 @@ public final class MVVMEnvironment {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (() -> AnyView)? = nil) {
+    public init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
         Self.ensureVersionsEqual(currentVersion: currentVersion, appBundle: appBundle)
@@ -134,7 +134,7 @@ public final class MVVMEnvironment {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public convenience init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (() -> AnyView)? = nil) {
+    public convenience init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,
