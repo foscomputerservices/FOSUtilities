@@ -22,7 +22,7 @@ import Foundation
 import Testing
 import Vapor
 
-public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Request: ServerRequest, Request.ResponseBody: ViewModelFactory {
+public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Request: ServerRequest, Request.ResponseBody: VaporViewModelFactory {
     private let vaporApp: Vapor.Application
 
     public init(for request: Request.Type, bundle: Bundle, resourceDirectoryName: String = "Resources") throws {

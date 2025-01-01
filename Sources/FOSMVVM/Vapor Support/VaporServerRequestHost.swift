@@ -26,7 +26,7 @@ final class VaporServerRequestHost<Request: ServerRequest>: Sendable {
 
 // MARK: RouteCollection Protocol
 
-extension VaporServerRequestHost: RouteCollection where Request.ResponseBody: ViewModelFactory {
+extension VaporServerRequestHost: RouteCollection where Request.ResponseBody: VaporViewModelFactory {
     func boot(routes: any Vapor.RoutesBuilder) throws {
         let groupName = Request.path != "/"
             ? Request.path

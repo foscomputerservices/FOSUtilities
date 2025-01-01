@@ -15,10 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import Foundation
-import Vapor
 
 public enum ViewModelFactoryError: Error {
     /// The client requested a version of the ``ViewModel`` that is not supported
@@ -32,9 +30,42 @@ public enum ViewModelFactoryError: Error {
     }
 }
 
-public protocol ViewModelFactory {
-    associatedtype Request: ViewModelRequest
+public protocol ViewModelFactoryContext {
+    var systemVersion: SystemVersion { get throws }
+}
 
-    static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self
+public protocol ViewModelFactory {
+    associatedtype Context: ViewModelFactoryContext
+
+    static func model(context: Context) async throws -> Self
+}
+
+#if canImport(Vapor)
+import Vapor
+
+public struct VaporModelFactoryContext<VMRequest: ViewModelRequest>: ViewModelFactoryContext {
+    public let req: Vapor.Request
+    public let vmRequest: VMRequest
+
+    public var systemVersion: SystemVersion {
+        get throws {
+            try req.systemVersion
+        }
+    }
+
+    public init(req: Vapor.Request, vmRequest: VMRequest) {
+        self.req = req
+        self.vmRequest = vmRequest
+    }
+}
+
+public protocol VaporViewModelFactory: ViewModelFactory where Context == VaporModelFactoryContext<VMRequest> {
+    associatedtype VMRequest: ViewModelRequest
+}
+
+public extension VaporViewModelFactory {
+    static func model(_ req: Vapor.Request, vmRequest: VMRequest) async throws -> Self {
+        try await Self.model(context: .init(req: req, vmRequest: vmRequest))
+    }
 }
 #endif

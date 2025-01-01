@@ -94,7 +94,7 @@ public extension RoutesBuilder {
     /// >   the client and server.
     ///
     /// - Parameter viewModel: A ``RequestableViewModel`` to register
-    func register<Model>(viewModel: Model.Type) throws where Model: RequestableViewModel & ViewModelFactory, Model.Request.ResponseBody == Model {
+    func register<Model>(viewModel: Model.Type) throws where Model: RequestableViewModel & VaporViewModelFactory, Model.Request.ResponseBody == Model {
         try register(collection: VaporServerRequestHost<Model.Request>())
     }
 }

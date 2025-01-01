@@ -65,14 +65,13 @@ final class TestViewModelRequest: ViewModelRequest {
     }
 }
 
-#if canImport(Vapor)
-import Vapor
-
-extension TestViewModel: ViewModelFactory {
+extension TestViewModel: ViewModelFactory, ViewModelFactoryContext {
+    typealias Context = Self
     // MARK: ViewModelFactory Protocol
 
-    static func model(_ req: Vapor.Request, vmRequest: TestViewModelRequest) async throws -> Self {
+    var systemVersion: SystemVersion { .init(major: 1, minor: 0) }
+
+    static func model(context: Context) async throws -> Self {
         .init()
     }
 }
-#endif
