@@ -1,7 +1,7 @@
 // CollectionTests.swift
 //
 // Created by David Hunt on 9/4/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ struct CollectionTests {
     }
 
     @Test func throttleExecute() async throws {
-        let array = (0...20).map { $0 }
+        let array = (0...20).map(\.self)
         let start = Date()
         var lastNum = 0
 
