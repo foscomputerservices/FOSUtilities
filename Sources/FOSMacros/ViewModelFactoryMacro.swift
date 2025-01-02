@@ -37,12 +37,25 @@ public struct ViewModelFactoryMacro: MemberMacro {
             return []
         }
 
+        var typeAliasType: String?
+
         // Example:
         // @Version(.v1_0_0)
-        // static func model_v1_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self
+        // static func model_v1_0_0(context: Context) async throws -> Self
 
         // Extract the version number from the attribute and the corresponding function name
         let versionedModelFuncs = try declaration.memberBlock.members.compactMap { member throws -> (version: SystemVersion, method: String)? in
+
+            // Capture the typealias, if we can; if not, we'll use 'Context'
+            if let typeAliasDecl = member.decl.as(TypeAliasDeclSyntax.self) {
+                if typeAliasType == nil {
+                    typeAliasType = typeAliasDecl.initializer.value.description
+                } else {
+                    // There's more than one and we don't know which is correct
+                    typeAliasType = nil
+                }
+            }
+
             guard let funcDecl = member.decl.as(FunctionDeclSyntax.self) else {
                 return nil
             }
@@ -65,15 +78,15 @@ public struct ViewModelFactoryMacro: MemberMacro {
         .map { tuple in
             """
             if version >= \(tuple.version.initFuncCall) {
-                return try await \(tuple.method)(req, vmRequest: vmRequest)
+                return try await \(tuple.method)(context: context)
             }
             """
         }
         .joined(separator: "\n")
 
         return ["""
-        public static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-            let version = try req.systemVersion
+        public static func model(context: \(raw: typeAliasType ?? "Context")) async throws -> Self {
+            let version = try context.systemVersion
 
             \(raw: versionedModelFuncs)
 

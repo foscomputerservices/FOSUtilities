@@ -35,7 +35,6 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             struct TestViewModel: ViewModel {
                 var name: String { "TestViewModel" }
                 var vmId: FOSMVVM.ViewModelId = .init()
-
                 static func stub() -> TestViewModel {
                     .init()
                 }
@@ -43,13 +42,15 @@ final class ViewModelFactoryMacroTests: XCTestCase {
 
             @VersionedFactory
             extension TestViewModel: ViewModelFactory {
+                typealias Context = Int
+            
                 @Version(.v1_0_0)
-                static func model_v1_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
+                static func model_v1_0_0(context: Context) async throws -> Self {
                     .stub()
                 }
 
                 @Version(.v2_0_0)
-                static func model_v2_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
+                static func model_v2_0_0(context: Context) async throws -> Self {
                     .stub()
                 }
             }
@@ -58,27 +59,27 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             struct TestViewModel: ViewModel {
                 var name: String { "TestViewModel" }
                 var vmId: FOSMVVM.ViewModelId = .init()
-
                 static func stub() -> TestViewModel {
                     .init()
                 }
             }
             extension TestViewModel: ViewModelFactory {
-                static func model_v1_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
+                typealias Context = Int
+                static func model_v1_0_0(context: Context) async throws -> Self {
                     .stub()
                 }
-                static func model_v2_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
+                static func model_v2_0_0(context: Context) async throws -> Self {
                     .stub()
                 }
 
-                public static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-                    let version = try req.systemVersion
+                public static func model(context: Int) async throws -> Self {
+                    let version = try context.systemVersion
 
                     if version >= SystemVersion(major: 2, minor: 0, patch: 0) {
-                    return try await model_v2_0_0(req, vmRequest: vmRequest)
+                    return try await model_v2_0_0(context: context)
                     }
                     if version >= SystemVersion(major: 1, minor: 0, patch: 0) {
-                        return try await model_v1_0_0(req, vmRequest: vmRequest)
+                        return try await model_v1_0_0(context: context)
                     }
 
                     throw ViewModelFactoryError.versionNotSupported(version.versionString)

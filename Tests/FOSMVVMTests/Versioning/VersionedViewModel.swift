@@ -18,10 +18,6 @@
 import FOSFoundation
 import FOSMVVM
 
-// TODO: Need to remove vapor requirement from ViewModelFactory
-#if canImport(Vapor)
-import Vapor
-
 extension SystemVersion {
     static var v1_0_0: Self { .vInitial }
     static var v2_0_0: Self { .init(major: 2) }
@@ -81,7 +77,7 @@ extension TestVersionedViewModel {
 struct P1: ViewModel, ViewModelFactory {
     var vmId: ViewModelId = .init()
 
-    static func model(_ req: Vapor.Request, vmRequest: TestVersionedViewModelRequest) async throws -> Self {
+    static func model(context: TestVersionedViewModelRequest) async throws -> Self {
         .stub()
     }
 
@@ -93,7 +89,7 @@ struct P1: ViewModel, ViewModelFactory {
 struct P2: ViewModel, ViewModelFactory {
     var vmId: ViewModelId = .init()
 
-    static func model(_ req: Vapor.Request, vmRequest: TestVersionedViewModelRequest) async throws -> Self {
+    static func model(context: TestVersionedViewModelRequest) async throws -> Self {
         .stub()
     }
 
@@ -105,7 +101,7 @@ struct P2: ViewModel, ViewModelFactory {
 struct P3: ViewModel, ViewModelFactory {
     var vmId: ViewModelId = .init()
 
-    static func model(_ req: Vapor.Request, vmRequest: TestVersionedViewModelRequest) async throws -> Self {
+    static func model(context: TestVersionedViewModelRequest) async throws -> Self {
         .stub()
     }
 
@@ -117,7 +113,7 @@ struct P3: ViewModel, ViewModelFactory {
 struct P4: ViewModel, ViewModelFactory {
     var vmId: ViewModelId = .init()
 
-    static func model(_ req: Vapor.Request, vmRequest: TestVersionedViewModelRequest) async throws -> Self {
+    static func model(context: TestVersionedViewModelRequest) async throws -> Self {
         .stub()
     }
 
@@ -126,9 +122,15 @@ struct P4: ViewModel, ViewModelFactory {
     }
 }
 
-final class TestVersionedViewModelRequest: ViewModelRequest {
+final class TestVersionedViewModelRequest: ViewModelRequest, ViewModelFactoryContext {
     typealias Query = EmptyQuery
     let responseBody: TestVersionedViewModel?
+
+    var systemVersion: SystemVersion {
+        get throws {
+            .init(major: 3, minor: 0, patch: 0)
+        }
+    }
 
     init(query: EmptyQuery? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TestVersionedViewModel? = nil) {
         self.responseBody = responseBody
@@ -137,48 +139,48 @@ final class TestVersionedViewModelRequest: ViewModelRequest {
 
 @VersionedFactory
 extension TestVersionedViewModel: ViewModelFactory {
+    typealias Context = Request
+
     // @VersionedFactory generates conformance to ViewModelFactory
-//    public static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-//        let version = try req.systemVersion
+//    static func model(context: Request) async throws -> Self {
+//        let version = try context.systemVersion
 //
 //        if version >= SystemVersion(major: 3, minor: 0, patch: 0) {
-//        return try await model_v3_0_0(req, vmRequest: vmRequest)
+//        return try await model_v3_0_0(context: context)
 //        }
 //        if version >= SystemVersion(major: 2, minor: 1, patch: 0) {
-//            return try await model_v2_1_0(req, vmRequest: vmRequest)
+//            return try await model_v2_1_0(context: context)
 //        }
 //        if version >= SystemVersion(major: 2, minor: 0, patch: 0) {
-//            return try await model_v2_0_0(req, vmRequest: vmRequest)
+//            return try await model_v2_0_0(context: context)
 //        }
 //        if version >= SystemVersion(major: 1, minor: 0, patch: 0) {
-//            return try await model_v1_0_0(req, vmRequest: vmRequest)
+//            return try await model_v1_0_0(context: context)
 //        }
 //
 //        throw ViewModelFactoryError.versionNotSupported(version.versionString)
 //    }
 
-
     @Version(.v1_0_0)
-    static func model_v1_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-        try await .init(p1: P1.model(req, vmRequest: vmRequest))
+    static func model_v1_0_0(context: Context) async throws -> Self {
+        try await .init(p1: P1.model(context: context))
     }
 
     @Version(.v2_0_0)
-    static func model_v2_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-        try await .init(p2: P2.model(req, vmRequest: vmRequest))
+    static func model_v2_0_0(context: Context) async throws -> Self {
+        try await .init(p2: P2.model(context: context))
     }
 
     @Version(.v2_1_0)
-    static func model_v2_1_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
+    static func model_v2_1_0(context: Context) async throws -> Self {
         try await .init(
-            p2: P2.model(req, vmRequest: vmRequest),
-            p3: P3.model(req, vmRequest: vmRequest)
+            p2: P2.model(context: context),
+            p3: P3.model(context: context)
         )
     }
 
     @Version(.v3_0_0)
-    static func model_v3_0_0(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-        try await .init(p4: P4.model(req, vmRequest: vmRequest))
+    static func model_v3_0_0(context: Context) async throws -> Self {
+        try await .init(p4: P4.model(context: context))
     }
 }
-#endif
