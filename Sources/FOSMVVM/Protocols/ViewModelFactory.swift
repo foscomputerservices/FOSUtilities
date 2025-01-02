@@ -65,7 +65,7 @@ public protocol VaporViewModelFactory: ViewModelFactory where Context == VaporMo
 
 public extension VaporViewModelFactory {
     static func model(_ req: Vapor.Request, vmRequest: VMRequest) async throws -> Self {
-        try await Self.model(context: .init(req: req, vmRequest: vmRequest))
+        try await model(context: .init(req: req, vmRequest: vmRequest))
     }
 }
 #endif

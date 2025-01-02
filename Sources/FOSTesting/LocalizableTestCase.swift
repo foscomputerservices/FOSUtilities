@@ -49,7 +49,7 @@ public protocol LocalizableTestCase: Sendable {
 
 public extension LocalizableTestCase {
     /// Loads a **LocalizationStore** with the localizations in *resourceDirectoryName*
-    /// 
+    ///
     /// - Parameter resourceDirectoryName: The name of a resource directory
     ///    in the application's bundle (default: Localizations)
     /// - Parameter bundle: The *Bundle* to use to load the YAML store

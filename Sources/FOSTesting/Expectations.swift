@@ -75,7 +75,6 @@ public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil,
 ///     - file: The optional file path of the source file calling this method
 ///     - line: The optional line number of the test function calling this method
 public func expectVersionedViewModel<VM>(_ viewModelType: VM.Type, version: SystemVersion = .current, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "", fixedTestFilePath: URL? = nil, file: String = #filePath, line: Int = #line) throws where VM: ViewModel {
-
     let fileMgr = FileManager.default
 
     let message = message() + ": "
@@ -86,7 +85,7 @@ public func expectVersionedViewModel<VM>(_ viewModelType: VM.Type, version: Syst
 
     // If we've not already stored this version, store it now
     if !fileMgr.fileExists(atPath: testFilePath.path) {
-        let instance = viewModelType.self.stub()
+        let instance = viewModelType.stub()
         let encoder = encoder ?? JSONEncoder()
         let encodedData = try encoder.encode(instance)
 
@@ -119,7 +118,7 @@ private extension FileManager {
             .appendingPathComponent(".VersionedTestJSON")
     }
 
-    func testFiles<VM>(for type: VM.Type, testFileDirectory: URL) throws -> [URL] {
+    func testFiles(for type: (some Any).Type, testFileDirectory: URL) throws -> [URL] {
         try contentsOfDirectory(atPath: testFileDirectory.path())
             .filter { $0.hasSuffix(".json") }
             .filter { $0.hasPrefix("\(type)_") }
@@ -133,7 +132,7 @@ private extension FileManager {
 }
 
 private extension SystemVersion {
-    func testFilePath<VM>(for type: VM.Type, testFileDirectory: URL) -> URL {
+    func testFilePath(for type: (some Any).Type, testFileDirectory: URL) -> URL {
         testFileDirectory
             .appendingPathComponent("\(type)_\(self).json")
     }

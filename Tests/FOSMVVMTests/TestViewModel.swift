@@ -67,6 +67,7 @@ final class TestViewModelRequest: ViewModelRequest {
 
 extension TestViewModel: ViewModelFactory, ViewModelFactoryContext {
     typealias Context = Self
+
     // MARK: ViewModelFactory Protocol
 
     var systemVersion: SystemVersion { .init(major: 1, minor: 0) }

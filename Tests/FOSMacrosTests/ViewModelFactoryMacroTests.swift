@@ -43,7 +43,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             @VersionedFactory
             extension TestViewModel: ViewModelFactory {
                 typealias Context = Int
-            
+
                 @Version(.v1_0_0)
                 static func model_v1_0_0(context: Context) async throws -> Self {
                     .stub()
