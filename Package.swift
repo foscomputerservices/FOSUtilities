@@ -32,23 +32,21 @@ let package = Package(
     ],
     dependencies: [
         // 🍎 frameworks
-        .package(url: "https://github.com/swiftlang/swift-testing.git", branch: "main"),
-        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
-        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.3.0")),
+        .package(url: "https://github.com/swiftlang/swift-testing.git", revision: "18c42c19cac3fafd61cab1156d4088664b7424ae"),
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.3"),
+        .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.10.0")),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.1"),
 
         // Third 🥳 frameworks
-        .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.102.0")),
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.2")
+        .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.111.0")),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.3")
     ],
     targets: [
         .target(
             name: "FOSFoundation",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))
-            ],
-            swiftSettings: swiftSettings,
-            plugins: plugins
+            ]
         ),
         .macro(
             name: "FOSMacros",
@@ -58,8 +56,7 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftDiagnostics", package: "swift-syntax"),
                 .byName(name: "FOSFoundation")
-            ],
-            swiftSettings: swiftSettings
+            ]
         ),
         .target(
             name: "FOSMVVM",
@@ -68,9 +65,7 @@ let package = Package(
                 .byName(name: "FOSMacros"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
-            ],
-            swiftSettings: swiftSettings,
-            plugins: plugins
+            ]
         ),
         .target(
             name: "FOSTesting",
@@ -78,8 +73,7 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
                 .product(name: "Testing", package: "swift-testing")
-            ],
-            swiftSettings: swiftSettings
+            ]
         ),
         .testTarget(
             name: "FOSFoundationTests",
@@ -87,8 +81,7 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSTesting"),
                 .product(name: "Testing", package: "swift-testing")
-            ],
-            swiftSettings: swiftSettings
+            ]
         ),
         .testTarget(
             name: "FOSMacrosTests",
@@ -114,23 +107,7 @@ let package = Package(
             ],
             resources: [
                 .copy("TestYAML")
-            ],
-            swiftSettings: swiftSettings
+            ]
         )
     ]
 )
-
-let swiftSettings: [SwiftSetting] = [
-    .unsafeFlags([
-        "-Xswiftc -swift-version",
-        "-Xswiftc 6"
-    ])
-]
-
-#if os(macOS)
-let plugins: [PackageDescription.Target.PluginUsage]? = [
-]
-#else
-let plugins: [PackageDescription.Target.PluginUsage]? = [
-]
-#endif
