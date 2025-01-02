@@ -1,7 +1,7 @@
 // ViewModelFactoryMacroTests.swift
 //
 // Created by David Hunt on 12/21/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             @VersionedFactory
             extension TestViewModel: ViewModelFactory {
                 typealias Context = Int
-            
+
                 @Version(.v1_0_0)
                 static func model_v1_0_0(context: Context) async throws -> Self {
                     .stub()

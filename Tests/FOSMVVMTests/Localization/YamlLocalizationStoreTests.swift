@@ -1,7 +1,7 @@
 // YamlLocalizationStoreTests.swift
 //
 // Created by David Hunt on 9/4/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import Testing
 
 @Suite("YAML Localization Store Tests")
 struct YamlLocalizationStoreTests: LocalizableTestCase {
-
     #if !os(macOS)
     // TODO: This crashes the Swift compiler on GitHub 🤷‍♂️
     @Test func testKeyExists() {

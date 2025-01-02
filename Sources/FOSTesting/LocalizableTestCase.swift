@@ -1,7 +1,7 @@
 // LocalizableTestCase.swift
 //
 // Created by David Hunt on 9/11/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ public protocol LocalizableTestCase: Sendable {
 
 public extension LocalizableTestCase {
     /// Loads a **LocalizationStore** with the localizations in *resourceDirectoryName*
-    /// 
+    ///
     /// - Parameter resourceDirectoryName: The name of a resource directory
     ///    in the application's bundle (default: Localizations)
     /// - Parameter bundle: The *Bundle* to use to load the YAML store

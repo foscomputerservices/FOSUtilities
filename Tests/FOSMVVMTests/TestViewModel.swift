@@ -1,7 +1,7 @@
 // TestViewModel.swift
 //
 // Created by David Hunt on 9/11/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -67,6 +67,7 @@ final class TestViewModelRequest: ViewModelRequest {
 
 extension TestViewModel: ViewModelFactory, ViewModelFactoryContext {
     typealias Context = Self
+
     // MARK: ViewModelFactory Protocol
 
     var systemVersion: SystemVersion { .init(major: 1, minor: 0) }

@@ -1,7 +1,7 @@
 // URL+DataFetch.swift
 //
 // Created by David Hunt on 9/4/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -41,14 +41,14 @@ public extension URL {
     }
 
     /// Fetches the given data of type **ResultValue** from the given **URL**
-    /// 
+    ///
     /// - Parameters:
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
     ///   - errorType: An **Error** type to attempt to decode returned data as an error if unable to decode as **ResultValue**
     ///
     /// - Note: The following headers are automatically sent to all requests:
-    /// 
+    ///
     ///  | Key | Value |
     ///  | ---------------------- | ---------------------------------- |
     ///  | Accept | application/json;charset=utf-8 |

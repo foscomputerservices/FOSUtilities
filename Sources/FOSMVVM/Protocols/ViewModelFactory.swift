@@ -1,7 +1,7 @@
 // ViewModelFactory.swift
 //
 // Created by David Hunt on 9/4/24
-// Copyright 2024 FOS Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ public protocol VaporViewModelFactory: ViewModelFactory where Context == VaporMo
 
 public extension VaporViewModelFactory {
     static func model(_ req: Vapor.Request, vmRequest: VMRequest) async throws -> Self {
-        try await Self.model(context: .init(req: req, vmRequest: vmRequest))
+        try await model(context: .init(req: req, vmRequest: vmRequest))
     }
 }
 #endif
