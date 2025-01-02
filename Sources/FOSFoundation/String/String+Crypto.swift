@@ -17,12 +17,12 @@
 
 import Foundation
 
-#if canImport(Crypto) || canImport(CryptoKit)
+#if (os(Linux) && canImport(Crypto)) || canImport(CryptoKit)
 
 #if canImport(CryptoKit)
 import CryptoKit
 #endif
-#if canImport(Crypto)
+#if os(Linux) && canImport(Crypto)
 import Crypto
 #endif
 
