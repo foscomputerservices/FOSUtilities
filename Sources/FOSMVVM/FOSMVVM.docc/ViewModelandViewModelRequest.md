@@ -107,6 +107,9 @@ Our ``ViewModel`` is now hosted in **HostView** and the model will automatically
 
 The server is responsible for creating instances of the ``ViewModel``s.  This is done by conforming the ``ViewModel`` implementation to ``ViewModelFactory``.
 
+> NOTE: Since this example is a Vapor server, the implementation uses a Vapor-specific ``ViewModelFactory``,
+> ``VaporViewModelFactory``, which provides a standard *Context* with Vapor-specific information.
+
 ```swift
 import FOSFoundation
 import FOSMVVM
@@ -114,8 +117,10 @@ import Foundation
 import Vapor
 import ViewModels
 
-extension LandingPageViewModel: ViewModelFactory {
-    public static func model(_ req: Vapor.Request, vmRequest: LandingPageRequest) async throws -> Self {
+extension LandingPageViewModel: VaporViewModelFactory {
+    public typealias VMRequest = LandingPageRequest
+
+    public static func model(_ req: Vapor.Request, vmRequest: VaporModelFactoryContext<VMRequest>)) async throws -> Self {
         .init()
     }
 }

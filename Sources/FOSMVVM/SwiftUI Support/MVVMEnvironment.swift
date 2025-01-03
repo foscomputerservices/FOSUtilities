@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 1/1/25
+// Created by David Hunt on 1/2/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -37,6 +37,8 @@ import SwiftUI
 ///          }
 ///          .environment(
 ///              MVVMEnvironment(
+///                  currentVersion: .currentApplicationVersion,
+///                  appBundle: Bundle.main,
 ///                  deploymentURLs: [
 ///                     .production: URL(string: "https://api.mywebserver.com")!,
 ///                     .staging: URL(string: "https://staging-api.mywebserver.com")!,

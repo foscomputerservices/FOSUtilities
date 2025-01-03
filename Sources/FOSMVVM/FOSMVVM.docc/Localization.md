@@ -8,6 +8,8 @@ When writing applications that exclusively use Apple's APIs, [Apple provides Loc
 
 - Require (or desire) localization to be performed on the server instead of the client application
 - Swift applications that will run on non-Apple platforms or a combination of Apple and non-Apple platforms (e.g., [WASM Applications](https://swiftwasm.org/), [Vapor Leaf](https://docs.vapor.codes/leaf/getting-started/), [Ignite](https://github.com/twostraws/Ignite), [Skip.tools](https://skip.tools), [Tokamak](https://github.com/TokamakUI/Tokamak), etc.)
+- Prefer a type-safe (non ['stringly-typed'](https://cocoacasts.com/the-danger-of-string-literals-and-stringly-typed-code)) mechanism for binding localizations
+- Take advantage of built-in automatic localization unit testing
 
 ## YAML
 

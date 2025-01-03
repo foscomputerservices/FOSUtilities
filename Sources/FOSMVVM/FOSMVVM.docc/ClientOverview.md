@@ -8,22 +8,36 @@ Quickly and easily connect your MVVM clients to their corresponding servers
 
 In order to access the server from a client SwiftUI application, an ``MVVMEnvironment`` instance needs to be configured and added to the [SwiftUI Environment](https://developer.apple.com/documentation/swiftui/environment).
 
-#### Base URLs and Application Version
+#### Application Version
 
-> NOTE: It is suggested that your client and server applications have a shared location to store the current version (see: <doc:Versioning>).
->
-> ```swift
-> public extension SystemVersion {
->     // My application's current version
->     public static var currentApplicationVersion: Self { .v3_0_0 }
-> 
->     // My application's versions
->     public static var v1_0_0: Self { .vInitial }
->     public static var v2_0_0: Self { .init(major: 2) }
->     public static var v2_1_0: Self { .init(major: 2, minor: 1) }
->     public static var v3_0_0: Self { .init(major: 3) }
-> }
-> ```
+It is suggested that your client and server applications have a shared location to store the current version (see: <doc:Versioning>).
+
+```swift
+public extension SystemVersion {
+    // My application's current version
+    static var currentApplicationVersion: Self { .v3_0_0 }
+
+    // My application's versions
+    static var v1_0_0: Self { .vInitial }
+    static var v2_0_0: Self { .init(major: 2) }
+    static var v2_1_0: Self { .init(major: 2, minor: 1) }
+    static var v3_0_0: Self {
+      .init(
+          major: 3,
+          patch: (try? Bundle.main.appleOSVersion.patch) ?? 0
+      )
+    }
+}
+```
+
+The *SystemVersion* startup code will automatically ensure that the application's build number and
+the patch number are equal.  Thus, the patch must be set correctly when setting the **current version** number.
+Setting the patch number can be done by using the *appleOSVersion.patch* property that is provided as
+an extension on [Bundle](https://developer.apple.com/documentation/foundation/bundle).  The 
+*appleOSVersion.patch* will only be successful on Apple applications built from an xcodeproj.  For
+other applications, the patch needs to be incremented manually.
+
+#### Base URLs
 
 At a minimum a base URL should be provided for each ``Deployment`` that is expected to be targeted by the application.
 
@@ -41,6 +55,7 @@ struct MyApp: App {
         .environment(
            MVVMEnvironment(
                currentVersion: .currentApplicationVersion,
+               appBundle: Bundle.main,
                deploymentURLs: [
                   .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
                   .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
@@ -63,22 +78,21 @@ struct MyApp: App {
 
     var body: some Scene {
         WindowGroup {
+            let vmBinding = $viewModel
+
             LandingPageView.bind(
-                viewModel: $viewModel
+                viewModel: vmBinding
             )
         }
         .environment(
-            MVVMEnvironment(
-                currentVersion: .init(
-                     major: 1,
-                     minor: 0,
-                     patch: 0
-                ),
-                deploymentURLs: [
-                  .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
-                  .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
-                  .debug, .init(serverBaseURL: URL(string: "http://localhost:8080")!)
-                ]
+             MVVMEnvironment(
+                 currentVersion: .currentApplicationVersion,
+                 appBundle: Bundle.main,
+                 deploymentURLs: [
+                    .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
+                    .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
+                    .debug, .init(serverBaseURL: URL(string: "http://localhost:8080")!)
+                 ]
             )
         )
     }
@@ -87,7 +101,8 @@ struct MyApp: App {
 
 ### Done!
 
-That is all that needs to be done to communicate between the client and server application!
+That is all that needs to be done to allow a client application to retrieve ``ViewModel``s
+from a server application!
 
 ## Topics
 

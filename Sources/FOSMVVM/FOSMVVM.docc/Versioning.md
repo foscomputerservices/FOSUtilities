@@ -35,7 +35,7 @@ public extension SystemVersion {
     public static var v1_0_0: Self { .vInitial }
     public static var v2_0_0: Self { .init(major: 2) }
     public static var v2_1_0: Self { .init(major: 2, minor: 1) }
-    public static var v3_0_0: Self { .init(major: 3) }
+    public static var v3_0_0: Self { .init(major: 3, patch: (try? Bundle.main.appleOSVersion.patch) ?? 0) }
 }
 ```
 
