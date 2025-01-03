@@ -6,41 +6,29 @@ Add support for MVVM clients to your **Vapor** servers in no time!
 
 ### Vapor Web Servers
 
-#### Initializing Localization
+#### Initializing Localization and Versioning
 
 To initialize FOS-MVVM in your [Vapor](https://docs.vapor.codes) server add the following code
-to your application's initialization routine:
+to your application's *configure()* routine:
 
 ```swift
-app.initYamlLocalization(
-    bundle: Bundle.module,
-    resourceDirectoryName: "Localization"
-)
+public func configure(_ app: Application) async throws {
+    SystemVersion.setCurrentVersion(.currentApplicationVersion)
+
+    // This setting makes the server *fully* backwards compatible, but
+    // can be moved forward as older versions are no longer supported. 
+    SystemVersion.setMinimumSupportedVersion(.vInitial)
+
+    try app.initYamlLocalization(
+        bundle: Bundle.module,
+
+        // See: 'Locating the Resource Directory Name' below
+        resourceDirectoryName: "Localization"
+    )
+}
 ```
 
-
-#### Initialize the Server Version
-
-The version of the server should be set by adding the following code to your application's initialization routine.  As the version is updated, make sure to update the values.
-
-```swift
-SystemVersion.setCurrentVersion(.currentApplicationVersion)
-
-// This setting makes the server *fully* backwards compatible, but
-// can be moved forward as older versions are no longer supported. 
-SystemVersion.setMinimumSupportedVersion(.vInitial)
-```
-
-> NOTE: It is suggested that your client application and server application have a shared location to store the current version.  This could be accomplished with a global variable in a library that is shared between the applications and also the tests.
->
-> ```swift
-> public extension SystemVersion {
->     public static var currentApplicationVersion: Self { .init(
->       major: 1,
->       minor: 2,
->       patch: 3
->     ) }
-> ```
+> NOTE: It is suggested that your client and server applications have a shared location to store the current version (see: <doc:Versioning>).
 
 #### Initializing Routes
 
@@ -64,6 +52,12 @@ To initialize FOS-MVVM in non-Vapor servers, add the following code
 to your application's initialization routine:
 
 ```swift
+SystemVersion.setCurrentVersion(.currentApplicationVersion)
+
+// This setting makes the server *fully* backwards compatible, but
+// can be moved forward as older versions are no longer supported. 
+SystemVersion.setMinimumSupportedVersion(.vInitial)
+
 let localizationStore = try await Bundle.module.yamlLocalization(
     resourceDirectoryName: "Localization"
 )
