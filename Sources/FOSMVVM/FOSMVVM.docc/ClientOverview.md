@@ -1,6 +1,6 @@
 # Getting Started With FOSMVVM in Client Applications
 
-Quickly and easily connect your MVVM clients to their corresponding servers
+Quickly connect your MVVM clients to their corresponding servers
 
 ## Client Application Initialization
 
@@ -12,30 +12,10 @@ In order to access the server from a client SwiftUI application, an ``MVVMEnviro
 
 It is suggested that your client and server applications have a shared location to store the current version (see: <doc:Versioning>).
 
-```swift
-public extension SystemVersion {
-    // My application's current version
-    static var currentApplicationVersion: Self { .v3_0_0 }
-
-    // My application's versions
-    static var v1_0_0: Self { .vInitial }
-    static var v2_0_0: Self { .init(major: 2) }
-    static var v2_1_0: Self { .init(major: 2, minor: 1) }
-    static var v3_0_0: Self {
-      .init(
-          major: 3,
-          patch: (try? Bundle.main.appleOSVersion.patch) ?? 0
-      )
-    }
-}
-```
-
-The *SystemVersion* startup code will automatically ensure that the application's build number and
-the patch number are equal.  Thus, the patch must be set correctly when setting the **current version** number.
-Setting the patch number can be done by using the *appleOSVersion.patch* property that is provided as
-an extension on [Bundle](https://developer.apple.com/documentation/foundation/bundle).  The 
-*appleOSVersion.patch* will only be successful on Apple applications built from an xcodeproj.  For
-other applications, the patch needs to be incremented manually.
+``MVVMEnvironment`` will automatically default the current version to
+ [Bundle](https://developer.apple.com/documentation/foundation/bundle).appleOSVersion on platforms built
+from an xcodeproj.  For other applications, the current version must be supplied to ``MVVMEnvironment``
+during initialization.
 
 #### Base URLs
 
@@ -54,7 +34,8 @@ struct MyApp: App {
         }
         .environment(
            MVVMEnvironment(
-               currentVersion: .currentApplicationVersion,
+// Add the following line if the application is not built from an xcodeproj
+//             currentVersion: .currentApplicationVersion,
                appBundle: Bundle.main,
                deploymentURLs: [
                   .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
@@ -86,7 +67,6 @@ struct MyApp: App {
         }
         .environment(
              MVVMEnvironment(
-                 currentVersion: .currentApplicationVersion,
                  appBundle: Bundle.main,
                  deploymentURLs: [
                     .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),

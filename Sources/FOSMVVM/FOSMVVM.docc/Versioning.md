@@ -35,7 +35,7 @@ public extension SystemVersion {
     public static var v1_0_0: Self { .vInitial }
     public static var v2_0_0: Self { .init(major: 2) }
     public static var v2_1_0: Self { .init(major: 2, minor: 1) }
-    public static var v3_0_0: Self { .init(major: 3, patch: (try? Bundle.main.appleOSVersion.patch) ?? 0) }
+    public static var v3_0_0: Self { .init(major: 3, patch: 1) }
 }
 ```
 
@@ -196,25 +196,20 @@ Tools are provided in **FOSTesting** to automatically ensure that all versions o
 
 ## Application Versions
 
-### iOS, iPadOS, macOS
+### iOS, iPadOS, tvOS, visionOS, macOS
 
 Apple expects App Store applications to set their version numbers in their corresponding .xcodeproj files.
-FOSFoundation and FOSMVVM expect that the .xcodeproj version number is equal to *SystemVersion.current.versionString*.
-No automated way is provided to update this value in the .xcodeproj at this time.  Thus it is required that these values
-be manually specified in the application's .xcodeproj.
+It is required that these values be manually specified in the application's .xcodeproj.
 
 This can be accomplished in Xcode by selecting the application at the top of Xcode's Project Navigator tab.  Then
 by selecting the General tab.  At the left, under TARGETS select the application target.  Finally update the
 Version field in the Identity section.
+
+This value is available from the application's bundle via *Bundle.main.appleOSVersion*.  ``MVVMEnvironment``
+automatically sets the client application's *SystemVersion.currentVersion* to this value.
 
 ![Xcode Example](SettingApplicationVersion)
 
 It is recommended that the Build number be automatically maintained.  There are numerous ways to accomplish this
 and each team will have differing requirements.  Some ideas can be found on
 [StackOverflow](https://stackoverflow.com/q/9258344).
-
-#### Application Version and SystemVersion.current
-
-When initializing the application (see: <doc:ClientOverview>) ``MVVMEnvironment`` will automatically ensure that
-the specified *SystemVersion* and the version specified in the .xcodeproj are equal.  The application will
-terminate if they are found to be different.
