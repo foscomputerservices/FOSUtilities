@@ -99,10 +99,15 @@ public struct SystemVersion: Codable, Hashable, LosslessStringConvertible, Stubb
     )
 
     /// Initializes the ``SystemVersion``
+    ///
+    /// - Parameters:
+    ///   - major: The *major* portion of the version number (default: 0)
+    ///   - minor: The *minor* portion of the version number (default: 0)
+    ///   - patch: The *patch* portion of the version number (default: 0)
     public init(major: Int? = nil, minor: Int? = nil, patch: Int? = nil) {
-        self.major = major ?? Self.current.major
-        self.minor = minor ?? Self.current.minor
-        self.patch = patch ?? Self.current.patch
+        self.major = major ?? 0
+        self.minor = minor ?? 0
+        self.patch = patch ?? 0
     }
 }
 

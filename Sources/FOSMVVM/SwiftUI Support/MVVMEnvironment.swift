@@ -113,16 +113,21 @@ public final class MVVMEnvironment: Sendable {
 
     /// Initializes the ``MVVMEnvironment``
     ///
+    /// > If *currentVersion* is not specified, *SystemVersion.currentVersion* is set to *appBundle.appleOSVersion*, which is loaded from the xcodeproj.
+    /// > See also: <doc:Versioning>
+    ///
     /// - Parameters:
-    ///   - currentVersion: The current SystemVersion of the application
+    ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+    public init(currentVersion: SystemVersion? = nil, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
-        Self.ensureVersionsEqual(currentVersion: currentVersion, appBundle: appBundle)
+
+        let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
+        Self.ensureVersionsCompatible(currentVersion: currentVersion, appBundle: appBundle)
         SystemVersion.setCurrentVersion(currentVersion)
     }
 
@@ -131,12 +136,12 @@ public final class MVVMEnvironment: Sendable {
     /// This convenience initializer uses each deployment URL for both the *serverBaseURL* and the *resourcesBaseURL*.
     ///
     /// - Parameters:
-    ///   - currentVersion: The current SystemVersion of the application
+    ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public convenience init(currentVersion: SystemVersion, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
+    public convenience init(currentVersion: SystemVersion? = nil, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,
@@ -163,11 +168,11 @@ private struct DefaultLoadingView: View {
 }
 
 private extension MVVMEnvironment {
-    static func ensureVersionsEqual(currentVersion: SystemVersion, appBundle: Bundle) {
+    static func ensureVersionsCompatible(currentVersion: SystemVersion, appBundle: Bundle) {
         do {
             let bundleVersion = try appBundle.appleOSVersion
 
-            guard bundleVersion == currentVersion else {
+            guard bundleVersion.isCompatible(with: currentVersion) else {
                 fatalError("The app bundle version (\(bundleVersion)) does not match the current system version (\(currentVersion)). Please update your app bundle version to \(currentVersion) in the project settings.")
             }
         } catch let error as SystemVersionError {

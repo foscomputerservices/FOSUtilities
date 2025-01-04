@@ -93,12 +93,14 @@ struct SystemVersionTests {
         #expect(SystemVersion.current.isCompatible(with: SystemVersion.current))
 
         // Differing Patches shouldn't matter
-        #expect(SystemVersion(patch: SystemVersion.current.patch + 1).isCompatible(with: SystemVersion.current))
-        #expect(SystemVersion(patch: SystemVersion.current.patch - 1).isCompatible(with: SystemVersion.current))
+        let major = SystemVersion.current.major
+        let minor = SystemVersion.current.minor
+        #expect(SystemVersion(major: major, minor: minor, patch: SystemVersion.current.patch + 1).isCompatible(with: SystemVersion.current))
+        #expect(SystemVersion(major: major, minor: minor, patch: SystemVersion.current.patch - 1).isCompatible(with: SystemVersion.current))
 
         // Incrementing minors
-        #expect(!SystemVersion(minor: SystemVersion.current.minor + 1).isCompatible(with: SystemVersion.current))
-        #expect(SystemVersion(minor: SystemVersion.current.minor - 1).isCompatible(with: SystemVersion.current))
+        #expect(!SystemVersion(major: major, minor: SystemVersion.current.minor + 1).isCompatible(with: SystemVersion.current))
+        #expect(SystemVersion(major: major, minor: SystemVersion.current.minor - 1).isCompatible(with: SystemVersion.current))
 
         // Differing Majors
         #expect(!SystemVersion(major: SystemVersion.current.major + 1).isCompatible(with: SystemVersion.current))
@@ -121,5 +123,9 @@ struct SystemVersionTests {
         #expect(SystemVersion.current.major == major)
         #expect(SystemVersion.current.minor == minor)
         #expect(SystemVersion.current.patch == patch)
+    }
+
+    init() {
+        SystemVersion.setCurrentVersion(.vInitial)
     }
 }
