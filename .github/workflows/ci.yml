@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest] #, macos-latest] -- MasOS hangs on swift build, runs fine on xcodebuild
         swift: ["6.0.3"]
       fail-fast: false
     steps:
@@ -29,3 +29,38 @@ jobs:
           fi
         shell: bash
  
+  # Ensure that compilation succeeds via xcodebuild
+  run_xcodebuild_tests:
+    name: Buiild ${{ matrix.ios_platform }} via Xcodebuild 'latest-stable'
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        ios_platform: ["macOS", "iOS", "watchOS", "tvOS"] # , "visionOS"] -- Not installed on GitHub Actions
+
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/checkout@v2
+
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      - name: Run ${{ matrix.ios_platform }} build
+        run: |
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
+            "$PWD/.derivedData" -scheme FOSUtilities-Package \
+            -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
+        if: matrix.ios_platform != 'macOS'
+
+      # Simply cannot get macOS to work with swift test & github actions, they hang 🤷‍♂️
+      - name: Run macOS build
+        run: |
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$PWD/.derivedData" \
+            -scheme FOSUtilities-Package \
+            -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
+        if: matrix.ios_platform == 'macOS'
