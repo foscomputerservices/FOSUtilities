@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest] #, macos-latest] -- MasOS hangs on swift test, runs fine on xcodebuild
+        os: [ubuntu-latest, windows-latest] #, macos-latest] -- MasOS hangs on swift build, runs fine on xcodebuild
         swift: ["6.0.3"]
       fail-fast: false
     steps:
@@ -55,11 +55,12 @@ jobs:
             -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
         if: matrix.ios_platform != 'macOS'
 
-      - name: Run macOS Tests
+      # Simply cannot get macOS to work with swift test & github actions, they hang 🤷‍♂️
+      - name: Run macOS build
         run: |
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation \
             -derivedDataPath "$PWD/.derivedData" \
             -scheme FOSUtilities-Package \
-            -destination "platform=macOS,arch=arm64,name=My Mac" test | xcpretty
+            -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
         if: matrix.ios_platform == 'macOS'
