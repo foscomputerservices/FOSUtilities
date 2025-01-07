@@ -61,5 +61,5 @@ jobs:
             -skipMacroValidation -skipPackagePluginValidation \
             -derivedDataPath "$PWD/.derivedData" \
             -scheme FOSUtilities-Package \
-            -destination "platform=macos,arch=arm64,name='My Mac'" test | xcpretty
+            -destination "platform=macOS,arch=arm64,name=My Mac" test | xcpretty
         if: matrix.ios_platform == 'macos'
