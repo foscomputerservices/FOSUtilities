@@ -47,9 +47,19 @@ jobs:
       - name: Install xcpretty
         run: gem install xcpretty
 
-      - name: Run ${{ matrix.ios_platform }} tests
+      - name: Run ${{ matrix.ios_platform }} build
         run: |
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
-            "$PWD/.derivedData" test -scheme FOSUtilities-Package \
+            "$PWD/.derivedData" build -scheme FOSUtilities-Package \
             -destination "generic/platform=${{ matrix.ios_platform }}" | xcpretty
+        if: matrix.ios_platform != 'macos'
+
+      - name: Run macOS Tests
+        run: |
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$PWD/.derivedData" \
+            -scheme FOSUtilities-Package \
+            -destination "platform=macos,arch=arm64,name='My Mac'" test | xcpretty
+        if: matrix.ios_platform == 'macos'
