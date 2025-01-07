@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest] #, macos-latest] -- MasOS hangs on swift test, runs fine on xcodebuild
         swift: ["6.0.3"]
       fail-fast: false
     steps:
@@ -44,5 +44,12 @@ jobs:
 
       - uses: actions/checkout@v2
 
-      - name: Run ${{ matrix.ios_platform }} Build
-        run: xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" -skipMacroValidation -skipPackagePluginValidation -derivedDataPath "$PWD/.derivedData" build -scheme FOSUtilities-Package -destination "generic/platform=${{ matrix.ios_platform }}"
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      - name: Run ${{ matrix.ios_platform }} tests
+        run: |
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
+            "$PWD/.derivedData" test -scheme FOSUtilities-Package \
+            -destination "generic/platform=${{ matrix.ios_platform }}" | xcpretty
