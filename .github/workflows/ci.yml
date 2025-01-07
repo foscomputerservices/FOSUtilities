@@ -35,7 +35,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        ios_platform: ["macos", "ios", "watchos", "tvos", "visionos"]
+        ios_platform: ["macos", "ios", "watchos", "tvos"] # , "visionos"] -- Not installed on GitHub Actions
 
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
