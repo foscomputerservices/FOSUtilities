@@ -46,8 +46,3 @@ jobs:
 
       - name: Run ${{ matrix.ios_platform }} Build
         run: xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" -skipMacroValidation -skipPackagePluginValidation -derivedDataPath "$PWD/.derivedData" build -scheme FOSUtilities-Package -destination "generic/platform=${{ matrix.ios_platform }}"
-        if: matrix.ios_platform != 'macos'
-
-      - name: Run ${{ matrix.ios_platform }} Build
-        run: xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" -skipMacroValidation -skipPackagePluginValidation -derivedDataPath "$PWD/.derivedData" build -scheme FOSUtilities-Package -destination "platform=${{ matrix.ios_platform }},arch=arm64"
-        if: matrix.ios_platform == 'macos'
