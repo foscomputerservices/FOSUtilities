@@ -35,7 +35,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        ios_platform: ["macos", "ios", "watchos", "tvos"] # , "visionos"] -- Not installed on GitHub Actions
+        ios_platform: ["macOS", "iOS", "watchOS", "tvOS"] # , "visionOS"] -- Not installed on GitHub Actions
 
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
@@ -51,9 +51,9 @@ jobs:
         run: |
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
-            "$PWD/.derivedData" build -scheme FOSUtilities-Package \
-            -destination "generic/platform=${{ matrix.ios_platform }}" | xcpretty
-        if: matrix.ios_platform != 'macos'
+            "$PWD/.derivedData" -scheme FOSUtilities-Package \
+            -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
+        if: matrix.ios_platform != 'macOS'
 
       - name: Run macOS Tests
         run: |
@@ -62,4 +62,4 @@ jobs:
             -derivedDataPath "$PWD/.derivedData" \
             -scheme FOSUtilities-Package \
             -destination "platform=macOS,arch=arm64,name=My Mac" test | xcpretty
-        if: matrix.ios_platform == 'macos'
+        if: matrix.ios_platform == 'macOS'
