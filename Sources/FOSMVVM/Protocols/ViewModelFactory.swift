@@ -43,9 +43,9 @@ public protocol ViewModelFactory {
 #if canImport(Vapor)
 import Vapor
 
-public struct VaporModelFactoryContext<VMRequest: ViewModelRequest>: ViewModelFactoryContext {
+public struct VaporModelFactoryContext<Request: ViewModelRequest>: ViewModelFactoryContext {
     public let req: Vapor.Request
-    public let vmRequest: VMRequest
+    public let vmRequest: Request
 
     public var systemVersion: SystemVersion {
         get throws {
@@ -53,19 +53,55 @@ public struct VaporModelFactoryContext<VMRequest: ViewModelRequest>: ViewModelFa
         }
     }
 
-    public init(req: Vapor.Request, vmRequest: VMRequest) {
+    public init(req: Vapor.Request, vmRequest: Request) {
         self.req = req
         self.vmRequest = vmRequest
     }
 }
 
-public protocol VaporViewModelFactory: ViewModelFactory where Context == VaporModelFactoryContext<VMRequest> {
-    associatedtype VMRequest: ViewModelRequest
-}
+public protocol VaporViewModelFactory: ViewModelFactory where Self: RequestableViewModel, Context == VaporModelFactoryContext<Request> {}
 
 public extension VaporViewModelFactory {
-    static func model(_ req: Vapor.Request, vmRequest: VMRequest) async throws -> Self {
+    static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
         try await model(context: .init(req: req, vmRequest: vmRequest))
     }
 }
 #endif
+
+public struct ClientHostedModelFactoryContext<Request: ViewModelRequest>: ViewModelFactoryContext {
+    public let locale: Locale
+    public let localizationStore: LocalizationStore
+    public let vmRequest: Request
+
+    public var systemVersion: SystemVersion {
+        get throws {
+            SystemVersion.current
+        }
+    }
+
+    public init(locale: Locale, localizationStore: LocalizationStore, vmRequest: Request) {
+        self.locale = locale
+        self.localizationStore = localizationStore
+        self.vmRequest = vmRequest
+    }
+}
+
+public protocol ClientHostedViewModelFactory: ViewModelFactory where Context == ClientHostedModelFactoryContext<Request> {
+    associatedtype Request: ViewModelRequest
+}
+
+public extension ClientHostedViewModelFactory where Self == Request.ResponseBody {
+    static func model(context: ClientHostedModelFactoryContext<Request>, vmRequest: Request) async throws -> Self {
+        let model = try await Self.model(context: context)
+
+        // Now localize the model
+        let encoder = JSONEncoder.localizingEncoder(
+            locale: context.locale,
+            localizationStore: context.localizationStore
+        )
+
+        return try model
+            .toJSON(encoder: encoder)
+            .fromJSON()
+    }
+}

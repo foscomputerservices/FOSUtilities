@@ -144,5 +144,3 @@ func routes(_ app: Application) throws {
     try app.routes.register(model: LandingPageViewModel.self)
 }
 ```
-
-

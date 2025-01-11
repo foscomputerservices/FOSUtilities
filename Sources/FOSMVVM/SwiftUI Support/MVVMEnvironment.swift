@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 1/2/25
+// Created by David Hunt on 1/10/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -76,6 +76,8 @@ public final class MVVMEnvironment: Sendable {
         }
     }
 
+    public let resourceDirectoryName: String?
+
     /// A configuration of server URLs for each given ``Deployment``
     public let deploymentURLs: [Deployment: URLPackage]
 
@@ -84,6 +86,28 @@ public final class MVVMEnvironment: Sendable {
     ///
     /// > Note: A non-localized "Loading..." is presented if no view is provided
     public let loadingView: @Sendable () -> AnyView
+
+    /// A ``LocalizationStore`` instance that provides access to the localization data
+    ///
+    /// > This is only provided/necessary for applications that created ``ViewModel``s
+    /// > in the application as opposed on the server.
+    @MainActor
+    public var clientLocalizationStore: LocalizationStore? {
+        get async throws {
+            if let store = _clientLocalizationStore {
+                return store
+            }
+
+            let localizationStore = try await Bundle.main.yamlLocalization(
+                resourceDirectoryName: resourceDirectoryName ?? ""
+            )
+            _clientLocalizationStore = localizationStore
+            return localizationStore
+        }
+    }
+
+    @ObservationIgnored @MainActor
+    private var _clientLocalizationStore: LocalizationStore?
 
     /// Returns the URL for the web server that provides ``ViewModel``s for the current ``Deployment``
     @MainActor
@@ -119,10 +143,13 @@ public final class MVVMEnvironment: Sendable {
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
+    ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
+    ///          if the client application is hosting the YAML files.
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public init(currentVersion: SystemVersion? = nil, appBundle: Bundle, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+    public init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+        self.resourceDirectoryName = resourceDirectoryName
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
@@ -135,16 +162,22 @@ public final class MVVMEnvironment: Sendable {
     ///
     /// This convenience initializer uses each deployment URL for both the *serverBaseURL* and the *resourcesBaseURL*.
     ///
+    /// > If *currentVersion* is not specified, *SystemVersion.currentVersion* is set to *appBundle.appleOSVersion*, which is loaded from the xcodeproj.
+    /// > See also: <doc:Versioning>
+    ///
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
+    ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
+    ///          if the client application is hosting the YAML files.
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public convenience init(currentVersion: SystemVersion? = nil, appBundle: Bundle, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
+    public convenience init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,
+            resourceDirectoryName: resourceDirectoryName,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair

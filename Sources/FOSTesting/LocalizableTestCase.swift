@@ -66,13 +66,16 @@ public extension LocalizableTestCase {
         )
     }
 
-    func expectTranslations<VM: ViewModel>(viewModel: VM.Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
+    /// Tests that the ViewModel has translations for all localized properties across all locales
+    ///
+    /// - Parameters:
+    ///   - viewModel: A *System.Type* of a type that conforms to **ViewModel**
+    ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
+    ///   - sourceLocation: The **SourceLocation** of the caller
+    func expectTranslations<VM: ViewModel>(_ viewModelType: VM.Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
         for locale in locales ?? self.locales {
-            let vmEncoder = JSONEncoder.localizingEncoder(
-                locale: locale,
-                localizationStore: locStore
-            )
-            let vm: VM = try viewModel.stub()
+            let vmEncoder = encoder(locale: locale)
+            let vm: VM = try viewModelType.stub()
                 .toJSON(encoder: vmEncoder)
                 .fromJSON()
 
@@ -90,6 +93,32 @@ public extension LocalizableTestCase {
                 }
             }
         }
+    }
+
+    /// Performs tests to ensure that the **ViewModel**s  complete and stable
+    ///
+    /// This test performs all aspects of automated verification against the **ViewMode**, including:
+    ///
+    ///   - ``expectCodable(_:encoder:decoder:_:)``
+    ///   - ``expectVersionedViewModel(_:version:encoder:decoder:_:fixedTestFilePath:file:line:)-79yr2``
+    ///   - ``expectTranslations(viewModel:locales:sourceLocation:)``
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// try expectFullyTestedViewModel(MyViewModel.self)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - viewModel: A *System.Type* of a type that conforms to **ViewModel**
+    ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
+    ///   - sourceLocation: The **SourceLocation** of the caller
+    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+        let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
+
+        try await expectCodable(viewModelType, encoder: vmEncoder)
+        try await expectVersionedViewModel(viewModelType, encoder: vmEncoder)
+        try expectTranslations(viewModelType, locales: locales)
     }
 
     static var en: Locale {

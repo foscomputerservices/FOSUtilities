@@ -1,6 +1,6 @@
 // Text.swift
 //
-// Created by David Hunt on 1/1/25
+// Created by David Hunt on 1/10/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -43,4 +43,56 @@ public extension Text {
         self.init((try? localizable.localizedString) ?? "")
     }
 }
+
+public extension Localizable {
+    var text: some View {
+        LocalizableResolverView(localizable: self)
+    }
+}
+
+private struct LocalizableResolverView<L: Localizable>: View {
+    let localizable: L
+
+    @State private var value: String? = nil
+    @Environment(\.locale) private var locale
+    @Environment(MVVMEnvironment.self) private var mvvmEnv
+
+    var body: some View {
+        if let value = localizedString {
+            Text(value)
+        } else {
+            Text("")
+                .task {
+                    if let store = try? await mvvmEnv.clientLocalizationStore {
+                        resolve(locale: locale, store: store)
+                    } else {
+                        // TODO: Error handling
+                        fatalError("Why no store???")
+                    }
+                }
+        }
+    }
+
+    private var localizedString: String? {
+        if localizable.localizationStatus == .localized {
+            return try? localizable.localizedString
+        }
+
+        return value
+    }
+
+    private func resolve(locale: Locale, store: any LocalizationStore) {
+        guard value == nil else {
+            return
+        }
+
+        let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: store)
+        if let resolved: L = try? localizable
+            .toJSON(encoder: encoder)
+            .fromJSON() {
+            value = (try? resolved.localizedString) ?? "Missing"
+        }
+    }
+}
+
 #endif

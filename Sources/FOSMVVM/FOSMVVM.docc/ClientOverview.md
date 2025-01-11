@@ -34,9 +34,45 @@ struct MyApp: App {
         }
         .environment(
            MVVMEnvironment(
-// Add the following line if the application is not built from an xcodeproj
-//             currentVersion: .currentApplicationVersion,
+               // Add the following line **only** if the application
+               //  is not built from an xcodeproj
+               // currentVersion: .currentApplicationVersion,
                appBundle: Bundle.main,
+               deploymentURLs: [
+                  .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
+                  .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
+                  .debug, .init(serverBaseURL: URL(string: "http://localhost:8080")!)
+                ]
+           )
+        )
+    }
+}
+```
+
+#### Client-Hosted Localization
+
+If the client application (vs. the web service application) is hosting the localization (and thus contains
+all of the YAML files in the application's Bundle), the location of those resources can be specified
+in the ``MVVMEnvironment`` in the *resourceDirectoryName*.  If a value is not specified, the root
+directory of the [Bundle](https://developer.apple.com/documentation/foundation/bundle) will be used.
+
+These localizations will be used when a ``ClientHostedViewModelFactory`` is used to bind a ``ViewModel``. 
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import SwiftUI
+
+@main
+struct MyApp: App {
+    var body: some Scene {
+        WindowGroup {
+            Text("Hello World!")
+        }
+        .environment(
+           MVVMEnvironment(
+               appBundle: Bundle.main,
+               resourceDirectoryName: "Localization",
                deploymentURLs: [
                   .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
                   .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
