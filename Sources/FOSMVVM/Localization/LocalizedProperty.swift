@@ -223,6 +223,14 @@ public extension ViewModel {
 
     /// Initializes the ``LocalizedString`` property wrapper
     ///
+    /// # Example
+    ///
+    /// ```swift
+    /// struct MyViewModel: ViewModel {
+    ///     @LocalizedString var aLocalizedSting
+    /// }
+    /// ```
+    ///
     /// - Parameters:
     ///   - parentKeys: If provided, a set of keys that are appended to *propertyName*
     ///   - propertyName: The name of the key to look up in the ``LocalizationStore``

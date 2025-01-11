@@ -11,10 +11,6 @@ For guides, articles, and API documentation see the
 
 [docs]: https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosfoundation
 
-## Alpha Stability Warning
-
-Please note that these libraries are currently a work in progress.  The APIs are rapidly evolving and while the overall architecture is set, breaking changes will occur until 1.0 is released.  The documentation is evolving, but the 'Getting Started' guidance is incomplete.  Nonetheless, the implementations are stable and unit tests are in place to ensure proper code coverage and stability of all publicly-facing APIs.  This warning will remain in place until I feel that these limitations are remedied.  Please log any issues that you might find or suggestions for improvements.
-
 ## FOSFoundation
 
 FOSFoundation is a library of protocols, patterns, types and routines that I have found generally useful in my projects.  Support areas include:
@@ -68,6 +64,7 @@ public struct LandingPageViewModel: RequestableViewModel {
 
 #### View
 
+```
 struct LandingPageView: ViewModelView {
     let viewModel: LandingPageViewModel
 
@@ -80,6 +77,7 @@ struct LandingPageView: ViewModelView {
         .padding()
     }
 }
+```
 
 #### Client Application Main
 
@@ -113,6 +111,7 @@ struct MyApp: App {
 
 #### Vapor Server Application
 
+```
 public func configure(_ app: Application) async throws {
     // uncomment to serve files from /Public folder
     // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
@@ -128,8 +127,7 @@ public func configure(_ app: Application) async throws {
 func routes(_ app: Application) throws {
     app.routesregister(viewModel: LandingPageViewModel.self)
 }
-
-
+```
 
 ## FOSTesting
 

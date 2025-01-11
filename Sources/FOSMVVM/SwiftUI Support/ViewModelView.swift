@@ -1,6 +1,6 @@
 // ViewModelView.swift
 //
-// Created by David Hunt on 1/1/25
+// Created by David Hunt on 1/10/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -75,8 +75,9 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
+    ///     let viewModel = $viewModel
     ///     MyView.bind(
-    ///        viewModel: $viewModel,
+    ///        viewModel: viewModel,
     ///        query: .init( ... )
     ///     )
     ///   }
@@ -93,7 +94,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == Self.VM {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == VM {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -101,15 +102,82 @@ public extension ViewModelView where VM: RequestableViewModel {
                 mvvmEnv.loadingView()
                     .task {
                         do {
-                            viewModel().wrappedValue =
-                                try await mvvmEnv.serverBaseURL
-                                    .appending(serverRequest: VM.Request(
-                                        query: query,
-                                        fragment: fragment,
-                                        requestBody: nil,
-                                        responseBody: nil
-                                    ))?.fetch(locale: locale)
-                        } catch { // let e {
+                            viewModel().wrappedValue = try await resolveServerHostedRequest(
+                                mvvmEnv: mvvmEnv,
+                                query: query,
+                                fragment: fragment,
+                                locale: locale
+                            )
+                        } catch {
+                            // TODO: Error handling
+                            // Probably want to handle errors out-of-band.
+                            // That is, no need to put an error view here,
+                            // as that would yield tiny error views all
+                            // over the UI.  But instead, some top-level
+                            // way to display to the user that the app
+                            // encountered an error.
+                        }
+                    }
+            }
+        }
+    }
+
+    /// Retrieves a ``RequestableViewModel`` locally and binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view)
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// public struct MyViewModel: RequestableViewModel {
+    ///   @LocalizedString public var pageTitle
+    /// }
+    ///
+    /// struct MyView: ViewModelView {
+    ///   let viewModel: MyViewModel
+    ///
+    ///   var body: some View {
+    ///     Text(viewModel.pageTitle)
+    ///   }
+    /// }
+    ///
+    /// struct ParentView: View {
+    ///   @State var viewModel: MyViewModel?
+    ///
+    ///   var body: some View {
+    ///     let viewModel = $viewModel
+    ///     MyView.bind(
+    ///        viewModel: viewModel,
+    ///        query: .init( ... )
+    ///     )
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - viewModel: A [Binding](https://developer.apple.com/documentation/swiftui/binding)
+    ///     used to store the retrieved ``ViewModel``
+    ///   - query: A *SystemQuery* to be sent to the server to indicate how to compose the ``ViewModel``
+    ///   - fragment: *Future*
+    ///
+    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
+    ///   *Self* if the ``ViewModel`` has been successfully retrieved
+    ///
+    /// - See Also: ``MVVMEnvironment/loadingView``
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == VM, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+        if let viewModel = viewModel().wrappedValue {
+            Self(viewModel: viewModel)
+        } else {
+            MVVMEnvironmentView { mvvmEnv, locale in
+                mvvmEnv.loadingView()
+                    .task {
+                        do {
+                            viewModel().wrappedValue = try await resolveClientHostedRequest(
+                                mvvmEnv: mvvmEnv,
+                                query: query,
+                                fragment: fragment,
+                                locale: locale
+                            )
+                        } catch {
                             // TODO: Error handling
                             // Probably want to handle errors out-of-band.
                             // That is, no need to put an error view here,
@@ -145,8 +213,9 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
+    ///     let viewModel = $viewModel
     ///     MyView.bind(
-    ///        viewModel: $viewModel
+    ///        viewModel: viewModel
     ///     )
     ///   }
     /// }
@@ -160,7 +229,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == Self.VM, VM.Request.Query == EmptyQuery {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -168,14 +237,12 @@ public extension ViewModelView where VM: RequestableViewModel {
                 mvvmEnv.loadingView()
                     .task {
                         do {
-                            viewModel().wrappedValue =
-                                try await mvvmEnv.serverBaseURL
-                                    .appending(serverRequest: VM.Request(
-                                        query: nil,
-                                        fragment: nil,
-                                        requestBody: nil,
-                                        responseBody: nil
-                                    ))?.fetch(locale: locale)
+                            viewModel().wrappedValue = try await resolveServerHostedRequest(
+                                mvvmEnv: mvvmEnv,
+                                query: nil,
+                                fragment: nil,
+                                locale: locale
+                            )
                         } catch { // let e {
                             // TODO: Error handling
                             // Probably want to handle errors out-of-band.
@@ -188,6 +255,95 @@ public extension ViewModelView where VM: RequestableViewModel {
                     }
             }
         }
+    }
+
+    /// Retrieves a ``RequestableViewModel`` locally and binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view)
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// public struct MyViewModel: RequestableViewModel {
+    ///   @LocalizedString public var pageTitle
+    /// }
+    ///
+    /// struct MyView: ViewModelView {
+    ///   let viewModel: MyViewModel
+    ///
+    ///   var body: some View {
+    ///     Text(viewModel.pageTitle)
+    ///   }
+    /// }
+    ///
+    /// struct ParentView: View {
+    ///   @State var viewModel: MyViewModel?
+    ///
+    ///   var body: some View {
+    ///     let viewModel = $viewModel
+    ///     MyView.bind(
+    ///        viewModel: viewModel
+    ///     )
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - viewModel: A [Binding](https://developer.apple.com/documentation/swiftui/binding)
+    ///     used to store the retrieved ``ViewModel``
+    ///
+    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
+    ///   *Self* if the ``ViewModel`` has been successfully retrieved
+    ///
+    /// - See Also: ``MVVMEnvironment/loadingView``
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+        if let viewModel = viewModel().wrappedValue {
+            Self(viewModel: viewModel)
+        } else {
+            MVVMEnvironmentView { mvvmEnv, locale in
+                mvvmEnv.loadingView()
+                    .task {
+                        do {
+                            viewModel().wrappedValue = try await resolveClientHostedRequest(
+                                mvvmEnv: mvvmEnv,
+                                query: nil,
+                                fragment: nil,
+                                locale: locale
+                            )
+                        } catch { // let e {
+                            // TODO: Error handling
+                            // Probably want to handle errors out-of-band.
+                            // That is, no need to put an error view here,
+                            // as that would yield tiny error views all
+                            // over the UI.  But instead, some top-level
+                            // way to display to the user that the app
+                            // encountered an error.
+                        }
+                    }
+            }
+        }
+    }
+
+    /// Resolves a ViewModelRequest from an external Web Service
+    private static func resolveServerHostedRequest(mvvmEnv: MVVMEnvironment, query: VM.Request.Query?, fragment: VM.Request.Fragment?, locale: Locale) async throws -> VM? {
+        try await mvvmEnv.serverBaseURL
+            .appending(serverRequest: VM.Request(
+                query: query,
+                fragment: fragment,
+                requestBody: nil,
+                responseBody: nil
+            ))?.fetch(locale: locale)
+    }
+
+    /// Resolves a ViewModelRequest locally to the client application
+    private static func resolveClientHostedRequest(mvvmEnv: MVVMEnvironment, query: VM.Request.Query?, fragment: VM.Request.Fragment?, locale: Locale) async throws -> VM? where VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+        guard let localizationStore = try await mvvmEnv.clientLocalizationStore else {
+            // TODO: Custom Error
+            fatalError("Missing Client Localization Store in MVVMEnvironment")
+        }
+
+        let request = VM.Request(query: query, fragment: fragment, requestBody: nil, responseBody: nil)
+        let context = ClientHostedModelFactoryContext(locale: locale, localizationStore: localizationStore, vmRequest: request)
+        return try await VM.model(context: context, vmRequest: request)
     }
 }
 #endif

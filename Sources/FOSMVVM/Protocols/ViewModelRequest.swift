@@ -52,7 +52,7 @@
 ///   }
 /// }
 /// ```
-public protocol ViewModelRequest: ServerRequest where ResponseBody: RequestableViewModel, Fragment == EmptyFragment, RequestBody == EmptyBody {}
+public protocol ViewModelRequest: ServerRequest where ResponseBody: RequestableViewModel {}
 
 public extension ViewModelRequest {
     var action: ServerRequestAction {
