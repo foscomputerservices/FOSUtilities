@@ -43,7 +43,7 @@ public extension LocalizableArray {
     /// Returns **true** if *localizedString* is empty **or** if the value
     /// has not yet been localized
     var isEmpty: Bool {
-        (try? localizedString.isEmpty) ?? true
+        (try? localizedArray.isEmpty) ?? true
     }
 
     var localizationStatus: LocalizableStatus {
@@ -124,11 +124,10 @@ public extension LocalizableArray {
 
     var id: String {
         switch self {
-        // TODO: Finish implementation
-        case .constant:
-            fatalError("NYI!")
         case .empty:
             "_empty_"
+        case .constant(let elements):
+            elements.map { $0.id }.joined(separator: "_")
         case .localized(let key):
             key.id
         }

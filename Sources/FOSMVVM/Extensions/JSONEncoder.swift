@@ -41,11 +41,11 @@ extension Encoder {
     /// Even though the ``Localizable`` might be a value type (e.g., int, double, date, etc.)
     /// most often, the localized result should be a **String**.  This is because the
     /// localized version of the *value* contains more than just the value.  It often contains
-    /// formatting of the value as well to be displayed to the user.
+    /// localized formatting of the value as well to be displayed to the user.
     ///
     /// For example, ``LocalizableInt`` can contain groupings and grouping separators
-    /// (e.g., 42,495.00), or ``LocalizableDate`` might contain localized month names
-    /// (e.g., 1-Jul-2024), etc.
+    /// (e.g., 42,495.00; 42.495,00), or ``LocalizableDate`` might contain localized month names
+    /// and localized day/month/year arrangements (e.g., 1-Jul-2024, 7/1/24, 1/7/24), etc.
     ///
     /// If the concrete value of the ``Localizable`` is needed (e.g., int, Date, etc.), typically the
     /// concrete value is available via a property on the ``Localizable``.
@@ -69,6 +69,11 @@ extension Encoder {
         )
     }
 
+    /// Converts the ``Localizable`` into an **Array** of *Element*s
+    ///
+    /// - Parameter localizable: The ``Localizable`` to be localized into an **Array**
+    /// - Returns: The properly localized and formatted version of *localizable* ready to be
+    ///   shown to the user.
     func localizeArray<Element: Localizable>(_ localizable: LocalizableArray<Element>) throws -> [Element]? {
         guard let locale, let localizationStore else {
             throw LocalizerError.localizationStoreMissing
@@ -216,6 +221,7 @@ extension ViewModel { // Internal for testing
     }
 }
 
+#if needed
 extension KeyPath {
     func propertyName(on instance: Any) -> String? {
         let instance = Mirror(reflecting: instance)
@@ -227,6 +233,7 @@ extension KeyPath {
         return nil
     }
 }
+#endif
 
 #if canImport(Vapor)
 import Vapor
@@ -243,7 +250,7 @@ public extension Request {
 }
 #endif
 
-private extension CodingUserInfoKey {
+internal extension CodingUserInfoKey { // Internal for testing
     static var localeKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCaLe*_")!
     }
@@ -262,6 +269,7 @@ private extension CodingUserInfoKey {
 }
 
 private struct ___Model: ViewModel {
+    // REVIEWED: This code will never be covered, we only use the type
     var vmId: ViewModelId = .init()
 
     static func stub() -> ___Model {
