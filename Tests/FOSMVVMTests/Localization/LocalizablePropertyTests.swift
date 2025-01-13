@@ -80,6 +80,17 @@ struct LocalizablePropertyTests: LocalizableTestCase {
         #expect(try vm.aLocalizedCompoundSep.localizedString == "Piece #1*Piece #2")
     }
 
+    @Test func localizedPropertyWrapperKeyMissing() async throws {
+        // Unable to retrieve the current ViewModel for property name lookup
+        let wrapper = _LocalizedProperty<TestViewModel, LocalizableString>.init(
+            parentKey: "missing"
+        )
+
+        #expect(throws: LocalizedPropertyError.self) {
+            try JSONEncoder().encode(wrapper)
+        }
+    }
+
     let locStore: LocalizationStore
     init() async throws {
         self.locStore = try await Self.loadLocalizationStore(

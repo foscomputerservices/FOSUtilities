@@ -19,6 +19,9 @@ import FOSFoundation
 import FOSMVVM
 import Foundation
 import Testing
+#if canImport(Vapor)
+import Vapor
+#endif
 
 /// Extensions to test **Localizable** resources
 ///
@@ -59,12 +62,41 @@ public extension LocalizableTestCase {
         )
     }
 
-    func encoder(locale: Locale? = nil) -> JSONEncoder {
+    /// Returns **JSONEncoder** that is configured to perform localization during encoding
+    func encoder(locale: Locale = Self.en) -> JSONEncoder {
         JSONEncoder.localizingEncoder(
-            locale: locale ?? en,
+            locale: locale,
             localizationStore: locStore
         )
     }
+
+#if canImport(Vapor)
+    /// Returns a localized *Vapor.Application* to use with tests
+    ///
+    /// - Parameter localizationStore: The **LocalizationStore** containing localized values to use for the tests (default: self.locStore)
+    func vaporApplication(localizationStore: LocalizationStore? = nil) -> Vapor.Application {
+        let result = Application()
+        result.localizationStore = localizationStore ?? locStore
+
+        return result
+    }
+    
+    /// Returns a *Vapor.Request*
+    /// 
+    /// - Parameter application: The *Vapor.Application* from which to retrieve the *Vapor.Request* (default: self.vaporApplication())
+    /// - Parameter locale: The *Locale* to bind the *Vapor.Request* to (default: Self.en)
+    func vaporRequest(application: Vapor.Application? = nil, locale: Locale = Self.en) -> Vapor.Request {
+        let app = application ?? vaporApplication()
+        return Vapor.Request(
+            application: app,
+            method: .GET,
+            headers: [
+                HTTPHeaders.Name.acceptLanguage.description: locale.identifier,
+            ],
+            on: app.eventLoopGroup.next()
+        )
+    }
+    #endif
 
     /// Tests that the ViewModel has translations for all localized properties across all locales
     ///
@@ -116,8 +148,8 @@ public extension LocalizableTestCase {
     func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) async throws {
         let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
-        try await expectCodable(viewModelType, encoder: vmEncoder)
-        try await expectVersionedViewModel(viewModelType, encoder: vmEncoder)
+        try expectCodable(viewModelType, encoder: vmEncoder)
+        try expectVersionedViewModel(viewModelType, encoder: vmEncoder)
         try expectTranslations(viewModelType, locales: locales)
     }
 

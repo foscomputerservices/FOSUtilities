@@ -64,7 +64,7 @@ public struct LandingPageViewModel: RequestableViewModel {
 
 #### View
 
-```
+```swift
 struct LandingPageView: ViewModelView {
     let viewModel: LandingPageViewModel
 
@@ -111,7 +111,7 @@ struct MyApp: App {
 
 #### Vapor Server Application
 
-```
+```swift
 public func configure(_ app: Application) async throws {
     // uncomment to serve files from /Public folder
     // app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
