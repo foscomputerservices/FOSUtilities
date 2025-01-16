@@ -127,7 +127,7 @@ public extension LocalizableArray {
         case .empty:
             "_empty_"
         case .constant(let elements):
-            elements.map { $0.id }.joined(separator: "_")
+            elements.map(\.id).joined(separator: "_")
         case .localized(let key):
             key.id
         }

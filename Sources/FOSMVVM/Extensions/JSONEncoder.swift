@@ -250,7 +250,7 @@ public extension Request {
 }
 #endif
 
-internal extension CodingUserInfoKey { // Internal for testing
+extension CodingUserInfoKey { // Internal for testing
     static var localeKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCaLe*_")!
     }

@@ -1,6 +1,6 @@
 // JSONEncoderTests.swift
 //
-// Created by David Hunt on 1/11/25
+// Created by David Hunt on 1/13/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -26,7 +26,6 @@ import Vapor
 
 @Suite("JSON Encoder Error Tests")
 struct JSONEncoderTests: LocalizableTestCase {
-
     // NOTE: These methods are internal methods to the JSONEncoder implementation.
     //   The tests here validate that the internal implementation is working as expected.
     //   These tests are not testing public APIs.
@@ -51,6 +50,7 @@ struct JSONEncoderTests: LocalizableTestCase {
     }
 
     // MARK: Vapor Tests
+
     #if canImport(Vapor)
     @Test func localizeStringVapor() async throws {
         let viewModelEncoder = try vaporRequest().viewModelEncoder

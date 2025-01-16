@@ -70,7 +70,7 @@ public extension LocalizableTestCase {
         )
     }
 
-#if canImport(Vapor)
+    #if canImport(Vapor)
     /// Returns a localized *Vapor.Application* to use with tests
     ///
     /// - Parameter localizationStore: The **LocalizationStore** containing localized values to use for the tests (default: self.locStore)
@@ -80,9 +80,9 @@ public extension LocalizableTestCase {
 
         return result
     }
-    
+
     /// Returns a *Vapor.Request*
-    /// 
+    ///
     /// - Parameter application: The *Vapor.Application* from which to retrieve the *Vapor.Request* (default: self.vaporApplication())
     /// - Parameter locale: The *Locale* to bind the *Vapor.Request* to (default: Self.en)
     func vaporRequest(application: Vapor.Application? = nil, locale: Locale = Self.en) -> Vapor.Request {
@@ -91,7 +91,7 @@ public extension LocalizableTestCase {
             application: app,
             method: .GET,
             headers: [
-                HTTPHeaders.Name.acceptLanguage.description: locale.identifier,
+                HTTPHeaders.Name.acceptLanguage.description: locale.identifier
             ],
             on: app.eventLoopGroup.next()
         )

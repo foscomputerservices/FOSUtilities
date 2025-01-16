@@ -39,7 +39,8 @@ let package = Package(
 
         // Third 🥳 frameworks
         .package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.111.0")),
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.3")
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.3"),
+        .package(url: "https://github.com/0xLeif/AppState.git", from: "2.0.0")
     ],
     targets: [
         .target(
@@ -64,6 +65,7 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMacros"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
+                .product(name: "AppState", package: "AppState", condition: .when(platforms: [.macOS, .iOS, .tvOS, .watchOS, .macCatalyst])),
                 .product(name: "Yams", package: "Yams")
             ]
         ),
