@@ -18,7 +18,6 @@
 #if canImport(SwiftUI) && canImport(AppState)
 import AppState
 import FOSFoundation
-import FOSMVVM
 import SwiftUI
 
 public struct ViewState: Sendable {
@@ -143,9 +142,10 @@ private extension View {
         }
         #endif
 
-        guard let requestStr = comps.queryItems?.first?.value else {
-            return
-        }
+        // TODO: Finish deep app linking
+//        guard let requestStr = comps.queryItems?.first?.value else {
+//            return
+//        }
     }
 }
 #endif

@@ -169,7 +169,7 @@ import XCTest
         )
         self.locales = locales ?? [Self.en]
 
-        let app = await XCUIApplication(bundleIdentifier: appBundleIdentifier)
+        let app = XCUIApplication(bundleIdentifier: appBundleIdentifier)
         self.app = app
     }
 
