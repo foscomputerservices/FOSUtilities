@@ -1,6 +1,6 @@
 // ViewModelView.swift
 //
-// Created by David Hunt on 1/10/25
+// Created by David Hunt on 1/15/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -94,7 +94,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == VM {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil, viewStatue: Binding<ViewState>? = nil) -> some View where VM.Request.ResponseBody == VM {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -163,7 +163,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == VM, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil, viewStatue: Binding<ViewState>? = nil) -> some View where VM.Request.ResponseBody == VM, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -229,7 +229,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, viewStatue: Binding<ViewState>? = nil) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -295,7 +295,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, viewStatue: Binding<ViewState>? = nil) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -341,8 +341,17 @@ public extension ViewModelView where VM: RequestableViewModel {
             fatalError("Missing Client Localization Store in MVVMEnvironment")
         }
 
-        let request = VM.Request(query: query, fragment: fragment, requestBody: nil, responseBody: nil)
-        let context = ClientHostedModelFactoryContext(locale: locale, localizationStore: localizationStore, vmRequest: request)
+        let request = VM.Request(
+            query: query,
+            fragment: fragment,
+            requestBody: nil,
+            responseBody: nil
+        )
+        let context = ClientHostedModelFactoryContext(
+            locale: locale,
+            localizationStore: localizationStore,
+            vmRequest: request
+        )
         return try await VM.model(context: context, vmRequest: request)
     }
 }

@@ -82,7 +82,7 @@ struct LocalizablePropertyTests: LocalizableTestCase {
 
     @Test func localizedPropertyWrapperKeyMissing() async throws {
         // Unable to retrieve the current ViewModel for property name lookup
-        let wrapper = _LocalizedProperty<TestViewModel, LocalizableString>.init(
+        let wrapper = _LocalizedProperty<TestViewModel, LocalizableString>(
             parentKey: "missing"
         )
 
