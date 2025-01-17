@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 1/10/25
+// Created by David Hunt on 1/11/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -52,7 +52,7 @@ import SwiftUI
 ///  }
 /// ```
 @Observable
-public final class MVVMEnvironment: Sendable {
+public final class MVVMEnvironment: @unchecked Sendable {
     // NOTE: This is an @Observable final class only because SwiftUI's
     //       Environment implementation requires this; otherwise it
     //       could be a simple struct.
@@ -77,6 +77,20 @@ public final class MVVMEnvironment: Sendable {
     }
 
     public let resourceDirectoryName: String?
+
+    typealias ViewFactory = (Data) throws -> AnyView
+
+    #if DEBUG
+    var registeredTestTypes: [String: ViewFactory] = [:]
+    #endif
+
+    @MainActor public func registerTestView<V: ViewModelView>(_ type: V.Type) {
+        #if DEBUG
+        registeredTestTypes[String(describing: V.VM.self)] = { data in
+            try AnyView(V(viewModel: data.fromJSON()))
+        }
+        #endif
+    }
 
     /// A configuration of server URLs for each given ``Deployment``
     public let deploymentURLs: [Deployment: URLPackage]
