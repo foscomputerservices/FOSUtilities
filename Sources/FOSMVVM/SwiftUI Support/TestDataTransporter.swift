@@ -45,20 +45,15 @@ import SwiftUI
 ///
 ///   var body: some View {
 ///
-///     Group {
+///     VStack {
 ///       TextField("", text: $data)
 ///         .accessibilityIdentifier("data")
 ///
 ///       Button(action: save) {
 ///         Text("Tap Me")
 ///       }
-///
-///       #if DEBUG
-///       TestDataTransporter(
-///           viewModelOps: operations,
-///           repaintToggle: $repaintToggle
-///       )
-///       #endif
+///     }
+///     .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
 ///   }
 ///
 ///   private func save() {
@@ -151,6 +146,22 @@ public struct TestDataTransporter: View {
     public init(viewModelOps: any ViewModelOperations, repaintToggle: Binding<Bool>) {
         self.viewModelOps = viewModelOps
         self.repaintToggle = repaintToggle
+    }
+}
+
+public extension View {
+    @ViewBuilder func testDataTransporter(viewModelOps: any ViewModelOperations, repaintToggle: Binding<Bool>) -> some View {
+        #if DEBUG
+        Group {
+            self
+            TestDataTransporter(
+                viewModelOps: viewModelOps,
+                repaintToggle: repaintToggle
+            )
+        }
+        #else
+        self
+        #endif
     }
 }
 #endif
