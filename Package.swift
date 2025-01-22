@@ -6,11 +6,11 @@ import PackageDescription
 let package = Package(
     name: "FOSUtilities",
     platforms: [
-        .iOS(.v15),
+        .iOS(.v17),
         .macOS(.v14),
-        .macCatalyst(.v15),
-        .tvOS(.v15),
-        .watchOS(.v8),
+        .macCatalyst(.v17),
+        .tvOS(.v17),
+        .watchOS(.v10),
         .visionOS(.v1)
         // .windows(),
         // .linux(),
