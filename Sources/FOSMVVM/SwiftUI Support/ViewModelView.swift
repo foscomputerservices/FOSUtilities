@@ -20,6 +20,26 @@ import FOSFoundation
 import Foundation
 import SwiftUI
 
+public enum ViewModelViewError: Error {
+    case badServerRequestAction
+    case badClientRequestAction
+    case missingRequestBody
+    case missingLocalizationStore
+
+    public var localizedDescription: String {
+        switch self {
+        case .badServerRequestAction:
+            return "Only show (GET) and create (POST) actions are supported for Server ViewModel requests"
+        case .badClientRequestAction:
+            return "Only show (GET) actions are supported for Client ViewModel requests"
+        case .missingRequestBody:
+            return "Create (POST) actions must include a request body"
+        case .missingLocalizationStore:
+            return "Missing Client Localization Store in MVVMEnvironment"
+        }
+    }
+}
+
 /// A standardized SwiftUI View pattern for using ``ViewModel``s
 ///
 /// SwiftUI Views that bind to ``FOSMVVM`` ``ViewModel``s should
@@ -327,20 +347,38 @@ public extension ViewModelView where VM: RequestableViewModel {
 
     /// Resolves a ViewModelRequest from an external Web Service
     private static func resolveServerHostedRequest(mvvmEnv: MVVMEnvironment, query: VM.Request.Query?, fragment: VM.Request.Fragment?, body: VM.Request.RequestBody?, locale: Locale) async throws -> VM? {
-        try await mvvmEnv.serverBaseURL
-            .appending(serverRequest: VM.Request(
-                query: query,
-                fragment: fragment,
-                requestBody: body,
-                responseBody: nil
-            ))?.fetch(locale: locale)
+        let request = VM.Request(
+            query: query,
+            fragment: fragment,
+            requestBody: body,
+            responseBody: nil
+        )
+
+        guard let url = try await mvvmEnv.serverBaseURL.appending(serverRequest: request) else {
+            return nil
+        }
+
+        switch request.action {
+        case .show:
+            return try await url.fetch(locale: locale)
+        case .create:
+            guard let requestBody = request.requestBody else {
+                throw ViewModelViewError.missingRequestBody
+            }
+
+            return try await url.send(
+                data: try JSONEncoder().encode(requestBody)
+            )
+        default:
+            throw ViewModelViewError.badServerRequestAction
+        }
+
     }
 
     /// Resolves a ViewModelRequest locally to the client application
     private static func resolveClientHostedRequest(mvvmEnv: MVVMEnvironment, query: VM.Request.Query?, fragment: VM.Request.Fragment?, locale: Locale) async throws -> VM? where VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
         guard let localizationStore = try await mvvmEnv.clientLocalizationStore else {
-            // TODO: Custom Error
-            fatalError("Missing Client Localization Store in MVVMEnvironment")
+            throw ViewModelViewError.missingLocalizationStore
         }
 
         let request = VM.Request(
@@ -349,6 +387,11 @@ public extension ViewModelView where VM: RequestableViewModel {
             requestBody: nil,
             responseBody: nil
         )
+
+        guard request.action == .show else {
+            throw ViewModelViewError.badClientRequestAction
+        }
+
         let context = ClientHostedModelFactoryContext(
             locale: locale,
             localizationStore: localizationStore,

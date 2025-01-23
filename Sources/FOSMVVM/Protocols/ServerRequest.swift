@@ -209,6 +209,12 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
     ///
     /// - Note: Creates a **PUT** HTTP Request
     case replace
+
+    public static var GET: Self { .show }
+    public static var POST: Self { .create }
+    public static var PUT: Self { .replace }
+    public static var PATCH: Self { .update }
+    public static var DELETE: Self { .delete }
 }
 
 /// Data that will be encoded into the HTTP Query
