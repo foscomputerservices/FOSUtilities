@@ -367,7 +367,7 @@ public extension ViewModelView where VM: RequestableViewModel {
             }
 
             return try await url.send(
-                data: try JSONEncoder().encode(requestBody)
+                data: requestBody
             )
         default:
             throw ViewModelViewError.badServerRequestAction
