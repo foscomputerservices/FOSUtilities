@@ -74,21 +74,8 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     func send<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable) async throws -> ResultValue {
-        let sendData: Data
-        if let str = data as? String {
-            sendData = str.data(using: .utf8) ?? Data()
-        } else {
-            do {
-                sendData = try data.toJSONData()
-            } catch let jsonError as JSONError {
-                throw DataFetchError.fromJSONError(jsonError)
-            } catch let e {
-                throw e
-            }
-        }
-
-        return try await DataFetch<URLSession>.default
-            .post(data: sendData, to: self, headers: headers)
+        try await DataFetch<URLSession>.default
+            .post(data: data, to: self, headers: headers)
     }
 
     /// Sends **Data** to, and process the return of type **ResultValue** from, the given **URL**
@@ -108,7 +95,7 @@ public extension URL {
     func send<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .post(
-                data: data.toJSONData(),
+                data: data,
                 to: self,
                 headers: headers,
                 errorType: errorType
@@ -129,21 +116,8 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     func delete<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable) async throws -> ResultValue {
-        let sendData: Data
-        if let str = data as? String {
-            sendData = str.data(using: .utf8) ?? Data()
-        } else {
-            do {
-                sendData = try data.toJSONData()
-            } catch let jsonError as JSONError {
-                throw DataFetchError.fromJSONError(jsonError)
-            } catch let e {
-                throw e
-            }
-        }
-
-        return try await DataFetch<URLSession>.default
-            .delete(data: sendData, at: self, headers: headers)
+        try await DataFetch<URLSession>.default
+            .delete(data: data, at: self, headers: headers)
     }
 
     /// Sends **Data** to, and process the return of type **ResultValue** from, the given **URL** with the HTTPMethod = "DELETE"
@@ -163,7 +137,7 @@ public extension URL {
     func delete<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .delete(
-                data: data.toJSONData(),
+                data: data,
                 at: self,
                 headers: headers,
                 errorType: errorType
