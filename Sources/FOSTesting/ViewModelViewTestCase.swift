@@ -121,14 +121,19 @@ import XCTest
             throw RunError.didntStart
         }
 
-        let _vmoData = app.staticTexts
-            .element(matching: .staticText, identifier: TestDataTransporter.accessibilityIdentifier)
-            .value
-        guard let vmoData = (_vmoData as? String)?.reveal else {
-            throw RunError.cannotRetrieveOperationsData
+        // It is possible that there are multiple TestsDataTransporter instances available.
+        // This occurs when child views are testable, which can happen a lot.
+        let _vmoDataItems = app.staticTexts
+            .matching(.staticText, identifier: TestDataTransporter.accessibilityIdentifier)
+        for i in 0..<_vmoDataItems.count {
+            let _vmoData = _vmoDataItems.element(boundBy: i)
+            if let vmoData = (_vmoData.value as? String)?.reveal,
+                let vmoResult = try? vmoData.fromJSON() as VMO {
+                return vmoResult
+            }
         }
 
-        return try vmoData.fromJSON() as VMO
+        throw RunError.cannotRetrieveOperationsData
     }
 
     /// Sets up the application for each test pass
