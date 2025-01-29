@@ -149,8 +149,13 @@ public extension LocalizableTestCase {
         let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
         try expectCodable(viewModelType, encoder: vmEncoder)
-        try expectVersionedViewModel(viewModelType, encoder: vmEncoder)
-        try expectTranslations(viewModelType, locales: locales)
+        try expectVersionedViewModel(
+            viewModelType,
+            encoder: vmEncoder,
+            file: sourceLocation._filePath,
+            line: sourceLocation.line
+        )
+        try expectTranslations(viewModelType, locales: locales, sourceLocation: sourceLocation)
     }
 
     static var en: Locale {
