@@ -106,7 +106,7 @@ import XCTest
 
         let url = try url(for: viewModel, urlAppHost: urlAppHost, locale: Self.en)
         app.launchArguments.append(url.absoluteString)
-        app.activate()
+        app.launch()
         guard app.wait(for: .runningForeground, timeout: timeout) else {
             XCTFail("Application did not reach the running state!")
             throw RunError.didntStart
@@ -175,6 +175,11 @@ import XCTest
         self.locales = locales ?? [Self.en]
 
         let app = XCUIApplication(bundleIdentifier: appBundleIdentifier)
+
+        // Shutdown the application on each pass.  It is re-launched
+        // when presentView() is called so that a fresh view and
+        // view state is used on each test pass.
+        app.terminate()
         self.app = app
     }
 

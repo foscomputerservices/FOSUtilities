@@ -49,11 +49,12 @@ public extension ViewModelView {
     /// - Parameters:
     ///   - resourceDirectoryName: The directory name that contains the resources (default: "")
     ///   - locale: The locale to lookup the YAML bindings for (default: Locale.current)
-    static func previewHost(resourceDirectoryName: String = "", locale: Locale = .current) -> some View {
+    static func previewHost(resourceDirectoryName: String = "", locale: Locale = .current, viewModel: VM = .stub()) -> some View {
         PreviewHostingView(
             inner: Self.self,
             resourceDirectoryName: resourceDirectoryName,
-            locale: locale
+            locale: locale,
+            viewModel: viewModel
         )
     }
 }
@@ -64,12 +65,16 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
     let inner: Inner.Type
     let resourceDirectoryName: String
     let locale: Locale
+    let viewModel: Inner.VM
 
     var body: some View {
         if let localizationStore {
-            Inner(viewModel: viewModel(localizationStore: localizationStore))
-                .preferredColorScheme(ColorScheme.light)
-                .environment(mmEnv(resourceDirectoryName: resourceDirectoryName))
+            Inner(viewModel: viewModel(
+                localizationStore: localizationStore,
+                viewModel: viewModel
+            ))
+            .preferredColorScheme(ColorScheme.light)
+            .environment(mmEnv(resourceDirectoryName: resourceDirectoryName))
         } else {
             Text("Loading...")
                 .task {
@@ -94,12 +99,15 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
         )
     }
 
-    private func viewModel(localizationStore: LocalizationStore) -> Inner.VM {
-        let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
-        if let result: Inner.VM = try? Inner.VM.stub().toJSON(encoder: encoder).fromJSON() {
+    private func viewModel(localizationStore: LocalizationStore, viewModel: Inner.VM) -> Inner.VM {
+        let encoder = JSONEncoder.localizingEncoder(
+            locale: locale,
+            localizationStore: localizationStore
+        )
+        if let result: Inner.VM = try? viewModel.toJSON(encoder: encoder).fromJSON() {
             return result
         } else {
-            return Inner.VM.stub()
+            return viewModel
         }
     }
 }
