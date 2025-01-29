@@ -17,9 +17,6 @@
 
 import FOSFoundation
 import Foundation
-#if canImport(Vapor)
-import Vapor
-#endif
 import Yams
 
 public enum YamlStoreError: Error {
@@ -44,69 +41,6 @@ public enum YamlStoreError: Error {
     }
 }
 
-#if canImport(Vapor)
-public extension Request {
-    var locale: Locale? {
-        var result: Locale?
-
-        let accepts = headers[HTTPHeaders.Name.acceptLanguage]
-        for lang in accepts where result == nil {
-            result = Locale(identifier: lang)
-        }
-
-        return result
-    }
-
-    func requireLocale() throws -> Locale {
-        guard let locale else {
-            throw YamlStoreError.noLocaleFound
-        }
-
-        return locale
-    }
-}
-
-public extension Application {
-    var localizationStore: LocalizationStore? {
-        get {
-            storage[YamlLocalizationStore.self]
-        }
-        set {
-            storage[YamlLocalizationStore.self] = newValue
-        }
-    }
-
-    func requireLocalizationStore() throws -> LocalizationStore {
-        guard let localizationStore else {
-            throw YamlStoreError.noLocalizationStore
-        }
-
-        return localizationStore
-    }
-
-    /// Initializes the YAML Localization services for the Vapor application
-    ///
-    /// # Example
-    ///
-    /// ```swift
-    /// app.initYamlLocalization(
-    ///     bundle: Bundle.module,
-    ///     resourceDirectoryName: "Localization"
-    /// )
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - bundle: The application's resource bundle
-    ///   - resourceDirectoryName: The name of the directory containing yml files
-    func initYamlLocalization(bundle: Bundle, resourceDirectoryName: String) throws {
-        let config = try bundle.yamlStoreConfig(
-            resourceDirectoryName: resourceDirectoryName
-        )
-        lifecycle.use(YamlLocalizationInitializer(config: config))
-    }
-}
-#endif
-
 /// An extension on Bundle to allow initialization of the YamlStore
 public extension Bundle {
     func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
@@ -118,7 +52,7 @@ public extension Bundle {
     }
 }
 
-struct YamlStoreConfig: Sendable { // Internal for testing
+package struct YamlStoreConfig: Sendable { // Internal for testing
     let searchPaths: [URL]
 
     fileprivate func localizationStore() async throws -> LocalizationStore {
@@ -140,7 +74,7 @@ struct YamlStoreConfig: Sendable { // Internal for testing
     }
 }
 
-private extension Bundle {
+package extension Bundle {
     func yamlStoreConfig(resourceDirectoryName: String) throws -> YamlStoreConfig {
         try .init(
             searchPaths: yamlSearchPaths(
@@ -170,30 +104,12 @@ private extension Bundle {
     }
 }
 
-#if canImport(Vapor)
-private struct YamlLocalizationInitializer: LifecycleHandler {
-    let config: YamlStoreConfig
-
-    func willBootAsync(_ app: Application) async throws {
-        app.logger.info("Begin: Loading YAML files")
-
-        app.localizationStore = try await YamlStore(config: config)
-
-        app.logger.info("End: Loading YAML files")
-    }
-}
-
-private struct YamlLocalizationStore: StorageKey {
-    typealias Value = LocalizationStore
-}
-#endif
-
-private struct YamlStore: LocalizationStore {
+package struct YamlStore: LocalizationStore {
     let config: YamlStoreConfig
 
     private var yamlTree: [String: [String: YamlValue]]
 
-    func value(_ key: String, locale: Locale, default: Any? = nil, index: Int? = nil) -> Any? {
+    package func value(_ key: String, locale: Locale, default: Any? = nil, index: Int? = nil) -> Any? {
         guard let translation = translate(key, locale: locale) else {
             return `default`
         }
@@ -205,7 +121,7 @@ private struct YamlStore: LocalizationStore {
         return translation
     }
 
-    init(config: YamlStoreConfig) async throws {
+    package init(config: YamlStoreConfig) async throws {
         self.config = config
         self.yamlTree = try Self.loadFlattenedYAML(config: config)
     }

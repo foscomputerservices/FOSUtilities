@@ -1,4 +1,4 @@
-// VersionedFactoryMethodMacro.swift
+// JSONEncoder.swift
 //
 // Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
@@ -15,19 +15,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import SwiftSyntax
-import SwiftSyntaxBuilder
-import SwiftSyntaxMacros
+#if canImport(Vapor)
+import FOSFoundation
+import Foundation
+import Vapor
 
-// Ideas: https://swiftylion.com/articles/swift-macros
-// Expand on Swift Macros: https://developer.apple.com/videos/play/wwdc2023/10167/
-
-public struct ViewModelFactoryMethodMacro: PeerMacro {
-    public static func expansion(
-        of node: AttributeSyntax,
-        providingPeersOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        []
+public extension Request {
+    var viewModelEncoder: JSONEncoder {
+        get throws {
+            try JSONEncoder.localizingEncoder(
+                locale: requireLocale(),
+                localizationStore: application.requireLocalizationStore()
+            )
+        }
     }
 }
+#endif

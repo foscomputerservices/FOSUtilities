@@ -17,6 +17,7 @@
 
 #if canImport(Vapor)
 import FOSFoundation
+import FOSMVVM
 import Foundation
 import Vapor
 

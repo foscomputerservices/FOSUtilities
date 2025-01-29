@@ -235,21 +235,6 @@ extension KeyPath {
 }
 #endif
 
-#if canImport(Vapor)
-import Vapor
-
-public extension Request {
-    var viewModelEncoder: JSONEncoder {
-        get throws {
-            try JSONEncoder.localizingEncoder(
-                locale: requireLocale(),
-                localizationStore: application.requireLocalizationStore()
-            )
-        }
-    }
-}
-#endif
-
 extension CodingUserInfoKey { // Internal for testing
     static var localeKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCaLe*_")!

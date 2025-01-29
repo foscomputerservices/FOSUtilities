@@ -26,6 +26,10 @@ let package = Package(
             targets: ["FOSMVVM"]
         ),
         .library(
+            name: "FOSMVVMVapor",
+            targets: ["FOSMVVMVapor"]
+        ),
+        .library(
             name: "FOSTesting",
             targets: ["FOSTesting"]
         )
@@ -63,6 +67,14 @@ let package = Package(
             dependencies: [
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMacros"),
+                .product(name: "Yams", package: "Yams")
+            ]
+        ),
+        .target(
+            name: "FOSMVVMVapor",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMacros"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
             ]
@@ -87,9 +99,8 @@ let package = Package(
             name: "FOSMacrosTests",
             dependencies: [
                 .byName(name: "FOSFoundation"),
-                .byName(name: "FOSMVVM"),
-                .byName(name: "FOSTesting"),
                 .byName(name: "FOSMacros"),
+                .byName(name: "FOSTesting"),
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax")
                 // 21-Dec-24 - Macros can only be tested with XCTest - https://forums.swift.org/t/swift-testing-support-for-macros/72720/6
@@ -102,6 +113,20 @@ let package = Package(
                 .byName(name: "FOSMVVM"),
                 .byName(name: "FOSTesting"),
                 .byName(name: "FOSMacros"),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            resources: [
+                .copy("TestYAML")
+            ]
+        ),
+        .testTarget(
+            name: "FOSMVVMVaporTests",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM"),
+                .byName(name: "FOSMVVMVapor"),
+                .byName(name: "FOSMacros"),
+                .byName(name: "FOSTesting"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Testing", package: "swift-testing")
             ],

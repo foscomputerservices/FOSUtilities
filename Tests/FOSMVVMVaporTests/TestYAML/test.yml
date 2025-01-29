@@ -1,0 +1,54 @@
+en:
+  test: "Test"
+  carHood: "Hood"
+  int: 42
+  double: 42.2
+  boolTrue: true
+  boolFalse: false
+  separator: "."
+  subString: "->%{sub}<-"
+  stringArray:
+    - "One"
+    - "Two"
+    - "Three"
+  intArray:
+    - 1
+    - 2
+    - 3
+  doubleArray:
+    - 1.1
+    - 2.2
+    - 3.3
+  boolArray:
+    - true
+    - false
+  nested:
+    inner: "inner"
+en-GB:
+  carHood: "Bonnet"
+es:
+  test: "Prueba"
+  carHood: "Capó"
+  int: 42
+  double: 42.2
+  boolTrue: true
+  boolFalse: false
+  separator: ","
+  subString: "->%{sub}<-"
+  stringArray:
+    - "Uno"
+    - "Dos"
+    - "Tres"
+  intArray:
+    - 1
+    - 2
+    - 3
+  doubleArray:
+    - 1.1
+    - 2.2
+    - 3.3
+  boolArray:
+    - true
+    - false
+  nested:
+    inner: "interior"

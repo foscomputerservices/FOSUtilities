@@ -16,10 +16,11 @@
 // limitations under the License.
 
 import Foundation
-
 #if !canImport(Vapor)
 public protocol Content {}
 public protocol AsyncResponseEncodable {}
+#else
+import Vapor
 #endif
 
 /// Interact with web server resources over HTTP
@@ -302,51 +303,3 @@ public struct EmptyBody: ServerRequestBody {
 
     public static var bodyPath: String { "" }
 }
-
-#if canImport(Vapor)
-import Vapor
-
-public extension ServerRequestBody where Self: ServerRequestBody {
-    // MARK: AsyncResponseEncodable Protocol
-
-    // NOTE: It is intentional NOT to use Vapor's standard Content
-    //   encoding as Vapor only allows setting the encoder
-    //   globally (https://docs.vapor.codes/basics/content/#global).
-    //   The encoder needs to take into account the request's
-    //   locale to localize the model during encoding, which
-    //   can only be done locally.
-    //
-    //   Also, Vapor's ContentEncoder protocol cannot be used
-    //   as it doesn't provide access to Vapor.Request during
-    //   encoding (https://docs.vapor.codes/basics/content/#content_1).
-    //
-    //   Additionally, the api version and other headers are
-    //   added to the Response.  This is all done in vaporResponse().
-    //
-    //   Thus, we use the AsyncResponseEncodable protocol.
-
-    func encodeResponse(for req: Request) async throws -> Response {
-        var headers = HTTPHeaders()
-
-        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type
-        headers.replaceOrAdd(
-            name: .contentType,
-            value: "application/json; charset=utf-8"
-        )
-
-        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary
-        // https://www.smashingmagazine.com/2017/11/understanding-vary-header/
-        headers.replaceOrAdd(name: .vary, value: "*")
-        headers.replaceOrAdd(name: .cacheControl, value: "no-store")
-
-        // try response.addApplicationVersion()
-
-        // NOTE: Use the *viewModelEncoder* to localize the response
-        return try .init(
-            status: .ok,
-            headers: headers,
-            body: .init(data: toJSONData(encoder: req.viewModelEncoder))
-        )
-    }
-}
-#endif
