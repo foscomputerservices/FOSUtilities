@@ -15,14 +15,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if canImport(Vapor)
 import FOSFoundation
-@testable import FOSMVVM
+import FOSMVVM
+@testable import FOSMVVMVapor
 import FOSTesting
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 import Testing
+import Vapor
 
 // NOTE: These tests must be serialized due to the shared
 //       global state SystemVersion.current.
@@ -37,9 +40,8 @@ import Testing
 
 @Suite("SystemVersion Tests", .serialized)
 struct SystemVersionTests {
-    // MARK: HTTPURLResponse Tests
 
-    @Test func testHTTPURLResponseVersion() throws {
+    @Test func testVaporRequestVersion() throws {
         let major = 1
         let minor = 2
         let patch = 3
@@ -48,80 +50,35 @@ struct SystemVersionTests {
             .init(major: major, minor: minor, patch: patch)
         )
 
-        let compatibleResponse = HTTPURLResponse.response(
+        let compatibleRequest = Request.request(
             withVersion: SystemVersion.current
         )
+        defer { compatibleRequest.application.shutdown() }
         do {
-            try compatibleResponse.requireCompatibleSystemVersion()
+            try compatibleRequest.requireCompatibleSystemVersion()
         } catch let e {
             #expect(Bool(false), "requireCompatibleSystemVersion threw: \(e) when a compatible response was expected")
         }
 
-        let incompatibleResponse = HTTPURLResponse.response(
+        let incompatibleRequest = Request.request(
             withVersion: SystemVersion(major: major + 1, minor: minor, patch: patch)
         )
+        defer { incompatibleRequest.application.shutdown() }
         #expect(throws: SystemVersionError.self) {
-            try incompatibleResponse.requireCompatibleSystemVersion()
+            try incompatibleRequest.requireCompatibleSystemVersion()
         }
     }
 
-    @Test func testMissingResponseVersionHeader() throws {
-        let response = HTTPURLResponse(url: URL(string: "https://www.github.com")!, statusCode: 0, httpVersion: nil, headerFields: nil)!
+    @Test func testMissingRequestVersionHeader() throws {
+        let app = Application.app()
+        defer { app.shutdown() }
+        let request = Request(
+            application: app,
+            on: app.eventLoopGroup.next()
+        )
         #expect(throws: SystemVersionError.self) {
-            try response.systemVersion
+            try request.systemVersion
         }
-    }
-
-    @Test(arguments: [
-        (
-            a: SystemVersion.first,
-            b: SystemVersion.second,
-            aIsLess: true
-        ),
-        (
-            a: SystemVersion.second,
-            b: SystemVersion.first,
-            aIsLess: false
-        ),
-        (
-            a: SystemVersion.second,
-            b: SystemVersion.forth,
-            aIsLess: true
-        ),
-        (
-            a: SystemVersion.forth,
-            b: SystemVersion.second,
-            aIsLess: false
-        ),
-        (
-            a: SystemVersion.forth,
-            b: SystemVersion.second,
-            aIsLess: false
-        )
-    ]) func testComparable(tuple: (a: SystemVersion, b: SystemVersion, aIsLess: Bool)) throws {
-        #expect((tuple.a < tuple.b) == tuple.aIsLess)
-        #expect((tuple.a > tuple.b) == !tuple.aIsLess)
-    }
-
-    @Test(arguments: [
-        (
-            random: [SystemVersion.first, .second, .third],
-            expected: [SystemVersion.first, .second, .third]
-        ),
-        (
-            random: [SystemVersion.second, .third, .first],
-            expected: [SystemVersion.first, .second, .third]
-        ),
-        (
-            random: [SystemVersion.fifth, .third, .first],
-            expected: [SystemVersion.first, .third, .fifth]
-        ),
-        (
-            random: [SystemVersion.fifth, .third, .second],
-            expected: [SystemVersion.second, .third, .fifth]
-        )
-    ]) func testSorted(tuple: (random: [SystemVersion], expected: [SystemVersion])) throws {
-        #expect(tuple.random.sorted() == tuple.expected)
     }
 }
 
@@ -137,6 +94,26 @@ private extension HTTPURLResponse {
     }
 }
 
+private extension Request {
+    static func request(withVersion version: SystemVersion) -> Request {
+        let app = Application.app()
+
+        return .init(
+            application: app,
+            headers: .init([
+                (URLRequest.systemVersioningHeader, version.versionString)
+            ]),
+            on: app.eventLoopGroup.next()
+        )
+    }
+}
+
+private extension Application {
+    static func app() -> Application {
+        .init()
+    }
+}
+
 private extension SystemVersion {
     static var first: SystemVersion { .init(major: 1, minor: 0) }
     static var second: SystemVersion { .init(major: 1, minor: 1) }
@@ -144,3 +121,4 @@ private extension SystemVersion {
     static var forth: SystemVersion { .init(major: 2, minor: 0, patch: 0) }
     static var fifth: SystemVersion { .init(major: 3, minor: 3, patch: 1) }
 }
+#endif

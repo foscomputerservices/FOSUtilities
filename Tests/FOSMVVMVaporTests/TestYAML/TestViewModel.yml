@@ -1,0 +1,28 @@
+en:
+  TestViewModel:
+    aLocalizedString: "Some Text"
+    aField:
+      title: "Title"
+      prompt: "A field prompt"
+      validationMessages:
+        error1: "Error #1"
+        error2: "Error #2"
+    pieces:
+      - "Piece #1"
+      - "Piece #2"
+    separator: "*"
+    aLocalizedSubstitution: "First Sub: %{sub1}; Second Sub: %{sub2}"
+    substitutions:
+      sub1: "Number 1"
+      sub2: "Number 2"
+
+es:
+  TestLocalizableViewModel:
+    aLocalizedString: "Algunos textos"
+    pieces:
+      - "Pieza nº1"
+      - "Pieza nº2"
+    aLocalizedSubstitution: "First Sub: %{sub1}; Second Sub: %{sub2}"
+    substitutions:
+      sub1: "Número 1"
+      sub2: "Número 2"

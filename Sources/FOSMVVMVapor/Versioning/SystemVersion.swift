@@ -15,31 +15,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if canImport(Vapor)
 import FOSFoundation
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+import Vapor
 
-public extension URLRequest {
-    /// The custom HTTPHeader to use to store the
-    static var systemVersioningHeader: String {
-        "X-FOS-System-Version"
-    }
-
-    /// Adds an HTTPHeader that includes the given *systemVersion*
-    mutating func addSystemVersioningHeader(systemVersion: SystemVersion) {
-        setValue(systemVersion.versionString, forHTTPHeaderField: Self.systemVersioningHeader)
-    }
-}
-
-public extension HTTPURLResponse {
-    /// - Returns:  the *SystemVersion* specified in the HTTPHeader
+public extension Vapor.Request {
+    /// - Returns: the *SystemVersion* specified in the HTTPHeader
     ///
-    /// - Throws: *SystemVersionError* if the ``HTTPURLResponse`` does not specify a version
+    /// - Throws: **SystemVersionError.missingSystemVersion** if there is no value for URLRequest.systemVersioningHeader in Request's headers
+    ///    does not specify a version
     var systemVersion: SystemVersion {
         get throws {
-            guard let str = value(forHTTPHeaderField: URLRequest.systemVersioningHeader) else {
+            guard let str = headers[URLRequest.systemVersioningHeader].first else {
                 throw SystemVersionError.missingSystemVersion
             }
 
@@ -54,7 +45,7 @@ public extension HTTPURLResponse {
     /// Checks to see if the HTTPHeader contains a version specification and if it
     /// is compatible with the current *SystemVersion*
     ///
-    /// - Throws: *SystemVersionError* If the specification is missing or is not compatible
+    /// - Throws: **SystemVersionError.incompatibleSystemAPIVersion** If the specification is missing or is not compatible
     func requireCompatibleSystemVersion() throws {
         let sv = try systemVersion
 
@@ -63,3 +54,4 @@ public extension HTTPURLResponse {
         }
     }
 }
+#endif

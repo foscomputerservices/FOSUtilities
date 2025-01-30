@@ -15,9 +15,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if os(macOS) || os(Linux)
 import FOSFoundation
 import FOSMacros
-import FOSMVVM
 import Foundation
 import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
@@ -91,3 +91,4 @@ final class ViewModelFactoryMacroTests: XCTestCase {
         )
     }
 }
+#endif

@@ -40,34 +40,6 @@ public protocol ViewModelFactory {
     static func model(context: Context) async throws -> Self
 }
 
-#if canImport(Vapor)
-import Vapor
-
-public struct VaporModelFactoryContext<Request: ViewModelRequest>: ViewModelFactoryContext {
-    public let req: Vapor.Request
-    public let vmRequest: Request
-
-    public var systemVersion: SystemVersion {
-        get throws {
-            try req.systemVersion
-        }
-    }
-
-    public init(req: Vapor.Request, vmRequest: Request) {
-        self.req = req
-        self.vmRequest = vmRequest
-    }
-}
-
-public protocol VaporViewModelFactory: ViewModelFactory where Self: RequestableViewModel, Context == VaporModelFactoryContext<Request> {}
-
-public extension VaporViewModelFactory {
-    static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
-        try await model(context: .init(req: req, vmRequest: vmRequest))
-    }
-}
-#endif
-
 public struct ClientHostedModelFactoryContext<Request: ViewModelRequest>: ViewModelFactoryContext {
     public let locale: Locale
     public let localizationStore: LocalizationStore
