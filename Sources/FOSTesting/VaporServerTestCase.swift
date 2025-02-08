@@ -18,6 +18,7 @@
 #if canImport(Vapor) && DEBUG
 import FOSFoundation
 @testable import FOSMVVM
+@testable import FOSMVVMVapor
 import Foundation
 import Testing
 import Vapor
