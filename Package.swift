@@ -32,6 +32,10 @@ let package = Package(
         .library(
             name: "FOSTesting",
             targets: ["FOSTesting"]
+        ),
+        .library(
+            name: "FOSTestingVapor",
+            targets: ["FOSTestingVapor"]
         )
     ],
     dependencies: [
@@ -85,7 +89,16 @@ let package = Package(
             dependencies: [
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
+                .product(name: "Testing", package: "swift-testing")
+            ]
+        ),
+        .target(
+            name: "FOSTestingVapor",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM"),
                 .byName(name: "FOSMVVMVapor", condition: .when(platforms: [.macOS, .linux])),
+                .byName(name: "FOSTesting"),
                 .product(name: "Testing", package: "swift-testing"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux]))
             ]
@@ -130,6 +143,7 @@ let package = Package(
                 .byName(name: "FOSMVVMVapor"),
                 .byName(name: "FOSMacros"),
                 .byName(name: "FOSTesting"),
+                .byName(name: "FOSTestingVapor"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Testing", package: "swift-testing")
             ],
