@@ -21,15 +21,62 @@ import FOSFoundation
 import SwiftUI
 
 public extension View {
-    func testHost() -> some View {
+    /// Returns the view wrapped so that it can be tested with *ViewModelViewTestCase*
+    ///
+    /// The *decorator* *ViewBuilder* allows the hosting application to attach additional information to the
+    /// view under test.  For example, this could be environment bindings that are substituted to allow the
+    /// view under test to bind to test bindings.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @main struct MyApp: App {
+    ///
+    ///    var body: some Scene {
+    ///      WindowGroup {
+    ///        MyMainView { ... }
+    ///        #if DEBUG
+    ///        .testHost { testView in
+    ///          testView
+    ///            .environment(\.binding, testValue)
+    ///        }
+    ///        #endif
+    ///      }
+    ///    }
+    /// }
+    /// ```
+    ///
+    /// - Parameter decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
+    @ViewBuilder func testHost(@ViewBuilder decorator: (AnyView) -> some View) -> some View {
         #if DEBUG
-        TestingView(baseView: self)
+        decorator(AnyView(TestingView(baseView: self)))
         #else
         self
         #endif
         // .onOpenURL { url in
         //     processURLRequest(url, viewState: viewState)
         // }
+    }
+
+    /// Returns the view wrapped so that it can be tested with *ViewModelViewTestCase*
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @main struct MyApp: App {
+    ///
+    ///    var body: some Scene {
+    ///      WindowGroup {
+    ///        MyMainView { ... }
+    ///        #if DEBUG
+    ///        .testHost()
+    ///        #endif
+    ///      }
+    ///    }
+    /// }
+    /// ```
+    func testHost() -> some View {
+        testHost(decorator: { $0 })
     }
 }
 
