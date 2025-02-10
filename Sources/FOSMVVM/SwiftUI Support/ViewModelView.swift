@@ -1,6 +1,6 @@
 // ViewModelView.swift
 //
-// Created by David Hunt on 1/16/25
+// Created by David Hunt on 2/10/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -29,13 +29,13 @@ public enum ViewModelViewError: Error {
     public var localizedDescription: String {
         switch self {
         case .badServerRequestAction:
-            return "Only show (GET) and create (POST) actions are supported for Server ViewModel requests"
+            "Only show (GET) and create (POST) actions are supported for Server ViewModel requests"
         case .badClientRequestAction:
-            return "Only show (GET) actions are supported for Client ViewModel requests"
+            "Only show (GET) actions are supported for Client ViewModel requests"
         case .missingRequestBody:
-            return "Create (POST) actions must include a request body"
+            "Create (POST) actions must include a request body"
         case .missingLocalizationStore:
-            return "Missing Client Localization Store in MVVMEnvironment"
+            "Missing Client Localization Store in MVVMEnvironment"
         }
     }
 }
@@ -372,7 +372,6 @@ public extension ViewModelView where VM: RequestableViewModel {
         default:
             throw ViewModelViewError.badServerRequestAction
         }
-
     }
 
     /// Resolves a ViewModelRequest locally to the client application

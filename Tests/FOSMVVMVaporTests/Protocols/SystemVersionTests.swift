@@ -40,7 +40,6 @@ import Vapor
 
 @Suite("SystemVersion Tests", .serialized)
 struct SystemVersionTests {
-
     @Test func testVaporRequestVersion() throws {
         let major = 1
         let minor = 2

@@ -16,6 +16,7 @@
 // limitations under the License.
 
 import Foundation
+
 #if !canImport(Vapor)
 public protocol Content {}
 public protocol AsyncResponseEncodable {}
