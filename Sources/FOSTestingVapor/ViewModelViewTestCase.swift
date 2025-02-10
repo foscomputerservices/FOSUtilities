@@ -128,7 +128,7 @@ import XCTest
         for i in 0..<_vmoDataItems.count {
             let _vmoData = _vmoDataItems.element(boundBy: i)
             if let vmoData = (_vmoData.value as? String)?.reveal,
-                let vmoResult = try? vmoData.fromJSON() as VMO {
+               let vmoResult = try? vmoData.fromJSON() as VMO {
                 return vmoResult
             }
         }

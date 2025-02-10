@@ -16,12 +16,6 @@
 // limitations under the License.
 
 import Foundation
-#if !canImport(Vapor)
-public protocol Content {}
-public protocol AsyncResponseEncodable {}
-#else
-import Vapor
-#endif
 
 /// Interact with web server resources over HTTP
 ///
@@ -219,7 +213,7 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
 }
 
 /// Data that will be encoded into the HTTP Query
-public protocol ServerRequestQuery: Codable, Sendable, Content {}
+public protocol ServerRequestQuery: Codable, Sendable {}
 
 /// Represents an empty query
 ///
@@ -238,7 +232,7 @@ public struct EmptyQuery: ServerRequestQuery {
 }
 
 /// Represents data that will be encoded into the HTTP Fragment
-public protocol ServerRequestFragment: Codable, Sendable, Content {}
+public protocol ServerRequestFragment: Codable, Sendable {}
 
 /// Represents an empty query
 ///
@@ -255,7 +249,7 @@ public protocol ServerRequestFragment: Codable, Sendable, Content {}
 public struct EmptyFragment: ServerRequestFragment {}
 
 /// Data that will be encoded into the HTTP request's body and/or response
-public protocol ServerRequestBody: Codable, Sendable, AsyncResponseEncodable {
+public protocol ServerRequestBody: Codable, Sendable {
     /// Describes a sub-path that is used to request the body
     ///
     /// By default the type name of the ``ServerRequestBody`` is used

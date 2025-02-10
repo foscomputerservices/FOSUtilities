@@ -20,9 +20,6 @@ import FOSFoundation
 import FOSTesting
 import Foundation
 import Testing
-#if canImport(Vapor)
-import Vapor
-#endif
 
 @Suite("JSON Encoder Error Tests")
 struct JSONEncoderTests: LocalizableTestCase {
@@ -48,17 +45,6 @@ struct JSONEncoderTests: LocalizableTestCase {
         #expect(!array.isEmpty)
         #expect(try array.localizedArray[0] == "One")
     }
-
-    // MARK: Vapor Tests
-
-    #if canImport(Vapor)
-    @Test func localizeStringVapor() async throws {
-        let viewModelEncoder = try vaporRequest().viewModelEncoder
-
-        // We're just testing that it functions when configured properly
-        _ = try viewModelEncoder.encode(TestViewModel())
-    }
-    #endif
 
     // MARK: Error Tests
 

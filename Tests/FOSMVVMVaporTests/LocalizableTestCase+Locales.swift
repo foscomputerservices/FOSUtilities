@@ -1,4 +1,4 @@
-// LoginRequest.swift
+// LocalizableTestCase+Locales.swift
 //
 // Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
@@ -15,14 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-public protocol LoginRequest: ViewModelRequest {}
+import FOSFoundation
+import FOSMVVM
+import FOSTesting
+import Foundation
 
-public extension LoginRequest {
-    var action: ServerRequestAction {
-        .create // POST
-    }
-
-    var viewModel: ResponseBody {
-        responseBody ?? .stub()
-    }
+extension LocalizableTestCase {
+    var locales: Set<Locale> { [Self.en, Self.es] }
 }
