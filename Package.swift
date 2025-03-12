@@ -34,6 +34,10 @@ let package = Package(
             targets: ["FOSTesting"]
         ),
         .library(
+            name: "FOSTestingUI",
+            targets: ["FOSTestingUI"]
+        ),
+        .library(
             name: "FOSTestingVapor",
             targets: ["FOSTestingVapor"]
         )
@@ -90,6 +94,13 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
                 .product(name: "Testing", package: "swift-testing")
+            ]
+        ),
+        .target(
+            name: "FOSTestingUI",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM")
             ]
         ),
         .target(
