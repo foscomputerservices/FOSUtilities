@@ -21,12 +21,21 @@ import FoundationNetworking
 #endif
 
 /// Errors resulting from calls to various **URLSessionWebSocketTask** APIs
-public enum WebSocketError: Error {
+public enum WebSocketError: Error, CustomDebugStringConvertible {
     /// The **URLSessionTask** is not currently running
     case notRunning
 
     /// An error was received while sending data to the web socket
     case sendError(any Error)
+
+    public var debugDescription: String {
+        switch self {
+        case .notRunning:
+            "WebSocketError: The URLSessionWebSocketTask is not currently running"
+        case .sendError(let e):
+            "WebSocketError: An error occurred while sending data to the web socket: \(e)"
+        }
+    }
 }
 
 public extension URLSessionWebSocketTask {

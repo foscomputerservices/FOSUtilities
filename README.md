@@ -49,6 +49,7 @@ Here is an example of setting up a new [Model-View-ViewModel](https://w.wiki/4T5
 #### View Model
 
 ```swift
+@ViewModelImpl
 public struct LandingPageViewModel: RequestableViewModel {
     public typealias Request = LandingPageRequest
 

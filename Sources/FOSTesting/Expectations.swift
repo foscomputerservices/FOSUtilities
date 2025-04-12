@@ -45,7 +45,7 @@ public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil,
             throw FOSCodableError.error(message + "Encoded 0 bytes")
         }
     } catch let e {
-        throw FOSCodableError.error(message + "Exception encoding \(C.self): \(e.localizedDescription)")
+        throw FOSCodableError.error(message + "Exception encoding \(C.self): \(e)")
     }
 
     do {
@@ -138,12 +138,16 @@ private extension SystemVersion {
     }
 }
 
-public enum FOSCodableError: Error {
+public enum FOSCodableError: Error, CustomDebugStringConvertible {
     case error(_ message: String)
 
-    public var localizedDescription: String {
+    public var debugDescription: String {
         switch self {
-        case .error(let message): message
+        case .error(let message): "FOSCodableError: \(message)"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }

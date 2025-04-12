@@ -244,10 +244,23 @@ import XCTest
     }
 }
 
-public enum RunError: Error {
+public enum RunError: Error, CustomDebugStringConvertible {
     case didntStart
     case setupNotCalled
     case badUrlString(_ str: String)
     case cannotRetrieveOperationsData
+
+    public var debugDescription: String {
+        switch self {
+        case .didntStart:
+            "RunError: Run did not start"
+        case .setupNotCalled:
+            "RunError: setup() was not called"
+        case .badUrlString(let str):
+            "RunError: Bad URL string: \(str)"
+        case .cannotRetrieveOperationsData:
+            "RunError: Cannot retrieve operations data"
+        }
+    }
 }
 #endif

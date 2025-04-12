@@ -18,7 +18,7 @@
 import Foundation
 
 /// Errors generated during Encoding/Decoding of JSON-style data
-public enum JSONError: Error {
+public enum JSONError: Error, CustomDebugStringConvertible {
     /// A **DecodingError** was received while decoding the data into the JSON value
     case decodingError(error: DecodingError, data: Data)
 
@@ -75,6 +75,21 @@ public enum JSONError: Error {
     /// let myJSON: MyJSONType = try "".fromJSON()
     /// ```
     case noData
+
+    public var debugDescription: String {
+        switch self {
+        case .decodingError(error: let error, data: let data):
+            "JSONError: DecodingError - \(error)\nData: \(String(data: data, encoding: .utf8) ?? "(no UTF-8 data)")"
+        case .encodingError(error: let error):
+            "JSONError: EncodingError: \(error)"
+        case .noData:
+            "JSONError: No data to decode"
+        case .utf8EncodingError:
+            "JSONError: Unable to encode data to UTF-8 format"
+        case .unknownDateFormat(let dateString):
+            "JSONError: Unknown date format: \(dateString)"
+        }
+    }
 
     /// A general error was received during processing
     static func jsonCodingError(_ error: any Error, data: Data? = nil) -> any Error {

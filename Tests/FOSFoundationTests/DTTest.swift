@@ -126,6 +126,13 @@ struct DTTest: Codable {
     }
 }
 
-enum DTTestError: Error {
+enum DTTestError: Error, CustomDebugStringConvertible {
     case error(_ message: String)
+
+    var debugDescription: String {
+        switch self {
+        case .error(let message):
+            "DTTestError: \(message)"
+        }
+    }
 }

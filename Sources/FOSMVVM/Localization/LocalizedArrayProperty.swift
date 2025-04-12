@@ -18,11 +18,19 @@
 import FOSFoundation
 import Foundation
 
-public enum LocalizedArrayPropertyError: Error {
+public enum LocalizedArrayPropertyError: Error, CustomDebugStringConvertible {
     case internalError(_ message: String)
+
+    public var debugDescription: String {
+        switch self {
+        case .internalError(let message):
+            "LocalizedArrayPropertyError: Internal Error: \(message)"
+        }
+    }
 }
 
 public extension ViewModel {
+    // NOTE: If something new is added here, ViewModelImplMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedStrings = _LocalizedArrayProperty<Self, LocalizableString>
 }
 
@@ -30,9 +38,9 @@ public extension ViewModel {
     public var wrappedValue: LocalizableArray<Value>
     public var projectedValue: LocalizableArray<Value> { wrappedValue }
 
-    private typealias WrappedValueBinder = @Sendable (Model, String) -> LocalizableArray<Value>
+    private typealias WrappedValueBinder = @Sendable (String) -> LocalizableArray<Value>
 
-    let localizationId: LocalizableId
+    public let localizationId: LocalizableId
     private let bindWrappedValue: WrappedValueBinder?
 
     /// Initializes the ``LocalizedStrings`` property wrapper
@@ -78,7 +86,7 @@ public extension ViewModel {
         // binding the propertyName
         self.localizationId = .random(length: 10)
         self.wrappedValue = .empty
-        self.bindWrappedValue = { _, autoPropName in
+        self.bindWrappedValue = { autoPropName in
             let finalPropName: String = if let propertyName, !propertyName.isEmpty {
                 propertyName
             } else {
@@ -108,10 +116,6 @@ public extension _LocalizedArrayProperty {
         var container = encoder.singleValueContainer()
 
         if let bindWrappedValue {
-            guard let viewModel = encoder.currentViewModel(for: Model.self) else {
-                throw LocalizedArrayPropertyError.internalError("\(Self.self): Unable to retrieve the current ViewModel for property name lookup")
-            }
-
             guard
                 let propertyNames = encoder.propertyNameBindings(),
                 let propertyName = propertyNames[localizationId]
@@ -119,7 +123,7 @@ public extension _LocalizedArrayProperty {
                 throw LocalizedArrayPropertyError.internalError("\(Self.self): Unable to resolve the property name")
             }
 
-            let wrappedValue = bindWrappedValue(viewModel, propertyName)
+            let wrappedValue = bindWrappedValue(propertyName)
             try container.encode(wrappedValue)
         } else {
             try container.encode(wrappedValue)

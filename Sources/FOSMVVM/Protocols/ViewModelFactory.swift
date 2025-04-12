@@ -18,15 +18,19 @@
 import FOSFoundation
 import Foundation
 
-public enum ViewModelFactoryError: Error {
+public enum ViewModelFactoryError: Error, CustomDebugStringConvertible {
     /// The client requested a version of the ``ViewModel`` that is not supported
     case versionNotSupported(_ version: String)
 
-    public var localizedDescription: String {
+    public var debugDescription: String {
         switch self {
         case .versionNotSupported(let version):
-            "Unsupported version: \(version)"
+            "ViewModelFactoryError: Unsupported version: \(version)"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
 

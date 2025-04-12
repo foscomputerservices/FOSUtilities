@@ -17,12 +17,23 @@
 
 import Foundation
 
-public enum LocalizerError: Error {
+public enum LocalizerError: Error, CustomDebugStringConvertible {
     case unknownLocalizationType(_ type: String)
     case localizationStoreMissing
 
     /// Localization occurs during encode/init(from:).  If encoding/decoding has not taken place, then this error will result.
     case localizationUnbound
+
+    public var debugDescription: String {
+        switch self {
+        case .unknownLocalizationType(let type):
+            "LocalizerError: Unknown localization type: \(type)"
+        case .localizationStoreMissing:
+            "LocalizerError: Localization store is missing"
+        case .localizationUnbound:
+            "LocalizerError: Localization occurs during encode/init(from:), but encoding/decoding has not taken place"
+        }
+    }
 
     static func processUnknown(error: any Error) -> any Error {
         if let localizerError = error as? Self {

@@ -60,8 +60,15 @@ public extension ServerRequest {
 //    }
 }
 
-public enum ServerRequestError: Error {
+public enum ServerRequestError: Error, CustomDebugStringConvertible {
     case internalError(message: String)
+
+    public var debugDescription: String {
+        switch self {
+        case .internalError(message: let msg):
+            "ServerRequestError: Internal Error: \(msg)"
+        }
+    }
 }
 
 private extension ServerRequestAction {

@@ -160,6 +160,12 @@ private extension Encoder {
 }
 
 extension Encoder {
+    // NOTE: Passing the model through the encoder has been known to cause problems
+    //    in client UnitTests.  The exact cause is T.B.D.  However, with more work
+    //    in the macros, it might be possible to completely eliminate this need.
+    //    Right now, the model is only used by the substitution localizers
+    //    (e.g., LocalizedCompoundString, LocalizeSubs).
+
     func currentViewModel<T: ViewModel>(for type: T.Type) -> T? {
         userInfo[.currentViewModelKey] as? T
     }
@@ -197,11 +203,11 @@ extension ViewModel { // Internal for testing
                     // _LocalizedProperty support
                     if let locProp = child.value as? LocalizedString {
                         localizableId = locProp.localizationId
-                    } else if let locProp = child.value as? LocalizeInt {
+                    } else if let locProp = child.value as? LocalizedInt {
                         localizableId = locProp.localizationId
-                    } else if let locProp = child.value as? LocalizeCompoundString {
+                    } else if let locProp = child.value as? LocalizedCompoundString {
                         localizableId = locProp.localizationId
-                    } else if let locProp = child.value as? LocalizeSubs {
+                    } else if let locProp = child.value as? LocalizedSubs {
                         localizableId = locProp.localizationId
                     }
                 } else if String(describing: type(of: child.value)).starts(with: localizedArrayPropertyTypeName) {
@@ -220,20 +226,6 @@ extension ViewModel { // Internal for testing
         return result
     }
 }
-
-#if needed
-extension KeyPath {
-    func propertyName(on instance: Any) -> String? {
-        let instance = Mirror(reflecting: instance)
-        for child in instance.children {
-            if let label = child.label, let value = child.value as? KeyPath<Root, Value>, value == self {
-                return label
-            }
-        }
-        return nil
-    }
-}
-#endif
 
 extension CodingUserInfoKey { // Internal for testing
     static var localeKey: CodingUserInfoKey {
@@ -256,6 +248,8 @@ extension CodingUserInfoKey { // Internal for testing
 private struct ___Model: ViewModel {
     // REVIEWED: This code will never be covered, we only use the type
     var vmId: ViewModelId = .init()
+
+    func propertyNames() -> [LocalizableId: String] { [:] }
 
     static func stub() -> ___Model {
         .init()

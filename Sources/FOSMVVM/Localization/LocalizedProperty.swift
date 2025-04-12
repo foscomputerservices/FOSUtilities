@@ -18,14 +18,18 @@
 import FOSFoundation
 import Foundation
 
-public enum LocalizedPropertyError: Error {
+public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
     case internalError(_ message: String)
 
-    public var localizedDescription: String {
+    public var debugDescription: String {
         switch self {
         case .internalError(let message):
-            message
+            "LocalizedPropertyError: \(message)"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
 
@@ -159,10 +163,11 @@ public enum LocalizedPropertyError: Error {
 ///
 
 public extension ViewModel {
+    // NOTE: If something new is added here, ViewModelImplMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedString = _LocalizedProperty<Self, LocalizableString>
-    typealias LocalizeInt = _LocalizedProperty<Self, LocalizableInt>
-    typealias LocalizeCompoundString = _LocalizedProperty<Self, LocalizableCompoundValue<LocalizableString>>
-    typealias LocalizeSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
+    typealias LocalizedInt = _LocalizedProperty<Self, LocalizableInt>
+    typealias LocalizedCompoundString = _LocalizedProperty<Self, LocalizableCompoundValue<LocalizableString>>
+    typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
 
 @propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Sendable, Stubbable, Versionable where Model: ViewModel, Value: Localizable {
@@ -178,7 +183,7 @@ public extension ViewModel {
 
     // Identifies this property for property name binding through
     // ViewModel.propertyNames()
-    let localizationId: LocalizableId
+    public let localizationId: LocalizableId
     private let bindWrappedValue: WrappedValueBinder?
 
     /// Initializes the ``LocalizedString`` property wrapper
@@ -287,7 +292,7 @@ public extension ViewModel {
         self.vLast = vLast
     }
 
-    /// Initializes the ``LocalizeCompoundString`` property wrapper
+    /// Initializes the ``LocalizedCompoundString`` property wrapper
     ///
     /// # Example
     ///
@@ -295,7 +300,7 @@ public extension ViewModel {
     ///  struct MyViewModel: ViewModel {
     ///    @LocalizedStrings var pieces
     ///    @LocalizedString var separator
-    ///    @LocalizeCompoundString(pieces: \._pieces, separator: \._separator) var combined
+    ///    @LocalizedCompoundString(pieces: \._pieces, separator: \._separator) var combined
     ///  }
     /// ```
     ///
@@ -387,7 +392,7 @@ public extension ViewModel {
         self.vLast = vLast
     }
 
-    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: any Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
+    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: some Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
@@ -424,7 +429,9 @@ public extension _LocalizedProperty {
 
         if let bindWrappedValue {
             guard let viewModel = encoder.currentViewModel(for: Model.self) else {
-                throw LocalizedPropertyError.internalError("\(Self.self): Unable to retrieve the current ViewModel for property name lookup")
+                throw LocalizedPropertyError.internalError(
+                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                )
             }
 
             guard

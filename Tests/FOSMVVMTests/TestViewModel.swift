@@ -20,6 +20,7 @@ import FOSMVVM
 import Foundation
 import Testing
 
+@ViewModelImpl
 struct TestViewModel: RequestableViewModel {
     typealias Request = TestViewModelRequest
 
@@ -29,13 +30,13 @@ struct TestViewModel: RequestableViewModel {
     @LocalizedString(parentKeys: "aField", "validationMessages") var error1
     @LocalizedString(parentKeys: "aField", "validationMessages") var error2
     @LocalizedString(propertyName: "pieces", index: 0) var firstPiece
-    @LocalizeInt(value: 42) var aLocalizedInt
+    @LocalizedInt(value: 42) var aLocalizedInt
     @LocalizedStrings var pieces
     @LocalizedString var separator
-    @LocalizeCompoundString(pieces: \._pieces) var aLocalizedCompoundNoSep
-    @LocalizeCompoundString(pieces: \._pieces, separator: \Self._separator) var aLocalizedCompoundSep
+    @LocalizedCompoundString(pieces: \._pieces) var aLocalizedCompoundNoSep
+    @LocalizedCompoundString(pieces: \._pieces, separator: \Self._separator) var aLocalizedCompoundSep
 
-    @LocalizeSubs(substitutions: \.substitutions) var aLocalizedSubstitution
+    @LocalizedSubs(substitutions: \.substitutions) var aLocalizedSubstitution
     private let substitutions: [String: LocalizableInt]
 
     var vmId = ViewModelId()

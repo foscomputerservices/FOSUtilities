@@ -20,8 +20,15 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-public enum MacroError: Error {
+public enum ViewModelFactoryMacroError: Error, CustomDebugStringConvertible {
     case invalidVersionFormat(String)
+
+    public var debugDescription: String {
+        switch self {
+        case .invalidVersionFormat(let value):
+            "ViewModelFactoryMacroError: Invalid version format: \(value)"
+        }
+    }
 }
 
 public struct ViewModelFactoryMacro: MemberMacro {
@@ -69,7 +76,9 @@ public struct ViewModelFactoryMacro: MemberMacro {
                 versionArgument.starts(with: ".v"),
                 let version = SystemVersion(rawVersion: versionArgument)
             else {
-                throw MacroError.invalidVersionFormat("The @Version macro requires version names to be in the form of '.vX.Y.Z'")
+                throw ViewModelFactoryMacroError.invalidVersionFormat(
+                    "The @Version macro requires version names to be in the form of '.vX.Y.Z'"
+                )
             }
 
             return (version: version, method: funcDecl.name.text)
