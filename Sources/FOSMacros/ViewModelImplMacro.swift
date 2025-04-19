@@ -33,7 +33,7 @@ public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
 // Example:
 //
 // @ViewModelImpl
-// struct MyViewModel: ViewModel {
+// struct MyViewModel/* : ViewModel <- No need to add, will be added automatically */ {
 //   @LocalizableString public var myStr
 //   @LocalizableInt public var myInt = 25
 //

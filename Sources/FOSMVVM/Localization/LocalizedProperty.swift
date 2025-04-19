@@ -171,7 +171,7 @@ public extension ViewModel {
 }
 
 @propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Sendable, Stubbable, Versionable where Model: ViewModel, Value: Localizable {
-    private typealias WrappedValueBinder = @Sendable (Model, String, Encoder) throws -> Value
+    private typealias WrappedValueBinder = @Sendable (Model?, String, Encoder) throws -> Value
 
     public var wrappedValue: Value
     public var projectedValue: Value { wrappedValue }
@@ -314,6 +314,12 @@ public extension ViewModel {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, _, encoder throws in
+            guard let model else {
+                throw LocalizedPropertyError.internalError(
+                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                )
+            }
+
             // We cannot expect that the property referenced by the keyPath
             // has already been localized as the order in which the encoder
             // encodes the properties on an instance is undefined.  Thus,
@@ -377,7 +383,13 @@ public extension ViewModel {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
-            .init(
+            guard let model else {
+                throw LocalizedPropertyError.internalError(
+                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                )
+            }
+
+            return .init(
                 baseString: .localized(.init(
                     for: Model.self,
                     parentType: nil,
@@ -396,7 +408,13 @@ public extension ViewModel {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
-            .init(
+            guard let model else {
+                throw LocalizedPropertyError.internalError(
+                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                )
+            }
+
+            return .init(
                 baseString: .localized(.init(
                     for: Model.self,
                     parentType: nil,
@@ -428,12 +446,6 @@ public extension _LocalizedProperty {
         var container = encoder.singleValueContainer()
 
         if let bindWrappedValue {
-            guard let viewModel = encoder.currentViewModel(for: Model.self) else {
-                throw LocalizedPropertyError.internalError(
-                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
-                )
-            }
-
             guard
                 let propertyNames = encoder.propertyNameBindings(),
                 let propertyName = propertyNames[localizationId]
@@ -442,7 +454,7 @@ public extension _LocalizedProperty {
             }
 
             let wrappedValue = try bindWrappedValue(
-                viewModel,
+                encoder.currentViewModel(for: Model.self),
                 propertyName,
                 encoder
             )
