@@ -28,7 +28,8 @@ struct KeyPathToStringTests {
     }
 }
 
-private struct Model: ViewModel {
+@ViewModelImpl
+private struct Model {
     @LocalizedString var property
     let vmId: ViewModelId
 

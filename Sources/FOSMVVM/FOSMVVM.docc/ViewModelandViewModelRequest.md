@@ -15,6 +15,7 @@ Simple and strongly-type client<->server communication.
 Here is an example of a ``ViewModel`` that provides a page title and some welcome text that can be displayed on the landing page of a website.
 
 ```swift
+@ViewModelImpl
 public struct LandingPageViewModel: RequestableViewModel {
     public typealias Request = LandingPageRequest
 

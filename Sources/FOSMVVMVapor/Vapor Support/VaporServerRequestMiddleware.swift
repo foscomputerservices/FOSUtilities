@@ -1,6 +1,6 @@
 // VaporServerRequestMiddleware.swift
 //
-// Created by David Hunt on 2/10/25
+// Created by David Hunt on 3/12/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -21,9 +21,18 @@ import FOSMVVM
 import Foundation
 import Vapor
 
-enum VaporServerRequestMiddlewareError: Error {
+enum VaporServerRequestMiddlewareError: Error, CustomDebugStringConvertible {
     case missingQuery
     case missingRequest
+
+    public var debugDescription: String {
+        switch self {
+        case .missingQuery:
+            "VaporServerRequestMiddlewareError: Required Query missing"
+        case .missingRequest:
+            "VaporServerRequestMiddlewareError: Required Request missing"
+        }
+    }
 }
 
 final class VaporServerRequestMiddleware<R: ServerRequest>: AsyncMiddleware {

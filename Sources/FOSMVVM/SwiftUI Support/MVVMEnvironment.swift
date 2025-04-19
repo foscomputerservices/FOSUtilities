@@ -1,6 +1,6 @@
 // MVVMEnvironment.swift
 //
-// Created by David Hunt on 1/11/25
+// Created by David Hunt on 1/21/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -204,8 +204,15 @@ public final class MVVMEnvironment: @unchecked Sendable {
     }
 }
 
-public enum MVVMEnvironmentError: Error {
+public enum MVVMEnvironmentError: Error, CustomDebugStringConvertible {
     case missingDeploymentConfiguration(deployment: Deployment)
+
+    public var debugDescription: String {
+        switch self {
+        case .missingDeploymentConfiguration(deployment: let deployment):
+            "debugDescription: Missing deployment configuration for \(deployment)"
+        }
+    }
 }
 
 private struct DefaultLoadingView: View {

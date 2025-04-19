@@ -61,6 +61,8 @@ import Foundation
 /// A ``ViewModelId`` can also be used to set a SwiftUI View's [identity](https://developer.apple.com/documentation/swiftui/view/id(_:) )
 public protocol ViewModel: ServerRequestBody, Stubbable {
     var vmId: ViewModelId { get }
+
+    func propertyNames() -> [LocalizableId: String]
 }
 
 public extension ViewModel where Self: Identifiable {

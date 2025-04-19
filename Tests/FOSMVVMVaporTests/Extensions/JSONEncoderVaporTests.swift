@@ -1,7 +1,7 @@
-// JSONEncoderTests.swift
+// JSONEncoderVaporTests.swift
 //
-// Created by David Hunt on 1/13/25
-// Copyright 2025 FOS Computer Services, LLC
+// Created by David Hunt on 9/4/24
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -26,11 +26,14 @@ import Vapor
 
 @Suite("JSON Encoder Error Vapor Tests")
 struct JSONEncoderVaporTests: LocalizableTestCase {
-
     // MARK: Vapor Tests
 
     @Test func localizeStringVapor() async throws {
-        let viewModelEncoder = try vaporRequest().viewModelEncoder
+        let app = try await vaporApplication()
+        defer { Task {
+            try await app.asyncShutdown()
+        }}
+        let viewModelEncoder = try await vaporRequest(application: app).viewModelEncoder
 
         // We're just testing that it functions when configured properly
         _ = try viewModelEncoder.encode(TestViewModel())

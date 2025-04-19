@@ -30,17 +30,17 @@ struct YamlLocalizationStoreInitTests {
         #expect(config.searchPaths.count == paths.count)
     }
 
-    @Test func testYamlStoreInit() throws {
-        let app = Application()
+    @Test func testYamlStoreInit() async throws {
+        let app = try await Application.make()
         try app.initYamlLocalization(
             bundle: Bundle.module,
             resourceDirectoryName: "TestYAML"
         )
-        app.shutdown()
+        try await app.asyncShutdown()
     }
 
-    @Test func testBadYamlStoreInit() throws {
-        let app = Application()
+    @Test func testBadYamlStoreInit() async throws {
+        let app = try await Application.make()
 
         #expect(throws: YamlStoreError.self) {
             try app.initYamlLocalization(
@@ -48,7 +48,7 @@ struct YamlLocalizationStoreInitTests {
                 resourceDirectoryName: "_TestYAML_"
             )
         }
-        app.shutdown()
+        try await app.asyncShutdown()
     }
 }
 

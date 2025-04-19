@@ -17,6 +17,13 @@
 
 import FOSFoundation
 
+@attached(extension, conformances: ViewModel)
+@attached(member, names: named(propertyNames))
+public macro ViewModelImpl() = #externalMacro(
+    module: "FOSMacros",
+    type: "ViewModelImplMacro"
+)
+
 @attached(member, names: named(model))
 public macro VersionedFactory() = #externalMacro(
     module: "FOSMacros",

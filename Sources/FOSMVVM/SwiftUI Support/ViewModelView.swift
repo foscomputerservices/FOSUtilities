@@ -1,6 +1,6 @@
 // ViewModelView.swift
 //
-// Created by David Hunt on 2/10/25
+// Created by David Hunt on 3/12/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -20,23 +20,27 @@ import FOSFoundation
 import Foundation
 import SwiftUI
 
-public enum ViewModelViewError: Error {
+public enum ViewModelViewError: Error, CustomDebugStringConvertible {
     case badServerRequestAction
     case badClientRequestAction
     case missingRequestBody
     case missingLocalizationStore
 
-    public var localizedDescription: String {
+    public var debugDescription: String {
         switch self {
         case .badServerRequestAction:
-            "Only show (GET) and create (POST) actions are supported for Server ViewModel requests"
+            "ViewModelViewError: Only show (GET) and create (POST) actions are supported for Server ViewModel requests"
         case .badClientRequestAction:
-            "Only show (GET) actions are supported for Client ViewModel requests"
+            "ViewModelViewError: Only show (GET) actions are supported for Client ViewModel requests"
         case .missingRequestBody:
-            "Create (POST) actions must include a request body"
+            "ViewModelViewError: Create (POST) actions must include a request body"
         case .missingLocalizationStore:
-            "Missing Client Localization Store in MVVMEnvironment"
+            "ViewModelViewError: Missing Client Localization Store in MVVMEnvironment"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
 
@@ -79,6 +83,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// ## Example
     ///
     /// ```swift
+    /// @ViewModelImpl
     /// public struct MyViewModel: RequestableViewModel {
     ///   @LocalizedString public var pageTitle
     /// }

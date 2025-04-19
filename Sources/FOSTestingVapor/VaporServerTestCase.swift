@@ -26,8 +26,8 @@ import Vapor
 public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Request: ServerRequest, Request.ResponseBody: VaporViewModelFactory {
     private let vaporApp: Vapor.Application
 
-    public init(for request: Request.Type, bundle: Bundle, resourceDirectoryName: String = "Resources") throws {
-        self.vaporApp = Application()
+    public init(for request: Request.Type, bundle: Bundle, resourceDirectoryName: String = "Resources") async throws {
+        self.vaporApp = try await Application.make()
         try vaporApp.initYamlLocalization(
             bundle: bundle,
             resourceDirectoryName: resourceDirectoryName
@@ -35,7 +35,7 @@ public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Re
         try vaporApp.routes.register(
             collection: VaporServerRequestHost<Request>()
         )
-        try vaporApp.start()
+        try await vaporApp.startup()
     }
 
     public func test(request: Request, locale: Locale, sourceLocation: SourceLocation = #_sourceLocation) async throws -> Request.ResponseBody {

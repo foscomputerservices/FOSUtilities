@@ -40,7 +40,7 @@ import Vapor
 
 @Suite("SystemVersion Tests", .serialized)
 struct SystemVersionTests {
-    @Test func testVaporRequestVersion() throws {
+    @Test func testVaporRequestVersion() async throws {
         let major = 1
         let minor = 2
         let patch = 3
@@ -49,28 +49,35 @@ struct SystemVersionTests {
             .init(major: major, minor: minor, patch: patch)
         )
 
-        let compatibleRequest = Request.request(
+        let compatibleRequest = try await Request.request(
             withVersion: SystemVersion.current
         )
-        defer { compatibleRequest.application.shutdown() }
+        defer { Task {
+            try? await compatibleRequest.application.asyncShutdown()
+        } }
+
         do {
             try compatibleRequest.requireCompatibleSystemVersion()
         } catch let e {
             #expect(Bool(false), "requireCompatibleSystemVersion threw: \(e) when a compatible response was expected")
         }
 
-        let incompatibleRequest = Request.request(
+        let incompatibleRequest = try await Request.request(
             withVersion: SystemVersion(major: major + 1, minor: minor, patch: patch)
         )
-        defer { incompatibleRequest.application.shutdown() }
+        defer { Task {
+            try? await incompatibleRequest.application.asyncShutdown()
+        } }
         #expect(throws: SystemVersionError.self) {
             try incompatibleRequest.requireCompatibleSystemVersion()
         }
     }
 
-    @Test func testMissingRequestVersionHeader() throws {
-        let app = Application.app()
-        defer { app.shutdown() }
+    @Test func testMissingRequestVersionHeader() async throws {
+        let app = try await Application.app()
+        defer { Task {
+            try? await app.asyncShutdown()
+        } }
         let request = Request(
             application: app,
             on: app.eventLoopGroup.next()
@@ -94,8 +101,8 @@ private extension HTTPURLResponse {
 }
 
 private extension Request {
-    static func request(withVersion version: SystemVersion) -> Request {
-        let app = Application.app()
+    static func request(withVersion version: SystemVersion) async throws -> Request {
+        let app = try await Application.make()
 
         return .init(
             application: app,
@@ -108,8 +115,8 @@ private extension Request {
 }
 
 private extension Application {
-    static func app() -> Application {
-        .init()
+    static func app() async throws -> Application {
+        try await .make()
     }
 }
 

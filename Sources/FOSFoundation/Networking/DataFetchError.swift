@@ -18,7 +18,7 @@
 import Foundation
 
 /// Errors resulting from calls to various ``DataFetch`` APIs
-public enum DataFetchError: Error {
+public enum DataFetchError: Error, CustomDebugStringConvertible {
     /// An error occurred during decoding
     case decoding(error: DecodingError, responseData: Data)
 
@@ -59,25 +59,31 @@ public enum DataFetchError: Error {
         }
     }
 
-    public var localizedDescription: String {
+    public var debugDescription: String {
         switch self {
         case .decoding(let error, let responseData):
             // swiftlint:disable:next optional_data_string_conversion
-            "\(error.localizedDescription) - \(String(decoding: responseData, as: UTF8.self))"
+            "DataFetchError: \(error) - \(String(decoding: responseData, as: UTF8.self))"
         case .encoding(let error):
-            error.localizedDescription
+            "DataFetchError: Error Encoding - \(error)"
         case .badStatus(let code):
-            "Status code: \(code)"
+            "DataFetchError: Status code: \(code)"
         case .noDataReceived:
-            "No data received"
+            "DataFetchError: No data received"
         case .badResponseMimeType(let mimeTime):
-            "Received unexpected mime type: '\(mimeTime)'"
-        case .badDateFormat(let message), .badURL(let message):
-            message
+            "DataFetchError: Received unexpected mime type: '\(mimeTime)'"
+        case .badDateFormat(let message):
+            "DataFetchError: Bad date format: \(message)"
+        case .badURL(let message):
+            "DataFetchError: Bad URL: \(message)"
         case .utf8EncodingError:
-            "Unable to encode the data to UTF-8"
+            "DataFetchError: Unable to encode the data to UTF-8"
         case .utf8DecodingError:
-            "Unable to decode the data from UTF-8"
+            "DataFetchError: Unable to decode the data from UTF-8"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }

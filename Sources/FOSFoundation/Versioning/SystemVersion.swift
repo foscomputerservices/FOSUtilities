@@ -17,7 +17,7 @@
 
 import Foundation
 
-public enum SystemVersionError: Error {
+public enum SystemVersionError: Error, CustomDebugStringConvertible {
     case invalidSystemVersionString(_ str: String)
     case missingSystemVersion
     case incompatibleSystemAPIVersion(_ version: String)
@@ -32,19 +32,23 @@ public enum SystemVersionError: Error {
     /// in the General tab in the Identity section and the Build field.
     case incompatibleBundleVersionString(_ version: String)
 
-    func localizedDescription() -> String {
+    public var debugDescription: String {
         switch self {
         case .invalidSystemVersionString(let str):
-            "Invalid system version string: \(str)"
+            "SystemVersionError: Invalid system version string: \(str)"
         case .missingSystemVersion:
-            "Missing system version"
+            "SystemVersionError: Missing system version"
         case .incompatibleSystemAPIVersion(let version):
-            "Incompatible system API version: \(version)"
+            "SystemVersionError: Incompatible system API version: \(version)"
         case .incompatibleApplicationVersionString(let str):
-            "CFBundleShortVersionString is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
+            "SystemVersionError: CFBundleShortVersionString is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
         case .incompatibleBundleVersionString(let str):
-            "CFBundleVersion is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
+            "SystemVersionError: CFBundleVersion is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
 
@@ -176,7 +180,7 @@ public extension SystemVersion {
 
 extension SystemVersion { // Internal for testability
     init(string: String) throws {
-        let string = string.trimmingPrefix("v")
+        let string = String(string.trimmingPrefix("v"))
         let fields = Array(string.split(separator: ".").compactMap { Int($0) })
         if fields.count != 3 {
             throw SystemVersionError.invalidSystemVersionString(string)

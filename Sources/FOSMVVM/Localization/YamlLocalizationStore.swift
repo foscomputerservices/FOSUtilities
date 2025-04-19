@@ -28,16 +28,24 @@ public enum YamlStoreError: Error {
     case noLocalizationStore
     case noLocaleFound
 
-    public var localizedDescription: String {
+    public var debugDescription: String {
         switch self {
-        case .typeError(let reason): reason
-        case .yamlError(let error): error.localizedDescription
-        case .fileError(let path, let error): "\(path) - \(error.localizedDescription)"
-        case .fileDecodingError(let path): "\(path) -- Unable to decode contents of file to UTF-8"
-        case .noPaths: "No YAML search paths were provided or the paths provided didn't match any real files or directories."
-        case .noLocalizationStore: "The LocalizationStore is missing from the Application.  Generally this means that Application.initYamlLocalization() was not called during application startup."
-        case .noLocaleFound: "No Locale could be inferred from the Request's acceptLanguage headers"
+        case .typeError(let reason): "YamlStoreError: \(reason)"
+        case .yamlError(let error): "YamlStoreError: \(error)"
+        case .fileError(let path, let error): "YamlStoreError: File read error at: \(path) - \(error)"
+        case .fileDecodingError(let path): "YamlStoreError: \(path) -- Unable to decode contents of file to UTF-8"
+        case .noPaths:
+            "YamlStoreError: No YAML search paths were provided or the paths provided didn't match any real files or directories."
+        case .noLocalizationStore:
+            "YamlStoreError: The LocalizationStore is missing from the Application.  Generally this " +
+                "means that Application.initYamlLocalization() was not called during application startup."
+        case .noLocaleFound:
+            "YamlStoreError: No Locale could be inferred from the Request's acceptLanguage headers"
         }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
 

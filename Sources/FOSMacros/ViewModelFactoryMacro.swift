@@ -15,13 +15,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import FOSFoundation
+import Foundation
 import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacros
 
-public enum MacroError: Error {
+public enum ViewModelFactoryMacroError: Error, CustomDebugStringConvertible {
     case invalidVersionFormat(String)
+
+    public var debugDescription: String {
+        switch self {
+        case .invalidVersionFormat(let value):
+            "ViewModelFactoryMacroError: Invalid version format: \(value)"
+        }
+    }
 }
 
 public struct ViewModelFactoryMacro: MemberMacro {
@@ -33,7 +40,7 @@ public struct ViewModelFactoryMacro: MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        guard node.attributeName.description == "VersionedFactory" else {
+        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "VersionedFactory" else {
             return []
         }
 
@@ -69,7 +76,9 @@ public struct ViewModelFactoryMacro: MemberMacro {
                 versionArgument.starts(with: ".v"),
                 let version = SystemVersion(rawVersion: versionArgument)
             else {
-                throw MacroError.invalidVersionFormat("The @Version macro requires version names to be in the form of '.vX.Y.Z'")
+                throw ViewModelFactoryMacroError.invalidVersionFormat(
+                    "The @Version macro requires version names to be in the form of '.vX.Y.Z'"
+                )
             }
 
             return (version: version, method: funcDecl.name.text)
@@ -107,7 +116,7 @@ private extension SystemVersion {
             .replacingOccurrences(of: "_", with: ".")
             .trimmingPrefix(".v")
 
-        self.init(version)
+        self.init(String(version))
     }
 
     var initFuncCall: String {
