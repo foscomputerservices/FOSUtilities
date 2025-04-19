@@ -66,6 +66,10 @@ public struct ViewModelImplMacro: ExtensionMacro, MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
+        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModelImpl" else {
+            return []
+        }
+
         // Ensure the declaration is a struct
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw ViewModelMacroError.onlyStructs
@@ -106,6 +110,10 @@ public struct ViewModelImplMacro: ExtensionMacro, MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
+        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModelImpl" else {
+            return []
+        }
+
         // Ensure the declaration is a struct
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw ViewModelMacroError.onlyStructs
@@ -123,7 +131,7 @@ public struct ViewModelImplMacro: ExtensionMacro, MemberMacro {
             // Check for LocalizableString or LocalizableInt attributes
             let hasLocalizedWrapper = varDecl.attributes.contains { attribute in
                 guard let attr = attribute.as(AttributeSyntax.self) else { return false }
-                let attrName = attr.attributeName.description.trimmingSuffix(" ")
+                let attrName = attr.attributeName.description.trimmingCharacters(in: .whitespaces)
                 return Self.knownLocalizedPropertyNames.contains(attrName)
             }
 

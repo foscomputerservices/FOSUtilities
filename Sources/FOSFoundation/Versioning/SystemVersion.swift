@@ -180,7 +180,7 @@ public extension SystemVersion {
 
 extension SystemVersion { // Internal for testability
     init(string: String) throws {
-        let string = string.trimmingPrefix("v")
+        let string = String(string.trimmingPrefix("v"))
         let fields = Array(string.split(separator: ".").compactMap { Int($0) })
         if fields.count != 3 {
             throw SystemVersionError.invalidSystemVersionString(string)

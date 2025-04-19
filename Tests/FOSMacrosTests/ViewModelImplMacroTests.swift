@@ -204,5 +204,109 @@ final class ViewModelImplMacroTests: XCTestCase {
             indentationWidth: .spaces(4)
         )
     }
+
+    func testComplexExpansion() throws {
+        assertMacroExpansion(
+            #"""
+            @ViewModelImpl
+            public struct InfoViewModel: RequestableViewModel {
+                // MARK: ViewModel Properties
+
+                @LocalizedSubs(substitutions: \.substitutions) public var Title
+                private var substitutions: [String: LocalizableString] { [
+                    "exid": .constant(exid.string(includeCompanyCode: true))
+                ] }
+
+                @LocalizedString public var connectionTitle
+                @LocalizedString public var onTitle
+                @LocalizedString public var offTitle
+                @LocalizedString public var batteryTitle
+                @LocalizedString public var connectTitle
+                @LocalizedString public var disconnectTitle
+                @LocalizedString public var deleteTitle
+                @LocalizedString public var errorTitle
+                @LocalizedString public var errorMessage
+                @LocalizedString public var errorDismissButtonTitle
+
+                public let exid: EXID
+
+                // MARK: RequestableViewModel Protocol
+
+                public typealias Request = InfoViewModelRequest
+                public let vmId: ViewModelId
+
+                // MARK: Operations Access
+
+                private let isStub: Bool
+
+                #if canImport(SwiftUI)
+                public var operations: any InfoViewModelOperations {
+                    isStub ? InfoStubOps() : InfoOps()
+                }
+                #endif
+
+                // MARK: Initialization
+
+                public init(exid: EXID) {
+                    self.init(isStub: false, exid: exid)
+                }
+            }
+            """#,
+            expandedSource: #"""
+            public struct InfoViewModel: RequestableViewModel {
+                // MARK: ViewModel Properties
+
+                @LocalizedSubs(substitutions: \.substitutions) public var Title
+                private var substitutions: [String: LocalizableString] { [
+                    "exid": .constant(exid.string(includeCompanyCode: true))
+                ] }
+
+                @LocalizedString public var connectionTitle
+                @LocalizedString public var onTitle
+                @LocalizedString public var offTitle
+                @LocalizedString public var batteryTitle
+                @LocalizedString public var connectTitle
+                @LocalizedString public var disconnectTitle
+                @LocalizedString public var deleteTitle
+                @LocalizedString public var errorTitle
+                @LocalizedString public var errorMessage
+                @LocalizedString public var errorDismissButtonTitle
+
+                public let exid: EXID
+
+                // MARK: RequestableViewModel Protocol
+
+                public typealias Request = InfoViewModelRequest
+                public let vmId: ViewModelId
+
+                // MARK: Operations Access
+
+                private let isStub: Bool
+
+                #if canImport(SwiftUI)
+                public var operations: any InfoViewModelOperations {
+                    isStub ? InfoStubOps() : InfoOps()
+                }
+                #endif
+
+                // MARK: Initialization
+
+                public init(exid: EXID) {
+                    self.init(isStub: false, exid: exid)
+                }
+
+                public func propertyNames() -> [LocalizableId: String] {
+                    [_Title.localizationId: "Title", _connectionTitle.localizationId: "connectionTitle", _onTitle.localizationId: "onTitle", _offTitle.localizationId: "offTitle", _batteryTitle.localizationId: "batteryTitle", _connectTitle.localizationId: "connectTitle", _disconnectTitle.localizationId: "disconnectTitle", _deleteTitle.localizationId: "deleteTitle", _errorTitle.localizationId: "errorTitle", _errorMessage.localizationId: "errorMessage", _errorDismissButtonTitle.localizationId: "errorDismissButtonTitle"]
+                }
+            }
+
+            extension InfoViewModel: ViewModel {
+            }
+
+            """#,
+            macros: testMacros,
+            indentationWidth: .spaces(4)
+        )
+    }
 }
 #endif
