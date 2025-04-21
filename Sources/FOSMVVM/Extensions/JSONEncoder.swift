@@ -92,7 +92,7 @@ extension Encoder {
 
         let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
         encoder.userInfo[.currentViewModelKey] = model
-        encoder.userInfo[.propertyNamesKey] = model.propertyNames()
+        encoder.userInfo[.propertyNamesKey] = model.allPropertyNames()
 
         do {
             return try propertyWrapper
@@ -110,7 +110,7 @@ extension Encoder {
 
         let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
         encoder.userInfo[.currentViewModelKey] = model
-        encoder.userInfo[.propertyNamesKey] = model.propertyNames()
+        encoder.userInfo[.propertyNamesKey] = model.allPropertyNames()
 
         do {
             return try propertyWrapper
@@ -128,13 +128,32 @@ private final class ViewModelEncoder: JSONEncoder {
         let parentPropertyNames = userInfo[.propertyNamesKey]
 
         if let viewModel = value as? (any ViewModel) {
-            userInfo[.propertyNamesKey] = viewModel.propertyNames()
+            userInfo[.propertyNamesKey] = viewModel.allPropertyNames()
             userInfo[.currentViewModelKey] = viewModel
         }
 
         let result = try super.encode(value)
         userInfo[.currentViewModelKey] = parentViewModel
         userInfo[.propertyNamesKey] = parentPropertyNames
+
+        return result
+    }
+}
+
+private extension ViewModel {
+    /// Returns the property names for the ViewModel and all embedded ViewModels
+    func allPropertyNames() -> [LocalizableId: String] {
+        var result = propertyNames()
+
+        let mirror = Mirror(reflecting: self)
+
+        for child in mirror.children {
+            if let viewModel = child.value as? ViewModel {
+                for (key, value) in viewModel.allPropertyNames() {
+                    result[key] = value
+                }
+            }
+        }
 
         return result
     }
