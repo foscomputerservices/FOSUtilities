@@ -95,10 +95,8 @@ struct MyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            let vmBinding = $viewModel
-
             LandingPageView.bind(
-                viewModel: vmBinding
+                viewModel: $viewModel
             )
         }
         .environment(

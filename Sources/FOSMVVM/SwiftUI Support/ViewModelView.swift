@@ -100,9 +100,8 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
-    ///     let viewModel = $viewModel
     ///     MyView.bind(
-    ///        viewModel: viewModel,
+    ///        viewModel: $viewModel,
     ///        query: .init( ... )
     ///     )
     ///   }
@@ -119,7 +118,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil, body: VM.Request.RequestBody? = nil) -> some View where VM.Request.ResponseBody == VM {
+    @ViewBuilder @MainActor static func bind(viewModel: @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil, body: VM.Request.RequestBody? = nil) -> some View where VM.Request.ResponseBody == VM {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -170,9 +169,8 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
-    ///     let viewModel = $viewModel
     ///     MyView.bind(
-    ///        viewModel: viewModel,
+    ///        viewModel: $viewModel,
     ///        query: .init( ... )
     ///     )
     ///   }
@@ -189,7 +187,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == VM, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+    @ViewBuilder @MainActor static func bind(viewModel: @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>, query: VM.Request.Query, fragment: VM.Request.Fragment? = nil) -> some View where VM.Request.ResponseBody == VM, VM: ClientHostedViewModelFactory {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -239,9 +237,8 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
-    ///     let viewModel = $viewModel
     ///     MyView.bind(
-    ///        viewModel: viewModel
+    ///        viewModel: $viewModel
     ///     )
     ///   }
     /// }
@@ -255,7 +252,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM.Request.RequestBody == EmptyBody {
+    @ViewBuilder @MainActor static func bind(viewModel: @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM.Request.RequestBody == EmptyBody {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -306,9 +303,8 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   @State var viewModel: MyViewModel?
     ///
     ///   var body: some View {
-    ///     let viewModel = $viewModel
     ///     MyView.bind(
-    ///        viewModel: viewModel
+    ///        viewModel: $viewModel
     ///     )
     ///   }
     /// }
@@ -322,7 +318,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder static func bind(viewModel: @Sendable @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM.Request.RequestBody == EmptyBody, VM: ClientHostedViewModelFactory, VM == VM.Request.ResponseBody {
+    @ViewBuilder @MainActor static func bind(viewModel: @autoclosure @escaping () -> Binding<VM.Request.ResponseBody?>) -> some View where VM.Request.ResponseBody == VM, VM.Request.Query == EmptyQuery, VM.Request.Fragment == EmptyFragment, VM.Request.RequestBody == EmptyBody, VM: ClientHostedViewModelFactory {
         if let viewModel = viewModel().wrappedValue {
             Self(viewModel: viewModel)
         } else {
@@ -336,7 +332,7 @@ public extension ViewModelView where VM: RequestableViewModel {
                                 fragment: nil,
                                 locale: locale
                             )
-                        } catch { // let e {
+                        } catch {
                             // TODO: Error handling
                             // Probably want to handle errors out-of-band.
                             // That is, no need to put an error view here,
