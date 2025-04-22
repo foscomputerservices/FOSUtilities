@@ -104,9 +104,10 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
             locale: locale,
             localizationStore: localizationStore
         )
-        if let result: Inner.VM = try? viewModel.toJSON(encoder: encoder).fromJSON() {
-            return result
-        } else {
+        do {
+            return try viewModel.toJSON(encoder: encoder).fromJSON()
+        } catch {
+            print("Unable to localize ViewModel.  Most data will likely be blank.  Error: \(error)")
             return viewModel
         }
     }

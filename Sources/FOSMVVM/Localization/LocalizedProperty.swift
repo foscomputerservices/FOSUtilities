@@ -447,10 +447,15 @@ public extension _LocalizedProperty {
 
         if let bindWrappedValue {
             guard
-                let propertyNames = encoder.propertyNameBindings(),
+                let propertyNames = encoder.propertyNameBindings()
+            else {
+                throw LocalizedPropertyError.internalError("\(Self.self): Unable to resolve the bindings for the property names.")
+            }
+
+            guard
                 let propertyName = propertyNames[localizationId]
             else {
-                throw LocalizedPropertyError.internalError("\(Self.self): Unable to resolve the property name")
+                throw LocalizedPropertyError.internalError("\(Self.self): Unable to resolve the property name.  Found bindings: \(propertyNames)")
             }
 
             let wrappedValue = try bindWrappedValue(
