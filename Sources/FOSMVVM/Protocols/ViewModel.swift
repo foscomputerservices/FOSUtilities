@@ -27,14 +27,28 @@ import Foundation
 /// translates between the application's underlying stores and the View. The translations occur
 /// in the web service.
 ///
-/// # 2-way Translation
+/// # Conformance
+///
+/// Conforming to ``ViewModel`` indicates to the system that the type is a View-Model.
+/// However, applying the protocol by itself to a type will require the implementation to
+/// provide the ``propertyNames()`` bindings manually.  Instead, of adding
+/// ``ViewModel`` as conformance, always use the @``ViewModelImpl()``
+/// macro, which will automatically generate the ``propertyNames()`` bindings.
+///
+/// ```swift
+/// @ViewModelImpl struct MyViewModel {
+///     @LocalizedString public var aProperty
+/// }
+/// ```
+///
+/// # 2-way Communication
 ///
 /// The ``ViewModel`` is created via a ``ViewModelFactory``, which maps the data
 /// stored in the application's stores to property values in the ``ViewModel``.
 ///
-/// If the ``ViewModel`` supports modifications to the data, it provides functions to perform
-/// those updates, which, in turn, use ``ServerRequest``s to communicate those changes
-/// base to the web service.
+/// If the ``ViewModel`` supports modifications to the data, it provides functions via
+/// ``ViewModelOperations`` to perform those updates, which, in turn, use
+/// ``ServerRequest``s to communicate those changes base to the web service.
 ///
 /// # ViewModelId
 ///

@@ -34,7 +34,7 @@ public enum ViewModelFactoryError: Error, CustomDebugStringConvertible {
     }
 }
 
-public protocol ViewModelFactoryContext {
+public protocol ViewModelFactoryContext: Sendable {
     var systemVersion: SystemVersion { get throws }
 }
 
@@ -44,30 +44,67 @@ public protocol ViewModelFactory {
     static func model(context: Context) async throws -> Self
 }
 
-public struct ClientHostedModelFactoryContext<Request: ViewModelRequest>: ViewModelFactoryContext {
+public struct ClientHostedModelFactoryContext<Request: ViewModelRequest, AppState>: ViewModelFactoryContext where AppState: Sendable {
     public let locale: Locale
     public let localizationStore: LocalizationStore
     public let vmRequest: Request
+    public let appState: AppState
 
     public var systemVersion: SystemVersion {
-        get throws {
-            SystemVersion.current
-        }
+        SystemVersion.current
     }
 
-    public init(locale: Locale, localizationStore: LocalizationStore, vmRequest: Request) {
+    public init(
+        locale: Locale,
+        localizationStore: LocalizationStore,
+        vmRequest: Request,
+        appState: AppState
+    ) {
         self.locale = locale
         self.localizationStore = localizationStore
         self.vmRequest = vmRequest
+        self.appState = appState
     }
 }
 
-public protocol ClientHostedViewModelFactory: ViewModelFactory where Context == ClientHostedModelFactoryContext<Request> {
+public extension ClientHostedModelFactoryContext where AppState == Void {
+    init(
+        locale: Locale,
+        localizationStore: LocalizationStore,
+        vmRequest: Request
+    ) {
+        self.init(
+            locale: locale,
+            localizationStore: localizationStore,
+            vmRequest: vmRequest,
+            appState: ()
+        )
+    }
+}
+
+public protocol ClientHostedViewModelFactory: ViewModelFactory where Context == ClientHostedModelFactoryContext<Request, AppState> {
     associatedtype Request: ViewModelRequest
+    associatedtype AppState
+}
+
+public extension ClientHostedViewModelFactory where Self == Request.ResponseBody, Self.AppState == Void {
+    static func model(context: ClientHostedModelFactoryContext<Request, Void>, vmRequest: Request) async throws -> Self {
+        let model = try await Self.model(context: context)
+
+        // Now localize the model
+        let encoder = JSONEncoder.localizingEncoder(
+            locale: context.locale,
+            localizationStore: context.localizationStore
+        )
+
+        return try model
+            .toJSON(encoder: encoder)
+            .fromJSON()
+    }
 }
 
 public extension ClientHostedViewModelFactory where Self == Request.ResponseBody {
-    static func model(context: ClientHostedModelFactoryContext<Request>, vmRequest: Request) async throws -> Self {
+    static func model(context: ClientHostedModelFactoryContext<Request, AppState>, vmRequest: Request) async throws -> Self where AppState: Sendable {
         let model = try await Self.model(context: context)
 
         // Now localize the model

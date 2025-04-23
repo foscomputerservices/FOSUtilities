@@ -92,11 +92,11 @@ To request the ``ViewModel`` we add the view to a view that hosts the ``ViewMode
 
 ```swift
 struct HostView: View {
-    @State var viewModel: LandingPageViewModel?
+    @State var viewModelBinder = VMBinder<LandingPageViewModel>()
 
     var body: some View {
         LandingPageView.bind(
-            viewModel: $viewModel
+            binder: viewModelBinder
         )
     }
 }
