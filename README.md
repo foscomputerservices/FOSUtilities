@@ -85,12 +85,12 @@ struct LandingPageView: ViewModelView {
 ```swift
 @main
 struct MyApp: App {
-    @State private var viewModel: LandingPageViewModel?
+    @State private var viewModelBinder = VMBinder<LandingPageViewModel>()
 
     var body: some Scene {
         WindowGroup {
             LandingPageView.bind(
-                viewModel: $viewModel
+                binder: viewModelBinder
             )
         }
         .environment(

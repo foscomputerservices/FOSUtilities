@@ -91,12 +91,12 @@ Once the ``MVVMEnvironment`` has been configured, SwiftUI views can be bound to 
 ```swift
 @main
 struct MyApp: App {
-    @State private var viewModel: LandingPageViewModel?
+    @State private var viewModelBinder = VMBinder<LandingPageViewModel>()
 
     var body: some Scene {
         WindowGroup {
             LandingPageView.bind(
-                viewModel: $viewModel
+                binder: viewModelBinder
             )
         }
         .environment(
@@ -120,6 +120,7 @@ from a server application!
 
 ## Topics
 
+- <doc:ApplicationState>
 - <doc:ServerOverview>
 - <doc:ViewModelandViewModelRequest>
 - ``ViewModel``
