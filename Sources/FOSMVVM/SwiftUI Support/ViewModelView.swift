@@ -412,12 +412,15 @@ private struct VMServerResolverView<VM, VMV>: View where
         ZStack {
             if let viewModel {
                 VMV(viewModel: viewModel)
-                    .onChange(of: query) { Task {
+                    .onChange(of: query, initial: true) { Task {
                         self.viewModel = await resolveServerHostedRequest()
                     } }
-                    .onChange(of: fragment) { Task {
-                        self.viewModel = await resolveServerHostedRequest()
-                    } }
+                    .onChange(of: fragment, initial: true) {
+                        guard fragment != nil else { return }
+                        Task {
+                            self.viewModel = await resolveServerHostedRequest()
+                        }
+                    }
             } else {
                 ProgressView().task {
                     viewModel = await resolveServerHostedRequest()
@@ -495,13 +498,19 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
         ZStack {
             if let viewModel {
                 VMV(viewModel: viewModel)
-                    .onChange(of: query) { Task {
-                        self.viewModel = await resolveClientHostedRequest()
-                    } }
-                    .onChange(of: fragment) { Task {
-                        self.viewModel = await resolveClientHostedRequest()
-                    } }
-                    .onChange(of: appState) { Task {
+                    .onChange(of: query, initial: true) {
+                        guard query != nil else { return }
+                         Task {
+                            self.viewModel = await resolveClientHostedRequest()
+                        }
+                    }
+                    .onChange(of: fragment, initial: true) {
+                        guard fragment != nil else { return }
+                         Task {
+                            self.viewModel = await resolveClientHostedRequest()
+                        }
+                    }
+                    .onChange(of: appState, initial: true) { Task {
                         self.viewModel = await resolveClientHostedRequest()
                     } }
             } else {
@@ -575,12 +584,15 @@ private struct VMClientResolverView<VM, VMV>: View where
     var body: some View {
         if let viewModel {
             VMV(viewModel: viewModel)
-                .onChange(of: query) { Task {
+                .onChange(of: query, initial: true) { Task {
                     self.viewModel = await resolveClientHostedRequest()
                 } }
-                .onChange(of: fragment) { Task {
-                    self.viewModel = await resolveClientHostedRequest()
-                } }
+                .onChange(of: fragment, initial: true) {
+                    guard fragment != nil else { return }
+                    Task {
+                        self.viewModel = await resolveClientHostedRequest()
+                    }
+                }
         } else {
             ProgressView().task {
                 viewModel = await resolveClientHostedRequest()
