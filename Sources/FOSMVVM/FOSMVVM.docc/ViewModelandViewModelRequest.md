@@ -15,7 +15,7 @@ Simple and strongly-type client<->server communication.
 Here is an example of a ``ViewModel`` that provides a page title and some welcome text that can be displayed on the landing page of a website.
 
 ```swift
-@ViewModelImpl
+@ViewModel
 public struct LandingPageViewModel: RequestableViewModel {
     public typealias Request = LandingPageRequest
 
@@ -92,12 +92,8 @@ To request the ``ViewModel`` we add the view to a view that hosts the ``ViewMode
 
 ```swift
 struct HostView: View {
-    @State var viewModelBinder = VMBinder<LandingPageViewModel>()
-
     var body: some View {
-        LandingPageView.bind(
-            binder: viewModelBinder
-        )
+        LandingPageView.bind()
     }
 }
 ```

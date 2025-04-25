@@ -25,7 +25,7 @@ extension SystemVersion {
     static var v3_0_0: Self { .init(major: 3) }
 }
 
-@ViewModelImpl
+@ViewModel
 struct TestVersionedViewModel: RequestableViewModel {
     typealias Request = TestVersionedViewModelRequest
 
@@ -75,7 +75,7 @@ extension TestVersionedViewModel {
     }
 }
 
-@ViewModelImpl
+@ViewModel
 struct P1: ViewModelFactory {
     var vmId: ViewModelId = .init()
 
@@ -88,7 +88,7 @@ struct P1: ViewModelFactory {
     }
 }
 
-@ViewModelImpl
+@ViewModel
 struct P2: ViewModelFactory {
     var vmId: ViewModelId = .init()
 
@@ -101,7 +101,7 @@ struct P2: ViewModelFactory {
     }
 }
 
-@ViewModelImpl
+@ViewModel
 struct P3: ViewModelFactory {
     var vmId: ViewModelId = .init()
 
@@ -114,7 +114,7 @@ struct P3: ViewModelFactory {
     }
 }
 
-@ViewModelImpl
+@ViewModel
 struct P4: ViewModelFactory {
     var vmId: ViewModelId = .init()
 

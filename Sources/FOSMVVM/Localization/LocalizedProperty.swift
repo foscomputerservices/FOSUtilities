@@ -163,7 +163,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 ///
 
 public extension ViewModel {
-    // NOTE: If something new is added here, ViewModelImplMacro.knownLocalizedPropertyNames must be updated
+    // NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedString = _LocalizedProperty<Self, LocalizableString>
     typealias LocalizedInt = _LocalizedProperty<Self, LocalizableInt>
     typealias LocalizedCompoundString = _LocalizedProperty<Self, LocalizableCompoundValue<LocalizableString>>

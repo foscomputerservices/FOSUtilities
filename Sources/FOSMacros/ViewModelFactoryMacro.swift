@@ -55,10 +55,10 @@ public struct ViewModelFactoryMacro: MemberMacro {
 
             // Capture the typealias, if we can; if not, we'll use 'Context'
             if let typeAliasDecl = member.decl.as(TypeAliasDeclSyntax.self) {
-                if typeAliasType == nil {
+                if typeAliasDecl.name.text == "Context" {
                     typeAliasType = typeAliasDecl.initializer.value.description
                 } else {
-                    // There's more than one and we don't know which is correct
+                    // They didn't specify a 'Context' alias, so we'll just use 'Context'
                     typeAliasType = nil
                 }
             }

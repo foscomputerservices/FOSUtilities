@@ -33,6 +33,22 @@ public extension URLRequest {
     }
 }
 
+public extension SystemVersion {
+    /// Returns HTTP headers include the given *systemVersion*
+    ///
+    /// These headers can be applied to a URL.fetch() request.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let url: URL
+    /// try await url.fetch(headers: SystemVersion.current.versioningHeaders)
+    /// ```
+    var versioningHeaders: [(field: String, value: String)] { [
+        (field: URLRequest.systemVersioningHeader, value: versionString)
+    ] }
+}
+
 public extension HTTPURLResponse {
     /// - Returns:  the *SystemVersion* specified in the HTTPHeader
     ///

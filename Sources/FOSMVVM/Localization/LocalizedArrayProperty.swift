@@ -30,7 +30,7 @@ public enum LocalizedArrayPropertyError: Error, CustomDebugStringConvertible {
 }
 
 public extension ViewModel {
-    // NOTE: If something new is added here, ViewModelImplMacro.knownLocalizedPropertyNames must be updated
+    // NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedStrings = _LocalizedArrayProperty<Self, LocalizableString>
 }
 

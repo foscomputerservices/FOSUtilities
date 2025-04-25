@@ -1,4 +1,4 @@
-// ViewModelImplMacroTests.swift
+// ViewModelMacroTests.swift
 //
 // Created by David Hunt on 4/12/25
 // Copyright 2025 FOS Computer Services, LLC
@@ -23,15 +23,15 @@ import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
 
-final class ViewModelImplMacroTests: XCTestCase {
+final class ViewModelMacroTests: XCTestCase {
     private let testMacros: [String: any Macro.Type] = [
-        "ViewModelImpl": ViewModelImplMacro.self
+        "ViewModel": ViewModelMacro.self
     ]
 
     func testBlankExpansion() throws {
         assertMacroExpansion(
             #"""
-            @ViewModelImpl struct TestViewModel {
+            @ViewModel struct TestViewModel {
                 var name: String { "TestViewModel" }
                 var vmId: FOSMVVM.ViewModelId = .init()
                 static func stub() -> TestViewModel {
@@ -63,7 +63,7 @@ final class ViewModelImplMacroTests: XCTestCase {
     func testSimpleLocalizedStringExpansion() throws {
         assertMacroExpansion(
             #"""
-            @ViewModelImpl struct TestViewModel {
+            @ViewModel struct TestViewModel {
                 @LocalizedString public var name
                 var vmId: FOSMVVM.ViewModelId = .init()
                 static func stub() -> TestViewModel {
@@ -95,7 +95,7 @@ final class ViewModelImplMacroTests: XCTestCase {
     func testSkipViewModelExpansion() throws {
         assertMacroExpansion(
             #"""
-            @ViewModelImpl struct TestViewModel: ViewModel {
+            @ViewModel struct TestViewModel: ViewModel {
                 var name: String { "TestViewModel" }
                 var vmId: FOSMVVM.ViewModelId = .init()
                 static func stub() -> TestViewModel {
@@ -124,7 +124,7 @@ final class ViewModelImplMacroTests: XCTestCase {
     func testComplexLocalizableStringExpansion() throws {
         assertMacroExpansion(
             #"""
-            @ViewModelImpl
+            @ViewModel
             struct TestViewModel: RequestableViewModel {
                 typealias Request = TestViewModelRequest
 
@@ -208,7 +208,7 @@ final class ViewModelImplMacroTests: XCTestCase {
     func testComplexExpansion() throws {
         assertMacroExpansion(
             #"""
-            @ViewModelImpl
+            @ViewModel
             public struct InfoViewModel: RequestableViewModel {
                 // MARK: ViewModel Properties
 

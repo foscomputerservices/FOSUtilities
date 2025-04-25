@@ -1,4 +1,4 @@
-// ViewModelImplMacro.swift
+// ViewModelMacro.swift
 //
 // Created by David Hunt on 4/12/25
 // Copyright 2025 FOS Computer Services, LLC
@@ -25,14 +25,14 @@ public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
     public var debugDescription: String {
         switch self {
         case .onlyStructs:
-            "ViewModelMacroError: @ViewModelImpl can only be applied to structs"
+            "ViewModelMacroError: @ViewModel can only be applied to structs"
         }
     }
 }
 
 // Example:
 //
-// @ViewModelImpl
+// @ViewModel
 // struct MyViewModel/* : ViewModel <- No need to add, will be added automatically */ {
 //   @LocalizableString public var myStr
 //   @LocalizableInt public var myInt = 25
@@ -45,7 +45,7 @@ public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
 // }
 //
 
-public struct ViewModelImplMacro: ExtensionMacro, MemberMacro {
+public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     private static let knownLocalizedPropertyNames = [
         // _LocalizedProperty
         "LocalizedString",
@@ -66,7 +66,7 @@ public struct ViewModelImplMacro: ExtensionMacro, MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [ExtensionDeclSyntax] {
-        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModelImpl" else {
+        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModel" else {
             return []
         }
 
@@ -110,7 +110,7 @@ public struct ViewModelImplMacro: ExtensionMacro, MemberMacro {
         conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModelImpl" else {
+        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModel" else {
             return []
         }
 

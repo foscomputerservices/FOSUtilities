@@ -128,7 +128,7 @@ The ``ViewModelFactory`` for DeviceViewModel would be as follows:
 
 ```swift
 extension DeviceViewModel: ClientHostedViewModelFactory {
-    public struct AppState: Equatable, Sendable {
+    public struct AppState: Hashable, Sendable {
         public let deviceId: String
 
         public init(deviceId: String) {
@@ -153,12 +153,10 @@ Finally, the call site that hosts this view:
 
 struct MyView: View {
     @SceneStorage("MyScene") private var appState = AppState()
-    @State private var deviceViewBinder = VMBinder<DeviceViewModel>()
 
     var body: some View {
         if let deviceId = appState.deviceId {
             DeviceView.bind(
-                binder: deviceViewBinder,
                 appState: .init(deviceId: deviceId)
             )
         } else {
