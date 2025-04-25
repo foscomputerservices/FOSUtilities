@@ -90,5 +90,85 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             indentationWidth: .spaces(4)
         )
     }
+
+    func testVaporViewModelFactoryMethodMacro() throws {
+        assertMacroExpansion(
+            #"""
+            struct TestViewModel: ViewModel {
+                var name: String { "TestViewModel" }
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+            }
+
+            final class TestViewModelRequest: ViewModelRequest {
+                typealias Query = EmptyQuery
+                let responseBody: TestViewModel?
+
+                init(query: FOSMVVM.EmptyQuery? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: TestViewModel? = nil) {
+                    self.responseBody = responseBody
+                }
+            }
+
+            @VersionedFactory
+            extension TestViewModel: VaporViewModelFactory {
+                typealias VMRequest = TestViewModelRequest
+
+                @Version(.v1_0_0)
+                static func model_v1_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                    .stub()
+                }
+
+                @Version(.v2_0_0)
+                static func model_v2_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                    .stub()
+                }
+            }
+            """#,
+            expandedSource: #"""
+            struct TestViewModel: ViewModel {
+                var name: String { "TestViewModel" }
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+            }
+
+            final class TestViewModelRequest: ViewModelRequest {
+                typealias Query = EmptyQuery
+                let responseBody: TestViewModel?
+
+                init(query: FOSMVVM.EmptyQuery? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: TestViewModel? = nil) {
+                    self.responseBody = responseBody
+                }
+            }
+            extension TestViewModel: VaporViewModelFactory {
+                typealias VMRequest = TestViewModelRequest
+                static func model_v1_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                    .stub()
+                }
+                static func model_v2_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                    .stub()
+                }
+
+                public static func model(context: Context) async throws -> Self {
+                    let version = try context.systemVersion
+
+                    if version >= SystemVersion(major: 2, minor: 0, patch: 0) {
+                    return try await model_v2_0_0(context: context)
+                    }
+                    if version >= SystemVersion(major: 1, minor: 0, patch: 0) {
+                        return try await model_v1_0_0(context: context)
+                    }
+
+                    throw ViewModelFactoryError.versionNotSupported(version.versionString)
+                }
+            }
+            """#,
+            macros: testMacros,
+            indentationWidth: .spaces(4)
+        )
+    }
 }
 #endif

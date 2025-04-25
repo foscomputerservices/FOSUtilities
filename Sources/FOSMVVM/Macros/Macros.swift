@@ -19,9 +19,9 @@ import FOSFoundation
 
 @attached(extension, conformances: ViewModel)
 @attached(member, names: named(propertyNames))
-public macro ViewModelImpl() = #externalMacro(
+public macro ViewModel() = #externalMacro(
     module: "FOSMacros",
-    type: "ViewModelImplMacro"
+    type: "ViewModelMacro"
 )
 
 @attached(member, names: named(model))

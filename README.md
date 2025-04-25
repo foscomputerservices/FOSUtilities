@@ -49,7 +49,7 @@ Here is an example of setting up a new [Model-View-ViewModel](https://w.wiki/4T5
 #### View Model
 
 ```swift
-@ViewModelImpl
+@ViewModel
 public struct LandingPageViewModel: RequestableViewModel {
     public typealias Request = LandingPageRequest
 
@@ -85,13 +85,9 @@ struct LandingPageView: ViewModelView {
 ```swift
 @main
 struct MyApp: App {
-    @State private var viewModelBinder = VMBinder<LandingPageViewModel>()
-
     var body: some Scene {
         WindowGroup {
-            LandingPageView.bind(
-                binder: viewModelBinder
-            )
+            LandingPageView.bind()
         }
         .environment(
              MVVMEnvironment(

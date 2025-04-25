@@ -213,7 +213,7 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
 }
 
 /// Data that will be encoded into the HTTP Query
-public protocol ServerRequestQuery: Codable, Equatable, Sendable {}
+public protocol ServerRequestQuery: Codable, Hashable, Sendable {}
 
 /// Represents an empty query
 ///
@@ -232,7 +232,7 @@ public struct EmptyQuery: ServerRequestQuery {
 }
 
 /// Represents data that will be encoded into the HTTP Fragment
-public protocol ServerRequestFragment: Codable, Equatable, Sendable {}
+public protocol ServerRequestFragment: Codable, Hashable, Sendable {}
 
 /// Represents an empty query
 ///

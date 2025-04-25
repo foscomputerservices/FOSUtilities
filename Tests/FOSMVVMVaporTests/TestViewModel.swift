@@ -20,7 +20,7 @@ import FOSMVVM
 import Foundation
 import Testing
 
-@ViewModelImpl
+@ViewModel
 struct TestViewModel: RequestableViewModel {
     typealias Request = TestViewModelRequest
 

@@ -21,7 +21,7 @@
 /// ## Example
 ///
 /// ```swift
-/// @ViewModelImpl
+/// @ViewModel
 /// public struct LandingPageViewModel: RequestableViewModel {
 ///   public typealias Request = LandingPageRequest
 ///

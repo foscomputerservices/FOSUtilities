@@ -32,11 +32,11 @@ import Foundation
 /// Conforming to ``ViewModel`` indicates to the system that the type is a View-Model.
 /// However, applying the protocol by itself to a type will require the implementation to
 /// provide the ``propertyNames()`` bindings manually.  Instead, of adding
-/// ``ViewModel`` as conformance, always use the @``ViewModelImpl()``
+/// ``ViewModel`` as conformance, always use the @``ViewModel()``
 /// macro, which will automatically generate the ``propertyNames()`` bindings.
 ///
 /// ```swift
-/// @ViewModelImpl struct MyViewModel {
+/// @ViewModel struct MyViewModel {
 ///     @LocalizedString public var aProperty
 /// }
 /// ```
