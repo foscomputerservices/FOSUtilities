@@ -92,11 +92,50 @@ import XCTest
 
     /// Presents a *ViewModelView* associated with the given *ViewModel*
     ///
+    /// The *testConfiguration* name is passed to the application under test via the *testHost* function.
+    /// ## Example - XCUITestCase
+    ///
+    /// ```swift
+    /// func testShowBPoP_Connected() async throws {
+    ///     let app = try presentView(
+    ///         testConfiguration: "ProvideBinding",
+    ///         viewModel: .stub(bPoPId: .stub(), isBPoPConnected: true),
+    ///     )
+    ///
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// ## Example - Test Host
+    ///
+    /// ```swift
+    /// @main struct MyApp: App {
+    ///
+    ///    var body: some Scene {
+    ///      WindowGroup {
+    ///        MyMainView { ... }
+    ///        #if DEBUG
+    ///        .testHost { testConfiguration, testView in
+    ///          switch testConfiguration {
+    ///             case "ProvideBinding":
+    ///                 testView
+    ///                     .environment(\.binding, testValue)
+    ///             default:
+    ///                 testView
+    ///        }
+    ///        #endif
+    ///      }
+    ///    }
+    /// }
+    /// ```
+    ///
+    ///
     /// - Parameters:
+    ///   - testConfiguration: A name for the configuration under test
     ///   - viewModel: A *ViewModel* instance to use to populate a corresponding *ViewModelView* (default: .stub())
     ///   - timeout: The number of seconds to wait for the application to respond (default: 3)
     /// - Returns: The *XCUIApplication* that proxies the *ViewModelView*
-    @MainActor public func presentView(viewModel: VM = .stub(), timeout: TimeInterval = 3) throws -> XCUIApplication {
+    @MainActor public func presentView(testConfiguration: String = "", viewModel: VM = .stub(), timeout: TimeInterval = 3) throws -> XCUIApplication {
         guard let app, let urlAppHost else {
             throw RunError.setupNotCalled
         }
@@ -104,7 +143,7 @@ import XCTest
         // NOTE: I've tried app.open(), but have been unable to get it to work.  This
         //       method of using launchArguments seems to work very well.
 
-        let url = try url(for: viewModel, urlAppHost: urlAppHost, locale: Self.en)
+        let url = try url(for: viewModel, urlAppHost: urlAppHost, locale: Self.en, testConfiguration: testConfiguration)
         app.launchArguments.append(url.absoluteString)
         app.launch()
         guard app.wait(for: .runningForeground, timeout: timeout) else {
@@ -231,11 +270,11 @@ import XCTest
         )
     }
 
-    private func url(for viewModel: VM, urlAppHost: String, locale: Locale) throws -> URL {
+    private func url(for viewModel: VM, urlAppHost: String, locale: Locale, testConfiguration: String) throws -> URL {
         let encoder = encoder(locale: locale)
         let viewModelStr = try viewModel.toJSON(encoder: encoder).obfuscate
 
-        let urlStr = "\(urlAppHost)://test-view-request?viewModelType=\(String(describing: VM.self))&viewModel=\(viewModelStr)"
+        let urlStr = "\(urlAppHost)://test-view-request?viewModelType=\(String(describing: VM.self))&viewModel=\(viewModelStr)&testConfiguration=\(testConfiguration)"
         guard let url = URL(string: urlStr) else {
             throw RunError.badUrlString(urlStr)
         }
