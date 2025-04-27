@@ -36,9 +36,13 @@ public extension View {
     ///      WindowGroup {
     ///        MyMainView { ... }
     ///        #if DEBUG
-    ///        .testHost { testView in
-    ///          testView
-    ///            .environment(\.binding, testValue)
+    ///        .testHost { testConfiguration, testView in
+    ///          switch testConfiguration {
+    ///             case "ProvideBinding":
+    ///                 testView
+    ///                     .environment(\.binding, testValue)
+    ///             default:
+    ///                 testView
     ///        }
     ///        #endif
     ///      }
@@ -46,16 +50,14 @@ public extension View {
     /// }
     /// ```
     ///
-    /// - Parameter decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
-    @ViewBuilder func testHost(@ViewBuilder decorator: (AnyView) -> some View) -> some View {
+    /// - Parameters:
+    //   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
+    @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
         #if DEBUG
-        decorator(AnyView(TestingView(baseView: self)))
+        decorator(URL.testHarnessURL?.testConfiguration ?? "", AnyView(TestingView(baseView: self)))
         #else
         self
         #endif
-        // .onOpenURL { url in
-        //     processURLRequest(url, viewState: viewState)
-        // }
     }
 
     /// Returns the view wrapped so that it can be tested with *ViewModelViewTestCase*
@@ -76,7 +78,7 @@ public extension View {
     /// }
     /// ```
     func testHost() -> some View {
-        testHost(decorator: { $0 })
+        testHost(decorator: { _, view in view })
     }
 }
 
@@ -100,6 +102,10 @@ private extension URL {
 
     var viewModelType: String? {
         comps?.queryItems?.filter { $0.name == "viewModelType" }.first?.value
+    }
+
+    var testConfiguration: String {
+        comps?.queryItems?.filter { $0.name == "testConfiguration" }.first?.value ?? ""
     }
 
     var viewModelData: Data? {
@@ -127,6 +133,17 @@ private extension URL {
 
         return try? factory(viewModelData)
     }
+
+    static var testHarnessURL: Self? {
+        if ProcessInfo.processInfo.arguments.count > 1 {
+            let arg = ProcessInfo.processInfo.arguments[1]
+            if let url = URL(string: arg) {
+                return url
+            }
+        }
+
+        return nil
+    }
 }
 
 extension ViewModelView {
@@ -147,11 +164,8 @@ private struct TestingView<BaseView: View>: View {
         } else {
             baseView
                 .onAppear { // Provided by the test harness
-                    if ProcessInfo.processInfo.arguments.count > 1 {
-                        let arg = ProcessInfo.processInfo.arguments[1]
-                        if let url = URL(string: arg) {
-                            testView = url.view(registeredTypes: mvvmEnvironment.registeredTestTypes)
-                        }
+                    if let url = URL.testHarnessURL {
+                        testView = url.view(registeredTypes: mvvmEnvironment.registeredTestTypes)
                     }
                 }
         }
