@@ -36,7 +36,7 @@ let package = Package(
             )
         ]
 
-        #if os(macOS) || os(linux)
+        #if os(macOS) || os(Linux)
         result.append( .library(
             name: "FOSMVVMVapor",
             targets: ["FOSMVVMVapor"]
@@ -61,7 +61,7 @@ let package = Package(
             .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.3")
         ]
 
-        #if os(macOS) || os(linux)
+        #if os(macOS) || os(Linux)
         result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.111.0")))
         #endif
 
@@ -143,7 +143,7 @@ let package = Package(
             )
         ]
 
-        #if os(macOS) || os(linux)
+        #if os(macOS) || os(Linux)
         result.append(.target(
             name: "FOSMVVMVapor",
             dependencies: [
