@@ -1,6 +1,5 @@
 // ViewModelViewTestCase.swift
 //
-// Created by David Hunt on 1/15/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);

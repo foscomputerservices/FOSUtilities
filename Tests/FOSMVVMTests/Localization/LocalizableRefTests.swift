@@ -1,6 +1,5 @@
 // LocalizableRefTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -24,7 +23,7 @@ import Testing
 struct LocalizableRefTests {
     // MARK: Initialization Methods
 
-    @Test func testInit_minimal() {
+    @Test func init_minimal() {
         switch LocalizableRef(for: SingleModel.self, propertyName: "property") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -33,7 +32,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_multiLevel() {
+    @Test func init_multiLevel() {
         switch LocalizableRef.value(keys: "level1", "level2", "level3") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -42,7 +41,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_multiLevel_blanks() {
+    @Test func init_multiLevel_blanks() {
         switch LocalizableRef.value(keys: "level1", "", "level3") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -51,7 +50,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_generic() {
+    @Test func init_generic() {
         switch LocalizableRef(for: GenericModel<String>.self, propertyName: "property") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -60,7 +59,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_parentChild() {
+    @Test func init_parentChild() {
         switch LocalizableRef(for: OuterModel.InnerModel.self, parentType: OuterModel.self, propertyName: "property") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -69,7 +68,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_singleDiscriminatorKey() {
+    @Test func init_singleDiscriminatorKey() {
         switch LocalizableRef(for: SingleModel.self, parentKeys: "property", propertyName: "title") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -78,7 +77,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_multipleDiscriminatorKey() {
+    @Test func init_multipleDiscriminatorKey() {
         switch LocalizableRef(for: SingleModel.self, parentKeys: "property", "title", propertyName: "expanded") {
         case .arrayValue:
             #expect(Bool(false), "Incorrect LocalizableRef.arrayValue, expected .value")
@@ -87,7 +86,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_discriminatorIndex() {
+    @Test func init_discriminatorIndex() {
         switch LocalizableRef(for: SingleModel.self, propertyName: "property", index: 0) {
         case .arrayValue(let key, let index):
             #expect(key == "SingleModel.property")
@@ -97,7 +96,7 @@ struct LocalizableRefTests {
         }
     }
 
-    @Test func testInit_discriminatorKeyAndIndex() {
+    @Test func init_discriminatorKeyAndIndex() {
         switch LocalizableRef(for: SingleModel.self, parentKeys: "property", propertyName: "title", index: 0) {
         case .arrayValue(let key, let index):
             #expect(key == "SingleModel.property.title")
@@ -109,7 +108,7 @@ struct LocalizableRefTests {
 
     // MARK: Identifiable Protocol
 
-    @Test func testIdentifiable_sameType() {
+    @Test func identifiable_sameType() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: SingleModel.self, propertyName: "property2")
 
@@ -117,21 +116,21 @@ struct LocalizableRefTests {
         #expect(ref1.id != ref2.id)
     }
 
-    @Test func testIdentifiable_differentTypes() {
+    @Test func identifiable_differentTypes() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: GenericModel<String>.self, propertyName: "property")
 
         #expect(ref1.id != ref2.id)
     }
 
-    @Test func testIdentifiable_differentParentTypes() {
+    @Test func identifiable_differentParentTypes() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: OuterModel.InnerModel.self, parentType: OuterModel.self, propertyName: "innerProperty")
 
         #expect(ref1.id != ref2.id)
     }
 
-    @Test func testIdentifiable_differentGenericSubstitutions() {
+    @Test func identifiable_differentGenericSubstitutions() {
         let ref1 = LocalizableRef(for: GenericModel<String>.self, propertyName: "property")
         let ref2 = LocalizableRef(for: GenericModel<Int>.self, propertyName: "property")
 
@@ -139,7 +138,7 @@ struct LocalizableRefTests {
         #expect(ref1.id == ref2.id)
     }
 
-    @Test func testIdentifiable_sameType_differentIndexes() {
+    @Test func identifiable_sameType_differentIndexes() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property", index: 0)
         let ref2 = LocalizableRef(for: SingleModel.self, propertyName: "property", index: 1)
 
@@ -148,7 +147,7 @@ struct LocalizableRefTests {
 
     // MARK: CustomStringConvertible Protocol
 
-    @Test func testCustomStringConvertible() {
+    @Test func customStringConvertible() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property", index: 0)
 
         #expect(!ref1.description.isEmpty)
@@ -156,7 +155,7 @@ struct LocalizableRefTests {
 
     // MARK: Hashable Protocol
 
-    @Test func testHashable() {
+    @Test func hashable() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: SingleModel.self, propertyName: "property2")
 
@@ -170,7 +169,7 @@ struct LocalizableRefTests {
 
     // MARK: Equatable Protocol
 
-    @Test func testEquatable_sameType() {
+    @Test func equatable_sameType() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: SingleModel.self, propertyName: "property2")
 
@@ -178,21 +177,21 @@ struct LocalizableRefTests {
         #expect(ref1 != ref2)
     }
 
-    @Test func testEquatable_differentTypes() {
+    @Test func equatable_differentTypes() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: GenericModel<String>.self, propertyName: "property")
 
         #expect(ref1 != ref2)
     }
 
-    @Test func testEquatable_differentParentTypes() {
+    @Test func equatable_differentParentTypes() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property")
         let ref2 = LocalizableRef(for: OuterModel.InnerModel.self, parentType: OuterModel.self, propertyName: "innerProperty")
 
         #expect(ref1 != ref2)
     }
 
-    @Test func testEquatable_differentGenericSubstitutions() {
+    @Test func equatable_differentGenericSubstitutions() {
         let ref1 = LocalizableRef(for: GenericModel<String>.self, propertyName: "property")
         let ref2 = LocalizableRef(for: GenericModel<Int>.self, propertyName: "property")
 
@@ -200,7 +199,7 @@ struct LocalizableRefTests {
         #expect(ref1 == ref2)
     }
 
-    @Test func testEquatable_sameType_differentIndexes() {
+    @Test func equatable_sameType_differentIndexes() {
         let ref1 = LocalizableRef(for: SingleModel.self, propertyName: "property", index: 0)
         let ref2 = LocalizableRef(for: SingleModel.self, propertyName: "property", index: 1)
 

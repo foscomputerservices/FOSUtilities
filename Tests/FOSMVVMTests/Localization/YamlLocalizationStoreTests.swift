@@ -1,6 +1,5 @@
 // YamlLocalizationStoreTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -31,14 +30,14 @@ struct YamlLocalizationStoreTests: LocalizableTestCase {
     }
     #endif
 
-    @Test func testTranslate() {
+    @Test func translate() {
         #expect(locStore.t("test", locale: en) == "Test")
         #expect(locStore.t("test", locale: es) == "Prueba")
         #expect(locStore.t("nested.inner", locale: en) == "inner")
         #expect(locStore.t("nested.inner", locale: es) == "interior")
     }
 
-    @Test func testTranslateArray() {
+    @Test func translateArray() {
         #expect(locStore.t("stringArray", locale: en, index: 2) == "Three")
         #expect(locStore.t("stringArray", locale: es, index: 0) == "Uno")
     }
@@ -51,39 +50,39 @@ struct YamlLocalizationStoreTests: LocalizableTestCase {
         #expect(locStore.v("boolFalse", locale: en) as? Bool == false)
     }
 
-    @Test func testValueArray() {
+    @Test func valueArray() {
         #expect(locStore.value("intArray", locale: en, default: nil, index: 1) as? Int == 2)
         #expect(locStore.value("intArray", locale: es, default: nil, index: 1) as? Int == 2)
         #expect(locStore.value("doubleArray", locale: en, default: nil, index: 1) as? Double == 2.2)
         #expect(locStore.value("boolArray", locale: en, default: nil, index: 1) as? Bool == false)
     }
 
-    @Test func testRegionalTranslation() {
+    @Test func regionalTranslation() {
         #expect(locStore.t("carHood", locale: enUS) == "Hood")
         #expect(locStore.t("carHood", locale: enGB) == "Bonnet")
     }
 
-    @Test func testFallbackTranslation() {
+    @Test func fallbackTranslation() {
         #expect(locStore.t("test", locale: enGB) == "Test")
         #expect(locStore.t("test", locale: Locale(identifier: "en_gb")) == "Test")
     }
 
-    @Test func testCaseSensitiveKeyTranslation() {
+    @Test func caseSensitiveKeyTranslation() {
         #expect(locStore.t("carHood", locale: enUS) == "Hood")
         #expect(locStore.t("carhood", locale: enUS) == nil)
     }
 
-    @Test func testDefaultTranslation() {
+    @Test func defaultTranslation() {
         #expect(locStore.t("carhood", locale: enUS, default: "fred") == "fred")
         #expect(locStore.t("stringArray", locale: en, default: "wilma", index: 999) == "wilma")
     }
 
-    @Test func testDefaultValue() {
+    @Test func defaultValue() {
         #expect(locStore.v("_number", locale: en, default: -41, index: 0) as? Int == -41)
         #expect(locStore.v("intArray", locale: en, default: -42, index: 99) as? Int == -42)
     }
 
-    @Test func testUnknownLocale() {
+    @Test func unknownLocale() {
         #expect(locStore.t("carHood", locale: Locale(identifier: "fred")) == nil)
         #expect(locStore.v("int", locale: Locale(identifier: "fred")) == nil)
     }

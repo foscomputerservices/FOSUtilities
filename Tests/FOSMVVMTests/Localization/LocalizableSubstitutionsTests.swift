@@ -1,6 +1,5 @@
 // LocalizableSubstitutionsTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -39,7 +38,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
 
     // MARK: Localizable Protocol
 
-    @Test func testLocalizable_isEmpty_nonLocalized() {
+    @Test func localizable_isEmpty_nonLocalized() {
         let base = LocalizableString.constant("%{foo}")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -49,7 +48,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(locSub.isEmpty)
     }
 
-    @Test func testLocalizable_isEmpty_nonLocalized_butConstant() {
+    @Test func localizable_isEmpty_nonLocalized_butConstant() {
         let base = LocalizableString.constant("%{foo}")
         let subVal = LocalizableString.constant("foo")
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -59,7 +58,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(!locSub.isEmpty)
     }
 
-    @Test func testLocalizable_isEmpty_localized() throws {
+    @Test func localizable_isEmpty_localized() throws {
         let base = LocalizableString.constant("%{foo}")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -71,7 +70,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(!decodedLoc.isEmpty)
     }
 
-    @Test func testLocalizable_localizationStatus_nonLocalized1() {
+    @Test func localizable_localizationStatus_nonLocalized1() {
         let base = LocalizableString.constant("%{foo}")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -81,7 +80,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(locSub.localizationStatus == .localizationPending)
     }
 
-    @Test func testLocalizable_localizationStatus_nonLocalized2() {
+    @Test func localizable_localizationStatus_nonLocalized2() {
         let base = LocalizableString.localized(key: "foo")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -91,7 +90,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(locSub.localizationStatus == .localizationPending)
     }
 
-    @Test func testLocalizable_localizationStatus_nonLocalized_butConstant() {
+    @Test func localizable_localizationStatus_nonLocalized_butConstant() {
         let base = LocalizableString.constant("%{foo}")
         let subVal = LocalizableString.constant("foo")
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -101,7 +100,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(locSub.localizationStatus == .localized)
     }
 
-    @Test func testLocalizable_localizationStatus_localized() throws {
+    @Test func localizable_localizationStatus_localized() throws {
         let base = LocalizableString.constant("%{foo}")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["foo": subVal]
@@ -113,7 +112,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(decodedLoc.localizationStatus == .localized)
     }
 
-    @Test func testLocalizable_localizedString_nonLocalized_butConstant() throws {
+    @Test func localizable_localizedString_nonLocalized_butConstant() throws {
         let base = LocalizableString.constant("_%{sub}_")
         let subVal = LocalizableString.constant("Foo")
         let subs: [String: any Localizable] = ["sub": subVal]
@@ -123,7 +122,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(try locSub.localizedString == "_Foo_")
     }
 
-    @Test func testLocalizable_localizedString_localized() throws {
+    @Test func localizable_localizedString_localized() throws {
         let base = LocalizableString.localized(key: "subString")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["sub": subVal]
@@ -137,7 +136,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
 
     // MARK: Codable Protocol
 
-    @Test func testCodable() throws {
+    @Test func codable() throws {
         let base = LocalizableString.localized(key: "subString")
         let subVal = LocalizableInt(value: 42)
         let subs: [String: any Localizable] = ["sub": subVal]
@@ -152,7 +151,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
 
     // MARK: LocalizableString.bind
 
-    @Test func testLocalizableString_bind() throws {
+    @Test func localizableString_bind() throws {
         let subVal = LocalizableInt(value: 42)
         let locSub = LocalizableString.localized(key: "subString")
             .bind(substitutions: ["sub": subVal])

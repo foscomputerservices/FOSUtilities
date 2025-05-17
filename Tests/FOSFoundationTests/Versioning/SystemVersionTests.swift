@@ -1,6 +1,5 @@
 // SystemVersionTests.swift
 //
-// Created by David Hunt on 12/21/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -36,7 +35,7 @@ import Testing
 
 @Suite("SystemVersion Tests", .serialized)
 struct SystemVersionTests {
-    @Test func testVersionStr() {
+    @Test func versionStr() {
         let sv = SystemVersion.current
         #expect(sv.versionString == "\(sv.major).\(sv.minor).\(sv.patch)")
     }
@@ -46,12 +45,12 @@ struct SystemVersionTests {
         #expect(sv.description == "\(sv.major).\(sv.minor).\(sv.patch)")
     }
 
-    @Test func testFalibleInit() {
+    @Test func falibleInit() {
         let sv = SystemVersion.current
         #expect(SystemVersion(sv.description) == sv)
     }
 
-    @Test func testStringInit() throws {
+    @Test func stringInit() throws {
         let svStr = SystemVersion.current.description
         #expect(try SystemVersion(string: svStr) == SystemVersion.current)
 
@@ -61,11 +60,11 @@ struct SystemVersionTests {
         }
     }
 
-    @Test func testCodable() throws {
+    @Test func codable() throws {
         try expectCodable(SystemVersion.self)
     }
 
-    @Test func testURLRequestVersioningHeader() throws {
+    @Test func uRLRequestVersioningHeader() throws {
         let url = URL(string: "http://foo.com")!
         var urlRequest = URLRequest(url: url)
         let sv = SystemVersion.current
@@ -74,7 +73,7 @@ struct SystemVersionTests {
         #expect(urlRequest.value(forHTTPHeaderField: URLRequest.systemVersioningHeader) == sv.versionString)
     }
 
-    @Test func testHTTPURLResponseVersioningHeader() throws {
+    @Test func hTTPURLResponseVersioningHeader() throws {
         let url = URL(string: "http://foo.com")!
         let sv = SystemVersion.current
         let urlResponse = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [

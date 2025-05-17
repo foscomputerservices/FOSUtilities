@@ -1,6 +1,5 @@
 // DeploymentTests.swift
 //
-// Created by David Hunt on 9/11/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -37,7 +36,7 @@ struct DeploymentTests {
         (deployment: Deployment.staging, id: "staging"),
         (deployment: Deployment.debug, id: "debug"),
         (deployment: Deployment.custom(name: "_custom"), id: "_custom")
-    ]) func testID(tuple: (deployment: Deployment, id: String)) async {
+    ]) func iD(tuple: (deployment: Deployment, id: String)) async {
         await Deployment.overrideDeployment(to: tuple.deployment)
         #expect(await Deployment.current.id == tuple.id)
     }
@@ -49,7 +48,7 @@ struct DeploymentTests {
         (deployment: Deployment.staging, env: "staging"),
         (deployment: Deployment.debug, env: "debug"),
         (deployment: Deployment.custom(name: "_custom"), env: "_custom")
-    ]) func testEnvUpdate(tuple: (deployment: Deployment, env: String)) async {
+    ]) func envUpdate(tuple: (deployment: Deployment, env: String)) async {
         setenv(Deployment.envKey, tuple.env, 1)
         #expect(await Deployment.current.id == tuple.deployment.id)
     }
@@ -59,7 +58,7 @@ struct DeploymentTests {
         .staging,
         .debug,
         .custom(name: "_custom")
-    ]) func testEquatable(deployment: Deployment) {
+    ]) func equatable(deployment: Deployment) {
         #expect(deployment == deployment)
         #expect(deployment != .custom(name: "????"))
     }

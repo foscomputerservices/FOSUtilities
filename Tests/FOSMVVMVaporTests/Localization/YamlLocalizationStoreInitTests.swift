@@ -1,6 +1,5 @@
 // YamlLocalizationStoreInitTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -24,13 +23,13 @@ import Vapor
 
 @Suite("YamlLocalizationStore Initialization Tests")
 struct YamlLocalizationStoreInitTests {
-    @Test func testYamlStoreConfig() throws {
+    @Test func yamlStoreConfig() throws {
         let paths = paths
         let config = try YamlStoreConfig(searchPaths: paths)
         #expect(config.searchPaths.count == paths.count)
     }
 
-    @Test func testYamlStoreInit() async throws {
+    @Test func yamlStoreInit() async throws {
         let app = try await Application.make()
         try app.initYamlLocalization(
             bundle: Bundle.module,
@@ -39,7 +38,7 @@ struct YamlLocalizationStoreInitTests {
         try await app.asyncShutdown()
     }
 
-    @Test func testBadYamlStoreInit() async throws {
+    @Test func badYamlStoreInit() async throws {
         let app = try await Application.make()
 
         #expect(throws: YamlStoreError.self) {

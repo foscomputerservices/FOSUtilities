@@ -1,6 +1,5 @@
 // SystemVersionTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -39,7 +38,7 @@ import Testing
 struct SystemVersionTests {
     // MARK: HTTPURLResponse Tests
 
-    @Test func testHTTPURLResponseVersion() throws {
+    @Test func hTTPURLResponseVersion() throws {
         let major = 1
         let minor = 2
         let patch = 3
@@ -65,7 +64,7 @@ struct SystemVersionTests {
         }
     }
 
-    @Test func testMissingResponseVersionHeader() throws {
+    @Test func missingResponseVersionHeader() throws {
         let response = HTTPURLResponse(url: URL(string: "https://www.github.com")!, statusCode: 0, httpVersion: nil, headerFields: nil)!
         #expect(throws: SystemVersionError.self) {
             try response.systemVersion
@@ -98,7 +97,7 @@ struct SystemVersionTests {
             b: SystemVersion.second,
             aIsLess: false
         )
-    ]) func testComparable(tuple: (a: SystemVersion, b: SystemVersion, aIsLess: Bool)) throws {
+    ]) func comparable(tuple: (a: SystemVersion, b: SystemVersion, aIsLess: Bool)) throws {
         #expect((tuple.a < tuple.b) == tuple.aIsLess)
         #expect((tuple.a > tuple.b) == !tuple.aIsLess)
     }

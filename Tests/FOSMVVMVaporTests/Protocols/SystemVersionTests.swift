@@ -1,6 +1,5 @@
 // SystemVersionTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -40,7 +39,7 @@ import Vapor
 
 @Suite("SystemVersion Tests", .serialized)
 struct SystemVersionTests {
-    @Test func testVaporRequestVersion() async throws {
+    @Test func vaporRequestVersion() async throws {
         let major = 1
         let minor = 2
         let patch = 3
@@ -73,7 +72,7 @@ struct SystemVersionTests {
         }
     }
 
-    @Test func testMissingRequestVersionHeader() async throws {
+    @Test func missingRequestVersionHeader() async throws {
         let app = try await Application.app()
         defer { Task {
             try? await app.asyncShutdown()

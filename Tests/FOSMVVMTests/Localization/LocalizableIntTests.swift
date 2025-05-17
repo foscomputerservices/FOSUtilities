@@ -1,6 +1,5 @@
 // LocalizableIntTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -62,7 +61,7 @@ struct LocalizableIntTests: LocalizableTestCase {
 
     // MARK: Codable Protocol
 
-    @Test func testCodable_values() throws {
+    @Test func codable_values() throws {
         let val = 42
         let showGroupSep = false
         let groupingSize = 42
@@ -75,7 +74,7 @@ struct LocalizableIntTests: LocalizableTestCase {
         #expect(localized.groupingSize == groupingSize)
     }
 
-    @Test func testCodable_correctStatus() throws {
+    @Test func codable_correctStatus() throws {
         let locInt = LocalizableInt(value: 42)
 
         #expect(throws: LocalizerError.self) {
@@ -87,7 +86,7 @@ struct LocalizableIntTests: LocalizableTestCase {
         #expect(try !(localized.localizedString).isEmpty)
     }
 
-    @Test func testCodable_valueLocalized() throws {
+    @Test func codable_valueLocalized() throws {
         let val = 42
         let showGroupSep = false
         let locInt = LocalizableInt(value: val, showGroupingSeparator: showGroupSep)
@@ -97,7 +96,7 @@ struct LocalizableIntTests: LocalizableTestCase {
         #expect(try localized.localizedString == "42")
     }
 
-    @Test func testCodable_valueFormattedNoGroupSep() throws {
+    @Test func codable_valueFormattedNoGroupSep() throws {
         let val = 123456789
         let showGroupSep = false
         let locInt = LocalizableInt(value: val, showGroupingSeparator: showGroupSep)
@@ -107,7 +106,7 @@ struct LocalizableIntTests: LocalizableTestCase {
         #expect(try localized.localizedString == "123456789")
     }
 
-    @Test func testCodable_valueFormattedGroupSep() throws {
+    @Test func codable_valueFormattedGroupSep() throws {
         let val = 123456789
         let showGroupSep = true
         let groupingSize = 4
@@ -120,7 +119,7 @@ struct LocalizableIntTests: LocalizableTestCase {
 
     // MARK: Identifiable Protocol
 
-    @Test func testIdentifiable() {
+    @Test func identifiable() {
         let locInt1 = LocalizableInt(value: 42)
         let locInt2 = LocalizableInt(value: 43)
 
@@ -129,7 +128,7 @@ struct LocalizableIntTests: LocalizableTestCase {
 
     // MARK: Equatable Protocol
 
-    @Test func testEquatable_beforeCoding() {
+    @Test func equatable_beforeCoding() {
         let locInt1 = LocalizableInt(value: 42)
         let locInt2 = LocalizableInt(value: 43)
 
@@ -137,7 +136,7 @@ struct LocalizableIntTests: LocalizableTestCase {
         #expect(locInt1 != locInt2)
     }
 
-    @Test func testEquatable_afterCoding() throws {
+    @Test func equatable_afterCoding() throws {
         let locInt1 = LocalizableInt(value: 42)
         let locInt2 = LocalizableInt(value: 43)
 
@@ -150,7 +149,7 @@ struct LocalizableIntTests: LocalizableTestCase {
         #expect(localized1 != localized2)
     }
 
-    @Test func testEquatable_styling() {
+    @Test func equatable_styling() {
         let locInt1 = LocalizableInt(value: 42, showGroupingSeparator: true, groupingSize: 2)
         let locInt2 = LocalizableInt(value: 42, showGroupingSeparator: false)
 
@@ -160,7 +159,7 @@ struct LocalizableIntTests: LocalizableTestCase {
 
     // MARK: Hashable Protocol
 
-    @Test func testHashable() {
+    @Test func hashable() {
         let locInt1 = LocalizableInt(value: 42)
         let locInt2 = LocalizableInt(value: 43)
 
@@ -174,14 +173,14 @@ struct LocalizableIntTests: LocalizableTestCase {
 
     // MARK: Comparable Protocol
 
-    @Test func testComparable_beforeCoding() {
+    @Test func comparable_beforeCoding() {
         let locInt1 = LocalizableInt(value: 42)
         let locInt2 = LocalizableInt(value: 43)
 
         #expect(locInt1 < locInt2)
     }
 
-    @Test func testComparable_afterCoding() throws {
+    @Test func comparable_afterCoding() throws {
         let locInt1 = LocalizableInt(value: 42)
         let locInt2 = LocalizableInt(value: 43)
 
@@ -193,11 +192,11 @@ struct LocalizableIntTests: LocalizableTestCase {
 
     // MARK: Stubbable Protocol
 
-    @Test func testStubbable_noArg() throws {
+    @Test func stubbable_noArg() throws {
         #expect(try !(LocalizableInt.stub().localizedString).isEmpty)
     }
 
-    @Test func testStubbable_arg() throws {
+    @Test func stubbable_arg() throws {
         #expect(try LocalizableInt.stub(value: 42).localizedString == "42")
     }
 
