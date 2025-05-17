@@ -1,6 +1,5 @@
 // KeyPathToStringTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -21,7 +20,7 @@ import Testing
 
 @Suite("KeyPath to String Tests")
 struct KeyPathToStringTests {
-    @Test func testSimple() throws {
+    @Test func simple() throws {
         let model = Model()
         let map = model.propertyNames()
         #expect(map[model._propertyLocalizationId] == "property")

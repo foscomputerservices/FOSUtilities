@@ -1,6 +1,5 @@
 // LocalizablePropertyTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -23,14 +22,14 @@ import Testing
 
 @Suite("Localizable Property Tests")
 struct LocalizablePropertyTests: LocalizableTestCase {
-    @Test func testLocalizedString_basic() throws {
+    @Test func localizedString_basic() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedString.localizedString == "Some Text")
     }
 
-    @Test func testLocalizedString_parentKey() throws {
+    @Test func localizedString_parentKey() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
@@ -41,7 +40,7 @@ struct LocalizablePropertyTests: LocalizableTestCase {
         #expect(try vm.error2.localizedString == "Error #2")
     }
 
-    @Test func testLocalizedString_index() throws {
+    @Test func localizedString_index() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm1: TestViewModel = .init()
         let json = try vm1.toJSON(encoder: vmEncoder)
@@ -50,14 +49,14 @@ struct LocalizablePropertyTests: LocalizableTestCase {
         #expect(try vm.firstPiece.localizedString == "Piece #1")
     }
 
-    @Test func testLocalizedInt() throws {
+    @Test func localizedInt() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedInt.localizedString == "42")
     }
 
-    @Test func testLocalizedPieces() throws {
+    @Test func localizedPieces() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
@@ -66,14 +65,14 @@ struct LocalizablePropertyTests: LocalizableTestCase {
         #expect(try vm.pieces.localizedArray[safe: 1] == "Piece #2")
     }
 
-    @Test func testLocalizedCompoundString_noSep() throws {
+    @Test func localizedCompoundString_noSep() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedCompoundNoSep.localizedString == "Piece #1Piece #2")
     }
 
-    @Test func testLocalizedCompoundString_sep() throws {
+    @Test func localizedCompoundString_sep() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 

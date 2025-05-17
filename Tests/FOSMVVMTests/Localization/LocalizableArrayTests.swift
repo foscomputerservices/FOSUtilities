@@ -1,6 +1,5 @@
 // LocalizableArrayTests.swift
 //
-// Created by David Hunt on 1/13/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -25,7 +24,7 @@ import Testing
 struct LocalizableArrayTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
-    @Test func testInit_Localized() {
+    @Test func init_Localized() {
         let key = "stringArray"
         let localized = LocalizableArray<LocalizableString>.localized(key: key)
         switch localized {
@@ -48,14 +47,14 @@ struct LocalizableArrayTests: LocalizableTestCase {
         LocalizableArray<LocalizableString>.empty,
         // Apple Issue: https://forums.swift.org/t/fatal-error-internal-inconsistency-no-test-reporter-for-test-case-argumentids/75666
 //        .constant([])
-    ]) func testLocalizable_Empty(empty: LocalizableArray<LocalizableString>) throws {
+    ]) func localizable_Empty(empty: LocalizableArray<LocalizableString>) throws {
         #expect(empty.localizationStatus == .localized)
         #expect(empty.isEmpty)
         #expect(try empty.localizedArray.count == 0)
         #expect(try empty.localizedString == "")
     }
 
-    @Test func testLocalizable_Constant() throws {
+    @Test func localizable_Constant() throws {
         let constant = LocalizableArray<LocalizableString>.constant([
             LocalizableString.constant("string")
         ])
@@ -65,7 +64,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
         #expect(try constant.localizedArray.first == "string")
     }
 
-    @Test func testLocalizable_Localized() throws {
+    @Test func localizable_Localized() throws {
         let localized = LocalizableArray<LocalizableString>.localized(key: "stringArray")
         #expect(localized.localizationStatus == .localizationPending)
         #expect(localized.isEmpty)
@@ -84,31 +83,31 @@ struct LocalizableArrayTests: LocalizableTestCase {
 
     // MARK: Codable Protocol
 
-    @Test func testCodable_empty() throws {
+    @Test func codable_empty() throws {
         let empty = LocalizableArray<LocalizableString>.empty
         let decodedLoc: LocalizableArray<LocalizableString> = try empty.toJSON(encoder: encoder()).fromJSON()
         #expect(empty == decodedLoc)
     }
 
-    @Test func testCodable_constant() throws {
+    @Test func codable_constant() throws {
         let constant = LocalizableArray<LocalizableString>.constant([.constant("My Constant String")])
         let decodedLoc: LocalizableArray<LocalizableString> = try constant.toJSON(encoder: encoder()).fromJSON()
         #expect(constant == decodedLoc)
     }
 
-    @Test func testCodable_enLocalized() throws {
+    @Test func codable_enLocalized() throws {
         let localized = LocalizableArray<LocalizableString>.localized(key: "stringArray")
         let decodedLoc: LocalizableArray<LocalizableString> = try localized.toJSON(encoder: encoder()).fromJSON()
         #expect(try decodedLoc.localizedArray.first == "One")
     }
 
-    @Test func testCodable_esLocalized() throws {
+    @Test func codable_esLocalized() throws {
         let localized = LocalizableArray<LocalizableString>.localized(key: "stringArray")
         let decodedLoc: LocalizableArray<LocalizableString> = try localized.toJSON(encoder: encoder(locale: es)).fromJSON()
         #expect(try decodedLoc.localizedArray.first == "Uno")
     }
 
-    @Test func testCodable_localized_unknownKey() throws {
+    @Test func codable_localized_unknownKey() throws {
         let localized = LocalizableArray<LocalizableString>.localized(key: "lkjoipuew")
         let decodedLoc: LocalizableArray<LocalizableString> = try localized.toJSON(encoder: encoder()).fromJSON()
         #expect(try decodedLoc.localizedString == "")
@@ -116,12 +115,12 @@ struct LocalizableArrayTests: LocalizableTestCase {
 
     // MARK: Identifiable Protocol
 
-    @Test func testIdentifiable_empty() {
+    @Test func identifiable_empty() {
         let empty = LocalizableArray<LocalizableString>.empty
         #expect(empty.id == empty.id)
     }
 
-    @Test func testIdentifiable_constant() {
+    @Test func identifiable_constant() {
         let constant1 = LocalizableArray<LocalizableString>.constant([.constant("foo1")])
         let constant2 = LocalizableArray<LocalizableString>.constant([.constant("foo2")])
 
@@ -129,7 +128,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
         #expect(constant1.id != constant2.id)
     }
 
-    @Test func testIdentifiable_localized() {
+    @Test func identifiable_localized() {
         let localized1 = LocalizableArray<LocalizableString>.localized(key: "foo1")
         let localized2 = LocalizableArray<LocalizableString>.localized(key: "foo2")
 
@@ -139,19 +138,19 @@ struct LocalizableArrayTests: LocalizableTestCase {
 
     // MARK: Equatable Protocol
 
-    @Test func testEquatable_empty() {
+    @Test func equatable_empty() {
         let empty = LocalizableArray<LocalizableString>.empty
         #expect(empty == empty)
         #expect(empty != .constant([.constant("foo1")]))
     }
 
-    @Test func testEquatable_constant() {
+    @Test func equatable_constant() {
         let constant = LocalizableArray<LocalizableString>.constant([.constant("foo1")])
         #expect(constant == constant)
         #expect(constant != .empty)
     }
 
-    @Test func testEquatable_localized() {
+    @Test func equatable_localized() {
         let localized = LocalizableArray<LocalizableString>.localized(key: "stringArray")
         #expect(localized == localized)
         #expect(localized != .empty)
@@ -159,7 +158,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
 
     // MARK: Hashable Protocol
 
-    @Test func testHashable_empty() throws {
+    @Test func hashable_empty() throws {
         let empty = LocalizableArray<LocalizableString>.empty
         let const = LocalizableArray<LocalizableString>.constant([.constant("42")])
 
@@ -170,7 +169,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
         #expect(dict[empty] == 42)
     }
 
-    @Test func testHashable_constant() throws {
+    @Test func hashable_constant() throws {
         let empty = LocalizableArray<LocalizableString>.empty
         let const = LocalizableArray<LocalizableString>.constant([.constant("42")])
 
@@ -181,7 +180,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
         #expect(dict[const] == 43)
     }
 
-    @Test func testHashable_localized() throws {
+    @Test func hashable_localized() throws {
         let localized = LocalizableArray<LocalizableString>.localized(key: "stringArray")
         let const = LocalizableArray<LocalizableString>.constant([.constant("42")])
 
@@ -194,12 +193,12 @@ struct LocalizableArrayTests: LocalizableTestCase {
 
     // MARK: Stubbable Protocol
 
-    @Test func testStubbable_noArg() throws {
+    @Test func stubbable_noArg() throws {
         #expect(try !(LocalizableArray<LocalizableString>.stub().localizedArray).isEmpty)
         #expect(try !(LocalizableArray<LocalizableString>.stub().localizedString).isEmpty)
     }
 
-    @Test func testStubbable_arg() throws {
+    @Test func stubbable_arg() throws {
         #expect(try LocalizableArray<LocalizableString>.stub(elements: [.constant("42")]).localizedString == "42")
     }
 

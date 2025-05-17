@@ -1,6 +1,5 @@
 // JSONEncoder.swift
 //
-// Created by David Hunt on 8/12/23
 // Copyright 2023 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);

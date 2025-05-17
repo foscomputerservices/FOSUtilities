@@ -1,6 +1,5 @@
 // LocalizableStringTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -25,7 +24,7 @@ import Testing
 struct LocalizableStringTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
-    @Test func testInit_Localized() {
+    @Test func init_Localized() {
         let key = "test"
         let localized = LocalizableString.localized(key: key)
         switch localized {
@@ -44,14 +43,14 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Localizable Protocol
 
-    @Test func testLocalizable_Empty() throws {
+    @Test func localizable_Empty() throws {
         let empty = LocalizableString.empty
         #expect(empty.localizationStatus == .localized)
         #expect(empty.isEmpty)
         #expect(try empty.localizedString == "")
     }
 
-    @Test func testLocalizable_Constant() throws {
+    @Test func localizable_Constant() throws {
         let constStr = "My Constant String"
         let constant = LocalizableString.constant(constStr)
         #expect(constant.localizationStatus == .localized)
@@ -59,7 +58,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(try constant.localizedString == constStr)
     }
 
-    @Test func testLocalizable_Localized() throws {
+    @Test func localizable_Localized() throws {
         let localized = LocalizableString.localized(key: "test")
         #expect(localized.localizationStatus == .localizationPending)
         #expect(localized.isEmpty)
@@ -76,31 +75,31 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Codable Protocol
 
-    @Test func testCodable_empty() throws {
+    @Test func codable_empty() throws {
         let empty = LocalizableString.empty
         let decodedLoc: LocalizableString = try empty.toJSON(encoder: encoder()).fromJSON()
         #expect(empty == decodedLoc)
     }
 
-    @Test func testCodable_constant() throws {
+    @Test func codable_constant() throws {
         let constant = LocalizableString.constant("My Constant String")
         let decodedLoc: LocalizableString = try constant.toJSON(encoder: encoder()).fromJSON()
         #expect(constant == decodedLoc)
     }
 
-    @Test func testCodable_enLocalized() throws {
+    @Test func codable_enLocalized() throws {
         let localized = LocalizableString.localized(key: "test")
         let decodedLoc: LocalizableString = try localized.toJSON(encoder: encoder()).fromJSON()
         #expect(try decodedLoc.localizedString == "Test")
     }
 
-    @Test func testCodable_esLocalized() throws {
+    @Test func codable_esLocalized() throws {
         let localized = LocalizableString.localized(key: "test")
         let decodedLoc: LocalizableString = try localized.toJSON(encoder: encoder(locale: es)).fromJSON()
         #expect(try decodedLoc.localizedString == "Prueba")
     }
 
-    @Test func testCodable_localized_unknownKey() throws {
+    @Test func codable_localized_unknownKey() throws {
         let localized = LocalizableString.localized(key: "lkjoipuew")
         let decodedLoc: LocalizableString = try localized.toJSON(encoder: encoder()).fromJSON()
         #expect(try decodedLoc.localizedString == "")
@@ -108,12 +107,12 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Identifiable Protocol
 
-    @Test func testIdentifiable_empty() {
+    @Test func identifiable_empty() {
         let empty = LocalizableString.empty
         #expect(empty.id == empty.id)
     }
 
-    @Test func testIdentifiable_constant() {
+    @Test func identifiable_constant() {
         let constant1 = LocalizableString.constant("foo1")
         let constant2 = LocalizableString.constant("foo2")
 
@@ -121,7 +120,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(constant1.id != constant2.id)
     }
 
-    @Test func testIdentifiable_localized() {
+    @Test func identifiable_localized() {
         let localized1 = LocalizableString.localized(key: "foo1")
         let localized2 = LocalizableString.localized(key: "foo2")
 
@@ -131,19 +130,19 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Equatable Protocol
 
-    @Test func testEquatable_empty() {
+    @Test func equatable_empty() {
         let empty = LocalizableString.empty
         #expect(empty == empty)
         #expect(empty != .constant("foo"))
     }
 
-    @Test func testEquatable_constant() {
+    @Test func equatable_constant() {
         let constant = LocalizableString.constant("My Constant String")
         #expect(constant == constant)
         #expect(constant != .empty)
     }
 
-    @Test func testEquatable_localized() {
+    @Test func equatable_localized() {
         let localized = LocalizableString.localized(key: "test")
         #expect(localized == localized)
         #expect(localized != .empty)
@@ -151,7 +150,7 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Hashable Protocol
 
-    @Test func testHashable_empty() throws {
+    @Test func hashable_empty() throws {
         let empty = LocalizableString.empty
         let const = LocalizableString.constant("42")
 
@@ -162,7 +161,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(dict[empty] == 42)
     }
 
-    @Test func testHashable_constant() throws {
+    @Test func hashable_constant() throws {
         let empty = LocalizableString.empty
         let const = LocalizableString.constant("42")
 
@@ -173,7 +172,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(dict[const] == 43)
     }
 
-    @Test func testHashable_localized() throws {
+    @Test func hashable_localized() throws {
         let localized = LocalizableString.localized(key: "test")
         let const = LocalizableString.constant("42")
 
@@ -186,11 +185,11 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Stubbable Protocol
 
-    @Test func testStubbable_noArg() throws {
+    @Test func stubbable_noArg() throws {
         #expect(try !(LocalizableString.stub().localizedString).isEmpty)
     }
 
-    @Test func testStubbable_arg() throws {
+    @Test func stubbable_arg() throws {
         #expect(try LocalizableString.stub(str: "42").localizedString == "42")
     }
 

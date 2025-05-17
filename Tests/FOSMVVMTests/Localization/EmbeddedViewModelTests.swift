@@ -1,6 +1,5 @@
 // EmbeddedViewModelTests.swift
 //
-// Created by David Hunt on 4/21/25
 // Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -23,7 +22,7 @@ import Testing
 
 @Suite("Embedded View Model Tests")
 struct EmbeddedViewModelTests: LocalizableTestCase {
-    @Test func testEmbeddedLocalization() throws {
+    @Test func embeddedLocalization() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: MainViewModel = try .stub().toJSON(encoder: vmEncoder).fromJSON()
 

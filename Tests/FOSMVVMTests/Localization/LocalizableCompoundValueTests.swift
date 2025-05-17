@@ -1,6 +1,5 @@
 // LocalizableCompoundValueTests.swift
 //
-// Created by David Hunt on 9/4/24
 // Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
@@ -25,7 +24,7 @@ import Testing
 struct LocalizableCompoundValueTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
-    @Test func testInit_onePiece() throws {
+    @Test func init_onePiece() throws {
         let str = LocalizableString.constant("foo")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
@@ -33,7 +32,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(compVal.separator == nil)
     }
 
-    @Test func testInit_multiplePieces() throws {
+    @Test func init_multiplePieces() throws {
         let str1 = LocalizableString.constant("foo1")
         let str2 = LocalizableString.constant("foo2")
         let compVal = LocalizableCompoundValue(pieces: [str1, str2])
@@ -42,7 +41,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(compVal.separator == nil)
     }
 
-    @Test func testInit_separator() throws {
+    @Test func init_separator() throws {
         let str = LocalizableString.constant("foo")
         let sep = LocalizableString.constant("*")
         let compVal = LocalizableCompoundValue(pieces: [str], separator: sep)
@@ -53,21 +52,21 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
 
     // MARK: Localizable Protocol
 
-    @Test func testLocalizable_emptyConstant() {
+    @Test func localizable_emptyConstant() {
         let str = LocalizableString.empty
         let compVal = LocalizableCompoundValue(pieces: [str])
 
         #expect(compVal.isEmpty)
     }
 
-    @Test func testLocalizable_nonEmptyConstant() {
+    @Test func localizable_nonEmptyConstant() {
         let str = LocalizableString.constant("foo")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
         #expect(!compVal.isEmpty)
     }
 
-    @Test func testLocalizable_empty_notLocalized() {
+    @Test func localizable_empty_notLocalized() {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
@@ -75,7 +74,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(compVal.isEmpty)
     }
 
-    @Test func testLocalizable_empty_localized() throws {
+    @Test func localizable_empty_localized() throws {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
@@ -84,14 +83,14 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(!decodedLoc.isEmpty)
     }
 
-    @Test func testLocalizable_status_pending() throws {
+    @Test func localizable_status_pending() throws {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
         #expect(compVal.localizationStatus == .localized)
     }
 
-    @Test func testLocalizable_status_localized() throws {
+    @Test func localizable_status_localized() throws {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
@@ -100,14 +99,14 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(decodedLoc.localizationStatus == .localized)
     }
 
-    @Test func testLocalizable_localizedString_constant_single() throws {
+    @Test func localizable_localizedString_constant_single() throws {
         let str = LocalizableString.constant("foo")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
         #expect(try compVal.localizedString == "foo")
     }
 
-    @Test func testLocalizable_localizedString_constant_compound() throws {
+    @Test func localizable_localizedString_constant_compound() throws {
         let str1 = LocalizableString.constant("foo")
         let str2 = LocalizableString.constant("bar")
         let sep = LocalizableString.constant(".")
@@ -116,7 +115,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(try compVal.localizedString == "foo.bar")
     }
 
-    @Test func testLocalizable_localizedString_pending() throws {
+    @Test func localizable_localizedString_pending() throws {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
@@ -125,7 +124,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         }
     }
 
-    @Test func testLocalizable_localizedString_localized() throws {
+    @Test func localizable_localizedString_localized() throws {
         let str1 = LocalizableString.localized(key: "test")
         let str2 = LocalizableString.localized(key: "carHood")
         let sep = LocalizableString.localized(key: "separator")
@@ -141,7 +140,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
 
     // MARK: Codable Protocol
 
-    @Test func testCodable() throws {
+    @Test func codable() throws {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 
