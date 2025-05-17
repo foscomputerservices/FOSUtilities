@@ -37,11 +37,11 @@ let package = Package(
         ]
 
         #if os(macOS) || os(Linux)
-        result.append( .library(
+        result.append(.library(
             name: "FOSMVVMVapor",
             targets: ["FOSMVVMVapor"]
         ))
-        result.append( .library(
+        result.append(.library(
             name: "FOSTestingVapor",
             targets: ["FOSTestingVapor"]
         ))
@@ -66,7 +66,7 @@ let package = Package(
         #endif
 
         return result
-    } (),
+    }(),
     targets: {
         var result: [Target] = [
             .target(
@@ -154,7 +154,7 @@ let package = Package(
                 .product(name: "Yams", package: "Yams")
             ]
         ))
-        result.append( .target(
+        result.append(.target(
             name: "FOSTestingVapor",
             dependencies: [
                 .byName(name: "FOSFoundation"),
@@ -165,7 +165,7 @@ let package = Package(
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux]))
             ]
         ))
-        result.append( .testTarget(
+        result.append(.testTarget(
             name: "FOSMVVMVaporTests",
             dependencies: [
                 .byName(name: "FOSFoundation"),
@@ -182,7 +182,7 @@ let package = Package(
             ]
         ))
         #endif
-    
+
         return result
-    } ()
+    }()
 )

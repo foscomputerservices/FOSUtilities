@@ -95,7 +95,7 @@ struct DeviceView: View {
 The ``ViewModel`` for this would be as follows:
 
 ```swift
-struct DeviceViewModel: ViewModel {
+@ViewModel(options: [.clientHostedFactory]) struct DeviceViewModel {
     @LocalizedSubs(substitutions: \.subs) public var deviceTitle
     private let substitutions: [String: LocalizableString]
 
@@ -126,6 +126,14 @@ en:
 
 The ``ViewModelFactory`` for DeviceViewModel would be as follows:
 
+> @ViewModel Macro
+>
+> By using the @ViewModel(options: [.clientHostedFactory]) macro, the 
+> ``ClientHostedViewModelFactory`` and ``ViewModelRequest`` are generated
+> automatically for you and there is no need to code them by hand.
+> These examples are provided only to demonstrate what is going on behind
+> the scenes.
+
 ```swift
 extension DeviceViewModel: ClientHostedViewModelFactory {
     public struct AppState: Hashable, Sendable {
@@ -140,6 +148,19 @@ extension DeviceViewModel: ClientHostedViewModelFactory {
         context: ClientHostedModelFactoryContext<Request, AppState>
     ) async throws -> DeviceViewModel {
         .init(deviceId: context.appState.deviceId)
+    }
+}
+
+public final class DeviceViewModelRequest: ViewModelRequest {
+    public let responseBody: DeviceViewModel?
+
+    public init(
+        query: EmptyQuery?,
+        fragment: EmptyFragment? = nil,
+        requestBody: EmptyBody? = nil,
+        responseBody: DeviceViewModel?
+    ) {
+        self.responseBody = responseBody
     }
 }
 ```
