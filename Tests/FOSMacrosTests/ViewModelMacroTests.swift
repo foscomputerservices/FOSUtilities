@@ -308,5 +308,85 @@ final class ViewModelMacroTests: XCTestCase {
             indentationWidth: .spaces(4)
         )
     }
+
+    func testSimpleClientFactoryConformanceExpansion() throws {
+        assertMacroExpansion(
+            #"""
+            @ViewModel(options: [.clientHostedFactory]) struct TestViewModel {
+                @LocalizedString public var name
+                let foo: Int
+                let bar: String
+
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+
+                init(foo: Int, bar: String) {
+                    self.foo = foo
+                    self.bar = bar
+                }
+            }
+            """#,
+            expandedSource: #"""
+            struct TestViewModel {
+                @LocalizedString public var name
+                let foo: Int
+                let bar: String
+
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+
+                init(foo: Int, bar: String) {
+                    self.foo = foo
+                    self.bar = bar
+                }
+
+                public func propertyNames() -> [LocalizableId: String] {
+                    [_name.localizationId: "name"]
+                }
+            }
+
+            public final class TestViewModelRequest: ViewModelRequest {
+                public let responseBody: TestViewModel?
+                public init(
+                    query: EmptyQuery?,
+                    fragment: EmptyFragment? = nil,
+                    requestBody: EmptyBody? = nil,
+                    responseBody: TestViewModel?
+                ) {
+                    self.responseBody = responseBody
+                }
+            }
+
+            extension TestViewModel: ViewModel {
+            }
+
+            extension TestViewModel: ClientHostedViewModelFactory, RequestableViewModel {
+                public typealias Request = TestViewModelRequest
+
+                public struct AppState: Hashable, Sendable {
+                    public let foo: Int
+                    public let bar: String
+
+                    public init(foo: Int, bar: String) {
+                        self.foo = foo
+                        self.bar = bar
+                    }
+                }
+
+                public static func model(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) async throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+            }
+            """#,
+            macros: testMacros,
+            indentationWidth: .spaces(4)
+        )
+    }
 }
 #endif

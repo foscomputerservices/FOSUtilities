@@ -52,7 +52,6 @@ public struct ViewModelFactoryMacro: MemberMacro {
 
         // Extract the version number from the attribute and the corresponding function name
         let versionedModelFuncs = try declaration.memberBlock.members.compactMap { member throws -> (version: SystemVersion, method: String)? in
-
             // Capture the typealias, if we can; if not, we'll use 'Context'
             if let typeAliasDecl = member.decl.as(TypeAliasDeclSyntax.self) {
                 if typeAliasDecl.name.text == "Context" {

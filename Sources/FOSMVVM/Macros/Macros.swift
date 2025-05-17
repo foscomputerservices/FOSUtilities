@@ -17,9 +17,15 @@
 
 import FOSFoundation
 
+public enum ViewModelOptions {
+    /// Generate ``ClientHostedViewModelFactory`` support
+    case clientHostedFactory
+}
+
 @attached(extension, conformances: ViewModel)
 @attached(member, names: named(propertyNames))
-public macro ViewModel() = #externalMacro(
+@attached(peer, names: named(Request))
+public macro ViewModel(options: Set<ViewModelOptions> = []) = #externalMacro(
     module: "FOSMacros",
     type: "ViewModelMacro"
 )

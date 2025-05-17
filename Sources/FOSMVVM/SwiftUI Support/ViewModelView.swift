@@ -500,13 +500,13 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
                 VMV(viewModel: viewModel)
                     .onChange(of: query, initial: true) {
                         guard query != nil else { return }
-                         Task {
+                        Task {
                             self.viewModel = await resolveClientHostedRequest()
                         }
                     }
                     .onChange(of: fragment, initial: true) {
                         guard fragment != nil else { return }
-                         Task {
+                        Task {
                             self.viewModel = await resolveClientHostedRequest()
                         }
                     }

@@ -45,7 +45,12 @@ public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
 // }
 //
 
-public struct ViewModelMacro: ExtensionMacro, MemberMacro {
+private enum ViewModelOptions: String {
+    /// Generate ``ClientHostedViewModelFactory`` support
+    case clientHostedFactory
+}
+
+public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
     private static let knownLocalizedPropertyNames = [
         // _LocalizedProperty
         "LocalizedString",
@@ -70,15 +75,28 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             return []
         }
 
+        let options: Set<ViewModelOptions> = if let argumentList = node.arguments?.as(LabeledExprListSyntax.self),
+                                                let optionsElement = argumentList.first(where: { $0.label?.text == "options" }),
+                                                let arrayExpr = optionsElement.expression.as(ArrayExprSyntax.self) {
+            Set(arrayExpr.elements.map(\.expression)
+                .compactMap { $0.as(MemberAccessExprSyntax.self)?.declName }
+                .map(\.baseName.text)
+                .compactMap { ViewModelOptions(rawValue: $0) })
+        } else {
+            []
+        }
+
         // Ensure the declaration is a struct
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw ViewModelMacroError.onlyStructs
         }
 
+        let viewModelName = structDecl.name.text
+
         // I'd love to use 'protocols' here, but it's empty in my tests
 
         // Don't double declare
-        let alreadyConforms = structDecl.inheritanceClause?.inheritedTypes.contains { inheritedType in
+        let alreadyConformsToViewModel = structDecl.inheritanceClause?.inheritedTypes.contains { inheritedType in
             if let identifierType = inheritedType.type.as(IdentifierTypeSyntax.self) {
                 identifierType.name.text == "ViewModel"
             } else {
@@ -86,22 +104,92 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             }
         } ?? false
 
+        var result = [ExtensionDeclSyntax]()
+
         // Skip extension generation if ViewModel is explicitly declared
         // Note: Indirect conformances (via other protocols) are not detected due to SwiftSyntax limitations
-        if alreadyConforms {
-            return []
+        if !alreadyConformsToViewModel {
+            // Create an extension with ViewModel conformance
+            let extensionDecl = ExtensionDeclSyntax(
+                extendedType: type,
+                inheritanceClause: InheritanceClauseSyntax {
+                    InheritedTypeSyntax(type: TypeSyntax(stringLiteral: "ViewModel"))
+                },
+                memberBlock: MemberBlockSyntax(members: [])
+            )
+
+            result.append(extensionDecl)
         }
 
-        // Create an extension with ViewModel conformance
-        let extensionDecl = ExtensionDeclSyntax(
-            extendedType: type,
-            inheritanceClause: InheritanceClauseSyntax {
-                InheritedTypeSyntax(type: TypeSyntax(stringLiteral: "ViewModel"))
-            },
-            memberBlock: MemberBlockSyntax(members: [])
-        )
+        if options.contains(.clientHostedFactory) {
+            let alreadyConformsToClientHosted = structDecl.inheritanceClause?.inheritedTypes.contains { inheritedType in
+                if let identifierType = inheritedType.type.as(IdentifierTypeSyntax.self) {
+                    identifierType.name.text == "ClientHostedViewModelFactory"
+                } else {
+                    false
+                }
+            } ?? false
 
-        return [extensionDecl]
+            if !alreadyConformsToClientHosted {
+                // Find the initializer
+                let initializers = structDecl.memberBlock.members.compactMap {
+                    $0.decl.as(InitializerDeclSyntax.self)
+                }
+                if let initializer = initializers.first {
+                    // Extract parameters from initializer
+                    let parameters = initializer.signature.parameterClause.parameters.compactMap { param -> (name: String, type: String)? in
+                        guard let typeAnnotation = TypeSyntax(param.type)?.description else {
+                            return nil
+                        }
+                        return (name: param.firstName.text, type: typeAnnotation)
+                    }
+
+                    // Generate AppState struct
+                    let appStateProperties = parameters.map { param in
+                        "public let \(param.name): \(param.type)"
+                    }.joined(separator: "\n")
+
+                    let appStateInitParameters = parameters.map { param in
+                        "\(param.name): \(param.type)"
+                    }.joined(separator: ", ")
+
+                    let appStateInitAssignments = parameters.map { param in
+                        "self.\(param.name) = \(param.name)"
+                    }.joined(separator: "\n")
+
+                    // Generate model function
+                    let modelInitArgs = parameters.map { param in
+                        "\(param.name): context.appState.\(param.name)"
+                    }.joined(separator: ", ")
+
+                    let extensionDecl = try ExtensionDeclSyntax(
+                        """
+                        extension \(type): ClientHostedViewModelFactory, RequestableViewModel {
+                            public typealias Request = \(raw: viewModelName)Request
+
+                            public struct AppState: Hashable, Sendable {
+                                \(raw: appStateProperties)
+
+                                public init(\(raw: appStateInitParameters)) {
+                                    \(raw: appStateInitAssignments)
+                                }
+                            }
+
+                            public static func model(
+                                context: ClientHostedModelFactoryContext<Request, AppState>
+                            ) async throws -> Self {
+                                .init(\(raw: modelInitArgs))
+                            }
+                        }
+                        """
+                    )
+
+                    result.append(extensionDecl)
+                }
+            }
+        }
+
+        return result
     }
 
     public static func expansion(
@@ -154,5 +242,55 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         )
 
         return [DeclSyntax(functionDecl)]
+    }
+
+    // MARK: Peer Macro Protocol
+
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModel" else {
+            return []
+        }
+
+        guard let structDecl = declaration.as(StructDeclSyntax.self) else {
+            throw ViewModelMacroError.onlyStructs
+        }
+
+        let viewModelName = structDecl.name.text
+
+        let options: Set<ViewModelOptions> = if let argumentList = node.arguments?.as(LabeledExprListSyntax.self),
+                                                let optionsElement = argumentList.first(where: { $0.label?.text == "options" }),
+                                                let arrayExpr = optionsElement.expression.as(ArrayExprSyntax.self) {
+            Set(arrayExpr.elements.map(\.expression)
+                .compactMap { $0.as(MemberAccessExprSyntax.self)?.declName }
+                .map(\.baseName.text)
+                .compactMap { ViewModelOptions(rawValue: $0) })
+        } else {
+            []
+        }
+
+        if options.contains(.clientHostedFactory) {
+            let requestClass = try ClassDeclSyntax(
+                """
+                public final class \(raw: viewModelName)Request: ViewModelRequest {
+                    public let responseBody: \(raw: viewModelName)?
+                    public init(
+                        query: EmptyQuery?,
+                        fragment: EmptyFragment? = nil,
+                        requestBody: EmptyBody? = nil,
+                        responseBody: \(raw: viewModelName)?
+                    ) {
+                        self.responseBody = responseBody
+                    }
+                }
+                """
+            )
+            return [DeclSyntax(requestClass)]
+        }
+
+        return []
     }
 }
