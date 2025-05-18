@@ -74,6 +74,11 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
             return []
         }
 
+        // Ensure the declaration is a struct
+        guard let structDecl = declaration.as(StructDeclSyntax.self) else {
+            throw ViewModelMacroError.onlyStructs
+        }
+
         let options: Set<ViewModelOptions> = if let argumentList = node.arguments?.as(LabeledExprListSyntax.self),
                                                 let optionsElement = argumentList.first(where: { $0.label?.text == "options" }),
                                                 let arrayExpr = optionsElement.expression.as(ArrayExprSyntax.self) {
@@ -85,29 +90,13 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
             []
         }
 
-        // Ensure the declaration is a struct
-        guard let structDecl = declaration.as(StructDeclSyntax.self) else {
-            throw ViewModelMacroError.onlyStructs
-        }
-
         let viewModelName = structDecl.name.text
-
-        // I'd love to use 'protocols' here, but it's empty in my tests
-
-        // Don't double declare
-        let alreadyConformsToViewModel = structDecl.inheritanceClause?.inheritedTypes.contains { inheritedType in
-            if let identifierType = inheritedType.type.as(IdentifierTypeSyntax.self) {
-                identifierType.name.text == "ViewModel"
-            } else {
-                false
-            }
-        } ?? false
 
         var result = [ExtensionDeclSyntax]()
 
         // Skip extension generation if ViewModel is explicitly declared
         // Note: Indirect conformances (via other protocols) are not detected due to SwiftSyntax limitations
-        if !alreadyConformsToViewModel {
+        if !structDecl.conformsTo("ViewModel") {
             // Create an extension with ViewModel conformance
             let extensionDecl = ExtensionDeclSyntax(
                 extendedType: type,
@@ -121,15 +110,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
         }
 
         if options.contains(.clientHostedFactory) {
-            let alreadyConformsToClientHosted = structDecl.inheritanceClause?.inheritedTypes.contains { inheritedType in
-                if let identifierType = inheritedType.type.as(IdentifierTypeSyntax.self) {
-                    identifierType.name.text == "ClientHostedViewModelFactory"
-                } else {
-                    false
-                }
-            } ?? false
-
-            if !alreadyConformsToClientHosted {
+            if !structDecl.conformsTo("ClientHostedViewModelFactory") {
                 // Find the initializer
                 let initializers = structDecl.memberBlock.members.compactMap {
                     $0.decl.as(InitializerDeclSyntax.self)
@@ -161,9 +142,13 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
                         "\(param.name): context.appState.\(param.name)"
                     }.joined(separator: ", ")
 
+                    let requestableProtoDecl = structDecl.conformsTo("RequestableViewModel")
+                        ? ""
+                        : ", RequestableViewModel"
+
                     let extensionDecl = try ExtensionDeclSyntax(
                         """
-                        extension \(type): ClientHostedViewModelFactory, RequestableViewModel {
+                        extension \(type): ClientHostedViewModelFactory\(raw: requestableProtoDecl) {
                             public typealias Request = \(raw: viewModelName)Request
 
                             public struct AppState: Hashable, Sendable {
@@ -291,5 +276,17 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
         }
 
         return []
+    }
+}
+
+private extension StructDeclSyntax {
+    func conformsTo(_ protocolName: String) -> Bool {
+        inheritanceClause?.inheritedTypes.contains { inheritedType in
+            if let identifierType = inheritedType.type.as(IdentifierTypeSyntax.self) {
+                identifierType.name.text == protocolName
+            } else {
+                false
+            }
+        } ?? false
     }
 }
