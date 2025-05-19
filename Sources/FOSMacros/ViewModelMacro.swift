@@ -180,7 +180,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
             }.joined(separator: ", ")
 
             let typeAliasDecl = try TypeAliasDeclSyntax(
-                "public typealias Request = \(raw: viewModelName)Request"
+                "public typealias Request = ClientHostedRequest"
             )
             newDecls.append(DeclSyntax(typeAliasDecl))
 
@@ -196,6 +196,23 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
                 """
             )
             newDecls.append(DeclSyntax(appStateDecl))
+
+            let requestClass = try ClassDeclSyntax(
+                """
+                public final class ClientHostedRequest: ViewModelRequest {
+                    public let responseBody: \(raw: viewModelName)?
+                    public init(
+                        query: EmptyQuery?,
+                        fragment: EmptyFragment? = nil,
+                        requestBody: EmptyBody? = nil,
+                        responseBody: \(raw: viewModelName)?
+                    ) {
+                        self.responseBody = responseBody
+                    }
+                }
+                """
+            )
+            newDecls.append(DeclSyntax(requestClass))
 
             let modelDecl = try FunctionDeclSyntax(
                 """
@@ -242,17 +259,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
         }
 
         let viewModelName = structDecl.name.text
-
-        let options: Set<ViewModelOptions> = if let argumentList = node.arguments?.as(LabeledExprListSyntax.self),
-                                                let optionsElement = argumentList.first(where: { $0.label?.text == "options" }),
-                                                let arrayExpr = optionsElement.expression.as(ArrayExprSyntax.self) {
-            Set(arrayExpr.elements.map(\.expression)
-                .compactMap { $0.as(MemberAccessExprSyntax.self)?.declName }
-                .map(\.baseName.text)
-                .compactMap { ViewModelOptions(rawValue: $0) })
-        } else {
-            []
-        }
+        let options = node.vmOptions
 
         if options.contains(.clientHostedFactory) {
             let requestClass = try ClassDeclSyntax(
