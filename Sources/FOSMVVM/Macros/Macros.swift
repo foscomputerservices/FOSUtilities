@@ -22,8 +22,7 @@ public enum ViewModelOptions {
 }
 
 @attached(extension, conformances: ViewModel, ClientHostedViewModelFactory, RequestableViewModel)
-@attached(member, names: named(propertyNames), named(Request), named(AppState), named(model))
-@attached(peer, names: named(TestClientHostedViewModelRequest))
+@attached(member, names: named(propertyNames), named(Request), named(AppState), named(model), named(ClientHostedRequest))
 public macro ViewModel(options: Set<ViewModelOptions> = []) = #externalMacro(
     module: "FOSMacros",
     type: "ViewModelMacro"
