@@ -343,6 +343,24 @@ final class ViewModelMacroTests: XCTestCase {
                     self.bar = bar
                 }
 
+                public typealias Request = TestViewModelRequest
+
+                public struct AppState: Hashable, Sendable {
+                    public let foo: Int
+                    public let bar: String
+
+                    public init(foo: Int, bar: String) {
+                        self.foo = foo
+                        self.bar = bar
+                    }
+                }
+
+                public static func model(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) async throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
                 }
@@ -364,23 +382,6 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel: ClientHostedViewModelFactory, RequestableViewModel {
-                public typealias Request = TestViewModelRequest
-
-                public struct AppState: Hashable, Sendable {
-                    public let foo: Int
-                    public let bar: String
-
-                    public init(foo: Int, bar: String) {
-                        self.foo = foo
-                        self.bar = bar
-                    }
-                }
-
-                public static func model(
-                    context: ClientHostedModelFactoryContext<Request, AppState>
-                ) async throws -> Self {
-                    .init(foo: context.appState.foo, bar: context.appState.bar)
-                }
             }
             """#,
             macros: testMacros,
@@ -423,6 +424,24 @@ final class ViewModelMacroTests: XCTestCase {
                     self.bar = bar
                 }
 
+                public typealias Request = TestViewModelRequest
+
+                public struct AppState: Hashable, Sendable {
+                    public let foo: Int
+                    public let bar: String
+
+                    public init(foo: Int, bar: String) {
+                        self.foo = foo
+                        self.bar = bar
+                    }
+                }
+
+                public static func model(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) async throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
                 }
@@ -441,23 +460,6 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel: ClientHostedViewModelFactory, RequestableViewModel {
-                public typealias Request = TestViewModelRequest
-
-                public struct AppState: Hashable, Sendable {
-                    public let foo: Int
-                    public let bar: String
-
-                    public init(foo: Int, bar: String) {
-                        self.foo = foo
-                        self.bar = bar
-                    }
-                }
-
-                public static func model(
-                    context: ClientHostedModelFactoryContext<Request, AppState>
-                ) async throws -> Self {
-                    .init(foo: context.appState.foo, bar: context.appState.bar)
-                }
             }
             """#,
             macros: testMacros,
@@ -500,6 +502,24 @@ final class ViewModelMacroTests: XCTestCase {
                     self.bar = bar
                 }
 
+                public typealias Request = TestViewModelRequest
+
+                public struct AppState: Hashable, Sendable {
+                    public let foo: Int
+                    public let bar: String
+
+                    public init(foo: Int, bar: String) {
+                        self.foo = foo
+                        self.bar = bar
+                    }
+                }
+
+                public static func model(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) async throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
                 }
@@ -521,23 +541,6 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel: ClientHostedViewModelFactory {
-                public typealias Request = TestViewModelRequest
-
-                public struct AppState: Hashable, Sendable {
-                    public let foo: Int
-                    public let bar: String
-
-                    public init(foo: Int, bar: String) {
-                        self.foo = foo
-                        self.bar = bar
-                    }
-                }
-
-                public static func model(
-                    context: ClientHostedModelFactoryContext<Request, AppState>
-                ) async throws -> Self {
-                    .init(foo: context.appState.foo, bar: context.appState.bar)
-                }
             }
             """#,
             macros: testMacros,

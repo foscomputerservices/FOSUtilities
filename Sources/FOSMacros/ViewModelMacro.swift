@@ -79,19 +79,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
             throw ViewModelMacroError.onlyStructs
         }
 
-        let options: Set<ViewModelOptions> = if let argumentList = node.arguments?.as(LabeledExprListSyntax.self),
-                                                let optionsElement = argumentList.first(where: { $0.label?.text == "options" }),
-                                                let arrayExpr = optionsElement.expression.as(ArrayExprSyntax.self) {
-            Set(arrayExpr.elements.map(\.expression)
-                .compactMap { $0.as(MemberAccessExprSyntax.self)?.declName }
-                .map(\.baseName.text)
-                .compactMap { ViewModelOptions(rawValue: $0) })
-        } else {
-            []
-        }
-
-        let viewModelName = structDecl.name.text
-
+        let options = node.vmOptions
         var result = [ExtensionDeclSyntax]()
 
         // Skip extension generation if ViewModel is explicitly declared
@@ -111,65 +99,18 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
 
         if options.contains(.clientHostedFactory) {
             if !structDecl.conformsTo("ClientHostedViewModelFactory") {
-                // Find the initializer
-                let initializers = structDecl.memberBlock.members.compactMap {
-                    $0.decl.as(InitializerDeclSyntax.self)
-                }
-                if let initializer = initializers.first {
-                    // Extract parameters from initializer
-                    let parameters = initializer.signature.parameterClause.parameters.compactMap { param -> (name: String, type: String)? in
-                        guard let typeAnnotation = TypeSyntax(param.type)?.description else {
-                            return nil
-                        }
-                        return (name: param.firstName.text, type: typeAnnotation)
+                let requestableProtoDecl = structDecl.conformsTo("RequestableViewModel")
+                    ? ""
+                    : ", RequestableViewModel"
+
+                let extensionDecl = try ExtensionDeclSyntax(
+                    """
+                    extension \(type): ClientHostedViewModelFactory\(raw: requestableProtoDecl) {
                     }
+                    """
+                )
 
-                    // Generate AppState struct
-                    let appStateProperties = parameters.map { param in
-                        "public let \(param.name): \(param.type)"
-                    }.joined(separator: "\n")
-
-                    let appStateInitParameters = parameters.map { param in
-                        "\(param.name): \(param.type)"
-                    }.joined(separator: ", ")
-
-                    let appStateInitAssignments = parameters.map { param in
-                        "self.\(param.name) = \(param.name)"
-                    }.joined(separator: "\n")
-
-                    // Generate model function
-                    let modelInitArgs = parameters.map { param in
-                        "\(param.name): context.appState.\(param.name)"
-                    }.joined(separator: ", ")
-
-                    let requestableProtoDecl = structDecl.conformsTo("RequestableViewModel")
-                        ? ""
-                        : ", RequestableViewModel"
-
-                    let extensionDecl = try ExtensionDeclSyntax(
-                        """
-                        extension \(type): ClientHostedViewModelFactory\(raw: requestableProtoDecl) {
-                            public typealias Request = \(raw: viewModelName)Request
-
-                            public struct AppState: Hashable, Sendable {
-                                \(raw: appStateProperties)
-
-                                public init(\(raw: appStateInitParameters)) {
-                                    \(raw: appStateInitAssignments)
-                                }
-                            }
-
-                            public static func model(
-                                context: ClientHostedModelFactoryContext<Request, AppState>
-                            ) async throws -> Self {
-                                .init(\(raw: modelInitArgs))
-                            }
-                        }
-                        """
-                    )
-
-                    result.append(extensionDecl)
-                }
+                result.append(extensionDecl)
             }
         }
 
@@ -190,6 +131,9 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw ViewModelMacroError.onlyStructs
         }
+
+        let options = node.vmOptions
+        let viewModelName = structDecl.name.text
 
         // Collect properties with _LocalizedProperty wrapper
         let properties = structDecl.memberBlock.members.compactMap { member -> (name: String, id: String)? in
@@ -212,20 +156,74 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
             return (name: identifier, id: "\(identifier).localizationId")
         }
 
+        var newDecls: [DeclSyntax] = []
+
+        if options.contains(.clientHostedFactory) {
+            let parameters = structDecl.initParams
+
+            // Generate AppState struct
+            let appStateProperties = parameters.map { param in
+                "public let \(param.name): \(param.type)"
+            }.joined(separator: "\n")
+
+            let appStateInitParameters = parameters.map { param in
+                "\(param.name): \(param.type)"
+            }.joined(separator: ", ")
+
+            let appStateInitAssignments = parameters.map { param in
+                "self.\(param.name) = \(param.name)"
+            }.joined(separator: "\n")
+
+            // Generate model function
+            let modelInitArgs = parameters.map { param in
+                "\(param.name): context.appState.\(param.name)"
+            }.joined(separator: ", ")
+
+            let typeAliasDecl = try TypeAliasDeclSyntax(
+                "public typealias Request = \(raw: viewModelName)Request"
+            )
+            newDecls.append(DeclSyntax(typeAliasDecl))
+
+            let appStateDecl = try StructDeclSyntax(
+                """
+                public struct AppState: Hashable, Sendable {
+                    \(raw: appStateProperties)
+
+                    public init(\(raw: appStateInitParameters)) {
+                        \(raw: appStateInitAssignments)
+                    }
+                }
+                """
+            )
+            newDecls.append(DeclSyntax(appStateDecl))
+
+            let modelDecl = try FunctionDeclSyntax(
+                """
+                public static func model(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) async throws -> Self {
+                    .init(\(raw: modelInitArgs))
+                }
+                """
+            )
+            newDecls.append(DeclSyntax(modelDecl))
+        }
+
         // Generate the propertyNames function
         var pairs = properties.map { "_\($0.id): \"\($0.name)\"" }.joined(separator: ", ")
         if pairs.isEmpty {
             pairs = ":"
         }
-        let functionDecl = try FunctionDeclSyntax(
+        let propertyNamesDecl = try FunctionDeclSyntax(
             """
             public func propertyNames() -> [LocalizableId: String] {
                 [\(raw: pairs)]
             }
             """
         )
+        newDecls.append(DeclSyntax(propertyNamesDecl))
 
-        return [DeclSyntax(functionDecl)]
+        return newDecls
     }
 
     // MARK: Peer Macro Protocol
@@ -279,6 +277,21 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
     }
 }
 
+private extension AttributeSyntax {
+    var vmOptions: Set<ViewModelOptions> {
+        if let argumentList = arguments?.as(LabeledExprListSyntax.self),
+           let optionsElement = argumentList.first(where: { $0.label?.text == "options" }),
+           let arrayExpr = optionsElement.expression.as(ArrayExprSyntax.self) {
+            Set(arrayExpr.elements.map(\.expression)
+                .compactMap { $0.as(MemberAccessExprSyntax.self)?.declName }
+                .map(\.baseName.text)
+                .compactMap { ViewModelOptions(rawValue: $0) })
+        } else {
+            []
+        }
+    }
+}
+
 private extension StructDeclSyntax {
     func conformsTo(_ protocolName: String) -> Bool {
         inheritanceClause?.inheritedTypes.contains { inheritedType in
@@ -288,5 +301,21 @@ private extension StructDeclSyntax {
                 false
             }
         } ?? false
+    }
+
+    var initParams: [(name: String, type: String)] {
+        let initializers = memberBlock.members.compactMap {
+            $0.decl.as(InitializerDeclSyntax.self)
+        }
+        guard let initializer = initializers.first else {
+            return []
+        }
+        // Extract parameters from initializer
+        return initializer.signature.parameterClause.parameters.compactMap { param -> (name: String, type: String)? in
+            guard let typeAnnotation = TypeSyntax(param.type)?.description else {
+                return nil
+            }
+            return (name: param.firstName.text, type: typeAnnotation)
+        }
     }
 }
