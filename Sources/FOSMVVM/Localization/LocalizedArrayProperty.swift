@@ -33,7 +33,7 @@ public extension ViewModel {
     typealias LocalizedStrings = _LocalizedArrayProperty<Self, LocalizableString>
 }
 
-@propertyWrapper public struct _LocalizedArrayProperty<Model, Value>: Codable, Sendable, Stubbable where Model: ViewModel, Value: Localizable {
+@propertyWrapper public struct _LocalizedArrayProperty<Model, Value>: Codable, Hashable, Sendable, Stubbable where Model: ViewModel, Value: Localizable {
     public var wrappedValue: LocalizableArray<Value>
     public var projectedValue: LocalizableArray<Value> { wrappedValue }
 
@@ -41,6 +41,7 @@ public extension ViewModel {
 
     public let localizationId: LocalizableId
     private let bindWrappedValue: WrappedValueBinder?
+
 
     /// Initializes the ``LocalizedStrings`` property wrapper
     ///
@@ -127,6 +128,18 @@ public extension _LocalizedArrayProperty {
         } else {
             try container.encode(wrappedValue)
         }
+    }
+
+    // MARK: Hashable Protocol
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(wrappedValue.hashValue)
+        hasher.combine(localizationId)
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.wrappedValue == rhs.wrappedValue &&
+        lhs.localizationId == rhs.localizationId
     }
 }
 
