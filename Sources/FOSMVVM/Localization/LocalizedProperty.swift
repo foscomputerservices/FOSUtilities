@@ -481,9 +481,9 @@ public extension _LocalizedProperty {
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.wrappedValue == rhs.wrappedValue
-        && lhs.vFirst == rhs.vFirst
-        && lhs.vLast == rhs.vLast
-        && lhs.localizationId == rhs.localizationId
+            && lhs.vFirst == rhs.vFirst
+            && lhs.vLast == rhs.vLast
+            && lhs.localizationId == rhs.localizationId
     }
 }
 

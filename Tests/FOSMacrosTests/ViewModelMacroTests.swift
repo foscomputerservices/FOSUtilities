@@ -354,7 +354,7 @@ final class ViewModelMacroTests: XCTestCase {
                         self.bar = bar
                     }
                 }
-            
+
                 public final class ClientHostedRequest: ViewModelRequest {
                     public let responseBody: TestViewModel?
                     public init(

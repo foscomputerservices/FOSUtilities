@@ -42,7 +42,6 @@ public extension ViewModel {
     public let localizationId: LocalizableId
     private let bindWrappedValue: WrappedValueBinder?
 
-
     /// Initializes the ``LocalizedStrings`` property wrapper
     ///
     /// - Parameters:
@@ -139,7 +138,7 @@ public extension _LocalizedArrayProperty {
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.wrappedValue == rhs.wrappedValue &&
-        lhs.localizationId == rhs.localizationId
+            lhs.localizationId == rhs.localizationId
     }
 }
 
