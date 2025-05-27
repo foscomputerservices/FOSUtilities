@@ -343,7 +343,7 @@ final class ViewModelMacroTests: XCTestCase {
                     self.bar = bar
                 }
 
-                public typealias Request = TestViewModelRequest
+                public typealias Request = ClientHostedRequest
 
                 public struct AppState: Hashable, Sendable {
                     public let foo: Int
@@ -352,6 +352,18 @@ final class ViewModelMacroTests: XCTestCase {
                     public init(foo: Int, bar: String) {
                         self.foo = foo
                         self.bar = bar
+                    }
+                }
+            
+                public final class ClientHostedRequest: ViewModelRequest {
+                    public let responseBody: TestViewModel?
+                    public init(
+                        query: EmptyQuery?,
+                        fragment: EmptyFragment? = nil,
+                        requestBody: EmptyBody? = nil,
+                        responseBody: TestViewModel?
+                    ) {
+                        self.responseBody = responseBody
                     }
                 }
 
@@ -363,18 +375,6 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
-                }
-            }
-
-            public final class TestViewModelRequest: ViewModelRequest {
-                public let responseBody: TestViewModel?
-                public init(
-                    query: EmptyQuery?,
-                    fragment: EmptyFragment? = nil,
-                    requestBody: EmptyBody? = nil,
-                    responseBody: TestViewModel?
-                ) {
-                    self.responseBody = responseBody
                 }
             }
 
@@ -424,7 +424,7 @@ final class ViewModelMacroTests: XCTestCase {
                     self.bar = bar
                 }
 
-                public typealias Request = TestViewModelRequest
+                public typealias Request = ClientHostedRequest
 
                 public struct AppState: Hashable, Sendable {
                     public let foo: Int
@@ -436,6 +436,18 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
+                public final class ClientHostedRequest: ViewModelRequest {
+                    public let responseBody: TestViewModel?
+                    public init(
+                        query: EmptyQuery?,
+                        fragment: EmptyFragment? = nil,
+                        requestBody: EmptyBody? = nil,
+                        responseBody: TestViewModel?
+                    ) {
+                        self.responseBody = responseBody
+                    }
+                }
+
                 public static func model(
                     context: ClientHostedModelFactoryContext<Request, AppState>
                 ) async throws -> Self {
@@ -444,18 +456,6 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
-                }
-            }
-
-            public final class TestViewModelRequest: ViewModelRequest {
-                public let responseBody: TestViewModel?
-                public init(
-                    query: EmptyQuery?,
-                    fragment: EmptyFragment? = nil,
-                    requestBody: EmptyBody? = nil,
-                    responseBody: TestViewModel?
-                ) {
-                    self.responseBody = responseBody
                 }
             }
 
@@ -502,7 +502,7 @@ final class ViewModelMacroTests: XCTestCase {
                     self.bar = bar
                 }
 
-                public typealias Request = TestViewModelRequest
+                public typealias Request = ClientHostedRequest
 
                 public struct AppState: Hashable, Sendable {
                     public let foo: Int
@@ -514,6 +514,18 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
+                public final class ClientHostedRequest: ViewModelRequest {
+                    public let responseBody: TestViewModel?
+                    public init(
+                        query: EmptyQuery?,
+                        fragment: EmptyFragment? = nil,
+                        requestBody: EmptyBody? = nil,
+                        responseBody: TestViewModel?
+                    ) {
+                        self.responseBody = responseBody
+                    }
+                }
+
                 public static func model(
                     context: ClientHostedModelFactoryContext<Request, AppState>
                 ) async throws -> Self {
@@ -522,18 +534,6 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
-                }
-            }
-
-            public final class TestViewModelRequest: ViewModelRequest {
-                public let responseBody: TestViewModel?
-                public init(
-                    query: EmptyQuery?,
-                    fragment: EmptyFragment? = nil,
-                    requestBody: EmptyBody? = nil,
-                    responseBody: TestViewModel?
-                ) {
-                    self.responseBody = responseBody
                 }
             }
 

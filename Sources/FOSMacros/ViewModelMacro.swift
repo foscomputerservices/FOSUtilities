@@ -49,7 +49,7 @@ private enum ViewModelOptions: String {
     case clientHostedFactory
 }
 
-public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
+public struct ViewModelMacro: ExtensionMacro, MemberMacro {
     private static let knownLocalizedPropertyNames = [
         // _LocalizedProperty
         "LocalizedString",
@@ -241,46 +241,6 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro, PeerMacro {
         newDecls.append(DeclSyntax(propertyNamesDecl))
 
         return newDecls
-    }
-
-    // MARK: Peer Macro Protocol
-
-    public static func expansion(
-        of node: AttributeSyntax,
-        providingPeersOf declaration: some DeclSyntaxProtocol,
-        in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
-        guard node.attributeName.description.trimmingCharacters(in: .whitespaces) == "ViewModel" else {
-            return []
-        }
-
-        guard let structDecl = declaration.as(StructDeclSyntax.self) else {
-            throw ViewModelMacroError.onlyStructs
-        }
-
-        let viewModelName = structDecl.name.text
-        let options = node.vmOptions
-
-        if options.contains(.clientHostedFactory) {
-            let requestClass = try ClassDeclSyntax(
-                """
-                public final class \(raw: viewModelName)Request: ViewModelRequest {
-                    public let responseBody: \(raw: viewModelName)?
-                    public init(
-                        query: EmptyQuery?,
-                        fragment: EmptyFragment? = nil,
-                        requestBody: EmptyBody? = nil,
-                        responseBody: \(raw: viewModelName)?
-                    ) {
-                        self.responseBody = responseBody
-                    }
-                }
-                """
-            )
-            return [DeclSyntax(requestClass)]
-        }
-
-        return []
     }
 }
 
