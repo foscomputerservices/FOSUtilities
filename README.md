@@ -2,7 +2,7 @@
 
 ![Run unit tests](https://github.com/foscomputerservices/FOSUtilities/actions/workflows/ci.yml/badge.svg) ![Swift Package Manager](https://img.shields.io/badge/spm-compatible-brightgreen.svg?style=flat) [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ffoscomputerservices%2FFOSUtilities%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/foscomputerservices/FOSUtilities) [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Ffoscomputerservices%2FFOSUtilities%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/foscomputerservices/FOSUtilities)
 
-There are three libraries provided by the FOSUtilities package:  FOSFoundation, FOSMVVM and FOSTesting.
+There are multiple libraries provided by the FOSUtilities package:  FOSFoundation, FOSMVVM, FOSTesting, FOSTestingUI, FOSMVVMVapor, FOSTestingVapor.
 
 ## Documentation
 
