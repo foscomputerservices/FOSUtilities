@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import Foundation
+
 /// An actor-based semaphore designed to manage concurrency in Swift’s asynchronous environment
 ///
 /// This class ensures that a limited number of tasks can proceed concurrently, as defined
@@ -30,7 +32,7 @@
 /// let semaphore = AsyncSemaphore(maxConcurrentTasks: 1)
 ///
 /// func performSyncRequest() async throws {
-///   await semaphore.wait()
+///   try await semaphore.wait()
 ///   defer { Task { await semaphore.signal() } }
 ///
 ///   try mySynchronousFunction()
@@ -45,17 +47,23 @@ public actor AsyncSemaphore {
     public let maxConcurrentTasks: Int
 
     private var currentCount: Int = 0
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [(UUID, CheckedContinuation<Void, Error>)] = []
 
     /// Waits until the semaphore is available
-    public func wait() async {
-        await withCheckedContinuation { continuation in
-            if currentCount < maxConcurrentTasks {
-                currentCount += 1
-                continuation.resume()
-            } else {
-                waiters.append(continuation)
+    public func wait() async throws {
+        let id = UUID()
+
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                if currentCount < maxConcurrentTasks {
+                    currentCount += 1
+                    continuation.resume()
+                } else {
+                    waiters.append((id, continuation))
+                }
             }
+        } onCancel: { [weak self] in
+            Task { await self?.removeWaiter(id) }
         }
     }
 
@@ -68,7 +76,7 @@ public actor AsyncSemaphore {
     ///
     /// ```swift
     /// func performSyncRequest() async throws {
-    ///   await semaphore.wait()
+    ///   try await semaphore.wait()
     ///   defer { Task { await semaphore.signal() } }
     ///
     ///   try mySynchronousFunction()
@@ -77,7 +85,7 @@ public actor AsyncSemaphore {
     public func signal() {
         if let next = waiters.first {
             waiters.removeFirst()
-            next.resume()
+            next.1.resume()
         } else {
             currentCount -= 1
         }
@@ -86,4 +94,17 @@ public actor AsyncSemaphore {
     public init(maxConcurrentTasks: Int) {
         self.maxConcurrentTasks = maxConcurrentTasks
     }
+
+    private func removeWaiter(_ id: UUID) {
+        guard
+            let waiter = waiters.first(where: { $0.0 == id })
+        else {
+            return
+        }
+
+        waiter.1.resume(throwing: CancellationError())
+        waiters.removeAll { $0.0 == id}
+    }
 }
+
+private struct CancellationError: Error {}

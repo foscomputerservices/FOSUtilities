@@ -26,15 +26,15 @@ final class AsyncSemaphoreTests {
         let semaphore = AsyncSemaphore(maxConcurrentTasks: 1)
         maxCount = 0
 
-        await withTaskGroup(of: Void.self) { group in
+        await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                await Self.slowFunc(semaphore: semaphore)
+                try await Self.slowFunc(semaphore: semaphore)
             }
             group.addTask {
-                await Self.slowFunc(semaphore: semaphore)
+                try await Self.slowFunc(semaphore: semaphore)
             }
             group.addTask {
-                await Self.slowFunc(semaphore: semaphore)
+                try await Self.slowFunc(semaphore: semaphore)
             }
         }
 
@@ -45,23 +45,23 @@ final class AsyncSemaphoreTests {
         let semaphore = AsyncSemaphore(maxConcurrentTasks: 3)
         maxCount = 0
 
-        await withTaskGroup(of: Void.self) { group in
+        await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask {
-                await Self.slowFunc(semaphore: semaphore)
+                try await Self.slowFunc(semaphore: semaphore)
             }
             group.addTask {
-                await Self.slowFunc(semaphore: semaphore)
+                try await Self.slowFunc(semaphore: semaphore)
             }
             group.addTask {
-                await Self.slowFunc(semaphore: semaphore)
+                try await Self.slowFunc(semaphore: semaphore)
             }
         }
 
         #expect(maxCount == 3)
     }
 
-    private static func slowFunc(semaphore: AsyncSemaphore) async {
-        await semaphore.wait()
+    private static func slowFunc(semaphore: AsyncSemaphore) async throws {
+        try await semaphore.wait()
         defer {
             if maxCount == 1 {
                 maxCount -= 1
