@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if os(macOS) || os(Linux)
 #if canImport(SwiftCompilerPlugin)
 import SwiftCompilerPlugin
 import SwiftSyntaxMacros
@@ -21,9 +22,11 @@ import SwiftSyntaxMacros
 @main
 struct FOSMacros: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
+        FieldValidationModelMacro.self,
         ViewModelMacro.self,
         ViewModelFactoryMacro.self,
         ViewModelFactoryMethodMacro.self
     ]
 }
+#endif
 #endif

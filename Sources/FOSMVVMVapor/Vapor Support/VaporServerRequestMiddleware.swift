@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import FOSMVVM
 import Foundation
@@ -24,7 +23,7 @@ enum VaporServerRequestMiddlewareError: Error, CustomDebugStringConvertible {
     case missingQuery
     case missingRequest
 
-    public var debugDescription: String {
+    var debugDescription: String {
         switch self {
         case .missingQuery:
             "VaporServerRequestMiddlewareError: Required Query missing"
@@ -82,4 +81,3 @@ extension Request {
         return try queryStr.fromJSON()
     }
 }
-#endif

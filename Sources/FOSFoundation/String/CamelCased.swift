@@ -1,0 +1,40 @@
+// CamelCased.swift
+//
+// Copyright 2025 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+@propertyWrapper public struct CamelCased: Codable, Sendable {
+    private let firstUpper: Bool
+    private var string: String = ""
+
+    public var wrappedValue: String {
+        get { string }
+        set { string = newValue.camelCased(firstUpper: firstUpper) }
+    }
+
+    public init(firstUpper: Bool = true) {
+        self.firstUpper = firstUpper
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.string = try container.decode(String.self)
+        self.firstUpper = true
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(string)
+    }
+}

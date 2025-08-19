@@ -34,7 +34,7 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Language | <provided locale> |
-    func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
+    func fetch<ResultValue: Decodable & Sendable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .fetch(self, headers: headers, locale: locale)
     }
@@ -54,7 +54,7 @@ public extension URL {
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
     ///  | Accept-Language | <provided locale> |
-    func fetch<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    func fetch<ResultValue: Decodable & Sendable>(headers: [(field: String, value: String)]? = nil, locale: Locale? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .fetch(self, headers: headers, locale: locale, errorType: errorType)
     }
@@ -72,7 +72,7 @@ public extension URL {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
-    func send<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable) async throws -> ResultValue {
+    func send<ResultValue: Decodable & Sendable>(headers: [(field: String, value: String)]? = nil, data: some Encodable) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .post(data: data, to: self, headers: headers)
     }
@@ -91,7 +91,7 @@ public extension URL {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
-    func send<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    func send<ResultValue: Decodable & Sendable>(headers: [(field: String, value: String)]? = nil, data: some Encodable, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .post(
                 data: data,
@@ -114,7 +114,7 @@ public extension URL {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
-    func delete<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable) async throws -> ResultValue {
+    func delete<ResultValue: Decodable & Sendable>(headers: [(field: String, value: String)]? = nil, data: some Encodable) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .delete(data: data, at: self, headers: headers)
     }
@@ -133,7 +133,7 @@ public extension URL {
     ///  | Accept | application/json;charset=utf-8 |
     ///  | Accept-Encoding | application/json;charset=utf-8 |
     ///  | Content-Type | application/json;charset=utf-8 |
-    func delete<ResultValue: Decodable>(headers: [(field: String, value: String)]? = nil, data: some Encodable, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    func delete<ResultValue: Decodable & Sendable>(headers: [(field: String, value: String)]? = nil, data: some Encodable, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await DataFetch<URLSession>.default
             .delete(
                 data: data,

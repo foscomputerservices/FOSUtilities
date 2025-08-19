@@ -19,6 +19,8 @@ import Foundation
 import FoundationNetworking
 #endif
 
+// swiftlint:disable type_body_length
+
 /// A simplified interface for performing asynchronous REST-Style requests
 ///
 /// This interface is expected to be used with **Codable** types.  This provides
@@ -125,9 +127,9 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///   - url: The **URL** that identifies the source of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
-    public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
+    public func fetch<ResultValue: Decodable & Sendable>(_ url: URL, headers: [(field: String, value: String)]? = nil, locale: Locale? = nil) async throws -> ResultValue {
         try await send(
-            to: url.absoluteString,
+            to: url,
             httpMethod: "GET",
             headers: headers,
             locale: locale
@@ -150,9 +152,9 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///   - locale: An optional [Locale](https://developer.apple.com/documentation/foundation/locale) specification
     ///   - errorType: An **Error** type to attempt to decode returned data as an error if unable to decode as **ResultValue**
-    public func fetch<ResultValue: Decodable>(_ url: URL, headers: [(field: String, value: String)]? = nil, locale: Locale? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    public func fetch<ResultValue: Decodable & Sendable>(_ url: URL, headers: [(field: String, value: String)]? = nil, locale: Locale? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         try await send(
-            to: url.absoluteString,
+            to: url,
             httpMethod: "GET",
             headers: headers,
             locale: locale,
@@ -174,7 +176,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///   - data: The **Data** to **POST** to *url*
     ///   - url: The **URL** that identifies the destination of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
-    public func post<ResultValue: Decodable>(data: some Encodable, to url: URL, headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
+    public func post<ResultValue: Decodable & Sendable>(data: some Encodable, to url: URL, headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
         let jsonData: Data
         do {
             jsonData = try data.toJSONData()
@@ -186,7 +188,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
         return try await send(
             data: jsonData,
-            to: url.absoluteString,
+            to: url,
             httpMethod: "POST",
             headers: headers,
             locale: nil
@@ -208,7 +210,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///   - url: The **URL** that identifies the destination of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///   - errorType: An **Error** type to attempt to decode returned data as an error if unable to decode as **ResultValue**
-    public func post<ResultValue: Decodable>(data: some Encodable, to url: URL, headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    public func post<ResultValue: Decodable & Sendable>(data: some Encodable, to url: URL, headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         let jsonData: Data
         do {
             jsonData = try data.toJSONData()
@@ -220,7 +222,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
         return try await send(
             data: jsonData,
-            to: url.absoluteString,
+            to: url,
             httpMethod: "DELETE",
             headers: headers,
             locale: nil,
@@ -242,7 +244,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///   - data: The **Data** to send with the **DELETE** request to *url*
     ///   - url: The **URL** that identifies the location of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
-    public func delete<ResultValue: Decodable>(data: some Encodable, at url: URL, headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
+    public func delete<ResultValue: Decodable & Sendable>(data: some Encodable, at url: URL, headers: [(field: String, value: String)]? = nil) async throws -> ResultValue {
         let jsonData: Data
         do {
             jsonData = try data.toJSONData()
@@ -254,7 +256,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
         return try await send(
             data: jsonData,
-            to: url.absoluteString,
+            to: url,
             httpMethod: "DELETE",
             headers: headers,
             locale: nil
@@ -276,7 +278,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     ///   - url: The **URL** that identifies the location of the data
     ///   - headers: Any extra HTTP headers that need to be sent with the request
     ///   - errorType: An **Error** type to attempt to decode returned data as an error if unable to decode as **ResultValue**
-    public func delete<ResultValue: Decodable>(data: some Encodable, at url: URL, headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    public func delete<ResultValue: Decodable & Sendable>(data: some Encodable, at url: URL, headers: [(field: String, value: String)]? = nil, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         let jsonData: Data
         do {
             jsonData = try data.toJSONData()
@@ -288,7 +290,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
         return try await send(
             data: jsonData,
-            to: url.absoluteString,
+            to: url,
             httpMethod: "DELETE",
             headers: headers,
             locale: nil,
@@ -319,15 +321,13 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
         return sessionConfig
     }
-}
 
-private extension DataFetch {
     /// - Throws: ``DataFetchError`` or **errorType**
-    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?) async throws -> ResultValue {
+    public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?) async throws -> ResultValue {
         do {
             return try await send(
                 data: data,
-                to: urlStr,
+                to: url,
                 httpMethod: httpMethod,
                 headers: headers,
                 locale: locale,
@@ -344,12 +344,7 @@ private extension DataFetch {
     }
 
     /// - Throws: ``DataFetchError`` or **errorType**
-    func send<ResultValue: Decodable>(data: Data? = nil, to urlStr: String, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
-        let urlStr = urlStr.trimmingSuffix("?")
-        guard let url = URL(string: urlStr) else {
-            throw DataFetchError.badURL("Unable to convert \(urlStr) to URL???")
-        }
-
+    public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = httpMethod
 
@@ -509,3 +504,5 @@ private extension DataFetch {
 }
 
 private struct DummyError: Decodable, Error {}
+
+// swiftlint:enable type_body_length

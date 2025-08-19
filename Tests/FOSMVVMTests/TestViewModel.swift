@@ -40,7 +40,7 @@ struct TestViewModel: RequestableViewModel {
 
     var vmId = ViewModelId()
 
-    public var displayName: LocalizableString { .constant("TestVM") }
+    var displayName: LocalizableString { .constant("TestVM") }
 
     init() {
         self.substitutions = [
@@ -48,14 +48,17 @@ struct TestViewModel: RequestableViewModel {
         ]
     }
 
-    public static func stub() -> Self {
+    static func stub() -> Self {
         fatalError()
     }
 }
 
-final class TestViewModelRequest: ViewModelRequest {
+final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
-    let responseBody: TestViewModel?
+    typealias Fragment = EmptyFragment
+    typealias RequestBody = EmptyBody
+
+    var responseBody: TestViewModel?
 
     let id: String
 

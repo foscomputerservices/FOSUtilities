@@ -119,6 +119,7 @@ from a server application!
 - <doc:ApplicationState>
 - <doc:ServerOverview>
 - <doc:ViewModelandViewModelRequest>
+- <doc:Forms>
 - ``ViewModel``
 - ``ViewModelRequest``
 - ``RequestableViewModel``

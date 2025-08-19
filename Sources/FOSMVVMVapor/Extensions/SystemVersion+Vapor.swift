@@ -1,4 +1,4 @@
-// SystemVersion.swift
+// SystemVersion+Vapor.swift
 //
 // Copyright 2024 FOS Computer Services, LLC
 //
@@ -14,13 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
 import Vapor
+
+public extension SystemVersion {
+    static let httpHeader = "X-FOS-Version"
+}
 
 public extension Vapor.Request {
     /// - Returns: the *SystemVersion* specified in the HTTPHeader
@@ -53,4 +56,3 @@ public extension Vapor.Request {
         }
     }
 }
-#endif

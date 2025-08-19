@@ -27,10 +27,12 @@ public extension LocalizableTestCase {
     ///
     /// - Parameter localizationStore: The **LocalizationStore** containing localized values to use for the tests (default: self.locStore)
     func vaporApplication(localizationStore: LocalizationStore? = nil) async throws -> Vapor.Application {
-        let result = try await Application.make()
-        result.localizationStore = localizationStore ?? locStore
-
-        return result
+        #warning("Fix me!")
+        fatalError("Fix me!")
+//        let result = try await Application.make()
+//        result.localizationStore = localizationStore ?? locStore
+//
+//        return result
     }
 
     /// Returns a *Vapor.Request*

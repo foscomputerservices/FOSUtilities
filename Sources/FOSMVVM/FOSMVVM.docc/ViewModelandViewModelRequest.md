@@ -74,9 +74,9 @@ We can also easily preview our view by using the **Stubbable** protocol to give 
 The client app will need to retrieve the ``ViewModel`` from the server.  In order to accomplish this, a ``ViewModelRequest`` needs to be written to allow the client application to request the ``ViewModel`` from the server.
 
 ```swift
-public final class LandingPageRequest: ViewModelRequest {
+public final class LandingPageRequest: ViewModelRequest, @unchecked Sendable {
     public typealias Query = EmptyQuery
-    public let responseBody: LandingPageViewModel?
+    public var responseBody: LandingPageViewModel?
 
     public init(query: FOSMVVM.EmptyQuery? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: LandingPageViewModel? = nil) {
         self.responseBody = responseBody

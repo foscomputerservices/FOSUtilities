@@ -77,7 +77,7 @@ public indirect enum LocalizableRef: Hashable, Identifiable, CustomStringConvert
 
     /// Creates a multi-level reference
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```swift
     /// let keyRef = LocalizableRef.value("level1", "level2", "level3")

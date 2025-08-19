@@ -17,23 +17,72 @@
 import FOSFoundation
 import Foundation
 
-public struct ViewModelId: Codable, Hashable, Comparable, Sendable {
+/// An identity for a ``ViewModel``
+///
+/// # Overview
+///
+/// Whenever possible, the ``ViewModelId`` should be bound to some identifying characteristic
+/// of the ``Model`` that was used to project the ``ViewModel``.  This will greatly stabilize the
+/// SwiftUI View hierarchy and caching structure.
+///
+/// ```swift
+/// @ViewModel struct UserViewModel {
+///   let firstName: String
+///   let lastName: String
+///
+///   let vmId: ViewModelId
+///
+///   init(user: User) {
+///     self.firstName = user.firstName
+///     self.lastName = user.lastName
+///     self.vmId = .init(id: user.id)
+///   }
+/// }
+/// ```
+///
+/// # Singleton ViewModels
+///
+/// For ``ViewModel``s that are singleton in identity, that is the ``ViewModel``s
+/// properties are always set the same values,  the ``ViewModel``s type
+/// should be used to initialize the identity.
+///
+/// ```swift
+/// @ViewModel struct MyViewModel {
+///   @LocalizedString var aProperty
+///
+///   let vmId: ViewModelId
+///
+///   init() {
+///     self.vmId = .init(type: Self.self)
+///   }
+/// }
+/// ```
+///
+/// # Last Resort
+///
+/// When there isn't an established ``Model`` and the model cannot be established as
+/// a singleton ``ViewModel``, the default constructor can be used to create a random
+/// ``ViewModelId``.  Note that every update of the ``ViewModel`` will have a new
+/// identity and thus the caching system in SwiftUI will be hampered by this variability.
+public struct ViewModelId: Codable, Hashable, Sendable {
     private let id: String
     private let isRandom: Bool
-    private let timestamp: TimeInterval
-
-    public func childId(name: String) -> ViewModelId {
-        .init(parent: self, childId: name)
-    }
 
     public init(id: String? = nil) {
         self.id = id ?? String.unique()
         self.isRandom = id == nil
-        self.timestamp = Date().timeIntervalSince1970
     }
 
     public init(id: Int) {
         self.init(id: "\(id)")
+    }
+
+    public init(id: UUID) {
+        self.init(id: "\(id.uuidString)")
+    }
+
+    public init(type: (some ViewModel).Type) {
+        self.init(id: String(reflecting: type))
     }
 
     // MARK: Codable Protocol
@@ -44,7 +93,6 @@ public struct ViewModelId: Codable, Hashable, Comparable, Sendable {
         let id = try container.decodeIfPresent(String.self, forKey: .id)
         self.isRandom = id == nil
         self.id = id ?? String.unique()
-        self.timestamp = try container.decode(TimeInterval.self, forKey: .timestamp)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -53,36 +101,22 @@ public struct ViewModelId: Codable, Hashable, Comparable, Sendable {
         if !isRandom {
             try container.encode(id, forKey: .id)
         }
-        try container.encode(timestamp, forKey: .timestamp)
     }
 
     // MARK: Hashable
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
-        hasher.combine(timestamp)
     }
 
     // MARK: Equatable
 
     public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.id == rhs.id && lhs.timestamp == rhs.timestamp
-    }
-
-    // MARK: Comparable
-
-    public static func < (lhs: Self, rhs: Self) -> Bool {
-        lhs.timestamp < rhs.timestamp
+        lhs.id == rhs.id
     }
 }
 
 private extension ViewModelId {
-    init(parent: ViewModelId, childId: String) {
-        self.id = "\(parent.id):\(childId))"
-        self.isRandom = false
-        self.timestamp = Date().timeIntervalSince1970
-    }
-
     enum CodingKeys: String, CodingKey {
         case id
         case timestamp = "ts"

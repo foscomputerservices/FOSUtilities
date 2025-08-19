@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if os(macOS) || os(Linux)
 public import SwiftSyntax
 import SwiftSyntaxBuilder
 public import SwiftSyntaxMacros
@@ -90,6 +91,21 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 extendedType: type,
                 inheritanceClause: InheritanceClauseSyntax {
                     InheritedTypeSyntax(type: TypeSyntax(stringLiteral: "ViewModel"))
+                },
+                memberBlock: MemberBlockSyntax(members: [])
+            )
+
+            result.append(extensionDecl)
+        }
+
+        // Skip extension generation if ViewModel is explicitly declared
+        // Note: Indirect conformances (via other protocols) are not detected due to SwiftSyntax limitations
+        if !structDecl.conformsTo("RetrievablePropertyNames") {
+            // Create an extension with ViewModel conformance
+            let extensionDecl = ExtensionDeclSyntax(
+                extendedType: type,
+                inheritanceClause: InheritanceClauseSyntax {
+                    InheritedTypeSyntax(type: TypeSyntax(stringLiteral: "RetrievablePropertyNames"))
                 },
                 memberBlock: MemberBlockSyntax(members: [])
             )
@@ -199,8 +215,8 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
 
             let requestClass = try ClassDeclSyntax(
                 """
-                public final class ClientHostedRequest: ViewModelRequest {
-                    public let responseBody: \(raw: viewModelName)?
+                public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
+                    public var responseBody: \(raw: viewModelName)?
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,
@@ -286,3 +302,4 @@ private extension StructDeclSyntax {
         }
     }
 }
+#endif

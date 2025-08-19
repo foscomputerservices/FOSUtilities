@@ -126,9 +126,11 @@ struct P4: ViewModelFactory {
     }
 }
 
-final class TestVersionedViewModelRequest: ViewModelRequest, ViewModelFactoryContext {
+final class TestVersionedViewModelRequest: ViewModelRequest, ViewModelFactoryContext, @unchecked Sendable {
     typealias Query = EmptyQuery
-    let responseBody: TestVersionedViewModel?
+    typealias Fragment = EmptyFragment
+    typealias RequestBody = EmptyBody
+    var responseBody: TestVersionedViewModel?
 
     var systemVersion: SystemVersion {
         get throws {

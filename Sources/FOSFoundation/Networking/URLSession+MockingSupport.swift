@@ -33,7 +33,7 @@ public protocol URLSessionProtocol: Sendable {
     static func session(config: URLSessionConfiguration) -> Self
 }
 
-extension URLSession: URLSessionProtocol, @unchecked Sendable {
+extension URLSession: URLSessionProtocol {
     public static func session(config: URLSessionConfiguration) -> Self {
         // REVIEWED - dgh: This odd construction is due to the way that
         //   FoundationNetworking implements URLSession, which is different

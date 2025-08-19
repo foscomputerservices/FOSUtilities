@@ -46,9 +46,7 @@ import XCTest
 ///     override func setUp() async throws {
 ///         try await super.setUp(
 ///             bundle: Bundle.main,
-///             resourceDirectoryName: "",
-///             urlAppHost: "myapphostname",
-///             appBundleIdentifier: "com.mycompany.myapp"
+///             resourceDirectoryName: ""
 ///         )
 ///
 ///         continueAfterFailure = false // Stop the test and move on
@@ -85,7 +83,6 @@ import XCTest
 /// ```
 @MainActor open class ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: XCTestCase, @unchecked Sendable {
     private var app: XCUIApplication?
-    private var urlAppHost: String?
     private var locStore: LocalizationStore?
     private var locales: Set<Locale>?
 
@@ -128,22 +125,24 @@ import XCTest
     /// }
     /// ```
     ///
-    ///
     /// - Parameters:
     ///   - testConfiguration: A name for the configuration under test
     ///   - viewModel: A *ViewModel* instance to use to populate a corresponding *ViewModelView* (default: .stub())
+    ///   - locale: The *Locale* to use to encode the *ViewModel* (default: Self.en)
     ///   - timeout: The number of seconds to wait for the application to respond (default: 3)
     /// - Returns: The *XCUIApplication* that proxies the *ViewModelView*
-    @MainActor public func presentView(testConfiguration: String = "", viewModel: VM = .stub(), timeout: TimeInterval = 3) throws -> XCUIApplication {
-        guard let app, let urlAppHost else {
+    @MainActor public func presentView(testConfiguration: String = "", viewModel: VM = .stub(), locale: Locale? = nil, timeout: TimeInterval = 3) throws -> XCUIApplication {
+        guard let app else {
             throw RunError.setupNotCalled
         }
 
-        // NOTE: I've tried app.open(), but have been unable to get it to work.  This
-        //       method of using launchArguments seems to work very well.
+        let encoder = encoder(locale: locale)
 
-        let url = try url(for: viewModel, urlAppHost: urlAppHost, locale: Self.en, testConfiguration: testConfiguration)
-        app.launchArguments.append(url.absoluteString)
+        app.launchEnvironment["__FOS_ViewModelType"] = String(describing: VM.self)
+        app.launchEnvironment["__FOS_ViewModel"] = try viewModel.toJSON(
+            encoder: encoder
+        ).obfuscate
+        app.launchEnvironment["__FOS_TestConfiguration"] = testConfiguration
         app.launch()
         guard app.wait(for: .runningForeground, timeout: timeout) else {
             XCTFail("Application did not reach the running state!")
@@ -188,7 +187,6 @@ import XCTest
     ///         try await super.setUp(
     ///             bundle: Bundle.main,
     ///             resourceDirectoryName: "",
-    ///             urlAppHost: "myapphostname",
     ///             appBundleIdentifier: "com.mycompany.myapp"
     ///         )
     ///
@@ -200,13 +198,11 @@ import XCTest
     /// - Parameters:
     ///   - bundle: The test harness's application bundle
     ///   - resourceDirectoryName: The directory in the bundle to search for localizations (default: "")
-    ///   - urlAppHost: The host of the URL that the test application registered as a URLType
     ///   - appBundleIdentifier: The application's bundle identifier
     ///   - locales: The locales to test (default: en)
-    public func setUp(bundle: Bundle, resourceDirectoryName: String = "", urlAppHost: String, appBundleIdentifier: String, locales: Set<Locale>? = nil) async throws {
+    public func setUp(bundle: Bundle, resourceDirectoryName: String = "", appBundleIdentifier: String, locales: Set<Locale>? = nil) async throws {
         try await super.setUp()
 
-        self.urlAppHost = urlAppHost
         locStore = try await bundle.yamlLocalization(
             resourceDirectoryName: resourceDirectoryName
         )
@@ -267,18 +263,6 @@ import XCTest
             locale: locale ?? en,
             localizationStore: locStore
         )
-    }
-
-    private func url(for viewModel: VM, urlAppHost: String, locale: Locale, testConfiguration: String) throws -> URL {
-        let encoder = encoder(locale: locale)
-        let viewModelStr = try viewModel.toJSON(encoder: encoder).obfuscate
-
-        let urlStr = "\(urlAppHost)://test-view-request?viewModelType=\(String(describing: VM.self))&viewModel=\(viewModelStr)&testConfiguration=\(testConfiguration)"
-        guard let url = URL(string: urlStr) else {
-            throw RunError.badUrlString(urlStr)
-        }
-
-        return url
     }
 }
 

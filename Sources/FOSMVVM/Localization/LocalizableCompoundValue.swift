@@ -49,8 +49,9 @@ public struct LocalizableCompoundValue<Value: Localizable>: Localizable {
 
     /// Initializes the `LocalizableCompoundValue`
     ///
-    /// > ``LocalizableCompoundValue``.init() is publicly available, but
-    /// > it is generally better to use the **Collection**.joined() operator instead.
+    /// > ``LocalizableCompoundValue/init(pieces:separator:)-([Value],_)``
+    /// > is publicly available, but  it is generally better to use the **Collection**.joined()
+    /// > operator instead.
     ///
     /// - Parameters:
     ///   - pieces: The `Localizable` values to combine together

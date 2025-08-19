@@ -40,7 +40,7 @@ struct TestViewModel: RequestableViewModel {
 
     var vmId = ViewModelId()
 
-    public var displayName: LocalizableString { .constant("TestVM") }
+    var displayName: LocalizableString { .constant("TestVM") }
 
     init() {
         self.substitutions = [
@@ -48,7 +48,7 @@ struct TestViewModel: RequestableViewModel {
         ]
     }
 
-    public static func stub() -> Self {
+    static func stub() -> Self {
         fatalError()
     }
 }

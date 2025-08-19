@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import FOSMVVM
 import Foundation
@@ -36,11 +35,11 @@ public struct VaporModelFactoryContext<Request: ViewModelRequest>: ViewModelFact
     }
 }
 
-public protocol VaporViewModelFactory: ViewModelFactory & Vapor.AsyncResponseEncodable where Self: RequestableViewModel, Context == VaporModelFactoryContext<Request> {}
+public protocol VaporViewModelFactory: ViewModelFactory & Vapor.AsyncResponseEncodable
+    where Self: RequestableViewModel, Context == VaporModelFactoryContext<Request> {}
 
 public extension VaporViewModelFactory {
     static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
         try await model(context: .init(req: req, vmRequest: vmRequest))
     }
 }
-#endif

@@ -188,7 +188,7 @@ public extension String {
 
     /// **CountableRange** support for **String**
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```swift
     /// "0123456789"[0..<5] // "01234"
@@ -201,7 +201,7 @@ public extension String {
 
     /// **CountableClosedRange** support for **String**
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```swift
     /// "my string"[0...2] // "my "

@@ -21,7 +21,14 @@ public enum ViewModelOptions {
     case clientHostedFactory
 }
 
-@attached(extension, conformances: ViewModel, ClientHostedViewModelFactory, RequestableViewModel)
+@attached(extension, conformances: RetrievablePropertyNames, FieldValidationModel)
+@attached(member, names: named(propertyNames))
+public macro FieldValidationModel() = #externalMacro(
+    module: "FOSMacros",
+    type: "FieldValidationModelMacro"
+)
+
+@attached(extension, conformances: RetrievablePropertyNames, ViewModel, ClientHostedViewModelFactory, RequestableViewModel)
 @attached(member, names: named(propertyNames), named(Request), named(AppState), named(model), named(ClientHostedRequest))
 public macro ViewModel(options: Set<ViewModelOptions> = []) = #externalMacro(
     module: "FOSMacros",

@@ -28,15 +28,21 @@ import Foundation
 ///
 /// # Conformance
 ///
-/// Conforming to ``ViewModel`` indicates to the system that the type is a View-Model.
-/// However, applying the protocol by itself to a type will require the implementation to
+/// Conforming to ``ViewModel`` indicates to the system that the type is a **View-Model**
+/// in the **M-V-VM** architecture.
+///
+/// # Supporting @ViewModel Macro
+///
+/// Applying the protocol by itself to a type will require the implementation to
 /// provide the ``propertyNames()`` bindings manually.  Instead, of adding
 /// ``ViewModel`` as conformance, always use the @``ViewModel()``
 /// macro, which will automatically generate the ``propertyNames()`` bindings.
 ///
 /// ```swift
 /// @ViewModel struct MyViewModel {
-///     @LocalizedString public var aProperty
+///   @LocalizedString public var aProperty
+///
+///   var vmId: ViewModelId = .init()
 /// }
 /// ```
 ///
@@ -55,8 +61,8 @@ import Foundation
 /// identifier uniquely identifies the ViewModel instance.  The ``ViewModelId`` can
 /// be initialized without any id and will generate a unique id randomly.  However, it is
 /// recommended that an id be provided if it can reasonably be derived from the server's
-/// underlying data.  For example, if the ViewModel is showing data about a user record
-/// in the database, the database record id for that user could be used as the id.
+/// underlying data.  For example, if the ViewModel is showing data about a user model
+/// in the database, the database model id for that user could be used as the id.
 ///
 /// ## ViewModelId and SwiftUI
 ///
@@ -72,12 +78,40 @@ import Foundation
 /// ### Swift View ID
 ///
 /// A ``ViewModelId`` can also be used to set a SwiftUI View's [identity](https://developer.apple.com/documentation/swiftui/view/id(_:) )
-public protocol ViewModel: ServerRequestBody, Stubbable {
+///
+/// ```swift
+/// struct MyView: ViewModelView {
+///    let viewModel: MyViewModel
+///
+///    var body: some View {
+///      Text(viewModel.aProperty)
+///        .id(viewModel.id)
+///    }
+/// }
+/// ```
+///
+/// Whenever possible, the ``ViewModelId`` should be bound to some identifying characteristic
+/// of the data that was used to project the ``ViewModel``.  This will greatly stabilize the
+/// SwiftUI View hierarchy and caching structure.
+///
+/// ```swift
+/// @ViewModel struct UserViewModel {
+///   public let firstName: String
+///   public let lastName: String
+///
+///   let vmId: ViewModelId
+///
+///   public init(user: User) {
+///     self.firstName = user.firstName
+///     self.lastName = user.lastName
+///     self.vmId = .init(id: user.id)
+///   }
+/// }
+/// ```
+public protocol ViewModel: ServerRequestBody, RetrievablePropertyNames, Identifiable, Stubbable {
     var vmId: ViewModelId { get }
-
-    func propertyNames() -> [LocalizableId: String]
 }
 
-public extension ViewModel where Self: Identifiable {
+public extension ViewModel {
     var id: ViewModelId { vmId }
 }

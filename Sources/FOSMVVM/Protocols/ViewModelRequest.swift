@@ -21,6 +21,9 @@
 /// By default the ``ServerRequest/action`` is set to ``ServerRequestAction/show``,
 /// which with perform a **GET** HTTP request.
 ///
+/// By default the ``ServerRequest/RequestBody`` and ``ServerRequest/Fragment``
+/// are set to ``EmptyBody`` and ``EmptyFragment``, respectively.
+///
 /// The implementation of ``ViewModelRequest`` can provide a ``ServerRequest/Query``
 /// implementation to allow the request's user to request specific resources.
 ///
@@ -34,9 +37,10 @@
 ///      public let email: String
 ///  }
 ///
-/// public final class UserViewModelRequest: ViewModelRequest {
+/// public final class UserViewModelRequest: ViewModelRequest, @unchecked Sendable {
+///   public typealias Fragment = EmptyFragment
 ///   public let query: Query?
-///   public let responseBody: UserViewModel?
+///   public var responseBody: UserViewModel?
 ///
 ///   public struct Query: ServerRequestQuery {
 ///       public let userId: Int
@@ -46,7 +50,12 @@
 ///       }
 ///   }
 ///
-///   public init(query: Query? = nil, fragment: Fragment? = nil, requestBody: RequestBody? = nil, responseBody: ResponseBody? = nil) {
+///   public init(
+///       query: Query? = nil,
+///       fragment: Fragment? = nil,
+///       requestBody: RequestBody? = nil,
+///       responseBody: ResponseBody? = nil
+///   ) {
 ///     self.query = query; self.responseBody = responseBody
 ///   }
 /// }
@@ -57,6 +66,10 @@ public extension ViewModelRequest {
     var action: ServerRequestAction {
         .show
     }
+
+    var fragment: EmptyFragment? { nil }
+
+    var requestBody: EmptyBody? { nil }
 
     var viewModel: ResponseBody {
         responseBody ?? .stub()

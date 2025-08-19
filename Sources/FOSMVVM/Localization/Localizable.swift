@@ -54,6 +54,12 @@ public protocol Localizable: Codable, Hashable, Identifiable, Sendable, Stubbabl
     var localizedString: String { get throws }
 }
 
+extension Localizable {
+    func defaultedLocalizedString(defaultValue: String? = nil) -> String {
+        (try? localizedString) ?? defaultValue ?? "<missing>"
+    }
+}
+
 /// The status of a ``Localizable``
 ///
 /// A ``Localizable`` can be in one of two states.  When it is

@@ -1,0 +1,136 @@
+// String+Pluralize.swift
+//
+// Copyright 2025 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import Foundation
+
+extension String {
+    func pluralize() -> String? {
+        Self.singularToPluralMapping[self]
+    }
+
+    private static let singularToPluralMapping: [String: String] = [
+        "user": "users",
+        "customer": "customers",
+        "order": "orders",
+        "product": "products",
+        "account": "accounts",
+        "address": "addresses",
+        "company": "companies",
+        "employee": "employees",
+        "category": "categories",
+        "item": "items",
+        "transaction": "transactions",
+        "payment": "payments",
+        "invoice": "invoices",
+        "contact": "contacts",
+        "message": "messages",
+        "document": "documents",
+        "file": "files",
+        "image": "images",
+        "video": "videos",
+        "comment": "comments",
+        "review": "reviews",
+        "rating": "ratings",
+        "tag": "tags",
+        "role": "roles",
+        "permission": "permissions",
+        "group": "groups",
+        "team": "teams",
+        "project": "projects",
+        "task": "tasks",
+        "event": "events",
+        "session": "sessions",
+        "log": "logs",
+        "report": "reports",
+        "setting": "settings",
+        "configuration": "configurations",
+        "template": "templates",
+        "layout": "layouts",
+        "page": "pages",
+        "post": "posts",
+        "article": "articles",
+        "news": "news",
+        "blog": "blogs",
+        "forum": "forums",
+        "thread": "threads",
+        "reply": "replies",
+        "notification": "notifications",
+        "alert": "alerts",
+        "email": "emails",
+        "phone": "phones",
+        "location": "locations",
+        "country": "countries",
+        "state": "states",
+        "city": "cities",
+        "region": "regions",
+        "department": "departments",
+        "division": "divisions",
+        "branch": "branches",
+        "office": "offices",
+        "store": "stores",
+        "warehouse": "warehouses",
+        "inventory": "inventories",
+        "stock": "stocks",
+        "supplier": "suppliers",
+        "vendor": "vendors",
+        "contract": "contracts",
+        "agreement": "agreements",
+        "license": "licenses",
+        "subscription": "subscriptions",
+        "plan": "plans",
+        "package": "packages",
+        "service": "services",
+        "feature": "features",
+        "module": "modules",
+        "component": "components",
+        "widget": "widgets",
+        "plugin": "plugins",
+        "extension": "extensions",
+        "application": "applications",
+        "system": "systems",
+        "database": "databases",
+        "table": "tables",
+        "column": "columns",
+        "row": "rows",
+        "record": "records",
+        "field": "fields",
+        "value": "values",
+        "property": "properties",
+        "attribute": "attributes",
+        "parameter": "parameters",
+        "variable": "variables",
+        "method": "methods",
+        "function": "functions",
+        "procedure": "procedures",
+        "query": "queries",
+        "request": "requests",
+        "response": "responses",
+        "token": "tokens",
+        "key": "keys",
+        "certificate": "certificates",
+        "credential": "credentials",
+        "policy": "policies",
+        "rule": "rules",
+        "workflow": "workflows",
+        "process": "processes",
+        "status": "statuses",
+        "priority": "priorities",
+        "schedule": "schedules",
+        "appointment": "appointments",
+        "reservation": "reservations",
+        "booking": "bookings"
+    ]
+}
