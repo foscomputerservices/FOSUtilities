@@ -50,10 +50,17 @@ public extension View {
     /// ```
     ///
     /// - Parameters:
-    //   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
+    ///   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
     @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
         #if DEBUG
-        decorator(URL.testHarnessURL?.testConfiguration ?? "", AnyView(TestingView(baseView: self)))
+        decorator(
+            ProcessInfo.processInfo.testConfiguration,
+            AnyView(
+                TestingView(
+                    baseView: self
+                )
+            )
+        )
         #else
         self
         #endif
@@ -87,29 +94,18 @@ public extension URL {
 }
 #endif
 
-private extension URL {
-    var comps: URLComponents? {
-        guard
-            let comps = URLComponents(url: self, resolvingAgainstBaseURL: true),
-            comps.host == "test-view-request"
-        else {
-            return nil
-        }
-
-        return comps
-    }
-
+private extension ProcessInfo {
     var viewModelType: String? {
-        comps?.queryItems?.filter { $0.name == "viewModelType" }.first?.value
+        environment["__FOS_ViewModelType"]
     }
 
     var testConfiguration: String {
-        comps?.queryItems?.filter { $0.name == "testConfiguration" }.first?.value ?? ""
+        environment["__FOS_TestConfiguration"] ?? ""
     }
 
     var viewModelData: Data? {
         guard
-            let aStr = comps?.queryItems?.filter({ $0.name == "viewModel" }).first?.value,
+            let aStr = environment["__FOS_ViewModel"],
             let str = aStr.reveal
         else {
             return nil
@@ -132,17 +128,6 @@ private extension URL {
 
         return try? factory(viewModelData)
     }
-
-    static var testHarnessURL: Self? {
-        if ProcessInfo.processInfo.arguments.count > 1 {
-            let arg = ProcessInfo.processInfo.arguments[1]
-            if let url = URL(string: arg) {
-                return url
-            }
-        }
-
-        return nil
-    }
 }
 
 extension ViewModelView {
@@ -154,7 +139,7 @@ extension ViewModelView {
 #if DEBUG
 private struct TestingView<BaseView: View>: View {
     let baseView: BaseView
-    @State private var testView: AnyView? = nil
+    @State private var testView: AnyView?
     @Environment(MVVMEnvironment.self) private var mvvmEnvironment
 
     var body: some View {
@@ -163,9 +148,9 @@ private struct TestingView<BaseView: View>: View {
         } else {
             baseView
                 .onAppear { // Provided by the test harness
-                    if let url = URL.testHarnessURL {
-                        testView = url.view(registeredTypes: mvvmEnvironment.registeredTestTypes)
-                    }
+                    testView = ProcessInfo.processInfo.view(
+                        registeredTypes: mvvmEnvironment.registeredTestTypes
+                    )
                 }
         }
     }

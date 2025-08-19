@@ -26,7 +26,7 @@ public extension JSONEncoder {
     ///     lookups during encoding
     /// - Returns: A ``JSONEncoder`` that encodes ``Localizable`` values
     static func localizingEncoder(locale: Locale, localizationStore: LocalizationStore) -> JSONEncoder {
-        let encoder = ViewModelEncoder()
+        let encoder = LocalizingEncoder()
         encoder.dateEncodingStrategy = .formatted(DateFormatter.JSONDateTimeFormatter)
         encoder.userInfo[.localeKey] = locale
         encoder.userInfo[.localizationStoreKey] = localizationStore
@@ -84,13 +84,16 @@ extension Encoder {
         )
     }
 
-    func localizePropertyWrapper<Model: ViewModel>(model: Model, propertyWrapper: _LocalizedProperty<Model, LocalizableString>) throws -> _LocalizedProperty<Model, LocalizableString> {
+    func localizePropertyWrapper<Model: RetrievablePropertyNames>(model: Model, propertyWrapper: _LocalizedProperty<Model, LocalizableString>) throws -> _LocalizedProperty<Model, LocalizableString> {
         guard let locale, let localizationStore else {
             throw LocalizerError.localizationStoreMissing
         }
 
-        let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
-        encoder.userInfo[.currentViewModelKey] = model
+        let encoder = JSONEncoder.localizingEncoder(
+            locale: locale,
+            localizationStore: localizationStore
+        )
+        encoder.userInfo[.currentModelKey] = model
         encoder.userInfo[.propertyNamesKey] = model.allPropertyNames()
 
         do {
@@ -102,13 +105,13 @@ extension Encoder {
         }
     }
 
-    func localizeArrayPropertyWrapper<Model: ViewModel>(model: Model, propertyWrapper: _LocalizedArrayProperty<Model, LocalizableString>) throws -> _LocalizedArrayProperty<Model, LocalizableString> {
+    func localizeArrayPropertyWrapper<Model: RetrievablePropertyNames>(model: Model, propertyWrapper: _LocalizedArrayProperty<Model, LocalizableString>) throws -> _LocalizedArrayProperty<Model, LocalizableString> {
         guard let locale, let localizationStore else {
             throw LocalizerError.localizationStoreMissing
         }
 
         let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
-        encoder.userInfo[.currentViewModelKey] = model
+        encoder.userInfo[.currentModelKey] = model
         encoder.userInfo[.propertyNamesKey] = model.allPropertyNames()
 
         do {
@@ -121,34 +124,34 @@ extension Encoder {
     }
 }
 
-private final class ViewModelEncoder: JSONEncoder {
+private final class LocalizingEncoder: JSONEncoder {
     override func encode(_ value: some Encodable) throws -> Data {
-        let parentViewModel = userInfo[.currentViewModelKey]
+        let parentModel = userInfo[.currentModelKey]
         let parentPropertyNames = userInfo[.propertyNamesKey]
 
-        if let viewModel = value as? (any ViewModel) {
-            userInfo[.propertyNamesKey] = viewModel.allPropertyNames()
-            userInfo[.currentViewModelKey] = viewModel
+        if let model = value as? (any RetrievablePropertyNames) {
+            userInfo[.propertyNamesKey] = model.allPropertyNames()
+            userInfo[.currentModelKey] = model
         }
 
         let result = try super.encode(value)
-        userInfo[.currentViewModelKey] = parentViewModel
+        userInfo[.currentModelKey] = parentModel
         userInfo[.propertyNamesKey] = parentPropertyNames
 
         return result
     }
 }
 
-private extension ViewModel {
-    /// Returns the property names for the ViewModel and all embedded ViewModels
+private extension RetrievablePropertyNames {
+    /// Returns the property names for the RetrievablePropertyNames and all embedded RetrievablePropertyNamess
     func allPropertyNames() -> [LocalizableId: String] {
         var result = propertyNames()
 
         let mirror = Mirror(reflecting: self)
 
         for child in mirror.children {
-            if let viewModel = child.value as? ViewModel {
-                for (key, value) in viewModel.allPropertyNames() {
+            if let model = child.value as? RetrievablePropertyNames {
+                for (key, value) in model.allPropertyNames() {
                     result[key] = value
                 }
             }
@@ -159,7 +162,7 @@ private extension ViewModel {
 }
 
 // Restating from JSONEncoder
-extension ViewModelEncoder: @unchecked Sendable {}
+extension LocalizingEncoder: @unchecked Sendable {}
 
 private extension Encoder {
     /// Returns the **Locale** that is to be used during the encoding phase
@@ -184,8 +187,8 @@ extension Encoder {
     //    Right now, the model is only used by the substitution localizers
     //    (e.g., LocalizedCompoundString, LocalizeSubs).
 
-    func currentViewModel<T: ViewModel>(for type: T.Type) -> T? {
-        userInfo[.currentViewModelKey] as? T
+    func currentModel<T>(for type: T.Type) -> T? {
+        userInfo[.currentModelKey] as? T
     }
 
     func propertyNameBindings() -> [LocalizableId: String]? {
@@ -193,8 +196,8 @@ extension Encoder {
     }
 }
 
-extension ViewModel { // Internal for testing
-    /// - Returns: [<LocalizableId> : <ViewModel property name>]
+extension RetrievablePropertyNames { // Internal for testing
+    /// - Returns: [<LocalizableId> : <RetrievablePropertyNames property name>]
     func propertyNames() -> [LocalizableId: String] {
         let mirror = Mirror(reflecting: self)
         let trimChars = CharacterSet(charactersIn: "_")
@@ -258,18 +261,11 @@ extension CodingUserInfoKey { // Internal for testing
         CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_pRoPerTy_NamEs*_")!
     }
 
-    static var currentViewModelKey: CodingUserInfoKey {
-        CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_curRenT_vIew_MOdel*_")!
+    static var currentModelKey: CodingUserInfoKey {
+        CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_curRenT_MOdel*_")!
     }
 }
 
-private struct ___Model: ViewModel {
-    // REVIEWED: This code will never be covered, we only use the type
-    var vmId: ViewModelId = .init()
-
+private struct ___Model: RetrievablePropertyNames {
     func propertyNames() -> [LocalizableId: String] { [:] }
-
-    static func stub() -> ___Model {
-        .init()
-    }
 }

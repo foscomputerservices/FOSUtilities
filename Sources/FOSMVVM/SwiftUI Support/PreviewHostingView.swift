@@ -23,23 +23,23 @@ public extension ViewModelView {
     /// Creates an instance of the ``ViewModelView`` and it's corresponding ``ViewModel`` that
     /// will be bound with stub data and with all ``LocalizedString`` values bound to their localized
     /// values
-    /// 
+    ///
     /// ## Example:
-    /// 
+    ///
     /// ```swift
     /// public struct MyViewModel: ViewModel {
     ///     @LocalizedString public var title
     /// }
-    /// 
+    ///
     /// struct MyView: ViewModelView {
-    /// 
+    ///
     ///     let viewModel: MyViewModel
-    /// 
+    ///
     ///     var body: some View {
     ///         Text(viewModel.title)
     ///     }
     /// }
-    /// 
+    ///
     /// #Preview {
     ///     MyView.previewHost()
     /// }
@@ -87,7 +87,7 @@ public extension ViewModelView {
     /// ```
     ///
     /// - Parameters:
-    ///   - resourceDirectoryName: The directory name that contains the resources (default: "")
+    ///   - resourceDirectoryName: The directory name within the app bundle that contains localization resources (e.g., YAML files) (default: "")
     ///   - locale: The locale to lookup the YAML bindings for (default: Locale.current)
     ///   - viewModel: A ViewModel that will be provided to the ViewModelView (default: .stub())
     ///   - setStates: A function that can modify the ViewModelView instance (default: nil)
@@ -130,7 +130,7 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
                 localizationStore: localizationStore,
                 viewModel: viewModel
             ))
-            .setStates(modifier: setStates ?? { _ in Void() })
+            .setStates(modifier: setStates ?? { _ in () })
             .preferredColorScheme(ColorScheme.light)
             .environment(mmEnv(resourceDirectoryName: resourceDirectoryName))
         } else {

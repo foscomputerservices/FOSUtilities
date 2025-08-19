@@ -151,8 +151,8 @@ extension DeviceViewModel: ClientHostedViewModelFactory {
     }
 }
 
-public final class DeviceViewModelRequest: ViewModelRequest {
-    public let responseBody: DeviceViewModel?
+public final class DeviceViewModelRequest: ViewModelRequest, @unchecked Sendable {
+    public var responseBody: DeviceViewModel?
 
     public init(
         query: EmptyQuery?,

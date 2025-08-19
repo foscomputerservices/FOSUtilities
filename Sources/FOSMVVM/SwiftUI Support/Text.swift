@@ -38,8 +38,12 @@ public extension Text {
     ///   }
     /// }
     /// ```
-    init(_ localizable: some Localizable) {
-        self.init((try? localizable.localizedString) ?? "")
+    init(_ localizable: some Localizable, defaultValue: String? = nil) {
+        self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue))
+    }
+
+    init(_ localizable: (some Localizable)?, defaultValue: String? = nil) {
+        self.init(localizable?.defaultedLocalizedString(defaultValue: defaultValue) ?? defaultValue ?? "")
     }
 }
 
@@ -52,7 +56,7 @@ public extension Localizable {
 private struct LocalizableResolverView<L: Localizable>: View {
     let localizable: L
 
-    @State private var value: String? = nil
+    @State private var value: String?
     @Environment(\.locale) private var locale
     @Environment(MVVMEnvironment.self) private var mvvmEnv
 

@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSMVVM
 import Vapor
 
@@ -22,12 +21,12 @@ public extension RoutesBuilder {
     // NOTE: At this time, an overload that registers a
     //   ViewModelRequest directly is not provided.  The
     //   thinking is that by keeping ViewModel and its
-    //   ViewModelRequest tightly bound vai RequestableViewModel,
+    //   ViewModelRequest tightly bound via RequestableViewModel,
     //   the entire suite of types corresponding to a ViewModel
     //   is type bound and thus checked at compile time.  This
     //   directs the user to the types that they need to implement.
 
-    /// Enables a ``ViewModel`` instance to be available via
+    /// Enables a *ViewModel* instance to be available via
     /// Vapor's [routing](https://docs.vapor.codes/basics/routing/)
     ///
     /// ## Example
@@ -38,15 +37,14 @@ public extension RoutesBuilder {
     /// }
     /// ```
     ///
-    /// > Note: ``ServerRequest`` provides a protocol extension that
-    /// >   sets ``ServerRequest/path`` based on the ``ServerRequest/RequestBody``
-    /// >   and ``ServerRequest/ResponseBody`` types.   Thus, the route's path is
+    /// >  *ServerRequest* provides a protocol extension that
+    /// >   sets *ServerRequest/path* based on the *ServerRequest/RequestBody*
+    /// >   and *ServerRequest/ResponseBody* types.   Thus, the route's path is
     /// >   automatically maintained and there is never a path collision or confusion between
     /// >   the client and server.
     ///
-    /// - Parameter viewModel: A ``RequestableViewModel`` to register
+    /// - Parameter viewModel: A *RequestableViewModel* to register
     func register<Model>(viewModel: Model.Type) throws where Model: RequestableViewModel & VaporViewModelFactory, Model.Request.ResponseBody == Model {
         try register(collection: VaporServerRequestHost<Model.Request>())
     }
 }
-#endif

@@ -80,10 +80,13 @@ public func expectVersionedViewModel<VM>(_ viewModelType: VM.Type, version: Syst
     let testFileDirectory = fixedTestFilePath ?? fileMgr.testFileDirectory(basePath: file)
     let testFilePath = version.testFilePath(for: viewModelType, testFileDirectory: testFileDirectory)
 
-    try fileMgr.ensureDirectoryExists(at: testFileDirectory)
-
     // If we've not already stored this version, store it now
-    if !fileMgr.fileExists(atPath: testFilePath.path) {
+    //
+    // No need to store Client-Hosted view models as they
+    // are always rebuilt alongside of the application and
+    // cannot be out of date
+    if !fileMgr.fileExists(atPath: testFilePath.path),
+       !(viewModelType is (any ClientHostedViewModelFactory.Type)) {
         let instance = viewModelType.stub()
         let encoder = encoder ?? JSONEncoder()
         let encodedData = try encoder.encode(instance)
@@ -92,6 +95,7 @@ public func expectVersionedViewModel<VM>(_ viewModelType: VM.Type, version: Syst
             throw FOSCodableError.error(message + "Encoded 0 bytes")
         }
 
+        try fileMgr.ensureDirectoryExists(at: testFileDirectory)
         try encodedData.write(to: testFilePath)
     }
 
@@ -118,7 +122,13 @@ private extension FileManager {
     }
 
     func testFiles(for type: (some Any).Type, testFileDirectory: URL) throws -> [URL] {
-        try contentsOfDirectory(atPath: testFileDirectory.path())
+        let path = testFileDirectory.path()
+
+        guard FileManager.default.fileExists(atPath: path) else {
+            return []
+        }
+
+        return try contentsOfDirectory(atPath: path)
             .filter { $0.hasSuffix(".json") }
             .filter { $0.hasPrefix("\(type)_") }
             .map { testFileDirectory.appending(path: $0) }

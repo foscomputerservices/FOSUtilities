@@ -21,7 +21,7 @@ import Foundation
 /// The ``ServerRequest`` protocol provides for a standardized way to interact with
 /// web server resources using REST semantics.
 ///
-/// A typical usage of ``ServerRequest`` that retrieves a record from the database
+/// A typical usage of ``ServerRequest`` that retrieves a model from the database
 /// might look as follows:
 ///
 /// ```swift
@@ -34,7 +34,7 @@ import Foundation
 ///     var responseBody: ResponseBody?
 ///
 ///     struct Query: SystemQuery {
-///         let recordId: Int
+///         let modelId: Int
 ///     }
 ///
 ///     struct ResponseBody: ServerRequestBody {
@@ -51,12 +51,13 @@ public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable, Senda
     associatedtype ResponseBody: ServerRequestBody
 
     static var path: String { get }
+    static var baseTypeName: String { get }
 
     var action: ServerRequestAction { get }
     var query: Query? { get }
     var fragment: Fragment? { get }
     var requestBody: RequestBody? { get }
-    var responseBody: ResponseBody? { get }
+    var responseBody: ResponseBody? { get set }
 
     init(query: Query?, fragment: Fragment?, requestBody: RequestBody?, responseBody: ResponseBody?)
 }
@@ -79,11 +80,14 @@ public extension ServerRequest {
         let responseBodyPath = ResponseBody.bodyPath.cleanBodyPath
 
         return basePath
+            .replacingOccurrences(of: Self.baseTypeName, with: "")
             .cleanBasePath
             .appending(requestBodyPath + responseBodyPath)
             .snakeCased()
             .trimmingCharacters(in: .init(charactersIn: "_"))
     }
+
+    static var baseTypeName: String { "" }
 }
 
 public extension URL {
@@ -111,19 +115,22 @@ public extension URL {
 }
 
 public extension ServerRequest where Query == EmptyQuery {
-    var query: EmptyQuery { .init() }
+    var query: EmptyQuery? { .init() }
 }
 
 public extension ServerRequest where Fragment == EmptyFragment {
-    var fragment: EmptyFragment { .init() }
+    var fragment: EmptyFragment? { .init() }
 }
 
 public extension ServerRequest where RequestBody == EmptyBody {
-    var requestBody: EmptyBody { .init() }
+    var requestBody: EmptyBody? { .init() }
 }
 
 public extension ServerRequest where ResponseBody == EmptyBody {
-    var responseBody: EmptyBody { .init() }
+    var responseBody: EmptyBody? {
+        get { .init() }
+        set {} // swiftlint:disable:this unused_setter_value
+    }
 }
 
 // MARK: Equatable
@@ -155,21 +162,6 @@ private extension String {
 }
 
 public extension ServerRequest {
-    /// Returns a nil ``Query``
-    var query: Query? { nil }
-
-    /// Returns a nil ``Fragment``
-    var fragment: Fragment? { nil }
-
-    /// Returns a nil ``RequestBody``
-    var requestBody: RequestBody? { nil }
-
-    /// Returns a nil ``ResponseBody``
-    var responseBody: ResponseBody? {
-        get { nil }
-        set {} // swiftlint:disable:this unused_setter_value
-    }
-
     // MARK: Hashable Protocol
 
     func hash(into hasher: inout Hasher) {
@@ -184,22 +176,27 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
     /// - Note: Creates a **GET** HTTP Request
     case show
 
-    /// Create a new record from the given data
+    /// Create a new model from the given data
     ///
     /// - Note: Creates a **POST** HTTP Request
     case create
 
-    /// The server should destroy an existing record
+    /// The server should "soft" delete an existing model
     ///
     /// - Note: Creates a **DELETE** HTTP Request
     case delete
 
-    /// The server should update an existing record with the given data
+    /// The server should destroy an existing model
+    ///
+    /// - Note: Creates a **DELETE** HTTP Request
+    case destroy
+
+    /// The server should update an existing model with the given data
     ///
     /// - Note: Creates a **PATCH** HTTP Request
     case update
 
-    /// Replace an existing record with the given data
+    /// Replace an existing model with the given data
     ///
     /// - Note: Creates a **PUT** HTTP Request
     case replace
@@ -209,6 +206,7 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
     public static var PUT: Self { .replace }
     public static var PATCH: Self { .update }
     public static var DELETE: Self { .delete }
+    public static var DESTROY: Self { .destroy }
 }
 
 /// Data that will be encoded into the HTTP Query

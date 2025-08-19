@@ -28,7 +28,7 @@ public extension URLRequest {
 
     /// Adds an HTTPHeader that includes the given *systemVersion*
     mutating func addSystemVersioningHeader(systemVersion: SystemVersion) {
-        setValue(systemVersion.versionString, forHTTPHeaderField: Self.systemVersioningHeader)
+        setValue("\"\(systemVersion.versionString)\"", forHTTPHeaderField: Self.systemVersioningHeader)
     }
 }
 
@@ -44,7 +44,7 @@ public extension SystemVersion {
     /// try await url.fetch(headers: SystemVersion.current.versioningHeaders)
     /// ```
     var versioningHeaders: [(field: String, value: String)] { [
-        (field: URLRequest.systemVersioningHeader, value: versionString)
+        (field: URLRequest.systemVersioningHeader, value: "\"\(versionString)\"")
     ] }
 }
 

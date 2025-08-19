@@ -51,7 +51,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 /// # Preferred Example: ViewModel and Property Wrapper
 ///
 /// ```swift
-/// struct MyViewModel: ViewModel {
+/// @ViewModel struct MyViewModel {
 ///    @LocalizedString("property") var property
 ///
 ///    init() { }
@@ -61,7 +61,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 /// ## Alternative Example: Manual Binding
 ///
 /// ``` swift
-/// struct MyViewModel {
+/// struct MyViewModel: ViewModel {
 ///    let property: LocalizableString
 ///
 ///    init() {
@@ -73,7 +73,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 /// ## Alternative Example: Property Field Wrapper
 ///
 /// ```swift
-/// struct MyViewModel {
+/// struct MyViewModel: ViewModel {
 ///    @LocalizedPropertyField<MyType, LocalizableString>("property") var property: LocalizableString
 ///
 ///    init() { }
@@ -125,7 +125,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 /// #### Example
 ///
 /// ```swift
-/// struct UserViewModel: ViewModel {
+/// @ViewModel struct UserViewModel {
 ///      @LocalizedString(parentKeys: "property") var shortTitle
 ///      @LocalizedString(parentKeys: "property") var longTitle
 /// }
@@ -146,7 +146,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 /// #### Example
 ///
 /// ```swift
-/// struct UserViewModel: ViewModel {
+/// @ViewModel struct UserViewModel {
 ///      @LocalizedString(propertyName: "titles", index: 0) var firstTitle
 ///      @LocalizedString(propertyName: "titles", index: 1) var secondTitle
 /// }
@@ -161,7 +161,7 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 /// ```
 ///
 
-public extension ViewModel {
+public extension RetrievablePropertyNames {
     // NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedString = _LocalizedProperty<Self, LocalizableString>
     typealias LocalizedInt = _LocalizedProperty<Self, LocalizableInt>
@@ -169,7 +169,7 @@ public extension ViewModel {
     typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
 
-@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Hashable, Sendable, Stubbable, Versionable where Model: ViewModel, Value: Localizable {
+@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Hashable, Sendable, Stubbable, Versionable where Model: RetrievablePropertyNames, Value: Localizable {
     private typealias WrappedValueBinder = @Sendable (Model?, String, Encoder) throws -> Value
 
     public var wrappedValue: Value
@@ -181,16 +181,26 @@ public extension ViewModel {
     public var vLast: SystemVersion?
 
     // Identifies this property for property name binding through
-    // ViewModel.propertyNames()
+    // RetrievablePropertyNames.propertyNames()
     public let localizationId: LocalizableId
     private let bindWrappedValue: WrappedValueBinder?
+
+    public init(_ propertyName: String, messageGroup: String? = nil, messageKey: String, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
+        self.init(
+            parentKeys: messageGroup == nil ? [propertyName] : [propertyName, messageGroup!],
+            propertyName: messageKey,
+            index: nil,
+            vFirst: vFirst,
+            vLast: vLast
+        )
+    }
 
     /// Initializes the ``LocalizedString`` property wrapper
     ///
     /// - Parameters:
     ///   - parentKey: If provided, a key that is appended to *propertyName*
     ///   - propertyName: The name of the key to look up in the ``LocalizationStore``
-    ///    under the ``ViewModel`` name.  If no value (default: nil) is provided, the name of the property
+    ///    under the model name.  If no value (default: nil) is provided, the name of the property
     ///    that the *PropertyWrapper* is attached to is used.
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
     ///
@@ -210,7 +220,7 @@ public extension ViewModel {
     /// - Parameters:
     ///   - parentKeys: If provided, a set of keys that are appended to *propertyName*
     ///   - propertyName: The name of the key to look up in the ``LocalizationStore``
-    ///      under the ``ViewModel`` name.  If no value (default: nil) is provided, the name of the property
+    ///      under the model name.  If no value (default: nil) is provided, the name of the property
     ///      that the *PropertyWrapper* is attached to is used.
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
     ///
@@ -227,10 +237,10 @@ public extension ViewModel {
 
     /// Initializes the ``LocalizedString`` property wrapper
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```swift
-    /// struct MyViewModel: ViewModel {
+    /// @ViewModel struct MyViewModel {
     ///     @LocalizedString var aLocalizedSting
     /// }
     /// ```
@@ -238,7 +248,7 @@ public extension ViewModel {
     /// - Parameters:
     ///   - parentKeys: If provided, a set of keys that are appended to *propertyName*
     ///   - propertyName: The name of the key to look up in the ``LocalizationStore``
-    ///      under the ``ViewModel`` name.  If no value (default: nil) is provided, the name of the property
+    ///      under the model name.  If no value (default: nil) is provided, the name of the property
     ///      that the *PropertyWrapper* is attached to is used.
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
     ///
@@ -265,10 +275,10 @@ public extension ViewModel {
 
     /// Initializes the ``LocalizedInt`` property wrapper
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```swift
-    /// struct MyViewModel: ViewModel {
+    /// @ViewModel struct MyViewModel {
     ///     @LocalizeInt(value: 42) var aLocalizedInt
     /// }
     /// ```
@@ -293,10 +303,10 @@ public extension ViewModel {
 
     /// Initializes the ``LocalizedCompoundString`` property wrapper
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ``` swift
-    ///  struct MyViewModel: ViewModel {
+    ///  @ViewModel struct MyViewModel {
     ///    @LocalizedStrings var pieces
     ///    @LocalizedString var separator
     ///    @LocalizedCompoundString(pieces: \._pieces, separator: \._separator) var combined
@@ -315,7 +325,7 @@ public extension ViewModel {
         self.bindWrappedValue = { model, _, encoder throws in
             guard let model else {
                 throw LocalizedPropertyError.internalError(
-                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                    "\(Self.self): Unable to retrieve the current Model instance for property name lookup"
                 )
             }
 
@@ -360,10 +370,10 @@ public extension ViewModel {
     ///
     ///
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ``` swift
-    ///  struct MyViewModel: ViewModel {
+    ///  @ViewModel struct MyViewModel {
     ///    @LocalizeSubs(substitutions: \.substitutions) var aLocalizedSubstitution
     ///    private let substitutions: [String: LocalizableString]
     ///
@@ -384,7 +394,7 @@ public extension ViewModel {
         self.bindWrappedValue = { model, propertyName, _ in
             guard let model else {
                 throw LocalizedPropertyError.internalError(
-                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                    "\(Self.self): Unable to retrieve the current \(Model.self) for property name lookup"
                 )
             }
 
@@ -409,7 +419,7 @@ public extension ViewModel {
         self.bindWrappedValue = { model, propertyName, _ in
             guard let model else {
                 throw LocalizedPropertyError.internalError(
-                    "\(Self.self): Unable to retrieve the current ViewModel for property name lookup"
+                    "\(Self.self): Unable to retrieve the current \(Model.self) for property name lookup"
                 )
             }
 
@@ -458,7 +468,7 @@ public extension _LocalizedProperty {
             }
 
             let wrappedValue = try bindWrappedValue(
-                encoder.currentViewModel(for: Model.self),
+                encoder.currentModel(for: Model.self),
                 propertyName,
                 encoder
             )

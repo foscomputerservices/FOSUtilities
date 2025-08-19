@@ -47,6 +47,30 @@ public enum LocalizableString: Codable, Hashable, Localizable, Identifiable, Stu
     public static func localized(key: String) -> Self {
         .localized(.value(key: key))
     }
+
+    public static func localized(for type: (some Any).Type, parentType: Any.Type? = nil, parentKeys: String..., propertyName: String, index: Int? = nil) -> Self {
+        .localized(
+            .init(
+                for: type,
+                parentType: parentType,
+                parentKeys: parentKeys,
+                propertyName: propertyName,
+                index: index
+            )
+        )
+    }
+
+    public static func localized(for type: (some Any).Type, propertyName: String, messageGroup: String? = nil, messageKey: String) -> Self {
+        .localized(
+            .init(
+                for: type,
+                parentType: nil,
+                parentKeys: messageGroup == nil ? [propertyName] : [propertyName, messageGroup!],
+                propertyName: messageKey,
+                index: nil
+            )
+        )
+    }
 }
 
 public extension LocalizableString {
@@ -137,5 +161,19 @@ public extension LocalizableString {
 
     static func stub(str: String) -> Self {
         .constant(str)
+    }
+}
+
+public extension LocalizableString {
+    static var defaultOkTitle: Self {
+        .localized(.value(keys: "FOSForms", "ok"))
+    }
+
+    static var defaultCancelTitle: Self {
+        .localized(.value(keys: "FOSForms", "cancel"))
+    }
+
+    static var defaultSaveTitle: Self {
+        .localized(.value(keys: "FOSForms", "save"))
     }
 }

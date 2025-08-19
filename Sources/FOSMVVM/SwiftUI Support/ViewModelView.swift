@@ -57,7 +57,7 @@ public enum ViewModelViewError: Error, CustomDebugStringConvertible {
 /// ## Example
 ///
 /// ```swift
-/// public struct MyViewModel: ViewModel {
+/// @ViewModel public struct MyViewModel {
 ///   @LocalizedString public var pageTitle
 /// }
 ///
@@ -82,7 +82,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// ## Example
     ///
     /// ```swift
-    /// public struct MyViewModel: RequestableViewModel {
+    /// @ViewModel public struct MyViewModel: RequestableViewModel {
     ///   @LocalizedString public var pageTitle
     /// }
     ///
@@ -293,7 +293,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// ## Example
     ///
     /// ```swift
-    /// public struct MyViewModel: RequestableViewModel {
+    /// @ViewModel public struct MyViewModel: RequestableViewModel {
     ///   @LocalizedString public var pageTitle
     /// }
     ///
@@ -332,7 +332,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// ## Example
     ///
     /// ```swift
-    /// public struct MyViewModel: RequestableViewModel {
+    /// @ViewModel public struct MyViewModel: RequestableViewModel {
     ///   @LocalizedString public var pageTitle
     ///   public let aState: Bool
     /// }

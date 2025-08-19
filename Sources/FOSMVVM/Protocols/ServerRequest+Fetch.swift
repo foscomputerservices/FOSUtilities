@@ -16,6 +16,9 @@
 
 import FOSFoundation
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 public extension ServerRequest {
     func requestURL(baseURL: URL? = nil) throws -> URL {
@@ -48,15 +51,23 @@ public extension ServerRequest {
         return result
     }
 
-//    func processRequest(baseURL: URL) async throws -> Self {
-//        DataFetch.default.send(
-//            data: <#T##Data#>,
-//            to: requestURL(baseURL: baseURL),
-//            httpMethod: action.httpMethod,
-//            headers: <#T##[(field: String, value: String)]?#>,
-//            errorType: <#T##(Decodable & Error).Protocol#>
-//        )
-//    }
+    #if canImport(SwiftUI)
+    /// Send the ``ServerRequest`` to the web service and wait for a response
+    ///
+    /// Upon receipt of a response from the server, ``responseBody`` will be updated with
+    /// the response from the server.
+    ///
+    /// - Parameter mvvmEnv: The current ``MVVMEnvironment`` for the client application
+    func processRequest(mvvmEnv: MVVMEnvironment) async throws {
+        responseBody = try await DataFetch<URLSession>.default.send(
+            data: toJSONData(),
+            to: requestURL(baseURL: mvvmEnv.serverBaseURL),
+            httpMethod: action.httpMethod,
+            headers: SystemVersion.current.versioningHeaders,
+            locale: Locale.current
+        )
+    }
+    #endif
 }
 
 public enum ServerRequestError: Error, CustomDebugStringConvertible {
@@ -77,7 +88,7 @@ private extension ServerRequestAction {
         case .create: "POST"
         case .update: "PATCH"
         case .replace: "PUT"
-        case .delete: "DELTE"
+        case .delete, .destroy: "DELETE"
         }
     }
 }

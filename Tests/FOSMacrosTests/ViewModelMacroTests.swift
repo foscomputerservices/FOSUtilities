@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if os(macOS) || os(Linux)
+#if os(macOS) || os(Linux) || os(Windows)
 import FOSFoundation
 import FOSMacros
 import Foundation
@@ -53,6 +53,9 @@ final class ViewModelMacroTests: XCTestCase {
 
             extension TestViewModel: ViewModel {
             }
+
+            extension TestViewModel: RetrievablePropertyNames {
+            }
             """#,
             macros: testMacros,
             indentationWidth: .spaces(4)
@@ -85,6 +88,9 @@ final class ViewModelMacroTests: XCTestCase {
 
             extension TestViewModel: ViewModel {
             }
+
+            extension TestViewModel: RetrievablePropertyNames {
+            }
             """#,
             macros: testMacros,
             indentationWidth: .spaces(4)
@@ -113,6 +119,9 @@ final class ViewModelMacroTests: XCTestCase {
                 public func propertyNames() -> [LocalizableId: String] {
                     [:]
                 }
+            }
+
+            extension TestViewModel: RetrievablePropertyNames {
             }
             """#,
             macros: testMacros,
@@ -198,6 +207,9 @@ final class ViewModelMacroTests: XCTestCase {
             extension TestViewModel: ViewModel {
             }
 
+            extension TestViewModel: RetrievablePropertyNames {
+            }
+
             """#,
             macros: testMacros,
             indentationWidth: .spaces(4)
@@ -213,7 +225,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 @LocalizedSubs(substitutions: \.substitutions) public var Title
                 private var substitutions: [String: LocalizableString] { [
-                    "exid": .constant(exid.string(includeCompanyCode: true))
+                    "fred": .constant(fred.string(includeCompanyCode: true))
                 ] }
 
                 @LocalizedString public var connectionTitle
@@ -227,7 +239,7 @@ final class ViewModelMacroTests: XCTestCase {
                 @LocalizedString public var errorMessage
                 @LocalizedString public var errorDismissButtonTitle
 
-                public let exid: EXID
+                public let fred: Fred
 
                 // MARK: RequestableViewModel Protocol
 
@@ -246,8 +258,8 @@ final class ViewModelMacroTests: XCTestCase {
 
                 // MARK: Initialization
 
-                public init(exid: EXID) {
-                    self.init(isStub: false, exid: exid)
+                public init(fred: Fred) {
+                    self.init(isStub: false, fred: fred)
                 }
             }
             """#,
@@ -257,7 +269,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 @LocalizedSubs(substitutions: \.substitutions) public var Title
                 private var substitutions: [String: LocalizableString] { [
-                    "exid": .constant(exid.string(includeCompanyCode: true))
+                    "fred": .constant(fred.string(includeCompanyCode: true))
                 ] }
 
                 @LocalizedString public var connectionTitle
@@ -271,7 +283,7 @@ final class ViewModelMacroTests: XCTestCase {
                 @LocalizedString public var errorMessage
                 @LocalizedString public var errorDismissButtonTitle
 
-                public let exid: EXID
+                public let fred: Fred
 
                 // MARK: RequestableViewModel Protocol
 
@@ -290,8 +302,8 @@ final class ViewModelMacroTests: XCTestCase {
 
                 // MARK: Initialization
 
-                public init(exid: EXID) {
-                    self.init(isStub: false, exid: exid)
+                public init(fred: Fred) {
+                    self.init(isStub: false, fred: fred)
                 }
 
                 public func propertyNames() -> [LocalizableId: String] {
@@ -300,6 +312,9 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension InfoViewModel: ViewModel {
+            }
+
+            extension InfoViewModel: RetrievablePropertyNames {
             }
 
             """#,
@@ -355,8 +370,8 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
-                public final class ClientHostedRequest: ViewModelRequest {
-                    public let responseBody: TestViewModel?
+                public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
+                    public var responseBody: TestViewModel?
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,
@@ -379,6 +394,9 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel: ViewModel {
+            }
+
+            extension TestViewModel: RetrievablePropertyNames {
             }
 
             extension TestViewModel: ClientHostedViewModelFactory, RequestableViewModel {
@@ -436,8 +454,8 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
-                public final class ClientHostedRequest: ViewModelRequest {
-                    public let responseBody: TestViewModel?
+                public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
+                    public var responseBody: TestViewModel?
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,
@@ -457,6 +475,9 @@ final class ViewModelMacroTests: XCTestCase {
                 public func propertyNames() -> [LocalizableId: String] {
                     [_name.localizationId: "name"]
                 }
+            }
+
+            extension TestViewModel: RetrievablePropertyNames {
             }
 
             extension TestViewModel: ClientHostedViewModelFactory, RequestableViewModel {
@@ -514,8 +535,8 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
-                public final class ClientHostedRequest: ViewModelRequest {
-                    public let responseBody: TestViewModel?
+                public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
+                    public var responseBody: TestViewModel?
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,
@@ -538,6 +559,9 @@ final class ViewModelMacroTests: XCTestCase {
             }
 
             extension TestViewModel: ViewModel {
+            }
+
+            extension TestViewModel: RetrievablePropertyNames {
             }
 
             extension TestViewModel: ClientHostedViewModelFactory {

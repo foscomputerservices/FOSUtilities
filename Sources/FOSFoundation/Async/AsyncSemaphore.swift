@@ -103,7 +103,7 @@ public actor AsyncSemaphore {
         }
 
         waiter.1.resume(throwing: CancellationError())
-        waiters.removeAll { $0.0 == id}
+        waiters.removeAll { $0.0 == id }
     }
 }
 

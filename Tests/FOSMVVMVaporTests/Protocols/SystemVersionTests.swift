@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import FOSMVVM
 @testable import FOSMVVMVapor
@@ -126,4 +125,3 @@ private extension SystemVersion {
     static var forth: SystemVersion { .init(major: 2, minor: 0, patch: 0) }
     static var fifth: SystemVersion { .init(major: 3, minor: 3, patch: 1) }
 }
-#endif

@@ -53,16 +53,17 @@ let package = Package(
         var result: [Package.Dependency] = [
             // 🍎 frameworks
             .package(url: "https://github.com/swiftlang/swift-testing.git", revision: "43b6f88e2f2712e0f2a97e6acc75b55f22234299"),
-            .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.3"),
+            .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMajor(from: "1.4.3")),
             .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.10.0")),
-            .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0-latest"),
+            .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
 
             // Third 🥳 frameworks
-            .package(url: "https://github.com/jpsim/Yams.git", from: "5.1.3")
+            .package(url: "https://github.com/jpsim/Yams.git", .upToNextMajor(from: "5.1.3"))
         ]
 
         #if os(macOS) || os(Linux)
-        result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.111.0")))
+        result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.115.1")))
+        result.append(.package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")))
         #endif
 
         return result
@@ -150,7 +151,8 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
                 .byName(name: "FOSMacros"),
-                .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
+                .product(name: "Vapor", package: "Vapor"),
+                .product(name: "FluentKit", package: "fluent-kit"),
                 .product(name: "Yams", package: "Yams")
             ]
         ))
@@ -159,30 +161,15 @@ let package = Package(
             dependencies: [
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
-                .byName(name: "FOSMVVMVapor", condition: .when(platforms: [.macOS, .linux])),
+                .byName(name: "FOSMVVMVapor"),
                 .byName(name: "FOSTesting"),
                 .product(name: "Testing", package: "swift-testing"),
-                .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux]))
-            ]
-        ))
-        result.append(.testTarget(
-            name: "FOSMVVMVaporTests",
-            dependencies: [
-                .byName(name: "FOSFoundation"),
-                .byName(name: "FOSMVVM"),
-                .byName(name: "FOSMVVMVapor"),
-                .byName(name: "FOSMacros"),
-                .byName(name: "FOSTesting"),
-                .byName(name: "FOSTestingVapor"),
-                .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
-                .product(name: "Testing", package: "swift-testing")
-            ],
-            resources: [
-                .copy("TestYAML")
+                .product(name: "Vapor", package: "Vapor")
             ]
         ))
         #endif
 
         return result
-    }()
+    }(),
+    swiftLanguageModes: [.v6]
 )

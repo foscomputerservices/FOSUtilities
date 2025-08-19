@@ -69,8 +69,9 @@ struct SystemVersionTests {
         var urlRequest = URLRequest(url: url)
         let sv = SystemVersion.current
         urlRequest.addSystemVersioningHeader(systemVersion: sv)
+        let jsonVersionString = "\"\(sv.versionString)\""
 
-        #expect(urlRequest.value(forHTTPHeaderField: URLRequest.systemVersioningHeader) == sv.versionString)
+        #expect(urlRequest.value(forHTTPHeaderField: URLRequest.systemVersioningHeader) == jsonVersionString)
     }
 
     @Test func hTTPURLResponseVersioningHeader() throws {

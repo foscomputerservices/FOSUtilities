@@ -46,13 +46,16 @@ import SwiftUI
 ///
 ///     VStack {
 ///       TextField("", text: $data)
-///         .accessibilityIdentifier("data")
+///         .accessibilityIdentifier("dataTextField")
 ///
 ///       Button(action: save) {
 ///         Text("Tap Me")
 ///       }
+///       .accessibilityIdentifier("saveButton")
 ///     }
+///     #if DEBUG
 ///     .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
+///     #endif
 ///   }
 ///
 ///   private func save() {
@@ -69,16 +72,16 @@ import SwiftUI
 ///
 /// public final class MyViewModelStubOps: MyViewModelOperations, @unchecked Sendable {
 ///     public private(set) var data: String?
-///     public private(set) var dataSaved: Bool
+///     public private(set) var saveDataCalled: Bool
 ///
 ///     public func saveData(data: String) {
 ///         self.data = data
-///         dataSaved = true
+///         saveDataCalled = true
 ///     }
 ///
 ///     public init() {
 ///         self.data = nil
-///         self.dataSaved = false
+///         self.saveDataCalled = false
 ///     }
 /// }
 /// ```
@@ -98,15 +101,12 @@ import SwiftUI
 ///     func testSomething() async throws {
 ///         let app = try await presentView()
 ///
-///         app.aField.tap()
-///         app.aField.typeText("some text")
+///         app.dataTextField.tap()
+///         app.dataTextField.typeText("some text")
 ///
 ///         app.saveButton.tap()
 ///
-///         guard let stubOps = try viewModelOperations() else {
-///             XCTFail("Unable to retrieve ViewModelOperations")
-///             return
-///         }
+///         let stubOps = try viewModelOperations()
 ///
 ///         XCTAssertTrue(stubOps.dataSaved)
 ///         XCTAssertEqual(stubOps.data, "some text")
@@ -129,11 +129,13 @@ public struct TestDataTransporter: View {
         if repaintToggle.wrappedValue {
             Text("")
                 .accessibilityIdentifier(Self.accessibilityIdentifier)
+                // swiftlint:disable:next force_try
                 .accessibilityValue(try! viewModelOps.toJSON().obfuscate)
                 .frame(width: 0, height: 0)
         } else {
             Text("")
                 .accessibilityIdentifier(Self.accessibilityIdentifier)
+                // swiftlint:disable:next force_try
                 .accessibilityValue(try! viewModelOps.toJSON().obfuscate)
                 .frame(width: 0, height: 0)
         }

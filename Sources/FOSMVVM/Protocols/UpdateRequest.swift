@@ -1,6 +1,6 @@
-// LoginRequest.swift
+// UpdateRequest.swift
 //
-// Copyright 2024 FOS Computer Services, LLC
+// Copyright 2025 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-public protocol LoginRequest: ViewModelRequest {}
+import FOSFoundation
 
-public extension LoginRequest {
-    var action: ServerRequestAction {
-        .create // POST
-    }
+/// A ``ServerRequest`` that requests that the server **update** a resource
+public protocol UpdateRequest: ServerRequest, Stubbable
+    where RequestBody: ValidatableModel, ResponseBody: UpdateResponse {}
 
-    var viewModel: ResponseBody {
-        responseBody ?? .stub()
-    }
+public extension UpdateRequest {
+    static var baseTypeName: String { "UpdateRequest" }
+
+    var action: ServerRequestAction { .update }
 }
+
+public protocol UpdateResponse: ServerRequestBody {}
+
+extension EmptyBody: UpdateResponse {}

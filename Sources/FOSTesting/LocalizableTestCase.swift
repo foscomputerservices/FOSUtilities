@@ -30,7 +30,7 @@ import Testing
 ///
 ///  ```swift
 ///  @Suite("My Test Suite", .serialized)
-///  final class MyTestSuite: LocalizableTestCase {
+///  struct MyTestSuite: LocalizableTestCase {
 ///
 ///      let locStore: LocalizationStore
 ///      var locales: Set<Locale> {[Self.en, Self.es]}
@@ -72,14 +72,14 @@ public extension LocalizableTestCase {
     ///   - viewModel: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
     ///   - sourceLocation: The **SourceLocation** of the caller
-    func expectTranslations<VM: ViewModel>(_ viewModelType: VM.Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
+    func expectTranslations<Model>(_ viewModelType: Model.Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws where Model: RetrievablePropertyNames & Stubbable {
         for locale in locales ?? self.locales {
-            let vmEncoder = encoder(locale: locale)
-            let vm: VM = try viewModelType.stub()
-                .toJSON(encoder: vmEncoder)
+            let encoder = encoder(locale: locale)
+            let model: Model = try viewModelType.stub()
+                .toJSON(encoder: encoder)
                 .fromJSON()
 
-            let mirror = Mirror(reflecting: vm)
+            let mirror = Mirror(reflecting: model)
             for child in mirror.children {
                 guard let childName = child.label else { continue }
 
@@ -87,11 +87,23 @@ public extension LocalizableTestCase {
                     #expect(!localizable.isEmpty, "\(childName) -- Missing Translation -- \(locale.identifier)", sourceLocation: sourceLocation)
                 }
 
-                if let localizedProperty = child.value as? _LocalizedProperty<VM, LocalizableString> {
+                if let localizedProperty = child.value as? _LocalizedProperty<Model, LocalizableString> {
                     #expect(localizedProperty.wrappedValue.localizationStatus == .localized, "\(childName) -- Is pending localization", sourceLocation: sourceLocation)
                     #expect(!localizedProperty.wrappedValue.isEmpty, "\(childName) -- Missing Translation -- \(locale.identifier)", sourceLocation: sourceLocation)
                 }
             }
+        }
+    }
+
+    func expectTranslations<L>(_ localizable: L, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws where L: Localizable {
+        for locale in locales ?? self.locales {
+            let encoder = encoder(locale: locale)
+            let localized: L = try localizable
+                .toJSON(encoder: encoder)
+                .fromJSON()
+
+            #expect(localized.localizationStatus == .localized, "\(localizable) -- Is pending localization", sourceLocation: sourceLocation)
+            #expect(!localized.isEmpty, "\(localizable) -- Missing Translation -- \(locale.identifier)", sourceLocation: sourceLocation)
         }
     }
 
@@ -101,7 +113,7 @@ public extension LocalizableTestCase {
     ///
     ///   - ``expectCodable(_:encoder:decoder:_:)``
     ///   - ``expectVersionedViewModel(_:version:encoder:decoder:_:fixedTestFilePath:file:line:)-79yr2``
-    ///   - ``expectTranslations(viewModel:locales:sourceLocation:)``
+    ///   - ``expectTranslations(:locales:sourceLocation:)``
     ///
     /// ## Example
     ///
@@ -110,10 +122,10 @@ public extension LocalizableTestCase {
     /// ```
     ///
     /// - Parameters:
-    ///   - viewModel: A *System.Type* of a type that conforms to **ViewModel**
+    ///   - viewModelType: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
     ///   - sourceLocation: The **SourceLocation** of the caller
-    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) async throws {
+    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
         let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
         try expectCodable(viewModelType, encoder: vmEncoder)
@@ -124,6 +136,43 @@ public extension LocalizableTestCase {
             line: sourceLocation.line
         )
         try expectTranslations(viewModelType, locales: locales, sourceLocation: sourceLocation)
+    }
+
+    /// Performs tests to ensure that the **FieldValidationModel**s  complete and stable
+    ///
+    /// This test performs all aspects of automated verification against the **ViewMode**, including:
+    ///
+    ///   - ``expectCodable(_:encoder:decoder:_:)``
+    ///   - ``expectTranslations(:locales:sourceLocation:)``
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// try expectFullFieldValidationModelTests(MyFieldModel.self)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - fieldValidationModelType: A *System.Type* of a type that conforms to **FieldValidationModel**
+    ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
+    ///   - sourceLocation: The **SourceLocation** of the caller
+    func expectFullFieldValidationModelTests(_ fieldValidationModelType: (some FieldValidationModel & FieldValidationModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
+        let encoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
+
+        try expectCodable(fieldValidationModelType, encoder: encoder)
+        try expectTranslations(fieldValidationModelType, locales: locales, sourceLocation: sourceLocation)
+    }
+
+    /// Performs tests to ensure that the **FormField** is complete and stable
+    ///
+    /// - Parameters:
+    ///   - formField: A *FormField* instance to be tested
+    ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
+    ///   - sourceLocation: The **SourceLocation** of the caller
+    func expectFullFormFieldTests(_ formField: FormField<some Codable & Hashable>, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
+        try expectTranslations(formField.title, locales: locales, sourceLocation: sourceLocation)
+        if let placeholder = formField.placeholder {
+            try expectTranslations(placeholder, locales: locales, sourceLocation: sourceLocation)
+        }
     }
 
     static var en: Locale {

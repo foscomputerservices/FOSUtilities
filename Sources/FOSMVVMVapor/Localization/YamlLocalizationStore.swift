@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(Vapor)
 import FOSFoundation
 import FOSMVVM
 import Foundation
@@ -62,7 +61,7 @@ public extension Application {
 
     /// Initializes the YAML Localization services for the Vapor application
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```swift
     /// app.initYamlLocalization(
@@ -97,4 +96,3 @@ private struct YamlLocalizationInitializer: LifecycleHandler {
 private struct YamlLocalizationStore: StorageKey {
     typealias Value = LocalizationStore
 }
-#endif
