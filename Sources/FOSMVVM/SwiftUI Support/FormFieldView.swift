@@ -587,14 +587,14 @@ private extension FormFieldView where Value == Double {
 
 // #Preview {
 //    Form {
-//        FormFieldView<String>(fieldModel: .init(FormField(field: "string", title: .invariant(string: "A String"), placeholder: .invariant(string: "string"), type: .text(inputType: .text))))
+//        FormFieldView<String>(fieldModel: .init(FormField(field: "string", title: constant("A String"), placeholder: constant("string"), type: .text(inputType: .text))))
 //
-//        FormFieldView<Int>(fieldModel: .init(FormField(field: "int", title: .invariant(string: "An Int"), placeholder: .invariant(string: "int"), type: .text(inputType: .number))))
+//        FormFieldView<Int>(fieldModel: .init(FormField(field: "int", title: constant("An Int"), placeholder: constant("int"), type: .text(inputType: .number))))
 //
-//        FormFieldView<Date>(fieldModel: .init(FormField(field: "date", title: .invariant(string: "An Date"), placeholder: .invariant(string: "date"), type: .text(inputType: .date))))
+//        FormFieldView<Date>(fieldModel: .init(FormField(field: "date", title: constant("An Date"), placeholder: constant("date"), type: .text(inputType: .date))))
 //
-//        FormFieldView<String>(fieldModel: .init(FormField(field: "picker", title: .invariant(string: "An Int"), placeholder: .invariant(string: "picker"), type: .select, options: [.selectOptions(options: [
-//            .init(title: .invariant(string: "Picker"), value: "")
+//        FormFieldView<String>(fieldModel: .init(FormField(field: "picker", title: constant("An Int"), placeholder: constant("picker"), type: .select, options: [.selectOptions(options: [
+//            .init(title: constant("Picker"), value: "")
 //        ])])))
 //    }
 // }
