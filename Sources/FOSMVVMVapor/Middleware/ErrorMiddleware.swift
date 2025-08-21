@@ -31,11 +31,11 @@ import Vapor
 /// throw it for the client application to use.
 public final class ErrorMiddleware: AsyncMiddleware {
     /// Error-handling closure.
-    private let closure: @Sendable (Request, Error) -> (Response)
+    private let closure: @Sendable (Request, any Error) -> (Response)
 
     // MARK: Middleware Protocol
 
-    public func respond(to request: Request, chainingTo next: AsyncResponder) async throws -> Response {
+    public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         do {
             return try await next.respond(to: request)
         } catch {
@@ -49,7 +49,7 @@ public final class ErrorMiddleware: AsyncMiddleware {
     ///
     /// - Parameters:
     ///   - closure: Error-handling closure. Converts `Error` to `Response`.
-    @preconcurrency public init(_ closure: @Sendable @escaping (Request, Error) -> (Response)) {
+    @preconcurrency public init(_ closure: @Sendable @escaping (Request, any Error) -> (Response)) {
         self.closure = closure
     }
 }
@@ -64,60 +64,64 @@ public extension ErrorMiddleware {
         .init { req, error in
             let status: HTTPResponseStatus,
                 reason: String,
+                errorData: Data?,
                 source: ErrorSource
             var headers: HTTPHeaders
 
             // Inspect the error type and extract what data we can.
             switch error {
-            case let encodable as Encodable:
+            case let encodable as any Encodable:
                 do {
                     let encoder = try req.localizingEncoder
 
-                    // We're hijacking the 'reason' field and using it to store
-                    // JSON and then letting the caller know by updating the
-                    // HTTP Headers
-                    (reason, status, headers, source) = try (
-                        encodable.toJSON(encoder: encoder),
+                    (reason, errorData, status, headers, source) = try (
+                        "",
+                        encodable.toJSONData(encoder: encoder),
                         .badRequest,
                         [HTTPHeaders.Name.contentType.description: "application/json;charset=utf-8"],
                         .capture()
                     )
                 } catch {
-                    (reason, status, headers, source) = (
+                    (reason, errorData, status, headers, source) = (
                         "Error serializing ViewModelRequestError to JSON: \(error)",
+                        nil,
                         .badRequest,
                         [:],
                         .capture()
                     )
                 }
 
-            case let debugAbort as (DebuggableError & AbortError):
-                (reason, status, headers, source) = (
+            case let debugAbort as (any DebuggableError & AbortError):
+                (reason, errorData, status, headers, source) = (
                     debugAbort.reason,
+                    nil,
                     debugAbort.status,
                     debugAbort.headers,
                     debugAbort.source ?? .capture()
                 )
 
-            case let abort as AbortError:
-                (reason, status, headers, source) = (
+            case let abort as any AbortError:
+                (reason, errorData, status, headers, source) = (
                     abort.reason,
+                    nil,
                     abort.status,
                     abort.headers,
                     .capture()
                 )
 
-            case let describableError as CustomDebugStringConvertible:
-                (reason, status, headers, source) = (
+            case let describableError as any CustomDebugStringConvertible:
+                (reason, errorData, status, headers, source) = (
                     describableError.debugDescription,
+                    nil,
                     .internalServerError,
                     [:],
                     .capture()
                 )
 
-            case let debugErr as DebuggableError:
-                (reason, status, headers, source) = (
+            case let debugErr as any DebuggableError:
+                (reason, errorData, status, headers, source) = (
                     debugErr.reason,
+                    nil,
                     .internalServerError,
                     [:],
                     debugErr.source ?? .capture()
@@ -128,6 +132,7 @@ public extension ErrorMiddleware {
                 reason = environment.isRelease
                     ? "Something went wrong."
                     : String(describing: error)
+                errorData = nil
                 (status, headers, source) = (.internalServerError, [:], .capture())
             }
 
@@ -145,11 +150,19 @@ public extension ErrorMiddleware {
             do {
                 let encoder = try req.localizingEncoder
                 var byteBuffer = req.byteBufferAllocator.buffer(capacity: 0)
-                try encoder.encode(
-                    reason,
-                    to: &byteBuffer,
-                    headers: &headers
-                )
+                if let errorData {
+                    byteBuffer.writeBytes(errorData)
+                    headers.add(
+                        name: HTTPHeaders.Name.contentType,
+                        value: "application/json; charset=utf-8"
+                    )
+                } else {
+                    try encoder.encode(
+                        reason,
+                        to: &byteBuffer,
+                        headers: &headers
+                    )
+                }
 
                 body = .init(
                     buffer: byteBuffer,
