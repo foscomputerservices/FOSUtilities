@@ -54,16 +54,25 @@ struct TestViewModel: RequestableViewModel {
 }
 
 final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = EmptyQuery
     typealias Fragment = EmptyFragment
     typealias RequestBody = EmptyBody
-
+    let query: TestQuery?
     var responseBody: TestViewModel?
 
-    let id: String
+    struct TestQuery: ServerRequestQuery {
+        let id: Int
+    }
 
-    init(query: FOSMVVM.EmptyQuery? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: TestViewModel? = nil) {
-        self.id = .random(length: 10)
+    struct ResponseError: ServerRequestError {
+        let message: LocalizableString?
+
+        init(message: LocalizableString?) {
+            self.message = message
+        }
+    }
+
+    init(query: TestQuery? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TestViewModel? = nil) {
+        self.query = query
         self.responseBody = responseBody
     }
 }
@@ -73,7 +82,7 @@ extension TestViewModel: ViewModelFactory, ViewModelFactoryContext {
 
     // MARK: ViewModelFactory Protocol
 
-    var systemVersion: SystemVersion { .init(major: 1, minor: 0) }
+    var appVersion: SystemVersion { .init(major: 1, minor: 0) }
 
     static func model(context: Context) async throws -> Self {
         .init()

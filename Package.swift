@@ -167,6 +167,21 @@ let package = Package(
                 .product(name: "Vapor", package: "Vapor")
             ]
         ))
+        result.append(.testTarget(
+            name: "FOSMVVMVaporTests",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM"),
+                .byName(name: "FOSMVVMVapor"),
+                .byName(name: "FOSTesting"),
+                .byName(name: "FOSTestingVapor"),
+                .product(name: "Testing", package: "swift-testing"),
+                .product(name: "Vapor", package: "Vapor")
+            ],
+            resources: [
+                .copy("TestYAML")
+            ]
+        ))
         #endif
 
         return result

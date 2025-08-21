@@ -27,26 +27,33 @@ public extension LocalizableTestCase {
     ///
     /// - Parameter localizationStore: The **LocalizationStore** containing localized values to use for the tests (default: self.locStore)
     func vaporApplication(localizationStore: LocalizationStore? = nil) async throws -> Vapor.Application {
-        #warning("Fix me!")
-        fatalError("Fix me!")
-//        let result = try await Application.make()
-//        result.localizationStore = localizationStore ?? locStore
-//
-//        return result
+        let result = try await Application.make()
+        result.localizationStore = localizationStore ?? locStore
+
+        return result
     }
 
     /// Returns a *Vapor.Request*
     ///
     /// - Parameter application: The *Vapor.Application* from which to retrieve the *Vapor.Request*
     /// - Parameter locale: The *Locale* to bind the *Vapor.Request* to (default: Self.en)
-    func vaporRequest(application: Vapor.Application, locale: Locale = Self.en) async throws -> Vapor.Request {
-        Vapor.Request(
-            application: application,
+    func vaporRequest(
+        application: Vapor.Application? = nil,
+        locale: Locale = Self.en
+    ) async throws -> Vapor.Request {
+        let localApp: Application = if let application {
+            application
+        } else {
+            try await vaporApplication()
+        }
+
+        return Vapor.Request(
+            application: localApp,
             method: .GET,
             headers: [
                 HTTPHeaders.Name.acceptLanguage.description: locale.identifier
             ],
-            on: application.eventLoopGroup.next()
+            on: localApp.eventLoopGroup.next()
         )
     }
 }

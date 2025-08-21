@@ -161,7 +161,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+    @MainActor public init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.resourceDirectoryName = resourceDirectoryName
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
@@ -186,7 +186,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    public convenience init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
+    @MainActor public convenience init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,

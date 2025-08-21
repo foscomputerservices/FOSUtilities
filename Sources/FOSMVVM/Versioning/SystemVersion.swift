@@ -21,18 +21,15 @@ import FoundationNetworking
 #endif
 
 public extension URLRequest {
-    /// The custom HTTPHeader to use to store the
-    static var systemVersioningHeader: String {
-        "X-FOS-System-Version"
-    }
-
     /// Adds an HTTPHeader that includes the given *systemVersion*
     mutating func addSystemVersioningHeader(systemVersion: SystemVersion) {
-        setValue("\"\(systemVersion.versionString)\"", forHTTPHeaderField: Self.systemVersioningHeader)
+        setValue("\"\(systemVersion.versionString)\"", forHTTPHeaderField: SystemVersion.httpHeader)
     }
 }
 
 public extension SystemVersion {
+    static let httpHeader = "X-FOS-Version"
+
     /// Returns HTTP headers include the given *systemVersion*
     ///
     /// These headers can be applied to a URL.fetch() request.
@@ -44,7 +41,7 @@ public extension SystemVersion {
     /// try await url.fetch(headers: SystemVersion.current.versioningHeaders)
     /// ```
     var versioningHeaders: [(field: String, value: String)] { [
-        (field: URLRequest.systemVersioningHeader, value: "\"\(versionString)\"")
+        (field: SystemVersion.httpHeader, value: jsonVersionString)
     ] }
 }
 
@@ -54,12 +51,12 @@ public extension HTTPURLResponse {
     /// - Throws: *SystemVersionError* if the ``HTTPURLResponse`` does not specify a version
     var systemVersion: SystemVersion {
         get throws {
-            guard let str = value(forHTTPHeaderField: URLRequest.systemVersioningHeader) else {
+            guard let str = value(forHTTPHeaderField: SystemVersion.httpHeader) else {
                 throw SystemVersionError.missingSystemVersion
             }
 
             guard let version = SystemVersion(str) else {
-                throw SystemVersionError.invalidSystemVersionString(str)
+                throw SystemVersionError.invalidVersionString(str)
             }
 
             return version
@@ -74,7 +71,10 @@ public extension HTTPURLResponse {
         let sv = try systemVersion
 
         guard sv.isCompatible(with: SystemVersion.current) else {
-            throw SystemVersionError.incompatibleSystemAPIVersion(sv.versionString)
+            throw SystemVersionError.incompatibleVersion(
+                requested: sv,
+                required: SystemVersion.current
+            )
         }
     }
 }

@@ -17,31 +17,37 @@
 import Foundation
 
 public enum SystemVersionError: Error, CustomDebugStringConvertible {
-    case invalidSystemVersionString(_ str: String)
+    /// The request did not contain a ``SystemVersion`` specification
     case missingSystemVersion
-    case incompatibleSystemAPIVersion(_ version: String)
+
+    /// The requested version is not compatible with the server's version
+    case incompatibleVersion(requested: SystemVersion, required: SystemVersion)
+
+    /// The provided version string was in the incorrect format. It is expected
+    /// to be of the form 'major.minor.patch' (e.g. '2.1' or '2.1.5').
+    case invalidVersionString(_ str: String)
 
     /// The version string set in the Application's Bundle is in the incorrect format.  It is expected
     /// to be of the form 'major.minor.patch' (e.g. '2.1' or '2.1.5').  This specification is usually found
     /// in the application's .xcodeproj in the General tab in the Identity section and the Version field.
-    case incompatibleApplicationVersionString(_ str: String)
+    case invalidApplicationVersionString(_ str: String)
 
     /// The build string set in the Application's bundle is is in the incorrect format.  It is expected
     /// to be an integer (e.g. '325').  This specification is usually found in the application's .xcodeproj
     /// in the General tab in the Identity section and the Build field.
-    case incompatibleBundleVersionString(_ version: String)
+    case invalidBundleVersionString(_ version: String)
 
     public var debugDescription: String {
         switch self {
-        case .invalidSystemVersionString(let str):
-            "SystemVersionError: Invalid system version string: \(str)"
         case .missingSystemVersion:
             "SystemVersionError: Missing system version"
-        case .incompatibleSystemAPIVersion(let version):
-            "SystemVersionError: Incompatible system API version: \(version)"
-        case .incompatibleApplicationVersionString(let str):
+        case .incompatibleVersion(let requested, let required):
+            "SystemVersionError: Incompatible version \(requested) requested; version \(required) is required."
+        case .invalidVersionString(let str):
+            "SystemVersionError: Invalid system version string: \(str)"
+        case .invalidApplicationVersionString(let str):
             "SystemVersionError: CFBundleShortVersionString is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
-        case .incompatibleBundleVersionString(let str):
+        case .invalidBundleVersionString(let str):
             "SystemVersionError: CFBundleVersion is not in expected format (or missing); expected 2 or 3 integer fields separated by '.', instead found \(str)"
         }
     }
@@ -81,7 +87,7 @@ public struct SystemVersion: Codable, Hashable, LosslessStringConvertible, Stubb
     /// Sets the version of the application
     ///
     /// - NOTE: This should **only be called once during the initialization of the application** as this method is **not** thread-safe!
-    public static func setCurrentVersion(_ version: Self) {
+    @MainActor public static func setCurrentVersion(_ version: Self) {
         current = version
     }
 
@@ -90,7 +96,7 @@ public struct SystemVersion: Codable, Hashable, LosslessStringConvertible, Stubb
     /// - NOTE: The default value is **vInitial**
     ///
     /// - NOTE: This should **only be called once during the initialization of the application** as this method is **not** thread-safe!
-    public static func setMinimumSupportedVersion(_ version: Self) {
+    @MainActor public static func setMinimumSupportedVersion(_ version: Self) {
         current = version
     }
 
@@ -118,6 +124,12 @@ public extension SystemVersion {
     /// Returns a '.' separated string representing the ``SystemVersion``
     var versionString: String {
         "\(major).\(minor).\(patch)"
+    }
+
+    /// Returns a '.' separated string representing the ``SystemVersion`` wrapped in '"'s
+    /// for a standard JSON String
+    var jsonVersionString: String {
+        "\"\(versionString)\""
     }
 
     /// Returns **true** if *rhs* is the same version as *self*
@@ -182,7 +194,7 @@ extension SystemVersion { // Internal for testability
         let string = String(string.trimmingPrefix("v"))
         let fields = Array(string.split(separator: ".").compactMap { Int($0) })
         if fields.count != 3 {
-            throw SystemVersionError.invalidSystemVersionString(string)
+            throw SystemVersionError.invalidVersionString(string)
         }
 
         self.init(

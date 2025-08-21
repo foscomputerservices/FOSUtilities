@@ -31,10 +31,10 @@ struct JSONEncoderVaporTests: LocalizableTestCase {
         defer { Task {
             try await app.asyncShutdown()
         }}
-        let viewModelEncoder = try await vaporRequest(application: app).viewModelEncoder
+        let localizingEncoder = try await vaporRequest(application: app).localizingEncoder
 
         // We're just testing that it functions when configured properly
-        _ = try viewModelEncoder.encode(TestViewModel())
+        _ = try localizingEncoder.encode(TestViewModel())
     }
 
     let locStore: LocalizationStore

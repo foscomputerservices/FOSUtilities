@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS)
 import FOSFoundation
 import FOSMacros
 import Foundation
@@ -31,7 +31,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
     func testViewModelFactoryMethodMacro() throws {
         assertMacroExpansion(
             #"""
-            struct TestViewModel: ViewModel {
+            @ViewModel struct TestViewModel {
                 var name: String { "TestViewModel" }
                 var vmId: FOSMVVM.ViewModelId = .init()
                 static func stub() -> TestViewModel {
@@ -55,7 +55,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             }
             """#,
             expandedSource: #"""
-            struct TestViewModel: ViewModel {
+            @ViewModel struct TestViewModel {
                 var name: String { "TestViewModel" }
                 var vmId: FOSMVVM.ViewModelId = .init()
                 static func stub() -> TestViewModel {
@@ -72,7 +72,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
                 }
 
                 public static func model(context: Int) async throws -> Self {
-                    let version = try context.systemVersion
+                    let version = try context.appVersion
 
                     if version >= SystemVersion(major: 2, minor: 0, patch: 0) {
                     return try await model_v2_0_0(context: context)
@@ -152,7 +152,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
                 }
 
                 public static func model(context: Context) async throws -> Self {
-                    let version = try context.systemVersion
+                    let version = try context.appVersion
 
                     if version >= SystemVersion(major: 2, minor: 0, patch: 0) {
                     return try await model_v2_0_0(context: context)

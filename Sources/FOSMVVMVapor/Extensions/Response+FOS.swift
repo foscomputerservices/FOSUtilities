@@ -78,7 +78,7 @@ private extension Vapor.Response {
 
         // TODO: Add JavaScript cross-origin support
 
-        try response.content.encode(content, using: req.viewModelEncoder)
+        try response.content.encode(content, using: req.localizingEncoder)
 
         return response
     }

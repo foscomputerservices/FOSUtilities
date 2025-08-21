@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS)
 import FOSFoundation
 import FOSMacros
 import Foundation

@@ -1,4 +1,4 @@
-// YamlLocalizationStore.swift
+// Application+FOS.swift
 //
 // Copyright 2025 FOS Computer Services, LLC
 //
@@ -20,28 +20,9 @@ import Foundation
 import Vapor
 import Yams
 
-public extension Request {
-    var locale: Locale? {
-        var result: Locale?
-
-        let accepts = headers[HTTPHeaders.Name.acceptLanguage]
-        for lang in accepts where result == nil {
-            result = Locale(identifier: lang)
-        }
-
-        return result
-    }
-
-    func requireLocale() throws -> Locale {
-        guard let locale else {
-            throw YamlStoreError.noLocaleFound
-        }
-
-        return locale
-    }
-}
-
 public extension Application {
+    /// Provides access to the *LocalizationStore* that is attached to the
+    /// Vapor Application instance.
     var localizationStore: LocalizationStore? {
         get {
             storage[YamlLocalizationStore.self]
@@ -51,6 +32,9 @@ public extension Application {
         }
     }
 
+    /// Retrieves the *LocalizationStore* from the Vapor Application
+    ///
+    /// - Throws: *YamlStoreError.noLocalizationStore* if one has not been attached
     func requireLocalizationStore() throws -> LocalizationStore {
         guard let localizationStore else {
             throw YamlStoreError.noLocalizationStore
@@ -84,7 +68,7 @@ public extension Application {
 private struct YamlLocalizationInitializer: LifecycleHandler {
     let config: YamlStoreConfig
 
-    func willBootAsync(_ app: Application) async throws {
+    fileprivate func willBootAsync(_ app: Application) async throws {
         app.logger.info("Begin: Loading YAML files")
 
         app.localizationStore = try await YamlStore(config: config)

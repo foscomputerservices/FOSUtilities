@@ -53,9 +53,10 @@ struct TestViewModel: RequestableViewModel {
     }
 }
 
-final class TestViewModelRequest: ViewModelRequest {
+final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
-    let responseBody: TestViewModel?
+    var responseBody: TestViewModel?
+    typealias ResponseError = EmptyError
 
     let id: String
 
@@ -65,12 +66,12 @@ final class TestViewModelRequest: ViewModelRequest {
     }
 }
 
-extension TestViewModel: ViewModelFactory, ViewModelFactoryContext {
+extension TestViewModel: ViewModelFactory, ViewModelFactoryContext, Sendable {
     typealias Context = Self
 
     // MARK: ViewModelFactory Protocol
 
-    var systemVersion: SystemVersion { .init(major: 1, minor: 0) }
+    var appVersion: SystemVersion { .init(major: 1, minor: 0) }
 
     static func model(context: Context) async throws -> Self {
         .init()
