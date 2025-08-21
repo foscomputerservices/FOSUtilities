@@ -85,7 +85,7 @@ public extension ServerRequest {
         }
 
         responseBody = try await dataFetch.send(
-            data: toJSONData(),
+            data: requestBody?.toJSONData() ?? Data(),
             to: requestURL(baseURL: baseURL),
             httpMethod: action.httpMethod,
             headers: SystemVersion.current.versioningHeaders,
