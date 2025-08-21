@@ -52,7 +52,6 @@ let package = Package(
     dependencies: {
         var result: [Package.Dependency] = [
             // 🍎 frameworks
-            .package(url: "https://github.com/swiftlang/swift-testing.git", revision: "43b6f88e2f2712e0f2a97e6acc75b55f22234299"),
             .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMajor(from: "1.4.3")),
             .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.10.0")),
             .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
@@ -99,8 +98,7 @@ let package = Package(
                 name: "FOSTesting",
                 dependencies: [
                     .byName(name: "FOSFoundation"),
-                    .byName(name: "FOSMVVM"),
-                    .product(name: "Testing", package: "swift-testing")
+                    .byName(name: "FOSMVVM")
                 ]
             ),
             .target(
@@ -114,8 +112,7 @@ let package = Package(
                 name: "FOSFoundationTests",
                 dependencies: [
                     .byName(name: "FOSFoundation"),
-                    .byName(name: "FOSTesting"),
-                    .product(name: "Testing", package: "swift-testing")
+                    .byName(name: "FOSTesting")
                 ]
             ),
             .testTarget(
@@ -135,8 +132,7 @@ let package = Package(
                     .byName(name: "FOSFoundation"),
                     .byName(name: "FOSMVVM"),
                     .byName(name: "FOSTesting"),
-                    .byName(name: "FOSMacros"),
-                    .product(name: "Testing", package: "swift-testing")
+                    .byName(name: "FOSMacros")
                 ],
                 resources: [
                     .copy("TestYAML")
@@ -163,8 +159,8 @@ let package = Package(
                 .byName(name: "FOSMVVM"),
                 .byName(name: "FOSMVVMVapor"),
                 .byName(name: "FOSTesting"),
-                .product(name: "Testing", package: "swift-testing"),
-                .product(name: "Vapor", package: "Vapor")
+                .product(name: "Vapor", package: "Vapor"),
+                .product(name: "VaporTesting", package: "vapor")
             ]
         ))
         result.append(.testTarget(
@@ -175,7 +171,6 @@ let package = Package(
                 .byName(name: "FOSMVVMVapor"),
                 .byName(name: "FOSTesting"),
                 .byName(name: "FOSTestingVapor"),
-                .product(name: "Testing", package: "swift-testing"),
                 .product(name: "Vapor", package: "Vapor")
             ],
             resources: [
