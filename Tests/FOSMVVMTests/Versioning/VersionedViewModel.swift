@@ -131,8 +131,9 @@ final class TestVersionedViewModelRequest: ViewModelRequest, ViewModelFactoryCon
     typealias Fragment = EmptyFragment
     typealias RequestBody = EmptyBody
     var responseBody: TestVersionedViewModel?
+    typealias ResponseError = EmptyError
 
-    var systemVersion: SystemVersion {
+    var appVersion: SystemVersion {
         get throws {
             .init(major: 3, minor: 0, patch: 0)
         }

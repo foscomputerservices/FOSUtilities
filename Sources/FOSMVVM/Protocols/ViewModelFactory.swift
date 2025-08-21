@@ -17,7 +17,7 @@
 import FOSFoundation
 import Foundation
 
-public enum ViewModelFactoryError: Error, CustomDebugStringConvertible {
+public enum ViewModelFactoryError: Error, Codable, CustomDebugStringConvertible {
     /// The client requested a version of the ``ViewModel`` that is not supported
     case versionNotSupported(_ version: String)
 
@@ -34,12 +34,15 @@ public enum ViewModelFactoryError: Error, CustomDebugStringConvertible {
 }
 
 public protocol ViewModelFactoryContext: Sendable {
-    var systemVersion: SystemVersion { get throws }
+    /// Returns the *SystemVersion* that the (client) application requested
+    var appVersion: SystemVersion { get throws }
 }
 
-public protocol ViewModelFactory {
+/// A factory for creating instances of *ViewModel*
+public protocol ViewModelFactory where Self: ViewModel {
     associatedtype Context: ViewModelFactoryContext
 
+    /// Creates an instance of *ViewModel*
     static func model(context: Context) async throws -> Self
 }
 
@@ -49,7 +52,7 @@ public struct ClientHostedModelFactoryContext<Request: ViewModelRequest, AppStat
     public let vmRequest: Request
     public let appState: AppState
 
-    public var systemVersion: SystemVersion {
+    public var appVersion: SystemVersion {
         SystemVersion.current
     }
 

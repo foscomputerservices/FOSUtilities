@@ -21,6 +21,11 @@ import FoundationNetworking
 #endif
 
 public extension ServerRequest {
+    /// Creates a unique URL for the ``ServerRequest``
+    ///
+    /// - Parameter baseURL: The base *URL* of the web service (e.g., "https://my.server.com")
+    /// - Returns: A *URL* that can be used to process the ``ServerRequest``
+    /// - Throws: ``ServerRequestProcessingError`` if unable to create the URL
     func requestURL(baseURL: URL? = nil) throws -> URL {
         // URLComponents does *not* encode the = or the &
         let queryStr = try query?.toJSON()
@@ -32,7 +37,7 @@ public extension ServerRequest {
             url: baseURL ?? URL(string: "/")!,
             resolvingAgainstBaseURL: true
         ) else {
-            throw ServerRequestError.internalError(
+            throw ServerRequestProcessingError.internalError(
                 message: "Unable to build URLComponents?"
             )
         }
@@ -43,12 +48,52 @@ public extension ServerRequest {
         urlComps.fragment = fragmentStr
 
         guard let result = urlComps.url else {
-            throw ServerRequestError.internalError(
+            throw ServerRequestProcessingError.internalError(
                 message: "Unable to encode URL for type \(String(describing: Self.self))"
             )
         }
 
         return result
+    }
+
+    /// Send the ``ServerRequest`` to the web service and wait for a response
+    ///
+    /// Upon receipt of a response from the server, ``responseBody`` will be updated with
+    /// the response from the server.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let serverRequest = MyServerRequest(/* .. params */)
+    /// let response = try await serverRequest.processRequest(
+    ///     baseURL: URL(string: "https://my.webservice.com")!
+    /// )
+    ///
+    /// assert(response == serverRequest.response)
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - baseURL: The baseURL for the web service
+    ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
+    /// - Returns: ``ServerRequest/ResponseBody``
+    @discardableResult
+    func processRequest(baseURL: URL, session: URLSession? = nil) async throws -> ResponseBody? {
+        let dataFetch: DataFetch<URLSession> = if let session {
+            DataFetch(urlSession: session)
+        } else {
+            .default
+        }
+
+        responseBody = try await dataFetch.send(
+            data: toJSONData(),
+            to: requestURL(baseURL: baseURL),
+            httpMethod: action.httpMethod,
+            headers: SystemVersion.current.versioningHeaders,
+            locale: Locale.current,
+            errorType: Self.ResponseError.self
+        )
+
+        return responseBody
     }
 
     #if canImport(SwiftUI)
@@ -59,24 +104,18 @@ public extension ServerRequest {
     ///
     /// - Parameter mvvmEnv: The current ``MVVMEnvironment`` for the client application
     func processRequest(mvvmEnv: MVVMEnvironment) async throws {
-        responseBody = try await DataFetch<URLSession>.default.send(
-            data: toJSONData(),
-            to: requestURL(baseURL: mvvmEnv.serverBaseURL),
-            httpMethod: action.httpMethod,
-            headers: SystemVersion.current.versioningHeaders,
-            locale: Locale.current
-        )
+        try await processRequest(baseURL: mvvmEnv.serverBaseURL)
     }
     #endif
 }
 
-public enum ServerRequestError: Error, CustomDebugStringConvertible {
+public enum ServerRequestProcessingError: Error, CustomDebugStringConvertible {
     case internalError(message: String)
 
     public var debugDescription: String {
         switch self {
         case .internalError(message: let msg):
-            "ServerRequestError: Internal Error: \(msg)"
+            "ServerRequestProcessingError: Internal Error: \(msg)"
         }
     }
 }

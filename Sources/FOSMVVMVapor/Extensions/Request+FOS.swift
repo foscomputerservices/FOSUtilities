@@ -22,7 +22,7 @@ import FoundationNetworking
 import Vapor
 
 public extension Request {
-    // MARK: Information Retrieval Routines
+    // MARK: Information Retrieval
 
     /// Retrieves the *ServerRequestAction* from the Vapor Request
     ///
@@ -34,19 +34,22 @@ public extension Request {
         try .init(httpMethod: method, uri: url)
     }
 
-    /// Retrieves the *SystemVersion* from the Vapor Request
+    // MARK: Compatibility
+
+    /// Retrieves the *SystemVersion* for the Application (client) from the Vapor Request
+    ///
+    /// - Throws: **SystemVersionError.missingSystemVersion** if there is no value for
+    ///   SystemVersion.httpHeader in Request's headers
     func applicationVersion() throws -> SystemVersion {
         guard
-            let versionHeaderData = headers[URLRequest.systemVersioningHeader].first,
+            let versionHeaderData = headers[SystemVersion.httpHeader].first,
             !versionHeaderData.isEmpty
         else {
-            throw Abort(.badRequest)
+            throw SystemVersionError.missingSystemVersion
         }
 
         return try versionHeaderData.fromJSON()
     }
-
-    // MARK: Compatibility and Security Routines
 
     /// Require that the application's *SystemVersion*  is compatible with the server
     ///
@@ -56,7 +59,56 @@ public extension Request {
     func requireCompatibleAppVersion() throws {
         let appVersion = try applicationVersion()
         guard appVersion.isCompatible(with: .current) else {
-            throw Abort(.notAcceptable)
+            throw SystemVersionError.incompatibleVersion(requested: appVersion, required: .current)
+        }
+    }
+
+    // MARK: Localization Support
+
+    /// Converts the [Accept-Language](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language)
+    /// HTTP request header to a *Locale* instance
+    ///
+    /// - Returns: The *Locale* corresponding to the Accept-Language value or
+    ///  *nil* if missing or an invalid value
+    var locale: Locale? {
+        var result: Locale?
+
+        let accepts = headers[HTTPHeaders.Name.acceptLanguage]
+        for lang in accepts where result == nil {
+            result = Locale(identifier: lang)
+        }
+
+        return result
+    }
+
+    /// Converts the [Accept-Language](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language)
+    /// HTTP request header to a *Locale* instance
+    ///
+    /// - Returns: The *Locale* corresponding to the Accept-Language value
+    /// - Throws: *YamlStoreError.noLocaleFound* if missing or an invalid value
+    func requireLocale() throws -> Locale {
+        guard let locale else {
+            throw YamlStoreError.noLocaleFound
+        }
+
+        return locale
+    }
+
+    /// Returns a *JSONEncoder* instance that can localize *Localizable* instances
+    /// according to the Vapor *Request*'s *Locale*
+    ///
+    /// This routine combines the *Request*'s [Accept-Language](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language)
+    /// setting and the *Application*'s *LocalizationStore* to provide a *JSONEncoder*
+    /// that will localize JSON to the *Request*'s specification.
+    ///
+    /// - Throws: *YamlStoreError.noLocaleFound* or *YamlStoreError.noLocalizationStore*
+    ///  if either is missing
+    var localizingEncoder: JSONEncoder {
+        get throws {
+            try JSONEncoder.localizingEncoder(
+                locale: requireLocale(),
+                localizationStore: application.requireLocalizationStore()
+            )
         }
     }
 }

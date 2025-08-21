@@ -23,9 +23,9 @@ public struct VaporModelFactoryContext<Request: ViewModelRequest>: ViewModelFact
     public let req: Vapor.Request
     public let vmRequest: Request
 
-    public var systemVersion: SystemVersion {
+    public var appVersion: SystemVersion {
         get throws {
-            try req.systemVersion
+            try req.applicationVersion()
         }
     }
 

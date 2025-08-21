@@ -61,12 +61,12 @@ public extension Bundle {
     var appleOSVersion: SystemVersion {
         get throws {
             guard let versionStr = object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String else {
-                throw SystemVersionError.invalidSystemVersionString("<missing>")
+                throw SystemVersionError.invalidApplicationVersionString("<missing>")
             }
 
             let fields = versionStr.split(separator: ".").compactMap { Int($0) }
             guard fields.count >= 2, fields.count <= 3 else {
-                throw SystemVersionError.incompatibleApplicationVersionString(versionStr)
+                throw SystemVersionError.invalidApplicationVersionString(versionStr)
             }
 
             return try .init(major: fields[0], minor: fields[1], patch: bundleBuildNumber)
@@ -78,11 +78,11 @@ public extension Bundle {
             guard
                 let bundleVersionStr = object(forInfoDictionaryKey: "CFBundleVersion") as? String
             else {
-                throw SystemVersionError.incompatibleBundleVersionString("<missing>")
+                throw SystemVersionError.invalidBundleVersionString("<missing>")
             }
 
             guard let buildNum = Int(bundleVersionStr) else {
-                throw SystemVersionError.incompatibleBundleVersionString(bundleVersionStr)
+                throw SystemVersionError.invalidBundleVersionString(bundleVersionStr)
             }
 
             return buildNum

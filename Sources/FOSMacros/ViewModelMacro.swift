@@ -217,6 +217,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                 """
                 public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
                     public var responseBody: \(raw: viewModelName)?
+                    public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,

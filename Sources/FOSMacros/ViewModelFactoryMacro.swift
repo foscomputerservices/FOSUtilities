@@ -94,7 +94,7 @@ public struct ViewModelFactoryMacro: MemberMacro {
 
         return ["""
         public static func model(context: \(raw: typeAliasType ?? "Context")) async throws -> Self {
-            let version = try context.systemVersion
+            let version = try context.appVersion
 
             \(raw: versionedModelFuncs)
 

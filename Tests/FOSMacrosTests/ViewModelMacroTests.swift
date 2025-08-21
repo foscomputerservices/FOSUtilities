@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if os(macOS) || os(Linux) || os(Windows)
+#if os(macOS)
 import FOSFoundation
 import FOSMacros
 import Foundation
@@ -372,6 +372,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
                     public var responseBody: TestViewModel?
+                    public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,
@@ -456,6 +457,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
                     public var responseBody: TestViewModel?
+                    public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,
@@ -537,6 +539,7 @@ final class ViewModelMacroTests: XCTestCase {
 
                 public final class ClientHostedRequest: ViewModelRequest, @unchecked Sendable {
                     public var responseBody: TestViewModel?
+                    public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
                         fragment: EmptyFragment? = nil,

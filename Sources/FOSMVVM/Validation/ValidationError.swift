@@ -16,7 +16,7 @@
 
 import Foundation
 
-public struct ValidationError: Error, CustomStringConvertible, CustomDebugStringConvertible, Codable, Sendable {
+public struct ValidationError: ValidatableViewModelRequestError, CustomStringConvertible, CustomDebugStringConvertible {
     public let validations: [ValidationResult]
 
     // MARK: CustomStringConvertible Protocol

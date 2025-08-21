@@ -38,7 +38,7 @@ import Testing
 struct SystemVersionTests {
     // MARK: HTTPURLResponse Tests
 
-    @Test func hTTPURLResponseVersion() throws {
+    @Test @MainActor func hTTPURLResponseVersion() throws {
         let major = 1
         let minor = 2
         let patch = 3
@@ -130,7 +130,7 @@ private extension HTTPURLResponse {
             url: URL(string: "http://localhost:8080")!,
             statusCode: 200,
             httpVersion: nil, headerFields: [
-                URLRequest.systemVersioningHeader: version.versionString
+                SystemVersion.httpHeader: version.versionString
             ]
         )!
     }

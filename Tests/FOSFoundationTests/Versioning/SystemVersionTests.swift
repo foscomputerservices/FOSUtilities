@@ -71,14 +71,14 @@ struct SystemVersionTests {
         urlRequest.addSystemVersioningHeader(systemVersion: sv)
         let jsonVersionString = "\"\(sv.versionString)\""
 
-        #expect(urlRequest.value(forHTTPHeaderField: URLRequest.systemVersioningHeader) == jsonVersionString)
+        #expect(urlRequest.value(forHTTPHeaderField: SystemVersion.httpHeader) == jsonVersionString)
     }
 
     @Test func hTTPURLResponseVersioningHeader() throws {
         let url = URL(string: "http://foo.com")!
         let sv = SystemVersion.current
         let urlResponse = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
-            URLRequest.systemVersioningHeader: sv.versionString
+            SystemVersion.httpHeader: sv.versionString
         ])!
 
         #expect(try urlResponse.systemVersion.isSameVersion(as: sv))
@@ -107,7 +107,7 @@ struct SystemVersionTests {
         #expect(!SystemVersion(major: SystemVersion.current.major - 1).isCompatible(with: SystemVersion.current))
     }
 
-    @Test func testSetCurrentVersion() {
+    @Test @MainActor func testSetCurrentVersion() {
         let major = 5
         let minor = 6
         let patch = 7
@@ -125,7 +125,7 @@ struct SystemVersionTests {
         #expect(SystemVersion.current.patch == patch)
     }
 
-    init() {
+    @MainActor init() {
         SystemVersion.setCurrentVersion(.vInitial)
     }
 }

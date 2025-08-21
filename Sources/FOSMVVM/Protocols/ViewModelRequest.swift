@@ -50,13 +50,21 @@
 ///       }
 ///   }
 ///
+///   public struct ResponseError: ServerRequestQuery {
+///       public let userId: Int
+///
+///       public init(userId: Int) {
+///         self.userId = userId
+///       }
+///   }
+///
 ///   public init(
 ///       query: Query? = nil,
 ///       fragment: Fragment? = nil,
 ///       requestBody: RequestBody? = nil,
 ///       responseBody: ResponseBody? = nil
 ///   ) {
-///     self.query = query; self.responseBody = responseBody
+///       self.query = query; self.responseBody = responseBody
 ///   }
 /// }
 /// ```

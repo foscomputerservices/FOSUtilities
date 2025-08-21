@@ -49,6 +49,7 @@ public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable, Senda
     associatedtype Fragment: ServerRequestFragment
     associatedtype RequestBody: ServerRequestBody
     associatedtype ResponseBody: ServerRequestBody
+    associatedtype ResponseError: ServerRequestError
 
     static var path: String { get }
     static var baseTypeName: String { get }
@@ -170,7 +171,7 @@ public extension ServerRequest {
 }
 
 /// A `ServerRequestAction` tells the server how to handle the data that is submitted
-public enum ServerRequestAction: String, Codable, CaseIterable, Hashable {
+public enum ServerRequestAction: String, Codable, CaseIterable, Hashable, Sendable {
     /// Retrieve the requested information
     ///
     /// - Note: Creates a **GET** HTTP Request
@@ -214,11 +215,11 @@ public protocol ServerRequestQuery: Codable, Hashable, Sendable {}
 
 /// Represents an empty query
 ///
-/// When implementing a *SystemRequest* that does not
+/// When implementing a *ServerRequest* that does not
 /// have a query element, the request can be defined as:
 ///
 /// ```swift
-/// final class MyRequest: SystemRequest {
+/// final class MyRequest: ServerRequest {
 ///     ...
 ///     typealias Query = EmptyQuery
 ///     ...
@@ -233,11 +234,11 @@ public protocol ServerRequestFragment: Codable, Hashable, Sendable {}
 
 /// Represents an empty query
 ///
-/// When implementing a *SystemRequest* that does not
+/// When implementing a *ServerRequest* that does not
 /// have a query element, the request can be defined as:
 ///
 /// ```swift
-/// final class MyRequest: SystemRequest {
+/// final class MyRequest: ServerRequest {
 ///     ...
 ///     typealias Fragment = EmptyFragment
 ///     ...
@@ -282,7 +283,7 @@ public extension ServerRequestBody {
 /// have a body, the request can be defined as:
 ///
 /// ```swift
-/// final class MyRequest: SystemRequest {
+/// final class MyRequest: ServerRequest {
 ///     ...
 ///     typealias RequestBody = EmptyQuery
 ///     typealias ResponseBody = EmptyQuery
@@ -293,4 +294,47 @@ public struct EmptyBody: ServerRequestBody {
     public init() {}
 
     public static var bodyPath: String { "" }
+}
+
+/// A custom *Error* implementation that the server will send in the event of an error
+///
+/// If the server encounters an error, it can return JSON in the response body.  If
+/// the response body cannot be converted into ``ServerRequest/responseBody->ResponseBody?``,
+/// then an attempt will be made to convert it to ``ServerRequest/ResponseError``.  The resulting
+/// error will be thrown by the requesting api.
+///
+/// ## Example
+///
+/// ```swift
+/// struct ServerResponse: Codable, Sendable {
+///   let validServerResponse: String
+/// }
+///
+/// struct ServerRequestError: Error, Codable, Sendable {
+///    let errorMessage: String
+/// }
+///
+/// final class MyRequest: ServerRequest {
+///     ...
+///     typealias ResponseBody = ServerResponse
+///     typealias ResponseError = ServerRequestError
+///     ...
+/// }
+/// ```
+public protocol ServerRequestError: Error, Codable, Sendable {}
+
+/// Represents that no error is expected
+///
+/// When implementing a *ServerRequest* that does not
+/// have a well defined error result, the request can be defined ad:
+///
+/// ```swift
+/// final class MyRequest: ServerRequest {
+///     ...
+///     typealias ResponseError = EmptyError
+///     ...
+/// }
+/// ```
+public struct EmptyError: ServerRequestError {
+    public init() {}
 }
