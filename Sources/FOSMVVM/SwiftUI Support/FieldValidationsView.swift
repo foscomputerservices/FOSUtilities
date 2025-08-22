@@ -31,7 +31,7 @@ struct FieldValidationsView<Wrapped: View>: View {
     @Environment(Validations.self) private var validations
 
     var body: some View {
-        if let message = validationErrorMessage {
+        if let message = validationErrorMessage, !message.message.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
                 wrappedView
                 Text(message.message)
