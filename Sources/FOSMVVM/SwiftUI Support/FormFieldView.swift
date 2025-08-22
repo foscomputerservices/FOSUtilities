@@ -43,9 +43,9 @@ import SwiftUI
 /// }
 /// ```
 public struct FormFieldView<Value>: View where Value: Codable & Hashable {
-    @State private var fieldModel: FormFieldModel<Value>
+    private let fieldModel: FormFieldModel<Value>
+    private let focusField: FocusState<FormFieldIdentifier?>.Binding
     @State private var hasChanged = false
-    @FocusState private var hasFocus: Bool
 
     let fieldValidator: (([FormFieldBase]?) -> [ValidationResult]?)?
     let validations: Validations?
@@ -57,15 +57,17 @@ public struct FormFieldView<Value>: View where Value: Codable & Hashable {
 
     public var body: some View {
         fieldView
-            .focused($hasFocus)
+            .id("FormField.\(fieldModel.formField.fieldId.id)")
+            .focused(focusField, equals: fieldModel.formField.fieldId)
             .withValidations(for: fieldModel)
-            .onChange(of: hasFocus) {
-                guard hasChanged, Self.validateIt(
-                    fieldModel: fieldModel,
-                    fieldValidator: fieldValidator,
-                    validations: validations
-                ) == true else {
-                    return
+            .onChange(of: focusField.wrappedValue) {
+                if hasChanged {
+                    Self.validateIt(
+                        fieldModel: fieldModel,
+                        fieldValidator: fieldValidator,
+                        validations: validations
+                    )
+                    hasChanged = false
                 }
             }
     }
@@ -86,13 +88,15 @@ public struct FormFieldView<Value>: View where Value: Codable & Hashable {
     ///   - onSubmit: Called when the user "performs the action (typically, hit the return key)"
     public init(
         fieldModel: FormFieldModel<Value>,
+        focusField: FocusState<FormFieldIdentifier?>.Binding,
         fieldValidator: (([FormFieldBase]?) -> [ValidationResult]?)? = nil,
         validations: Validations? = nil,
         onNewValue: ((Value) -> Void)? = nil,
         newValueDelay: TimeInterval = 0.75,
         onSubmit: ((Value) -> Void)? = nil
     ) {
-        self._fieldModel = .init(wrappedValue: fieldModel)
+        self.fieldModel = fieldModel
+        self.focusField = focusField
         self.fieldValidator = fieldValidator
         self.validations = validations
         self.onNewValue = onNewValue
@@ -144,21 +148,25 @@ public struct FormFieldView<Value>: View where Value: Codable & Hashable {
         .init(
             get: { fieldModel.wrappedValue },
             set: { newValue in
-                if !hasChanged, fieldModel.wrappedValue == newValue {
+                if newValue is String, (newValue as! String).isEmpty {
+                    return
+                }
+                guard fieldModel.wrappedValue != newValue else {
                     return
                 }
 
-                if fieldModel.wrappedValue != newValue {
-                    fieldModel.wrappedValue = newValue
-                    hasChanged = true
+                fieldModel.wrappedValue = newValue
+                hasChanged = true
+                if validations?.validations.isEmpty == false {
+                    validations?.removeAll(fieldIds: [fieldModel.formField.fieldId])
+                }
 
-                    if let str = newValue as? String {
-                        newValueSubject
-                            // swiftlint:disable:next force_cast
-                            .send(str.trimmingCharacters(in: .whitespaces) as! Value)
-                    } else {
-                        newValueSubject.send(newValue)
-                    }
+                if let str = newValue as? String {
+                    newValueSubject
+                        // swiftlint:disable:next force_cast
+                        .send(str.trimmingCharacters(in: .whitespaces) as! Value)
+                } else {
+                    newValueSubject.send(newValue)
                 }
             }
         )
@@ -170,18 +178,18 @@ private extension FormFieldView where Value == String? {
         .init(
             get: { fieldModel.wrappedValue ?? "" },
             set: { newValue in
-                if !hasChanged, fieldModel.wrappedValue == newValue {
+                guard fieldModel.wrappedValue != newValue else {
                     return
                 }
 
-                if fieldModel.wrappedValue != newValue {
-                    fieldModel.wrappedValue = newValue
-                    hasChanged = true
-
-                    fieldModel.wrappedValue = newValue
-                    newValueSubject
-                        .send(newValue.trimmingCharacters(in: .whitespaces))
+                fieldModel.wrappedValue = newValue
+                hasChanged = true
+                if validations?.validations.isEmpty == false {
+                    validations?.removeAll(fieldIds: [fieldModel.formField.fieldId])
                 }
+
+                newValueSubject
+                    .send(newValue.trimmingCharacters(in: .whitespaces))
             }
         )
     }

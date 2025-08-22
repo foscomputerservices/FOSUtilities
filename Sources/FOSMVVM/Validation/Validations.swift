@@ -24,6 +24,14 @@ import Observation
         validations.aggregate
     }
 
+    public var isValid: Bool {
+        !hasError
+    }
+
+    public var hasError: Bool {
+        status == .error
+    }
+
     public var validationError: ValidationError? {
         guard status == .error else { return nil }
 
@@ -65,8 +73,10 @@ import Observation
                 return validation.messages.isEmpty ? nil : validation
             }
 
-            validations = trimmedValidations
-        } else {
+            if validations.count != trimmedValidations.count {
+                validations = trimmedValidations
+            }
+        } else if !validations.isEmpty {
             validations = []
         }
     }
