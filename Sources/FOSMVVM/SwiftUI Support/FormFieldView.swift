@@ -125,7 +125,7 @@ public struct FormFieldView<Value>: View where Value: Codable & Hashable {
             }
     }
 
-    private static func validateIt(
+    @discardableResult private static func validateIt(
         fieldModel: FormFieldModel<Value>,
         fieldValidator: (([FormFieldBase]?) -> [ValidationResult]?)?,
         validations: Validations?
