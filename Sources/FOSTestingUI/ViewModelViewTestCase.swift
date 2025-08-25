@@ -62,7 +62,6 @@ import XCTest
 /// import FOSMVVM
 /// import FOSTesting
 /// import Foundation
-/// import Testing
 /// import XCTest
 ///
 /// final class MyViewUITests: MyViewModelViewTestCase<MyViewModel, MyViewModelStubOperations>, @unchecked Sendable {
