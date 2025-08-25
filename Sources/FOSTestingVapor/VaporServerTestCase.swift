@@ -19,7 +19,6 @@ import FOSFoundation
 @testable import FOSMVVM
 @testable import FOSMVVMVapor
 import Foundation
-import Testing
 import Vapor
 
 public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Request: ServerRequest, Request.ResponseBody: VaporViewModelFactory {
@@ -37,14 +36,14 @@ public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Re
         try await vaporApp.startup()
     }
 
-    public func test(request: Request, locale: Locale, sourceLocation: SourceLocation = #_sourceLocation) async throws -> Request.ResponseBody {
-        let response: Request.ResponseBody = try #require(
-            try await vaporApp.process(
+    public func test(request: Request, locale: Locale) async throws -> Request.ResponseBody {
+        guard let response: Request.ResponseBody = try await vaporApp.process(
                 request: request,
-                locale: locale,
-                sourceLocation: sourceLocation
-            )
-        ) as! Request.ResponseBody // swiftlint:disable:this force_cast
+                locale: locale
+            ) as? Request.ResponseBody
+        else {
+            throw FOSVaporServerError.error("Unable to process request ResponseBody")    
+        }
         return response
     }
 
@@ -54,11 +53,10 @@ public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Re
 }
 
 private extension Application {
-    func process<Request: ServerRequest>(request: Request, locale: Locale, sourceLocation: SourceLocation) async throws -> Request.RequestBody? {
+    func process<Request: ServerRequest>(request: Request, locale: Locale) async throws -> Request.RequestBody? {
         let prefix = "http://localhost"
         guard let url = try URL(string: prefix)?.appending(serverRequest: request) else {
-            #expect(Bool(false), "Unable to derive URL", sourceLocation: sourceLocation)
-            return nil
+            throw FOSVaporServerError.error( "Unable to derive URL")
         }
 
         let headers = HTTPHeaders([
@@ -76,10 +74,32 @@ private extension Application {
         )
 
         let response = try await responder.respond(to: request).get()
-        try #require(response.status == .ok, sourceLocation: sourceLocation)
-        let data = try #require(response.body.data, sourceLocation: sourceLocation)
+        guard response.status == .ok else {
+            throw FOSVaporServerError.error("Received invalid response staus: \(response.status); expected ok")
+        }
+        
+        
+        
+        guard let data = response.body.data else {
+            throw FOSVaporServerError.error("Respone body empty")
+        }
 
         return try data.fromJSON()
+    }
+}
+
+
+public enum FOSVaporServerError: Error, CustomDebugStringConvertible {
+    case error(_ message: String)
+
+    public var debugDescription: String {
+        switch self {
+        case .error(let message): "FOSLocalizableError: \(message)"
+        }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
 

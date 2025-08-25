@@ -17,7 +17,6 @@
 import FOSFoundation
 import FOSMVVM
 import Foundation
-import Testing
 
 /// Performs tests to ensure that the **Codable**s implementation can encode and decode properly
 ///

@@ -19,7 +19,6 @@ import FOSFoundation
 import FOSMVVM
 import FOSTesting
 import Foundation
-import Testing
 import Vapor
 
 public extension LocalizableTestCase {

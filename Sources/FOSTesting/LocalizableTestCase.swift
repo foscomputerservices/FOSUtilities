@@ -17,7 +17,6 @@
 import FOSFoundation
 import FOSMVVM
 import Foundation
-import Testing
 
 /// Extensions to test **Localizable** resources
 ///
@@ -71,8 +70,7 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - viewModel: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    ///   - sourceLocation: The **SourceLocation** of the caller
-    func expectTranslations<Model>(_ viewModelType: Model.Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws where Model: RetrievablePropertyNames & Stubbable {
+    func expectTranslations<Model>(_ viewModelType: Model.Type, locales: Set<Locale>? = nil) throws where Model: RetrievablePropertyNames & Stubbable {
         for locale in locales ?? self.locales {
             let encoder = encoder(locale: locale)
             let model: Model = try viewModelType.stub()
@@ -84,26 +82,37 @@ public extension LocalizableTestCase {
                 guard let childName = child.label else { continue }
 
                 if let localizable = child.value as? (any Localizable) {
-                    #expect(!localizable.isEmpty, "\(childName) -- Missing Translation -- \(locale.identifier)", sourceLocation: sourceLocation)
+                    guard !localizable.isEmpty else {
+                        throw FOSLocalizableError.error("\(childName) -- Missing Translation -- \(locale.identifier)")
+                    }
                 }
 
                 if let localizedProperty = child.value as? _LocalizedProperty<Model, LocalizableString> {
-                    #expect(localizedProperty.wrappedValue.localizationStatus == .localized, "\(childName) -- Is pending localization", sourceLocation: sourceLocation)
-                    #expect(!localizedProperty.wrappedValue.isEmpty, "\(childName) -- Missing Translation -- \(locale.identifier)", sourceLocation: sourceLocation)
+                    guard localizedProperty.wrappedValue.localizationStatus == .localized else {
+                        throw FOSLocalizableError.error("\(childName) -- Is pending localization")
+                    }
+
+                    guard !localizedProperty.wrappedValue.isEmpty else {
+                        throw FOSLocalizableError.error("\(childName) -- Missing Translation -- \(locale.identifier)")
+                    }
                 }
             }
         }
     }
 
-    func expectTranslations<L>(_ localizable: L, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws where L: Localizable {
+    func expectTranslations<L>(_ localizable: L, locales: Set<Locale>? = nil) throws where L: Localizable {
         for locale in locales ?? self.locales {
             let encoder = encoder(locale: locale)
             let localized: L = try localizable
                 .toJSON(encoder: encoder)
                 .fromJSON()
 
-            #expect(localized.localizationStatus == .localized, "\(localizable) -- Is pending localization", sourceLocation: sourceLocation)
-            #expect(!localized.isEmpty, "\(localizable) -- Missing Translation -- \(locale.identifier)", sourceLocation: sourceLocation)
+            guard localized.localizationStatus == .localized else {
+                throw FOSLocalizableError.error("\(localizable) -- Is pending localization")
+            }
+            guard !localized.isEmpty else {
+                throw FOSLocalizableError.error("\(localizable) -- Missing Translation -- \(locale.identifier)")
+            }
         }
     }
 
@@ -113,7 +122,7 @@ public extension LocalizableTestCase {
     ///
     ///   - ``expectCodable(_:encoder:decoder:_:)``
     ///   - ``expectVersionedViewModel(_:version:encoder:decoder:_:fixedTestFilePath:file:line:)-79yr2``
-    ///   - ``expectTranslations(:locales:sourceLocation:)``
+    ///   - ``expectTranslations(:locales:)``
     ///
     /// ## Example
     ///
@@ -124,18 +133,15 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - viewModelType: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    ///   - sourceLocation: The **SourceLocation** of the caller
-    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
+    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil) throws {
         let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
         try expectCodable(viewModelType, encoder: vmEncoder)
         try expectVersionedViewModel(
             viewModelType,
-            encoder: vmEncoder,
-            file: sourceLocation._filePath,
-            line: sourceLocation.line
+            encoder: vmEncoder
         )
-        try expectTranslations(viewModelType, locales: locales, sourceLocation: sourceLocation)
+        try expectTranslations(viewModelType, locales: locales)
     }
 
     /// Performs tests to ensure that the **FieldValidationModel**s  complete and stable
@@ -143,7 +149,7 @@ public extension LocalizableTestCase {
     /// This test performs all aspects of automated verification against the **ViewMode**, including:
     ///
     ///   - ``expectCodable(_:encoder:decoder:_:)``
-    ///   - ``expectTranslations(:locales:sourceLocation:)``
+    ///   - ``expectTranslations(:locales:)``
     ///
     /// ## Example
     ///
@@ -154,12 +160,11 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - fieldValidationModelType: A *System.Type* of a type that conforms to **FieldValidationModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    ///   - sourceLocation: The **SourceLocation** of the caller
-    func expectFullFieldValidationModelTests(_ fieldValidationModelType: (some FieldValidationModel & FieldValidationModel).Type, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
+    func expectFullFieldValidationModelTests(_ fieldValidationModelType: (some FieldValidationModel & FieldValidationModel).Type, locales: Set<Locale>? = nil) throws {
         let encoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
         try expectCodable(fieldValidationModelType, encoder: encoder)
-        try expectTranslations(fieldValidationModelType, locales: locales, sourceLocation: sourceLocation)
+        try expectTranslations(fieldValidationModelType, locales: locales)
     }
 
     /// Performs tests to ensure that the **FormField** is complete and stable
@@ -167,11 +172,10 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - formField: A *FormField* instance to be tested
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    ///   - sourceLocation: The **SourceLocation** of the caller
-    func expectFullFormFieldTests(_ formField: FormField<some Codable & Hashable>, locales: Set<Locale>? = nil, sourceLocation: SourceLocation = #_sourceLocation) throws {
-        try expectTranslations(formField.title, locales: locales, sourceLocation: sourceLocation)
+    func expectFullFormFieldTests(_ formField: FormField<some Codable & Hashable>, locales: Set<Locale>? = nil) throws {
+        try expectTranslations(formField.title, locales: locales)
         if let placeholder = formField.placeholder {
-            try expectTranslations(placeholder, locales: locales, sourceLocation: sourceLocation)
+            try expectTranslations(placeholder, locales: locales)
         }
     }
 
@@ -205,5 +209,19 @@ public extension LocalizableTestCase {
 
     var es: Locale {
         Self.es
+    }
+}
+
+public enum FOSLocalizableError: Error, CustomDebugStringConvertible {
+    case error(_ message: String)
+
+    public var debugDescription: String {
+        switch self {
+        case .error(let message): "FOSLocalizableError: \(message)"
+        }
+    }
+
+    public var localizedDescription: String {
+        debugDescription
     }
 }
