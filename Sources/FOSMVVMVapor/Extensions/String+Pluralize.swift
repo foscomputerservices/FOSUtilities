@@ -26,6 +26,7 @@ extension String {
         "customer": "customers",
         "order": "orders",
         "product": "products",
+        "program": "programs",
         "account": "accounts",
         "address": "addresses",
         "company": "companies",

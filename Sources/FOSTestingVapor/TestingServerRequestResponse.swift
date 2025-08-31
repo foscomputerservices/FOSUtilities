@@ -64,10 +64,6 @@ public extension TestingApplicationTester {
         column: Int = #column,
         afterResponse: (TestingServerRequestResponse<R>) async throws -> Void
     ) async throws -> any TestingApplicationTester {
-        guard let requestBody = request.requestBody else {
-            fatalError()
-        }
-
         let version = try SystemVersion.current.toJSON()
         var headers = headers
         headers.add(name: SystemVersion.httpHeader, value: version)
@@ -75,11 +71,17 @@ public extension TestingApplicationTester {
         headers.add(name: HTTPHeaders.Name.contentType.description, value: "application/json")
         headers.add(name: HTTPHeaders.Name.acceptLanguage.description, value: locale.identifier)
 
+        var path = R.path
+        if let query = request.query,
+           let queryString = try query.toJSON().addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
+            path += "?\(queryString)"
+        }
+
         return try await test(
             request.action.httpMethod,
-            R.path,
+            path,
             headers: headers,
-            body: requestBody.toJSONByteBuffer(),
+            body: request.requestBody.toJSONByteBuffer(),
             fileID: fileID,
             filePath: filePath,
             line: line,

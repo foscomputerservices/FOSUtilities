@@ -155,7 +155,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
-    ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
+    ///   - appBundle: The application's *Bundle* (e.g. *Bundle.main*)
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
@@ -200,6 +200,19 @@ public final class MVVMEnvironment: @unchecked Sendable {
             },
             loadingView: loadingView
         )
+    }
+
+    /// Initializes ``MVVMEnvironment`` for previews
+    ///
+    /// > This overload does **NOT** check the application's version as it is not necessary
+    /// > for previews
+    @MainActor init(currentVersion: SystemVersion? = nil, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+        self.resourceDirectoryName = resourceDirectoryName
+        self.deploymentURLs = deploymentURLs
+        self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
+
+        let currentVersion = currentVersion ?? SystemVersion.current
+        SystemVersion.setCurrentVersion(currentVersion)
     }
 }
 

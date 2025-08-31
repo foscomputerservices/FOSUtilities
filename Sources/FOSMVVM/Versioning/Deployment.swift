@@ -61,6 +61,14 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
     /// connect to a development database, which is typically on the local machine.
     case debug
 
+    /// The deployment configuration for local testing
+    ///
+    /// The **test** deployment indicates that the application environment is
+    /// configured for **local** testing purposes. Client applications will connect to a
+    /// testing web service, which is typically on the local machine.  Server applications will
+    /// connect to a testing database, which is typically on the local machine.
+    case test
+
     /// A custom deployment configuration with a user-specified name
     ///
     /// **Custom** deployments are defined by the application implementer and
@@ -143,6 +151,7 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
         case .production: "production"
         case .staging: "staging"
         case .debug: "debug"
+        case .test: "test"
         case .custom(let name): name
         }
     }

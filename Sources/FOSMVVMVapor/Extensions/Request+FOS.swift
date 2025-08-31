@@ -22,6 +22,46 @@ import FoundationNetworking
 import Vapor
 
 public extension Request {
+    // MARK: ServerRequest Support
+
+    /// Retrieves the *ServerRequestQuery* from the Vapor Request
+    ///
+    /// - Parameter queryType: The concrete type of the *ServerRequestQuery*
+    /// - Returns: The query from the Vapor Request's url, if any
+    func serverRequestQuery<Q: ServerRequestQuery>(ofType queryType: Q.Type) throws -> Q? {
+        guard queryType != EmptyQuery.self else { return nil }
+        guard
+            let rawQueryStr = url.query,
+            !rawQueryStr.isEmpty
+        else {
+            return nil
+        }
+
+        guard
+            let queryStr = rawQueryStr.removingPercentEncoding
+        else {
+            throw Abort(.badRequest)
+        }
+
+        return try queryStr.fromJSON()
+    }
+
+    /// Retrieves the *ServerRequestQuery* from the Vapor Request
+    ///
+    /// Uses ``serverRequestQuery(ofType:)`` to retrieve the *ServerRequestQuery* from
+    /// the Vapor Request.  If no query is found, throws *Abort(.badRequest*.
+    ///
+    /// - Parameter queryType: The concrete type of the *ServerRequestQuery*
+    /// - Returns: The query from the Vapor Request's url
+    /// - Throws: Abort(.badRequest) if no query was provided
+    func requireServerRequestQuery<Q: ServerRequestQuery>(ofType queryType: Q.Type) throws -> Q {
+        guard let query = try serverRequestQuery(ofType: queryType) else {
+            throw Abort(.badRequest)
+        }
+
+        return query
+    }
+
     // MARK: Information Retrieval
 
     /// Retrieves the *ServerRequestAction* from the Vapor Request

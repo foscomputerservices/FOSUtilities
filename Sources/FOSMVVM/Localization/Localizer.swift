@@ -55,9 +55,9 @@ extension Locale {
             return localize(int)
         } /* else if let double = localizable as? LocalizableDouble {
          return try localize(double)
-         } else if let date = localizable as? LocalizableDate {
-         return try localize(date)
-         } */ else {
+         } */ else if let date = localizable as? LocalizableDate {
+            return localize(date)
+        } else {
             throw LocalizerError.unknownLocalizationType(
                 String(describing: localizable.self)
             )
@@ -176,6 +176,7 @@ private extension Locale {
 
         return numFmt.string(from: NSNumber(value: locCurrency.value))
     }
+    #endif
 
     private func localize(_ locDate: LocalizableDate) -> String? {
         let dateFmt = dateFormatter(
@@ -184,9 +185,8 @@ private extension Locale {
             dateFormat: locDate.dateFormat
         )
 
-        return dateFmt.string(from: locDate.date)
+        return dateFmt.string(from: locDate.value)
     }
-    #endif
 
     func intFormatter(showGroupingSeparator: Bool, groupingSize: Int) -> NumberFormatter {
         let numFmt = NumberFormatter()
