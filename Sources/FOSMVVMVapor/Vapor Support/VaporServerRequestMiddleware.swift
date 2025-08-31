@@ -67,17 +67,4 @@ extension Request {
     private struct ServerRequestStorageKey<R: ServerRequest>: StorageKey {
         typealias Value = R
     }
-
-    fileprivate func serverRequestQuery<Q: ServerRequestQuery>(ofType queryType: Q.Type) throws -> Q? {
-        guard queryType != EmptyQuery.self else { return nil }
-        guard
-            let urlQueryStr = url.query,
-            !urlQueryStr.isEmpty,
-            let queryStr = urlQueryStr.removingPercentEncoding
-        else {
-            return nil
-        }
-
-        return try queryStr.fromJSON()
-    }
 }

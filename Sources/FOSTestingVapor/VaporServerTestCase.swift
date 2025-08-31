@@ -38,11 +38,11 @@ public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Re
 
     public func test(request: Request, locale: Locale) async throws -> Request.ResponseBody {
         guard let response: Request.ResponseBody = try await vaporApp.process(
-                request: request,
-                locale: locale
-            ) as? Request.ResponseBody
+            request: request,
+            locale: locale
+        ) as? Request.ResponseBody
         else {
-            throw FOSVaporServerError.error("Unable to process request ResponseBody")    
+            throw FOSVaporServerError.error("Unable to process request ResponseBody")
         }
         return response
     }
@@ -56,7 +56,7 @@ private extension Application {
     func process<Request: ServerRequest>(request: Request, locale: Locale) async throws -> Request.RequestBody? {
         let prefix = "http://localhost"
         guard let url = try URL(string: prefix)?.appending(serverRequest: request) else {
-            throw FOSVaporServerError.error( "Unable to derive URL")
+            throw FOSVaporServerError.error("Unable to derive URL")
         }
 
         let headers = HTTPHeaders([
@@ -77,9 +77,7 @@ private extension Application {
         guard response.status == .ok else {
             throw FOSVaporServerError.error("Received invalid response staus: \(response.status); expected ok")
         }
-        
-        
-        
+
         guard let data = response.body.data else {
             throw FOSVaporServerError.error("Respone body empty")
         }
@@ -87,7 +85,6 @@ private extension Application {
         return try data.fromJSON()
     }
 }
-
 
 public enum FOSVaporServerError: Error, CustomDebugStringConvertible {
     case error(_ message: String)

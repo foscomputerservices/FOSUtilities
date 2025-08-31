@@ -87,11 +87,13 @@ public extension ViewModelView {
     /// ```
     ///
     /// - Parameters:
+    ///   - bundle: The Bundle that contains the resources of the YAML files (default: Bundle.main)
     ///   - resourceDirectoryName: The directory name within the app bundle that contains localization resources (e.g., YAML files) (default: "")
     ///   - locale: The locale to lookup the YAML bindings for (default: Locale.current)
     ///   - viewModel: A ViewModel that will be provided to the ViewModelView (default: .stub())
     ///   - setStates: A function that can modify the ViewModelView instance (default: nil)
     static func previewHost(
+        bundle: Bundle = .main,
         resourceDirectoryName: String = "",
         locale: Locale = .current,
         viewModel: VM = .stub(),
@@ -99,6 +101,7 @@ public extension ViewModelView {
     ) -> some View {
         PreviewHostingView(
             inner: Self.self,
+            bundle: bundle,
             resourceDirectoryName: resourceDirectoryName,
             locale: locale,
             viewModel: viewModel,
@@ -119,6 +122,7 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
     @State private var localizationStore: LocalizationStore?
 
     let inner: Inner.Type
+    let bundle: Bundle
     let resourceDirectoryName: String
     let locale: Locale
     let viewModel: Inner.VM
@@ -137,7 +141,7 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
             Text("Loading...")
                 .task {
                     do {
-                        localizationStore = try await Bundle.main.yamlLocalization(
+                        localizationStore = try await bundle.yamlLocalization(
                             resourceDirectoryName: resourceDirectoryName
                         )
                     } catch {
@@ -149,7 +153,6 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
 
     private func mmEnv(resourceDirectoryName: String) -> MVVMEnvironment {
         MVVMEnvironment(
-            appBundle: Bundle.main,
             resourceDirectoryName: resourceDirectoryName,
             deploymentURLs: [
                 .debug: .init(serverBaseURL: URL(string: "https://localhost:8080")!)

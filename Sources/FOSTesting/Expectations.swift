@@ -51,7 +51,7 @@ public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil,
         _ = try decoder.decode(codableType, from: encodedData)
     } catch let e {
         // swiftlint:disable:next optional_data_string_conversion
-        throw FOSCodableError.error(message + "Exception decoding \(C.self): \(e.localizedDescription) from json \(String(decoding: encodedData, as: UTF8.self))")
+        throw FOSCodableError.error(message + "Exception decoding \(C.self): \(e) from json \(String(decoding: encodedData, as: UTF8.self))")
     }
 }
 

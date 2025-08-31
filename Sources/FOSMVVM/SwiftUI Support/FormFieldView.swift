@@ -148,7 +148,9 @@ public struct FormFieldView<Value>: View where Value: Codable & Hashable {
         .init(
             get: { fieldModel.wrappedValue },
             set: { newValue in
-                if newValue is String, (newValue as! String).isEmpty {
+                if newValue is String,
+                   (newValue as? String) == nil,
+                   (newValue as? String)?.isEmpty == true {
                     return
                 }
                 guard fieldModel.wrappedValue != newValue else {

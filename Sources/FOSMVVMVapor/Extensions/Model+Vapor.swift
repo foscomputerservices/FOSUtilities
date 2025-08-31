@@ -21,12 +21,29 @@ public extension FOSMVVM.Model where Self: AnyModel & Fields {
     // MARK: Fields Protocol
 
     static var schema: String {
-        let singular = String(describing: Self.self).lowercased()
-        guard let plural = singular.pluralize() else {
-            fatalError("Unknown plural for \(singular)")
+        let baseName = String(describing: Self.self).snakeCased()
+        var fields = baseName.split(separator: "_")
+
+        let base: String
+        let ending: String
+
+        if fields.count > 1 {
+            ending = String(fields.removeLast())
+            base = fields.joined(separator: "_")
+        } else {
+            base = ""
+            ending = String(fields[0])
         }
 
-        return plural.snakeCased()
+        guard let plural = ending.pluralize() else {
+            fatalError("Unknown plural for \(ending)")
+        }
+
+        if !base.isEmpty {
+            return [base, plural].joined(separator: "_")
+        } else {
+            return plural
+        }
     }
 }
 

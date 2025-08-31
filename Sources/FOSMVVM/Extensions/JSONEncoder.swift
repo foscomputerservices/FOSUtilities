@@ -143,7 +143,7 @@ private final class LocalizingEncoder: JSONEncoder {
 }
 
 private extension RetrievablePropertyNames {
-    /// Returns the property names for the RetrievablePropertyNames and all embedded RetrievablePropertyNamess
+    /// Returns the property names for the RetrievablePropertyNames and all embedded RetrievablePropertyNames
     func allPropertyNames() -> [LocalizableId: String] {
         var result = propertyNames()
 
@@ -153,6 +153,14 @@ private extension RetrievablePropertyNames {
             if let model = child.value as? RetrievablePropertyNames {
                 for (key, value) in model.allPropertyNames() {
                     result[key] = value
+                }
+            } else if let collection = child.value as? (any Collection) {
+                for child in collection {
+                    if let model = child as? RetrievablePropertyNames {
+                        for (key, value) in model.allPropertyNames() {
+                            result[key] = value
+                        }
+                    }
                 }
             }
         }
