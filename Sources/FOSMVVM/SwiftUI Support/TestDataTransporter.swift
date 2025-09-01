@@ -152,12 +152,12 @@ public struct TestDataTransporter: View {
 public extension View {
     @ViewBuilder func testDataTransporter(viewModelOps: any ViewModelOperations, repaintToggle: Binding<Bool>) -> some View {
         #if DEBUG
-        Group {
-            self
+        ZStack {
             TestDataTransporter(
                 viewModelOps: viewModelOps,
                 repaintToggle: repaintToggle
             )
+            self
         }
         #else
         self
