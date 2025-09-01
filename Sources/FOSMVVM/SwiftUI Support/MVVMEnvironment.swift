@@ -94,6 +94,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// A configuration of server URLs for each given ``Deployment``
     public let deploymentURLs: [Deployment: URLPackage]
 
+    /// A dictionary of values to populate the *URLRequest*'s HTTPHeaderFields
+    public let requestHeaders: [String: String]
+
     /// A view to be presented when the ``ViewModel`` is being requested
     /// from the web service
     ///
@@ -158,11 +161,20 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - appBundle: The application's *Bundle* (e.g. *Bundle.main*)
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
+    ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    @MainActor public init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+    @MainActor public init(
+        currentVersion: SystemVersion? = nil,
+        appBundle: Bundle,
+        resourceDirectoryName: String? = nil,
+        requestHeaders: [String: String] = [:],
+        deploymentURLs: [Deployment: URLPackage],
+        loadingView: (@Sendable () -> AnyView)? = nil
+    ) {
         self.resourceDirectoryName = resourceDirectoryName
+        self.requestHeaders = requestHeaders
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
@@ -183,14 +195,23 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
+    ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    @MainActor public convenience init(currentVersion: SystemVersion? = nil, appBundle: Bundle, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URL], loadingView: (@Sendable () -> AnyView)? = nil) {
+    @MainActor public convenience init(
+        currentVersion: SystemVersion? = nil,
+        appBundle: Bundle,
+        resourceDirectoryName: String? = nil,
+        requestHeaders: [String: String] = [:],
+        deploymentURLs: [Deployment: URL],
+        loadingView: (@Sendable () -> AnyView)? = nil
+    ) {
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,
             resourceDirectoryName: resourceDirectoryName,
+            requestHeaders: requestHeaders,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair
@@ -206,13 +227,13 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// > This overload does **NOT** check the application's version as it is not necessary
     /// > for previews
-    @MainActor init(currentVersion: SystemVersion? = nil, resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
+    @MainActor init(resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
         self.resourceDirectoryName = resourceDirectoryName
+        self.requestHeaders = [:]
         self.deploymentURLs = deploymentURLs
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
-        let currentVersion = currentVersion ?? SystemVersion.current
-        SystemVersion.setCurrentVersion(currentVersion)
+        SystemVersion.setCurrentVersion(SystemVersion.current)
     }
 }
 

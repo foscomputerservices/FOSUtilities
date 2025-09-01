@@ -109,6 +109,37 @@ struct MyApp: App {
 }
 ```
 
+### Binding Authorization to an ``MVVMEnvironment``
+
+Most applications will need to authorize the requests made to the web service at some point in time.  This
+authorization is performed via the HTTP headers transmitted to the web service.  Once the authorization has
+been completed, store the token in the application's state and add the apprpriate header to the
+``MVVMEnvironemnt``.  The headers will be transmitted to the web service on each subsequent request.
+
+```swift
+@main
+struct MyApp: App {
+    @State private var authToken: String?
+
+    var body: some Scene {
+        WindowGroup {
+            LandingPageView.bind()
+        }
+        .environment(
+             MVVMEnvironment(
+                 appBundle: Bundle.main,
+                 requestHeaders: ["Authorization": "Bearer \(authToken ?? "")"],
+                 deploymentURLs: [
+                    .production, .init(serverBaseURL: URL(string: "http://api.mywebserver.com")!),
+                    .staging, .init(serverBaseURL: URL(string: "http://staging-api.mywebserver.com")!),
+                    .debug, .init(serverBaseURL: URL(string: "http://localhost:8080")!)
+                 ]
+            )
+        )
+    }
+}
+```
+
 ### Done!
 
 That is all that needs to be done to allow a client application to retrieve ``ViewModel``s

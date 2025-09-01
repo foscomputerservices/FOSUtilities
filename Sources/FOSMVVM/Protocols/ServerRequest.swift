@@ -111,7 +111,7 @@ public extension URL {
             return nil
         }
 
-        return try [.init(name: "query", value: query.toJSON())]
+        return try [.init(name: query.toJSON(), value: nil)]
     }
 }
 
