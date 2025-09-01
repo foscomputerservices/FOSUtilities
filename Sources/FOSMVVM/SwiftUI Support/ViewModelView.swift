@@ -442,7 +442,7 @@ private struct VMServerResolverView<VM, VMV>: View where
                 responseBody: nil
             )
             let errorType = VM.Request.ResponseError.self == EmptyError.self
-                ? nil 
+                ? nil
                 : VM.Request.ResponseError.self
 
             guard let url = try await mvvmEnv.serverBaseURL.appending(serverRequest: request) else {

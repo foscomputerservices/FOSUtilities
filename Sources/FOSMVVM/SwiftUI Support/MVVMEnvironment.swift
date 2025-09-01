@@ -170,8 +170,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
         appBundle: Bundle,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
-         deploymentURLs: [Deployment: URLPackage],
-         loadingView: (@Sendable () -> AnyView)? = nil
+        deploymentURLs: [Deployment: URLPackage],
+        loadingView: (@Sendable () -> AnyView)? = nil
     ) {
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
