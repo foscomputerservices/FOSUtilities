@@ -32,7 +32,9 @@ extension View {
     func withValidations(for fieldName: String) -> some View {
         FieldValidationsView(wrappedView: self, fieldId: .init(id: fieldName))
     }
+}
 
+public extension View {
     /// Configures the view's title for purposes of navigation,
     /// using a localized string.
     ///
