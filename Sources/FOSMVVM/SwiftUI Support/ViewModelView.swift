@@ -441,25 +441,50 @@ private struct VMServerResolverView<VM, VMV>: View where
                 requestBody: nil,
                 responseBody: nil
             )
+            let errorType = VM.Request.ResponseError.self == EmptyError.self
+                ? nil 
+                : VM.Request.ResponseError.self
 
             guard let url = try await mvvmEnv.serverBaseURL.appending(serverRequest: request) else {
                 return nil
             }
 
+            var httpHeaders = SystemVersion.current.versioningHeaders
+            for (key, value) in mvvmEnv.requestHeaders {
+                httpHeaders.append((field: key, value: value))
+            }
+
             switch request.action {
             case .show:
-                return try await url.fetch(
-                    headers: SystemVersion.current.versioningHeaders,
-                    locale: locale
-                )
+                if let errorType {
+                    return try await url.fetch(
+                        headers: httpHeaders,
+                        locale: locale,
+                        errorType: errorType
+                    )
+                } else {
+                    return try await url.fetch(
+                        headers: httpHeaders,
+                        locale: locale
+                    )
+                }
             case .create:
                 guard let requestBody = request.requestBody else {
                     throw ViewModelViewError.missingRequestBody
                 }
 
-                return try await url.send(
-                    data: requestBody
-                )
+                if let errorType {
+                    return try await url.send(
+                        headers: httpHeaders,
+                        data: requestBody,
+                        errorType: errorType
+                    )
+                } else {
+                    return try await url.send(
+                        headers: httpHeaders,
+                        data: requestBody
+                    )
+                }
             default:
                 throw ViewModelViewError.badServerRequestAction
             }
