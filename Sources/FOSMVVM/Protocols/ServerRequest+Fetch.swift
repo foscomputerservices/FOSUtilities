@@ -74,21 +74,27 @@ public extension ServerRequest {
     ///
     /// - Parameters:
     ///   - baseURL: The baseURL for the web service
+    ///   - headers: Any additional HTTP headers to send to the request
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     /// - Returns: ``ServerRequest/ResponseBody``
     @discardableResult
-    func processRequest(baseURL: URL, session: URLSession? = nil) async throws -> ResponseBody? {
+    func processRequest(baseURL: URL, headers: [(field: String, value: String)]? = nil, session: URLSession? = nil) async throws -> ResponseBody? {
         let dataFetch: DataFetch<URLSession> = if let session {
             DataFetch(urlSession: session)
         } else {
             .default
         }
 
+        var requestHeaders = SystemVersion.current.versioningHeaders
+        if let headers {
+            requestHeaders += headers
+        }
+
         responseBody = try await dataFetch.send(
             data: requestBody?.toJSONData() ?? Data(),
             to: requestURL(baseURL: baseURL),
             httpMethod: action.httpMethod,
-            headers: SystemVersion.current.versioningHeaders,
+            headers: requestHeaders,
             locale: Locale.current,
             errorType: Self.ResponseError.self
         )
@@ -104,7 +110,12 @@ public extension ServerRequest {
     ///
     /// - Parameter mvvmEnv: The current ``MVVMEnvironment`` for the client application
     func processRequest(mvvmEnv: MVVMEnvironment) async throws {
-        try await processRequest(baseURL: mvvmEnv.serverBaseURL)
+        try await processRequest(
+            baseURL: mvvmEnv.serverBaseURL,
+            headers: mvvmEnv.requestHeaders.map { key, value in
+                (field: key, value: value)
+            }
+        )
     }
     #endif
 }
