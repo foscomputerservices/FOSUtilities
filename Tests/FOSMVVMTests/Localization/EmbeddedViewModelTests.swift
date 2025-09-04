@@ -29,6 +29,15 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
         #expect(try vm.innerViewModel.innerString.localizedString == "Inner String")
     }
 
+    @Test func embeddedLocalization_nonRetrievablePropertyNamesParent() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let parent: NonRetrievablePropertyNamesParent = try .stub()
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(try parent.innerViewModel.innerString.localizedString == "Inner String")
+    }
+
     let locStore: LocalizationStore
     init() async throws {
         self.locStore = try await Self.loadLocalizationStore(
@@ -56,5 +65,13 @@ private struct InnerViewModel: ViewModel {
 
     static func stub() -> InnerViewModel {
         .init(vmId: .init())
+    }
+}
+
+private struct NonRetrievablePropertyNamesParent: Codable, Sendable {
+    let innerViewModel: InnerViewModel
+
+    static func stub() -> Self {
+        .init(innerViewModel: .stub())
     }
 }

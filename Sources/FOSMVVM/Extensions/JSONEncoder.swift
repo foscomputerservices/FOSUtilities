@@ -129,10 +129,18 @@ private final class LocalizingEncoder: JSONEncoder {
         let parentModel = userInfo[.currentModelKey]
         let parentPropertyNames = userInfo[.propertyNamesKey]
 
+        let newPropertyNames: [LocalizableId: String]
         if let model = value as? (any RetrievablePropertyNames) {
-            userInfo[.propertyNamesKey] = model.allPropertyNames()
+            newPropertyNames = model.allPropertyNames()
             userInfo[.currentModelKey] = model
+        } else {
+            newPropertyNames = value.allPropertyNames()
         }
+        var propertyNames = (userInfo[.propertyNamesKey] as? [LocalizableId: String]) ?? [:]
+        for (key, value) in newPropertyNames {
+            propertyNames[key] = value
+        }
+        userInfo[.propertyNamesKey] = propertyNames
 
         let result = try super.encode(value)
         userInfo[.currentModelKey] = parentModel
@@ -142,10 +150,10 @@ private final class LocalizingEncoder: JSONEncoder {
     }
 }
 
-private extension RetrievablePropertyNames {
+private extension Encodable {
     /// Returns the property names for the RetrievablePropertyNames and all embedded RetrievablePropertyNames
     func allPropertyNames() -> [LocalizableId: String] {
-        var result = propertyNames()
+        var result = (self as? RetrievablePropertyNames)?.propertyNames() ?? [:]
 
         let mirror = Mirror(reflecting: self)
 
@@ -277,3 +285,4 @@ extension CodingUserInfoKey { // Internal for testing
 private struct ___Model: RetrievablePropertyNames {
     func propertyNames() -> [LocalizableId: String] { [:] }
 }
+
