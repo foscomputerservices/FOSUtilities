@@ -352,7 +352,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
         var contentTypeSpecified = false
         var acceptEncodingSpecified = false
 
-        var expectedMimeType: String?
+        var expectedResponseMimeType: String?
 
         if let headers {
             for header in headers {
@@ -361,7 +361,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
                 switch header.field.lowercased() {
                 case "accept":
                     acceptSpecified = true
-                    expectedMimeType = header.value
+                    expectedResponseMimeType = header.value
                 case "content-type": contentTypeSpecified = true
                 case "accept-encoding": acceptEncodingSpecified = true
                 default: continue
@@ -378,7 +378,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
         if !acceptSpecified {
             urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Accept")
-            expectedMimeType = "application/json"
+            expectedResponseMimeType = "application/json"
         }
         if !contentTypeSpecified {
             urlRequest.setValue("application/json;charset=utf-8", forHTTPHeaderField: "Content-Type")
@@ -391,7 +391,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             urlRequest.httpBody = data
         }
 
-        let mimeType = expectedMimeType // Remove mutability
+        let responseMimeType = expectedResponseMimeType // Remove mutability
 
         return try await withCheckedThrowingContinuation { continuation in
             urlSession
@@ -401,7 +401,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
                             responseData: data,
                             response: response,
                             error: e,
-                            expectedMimeType: mimeType,
+                            responseMimeType: responseMimeType,
                             errorType: errorType
                         )
 
@@ -414,24 +414,35 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
         }
     }
 
-    private static func completionHandler<ResultValue: Decodable, ResultError: Decodable & Error>(responseData: Data?, response: URLResponse?, error: Error?, expectedMimeType: String?, errorType: ResultError.Type) throws -> ResultValue {
+    private static func completionHandler<ResultValue: Decodable, ResultError: Decodable & Error>(responseData: Data?, response: URLResponse?, error: Error?, responseMimeType: String?, errorType: ResultError.Type) throws -> ResultValue {
         do {
             try checkResponse( // DataFetchError
                 response: response,
                 error: error,
-                expectedMimeType: expectedMimeType
+                expectedMimeType: responseMimeType
             )
 
             if let responseData {
                 do {
-                    let result: ResultValue = if ResultValue.self is String.Type || ResultValue.self is String?.Type {
+                    let result: ResultValue
+                    if ResultValue.self is String.Type || ResultValue.self is String?.Type {
                         // swiftlint:disable force_cast
                         // swiftlint:disable optional_data_string_conversion
-                        String(decoding: responseData, as: UTF8.self) as! ResultValue
+                        result = String(decoding: responseData, as: UTF8.self) as! ResultValue
                         // swiftlint:enable force_cast
                         // swiftlint:enable optional_data_string_conversion
+                    } else if responseMimeType?.lowercased().starts(with: "application/json") == true {
+                        result = try responseData.fromJSON()
+                    } else if responseMimeType?.lowercased().starts(with: "text/plain") == true || responseMimeType == nil,
+                              let response = String(bytes: responseData, encoding: .utf8) as? ResultValue {
+                        result = response
+                    } else if ResultValue.self is ExpressibleByNilLiteral.Type, responseData.isEmpty {
+                        let tmp: ResultValue? = nil
+                        // NOTE: The compiler has no idea what type it's dealing with here,
+                        //  so we can ignore the warnings.
+                        result = (tmp as! ResultValue) // swiftlint:disable:this force_cast
                     } else {
-                        try responseData.fromJSON()
+                        throw DataFetchError.badResponseMimeType(responseMimeType ?? "<unknown>")
                     }
 
                     return result

@@ -110,12 +110,26 @@ public extension ServerRequest {
     ///
     /// - Parameter mvvmEnv: The current ``MVVMEnvironment`` for the client application
     func processRequest(mvvmEnv: MVVMEnvironment) async throws {
-        try await processRequest(
-            baseURL: mvvmEnv.serverBaseURL,
-            headers: mvvmEnv.requestHeaders.map { key, value in
-                (field: key, value: value)
+        do {
+            var headers = [(field: String, value: String)]()
+            if ResponseBody.self == EmptyBody.self {
+                headers.append((field: "Accept", value: "text/plain"))
             }
-        )
+            for (key, value) in mvvmEnv.requestHeaders {
+                headers.append((field: key, value: value))
+            }
+
+            try await processRequest(
+                baseURL: mvvmEnv.serverBaseURL,
+                headers: headers
+            )
+        } catch let error as ServerRequestError {
+            if let errorHandler = mvvmEnv.requestErrorHandler {
+                errorHandler(self, error)
+            } else {
+                throw error
+            }
+        }
     }
     #endif
 }

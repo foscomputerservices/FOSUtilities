@@ -55,5 +55,59 @@ public extension View {
     func navigationTitle(_ localizable: some Localizable) -> some View {
         navigationTitle(localizable.defaultedLocalizedString())
     }
+
+    /// Indicates when a ``ViewModel`` binding might be out of date
+    ///
+    /// To invalidate a bound ``ViewModel``, provide a Binding<Bool> that returns
+    /// **true** when the ``ViewModel`` should be re-pulled from the server.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// struct MyView: ViewModelView {
+    ///    @State private var vmOutOfDate = false
+    ///
+    ///    var body: some View {
+    ///      VStack {
+    ///        MySubView
+    ///            .bind()
+    ///            .invalidateBinding($vmOutOfDate)
+    ///
+    ///        Button("Invalidate") { vmOutOfDate = true }
+    ///      }
+    ///    }
+    /// }
+    /// ```
+    ///
+    /// - Parameter binding: A *Binding<Bool>* that is **true** when the ``ViewModel``
+    ///     should be refreshed
+    func invalidateBinding(_ binding: Binding<Bool>) -> some View {
+        environment(\.viewModelInvalidated, binding)
+    }
+
+    /// - Parameter binding: A *Binding<VM>* that is **true** when the ``ViewModel``
+    ///     should be refreshed with the provided value.
+    func refreshedViewModel<VM: ViewModel>(_ binding: Binding<VM>) -> some View {
+        environment(\.viewModelRefreshed, .init(
+            get: { (try? binding.wrappedValue.toJSON()) ?? "" },
+            set: { newVMStr in
+                if let newVM: VM = try? newVMStr.fromJSON() {
+                    binding.wrappedValue = newVM
+                }
+            }
+        ))
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var viewModelInvalidated: Binding<Bool> = .init(
+        get: { false },
+        set: { _ in }
+    )
+
+    @Entry var viewModelRefreshed: Binding<String> = .init(
+        get: { "" },
+        set: { _ in }
+    )
 }
 #endif
