@@ -18,7 +18,7 @@ import FOSFoundation
 
 /// A ``ServerRequest`` that requests that the server **update** a resource
 public protocol UpdateRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel, ResponseBody: UpdateResponse {}
+    where RequestBody: ValidatableModel, ResponseBody: UpdateResponseBody {}
 
 public extension UpdateRequest {
     static var baseTypeName: String { "UpdateRequest" }
@@ -26,6 +26,13 @@ public extension UpdateRequest {
     var action: ServerRequestAction { .update }
 }
 
-public protocol UpdateResponse: ServerRequestBody {}
+public protocol UpdateResponseBody: ServerRequestBody {}
 
-extension EmptyBody: UpdateResponse {}
+extension EmptyBody: UpdateResponseBody, ValidatableModel {
+    public func validate(
+        fields: [any FormFieldBase]?,
+        validations: Validations
+    ) -> ValidationResult.Status? {
+        nil
+    }
+}

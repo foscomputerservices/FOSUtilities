@@ -285,4 +285,3 @@ extension CodingUserInfoKey { // Internal for testing
 private struct ___Model: RetrievablePropertyNames {
     func propertyNames() -> [LocalizableId: String] { [:] }
 }
-

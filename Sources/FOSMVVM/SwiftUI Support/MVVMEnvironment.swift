@@ -97,6 +97,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// A dictionary of values to populate the *URLRequest*'s HTTPHeaderFields
     public let requestHeaders: [String: String]
 
+    /// A function that is called when there is an error processing a ``ServerRequest``
+    public let requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)?
+
     /// A view to be presented when the ``ViewModel`` is being requested
     /// from the web service
     ///
@@ -163,6 +166,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
+    ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
+    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
     @MainActor public init(
@@ -171,11 +176,13 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URLPackage],
+        requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         loadingView: (@Sendable () -> AnyView)? = nil
     ) {
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
         self.deploymentURLs = deploymentURLs
+        self.requestErrorHandler = requestErrorHandler
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
@@ -197,6 +204,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
+    ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
+    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
     @MainActor public convenience init(
@@ -205,6 +214,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URL],
+        requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         loadingView: (@Sendable () -> AnyView)? = nil
     ) {
         self.init(
@@ -219,6 +229,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 result[deployment] = .init(serverBaseURL: url, resourcesBaseURL: url)
                 return result
             },
+            requestErrorHandler: requestErrorHandler,
             loadingView: loadingView
         )
     }
@@ -231,6 +242,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = [:]
         self.deploymentURLs = deploymentURLs
+        self.requestErrorHandler = nil
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
         SystemVersion.setCurrentVersion(SystemVersion.current)

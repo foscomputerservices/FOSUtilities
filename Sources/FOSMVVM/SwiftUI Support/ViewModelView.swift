@@ -402,6 +402,8 @@ private struct VMServerResolverView<VM, VMV>: View where
     VMV.VM == VM {
     @Environment(MVVMEnvironment.self) private var mvvmEnv
     @Environment(\.locale) private var locale
+    @Environment(\.viewModelInvalidated) private var viewModelInvalidated
+    @Environment(\.viewModelRefreshed) private var viewModelRefreshed
     @State private var viewModel: VM?
 
     private let query: VM.Request.Query?
@@ -411,14 +413,32 @@ private struct VMServerResolverView<VM, VMV>: View where
         ZStack {
             if let viewModel {
                 VMV(viewModel: viewModel)
+                    .id(viewModel.vmId)
                     .onChange(of: query, initial: true) { Task {
                         self.viewModel = await resolveServerHostedRequest()
+                        viewModelInvalidated.wrappedValue = false
                     } }
                     .onChange(of: fragment, initial: true) {
                         guard fragment != nil else { return }
                         Task {
                             self.viewModel = await resolveServerHostedRequest()
+                            viewModelInvalidated.wrappedValue = false
                         }
+                    }
+                    .onChange(of: viewModelInvalidated.wrappedValue, initial: false) {
+                        guard viewModelInvalidated.wrappedValue == true else {
+                            return
+                        }
+                        self.viewModel = nil
+                    }
+                    .onChange(of: viewModelRefreshed.wrappedValue, initial: false) {
+                        let refreshedVMStr = viewModelRefreshed.wrappedValue
+                        guard
+                            let refreshedVM: VM = try? refreshedVMStr.fromJSON()
+                        else {
+                            return
+                        }
+                        self.viewModel = refreshedVM
                     }
             } else {
                 ProgressView().task {
@@ -456,6 +476,15 @@ private struct VMServerResolverView<VM, VMV>: View where
             // encountered an error.
             return nil
         }
+    }
+}
+
+private extension ViewModel {
+    func isEqual(to other: Self) -> Bool {
+        let this = try? toJSON()
+        let other = try? other.toJSON()
+
+        return this == other
     }
 }
 

@@ -18,7 +18,7 @@ import FOSFoundation
 
 /// A ``ServerRequest`` that requests that the server **create** a resource
 public protocol CreateRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel, ResponseBody: CreateResponse {}
+    where RequestBody: ValidatableModel, ResponseBody: CreateResponseBody {}
 
 public extension CreateRequest {
     static var baseTypeName: String { "CreateRequest" }
@@ -26,6 +26,6 @@ public extension CreateRequest {
     var action: ServerRequestAction { .create }
 }
 
-public protocol CreateResponse: ServerRequestBody {}
+public protocol CreateResponseBody: ServerRequestBody {}
 
-extension EmptyBody: CreateResponse {}
+extension EmptyBody: CreateResponseBody {}
