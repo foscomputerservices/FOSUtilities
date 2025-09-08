@@ -23,7 +23,7 @@ public enum YamlStoreError: Error {
     case yamlError(error: YamlError)
     case fileError(path: URL, error: any Error)
     case fileDecodingError(path: URL)
-    case noPaths
+    case noResourcePaths
     case noLocalizationStore
     case noLocaleFound
 
@@ -33,7 +33,7 @@ public enum YamlStoreError: Error {
         case .yamlError(let error): "YamlStoreError: \(error)"
         case .fileError(let path, let error): "YamlStoreError: File read error at: \(path) - \(error)"
         case .fileDecodingError(let path): "YamlStoreError: \(path) -- Unable to decode contents of file to UTF-8"
-        case .noPaths:
+        case .noResourcePaths:
             "YamlStoreError: No YAML search paths were provided or the paths provided didn't match any real files or directories."
         case .noLocalizationStore:
             "YamlStoreError: The LocalizationStore is missing from the Application.  Generally this " +
@@ -59,6 +59,20 @@ public extension Bundle {
     }
 }
 
+public extension Collection<Bundle> {
+    func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
+        let searchPaths = reduce(into: Set<URL>()) { result, next in
+            result.formUnion(next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
+        }
+
+        let config = YamlStoreConfig(
+            searchPaths: searchPaths
+        )
+
+        return try await YamlStore(config: config)
+    }
+}
+
 package struct YamlStoreConfig: Sendable { // Internal for testing
     let searchPaths: [URL]
 
@@ -66,31 +80,27 @@ package struct YamlStoreConfig: Sendable { // Internal for testing
         try await YamlStore(config: self)
     }
 
-    init(searchPaths: some Collection<URL>) throws {
-        guard !searchPaths.isEmpty else {
-            throw YamlStoreError.noPaths
-        }
-
+    init(searchPaths: some Collection<URL>) {
         self.searchPaths = searchPaths.filter {
             $0.isFileURL && $0.hasDirectoryPath
-        }
-
-        guard !self.searchPaths.isEmpty else {
-            throw YamlStoreError.noPaths
         }
     }
 }
 
 package extension Bundle {
     func yamlStoreConfig(resourceDirectoryName: String) throws -> YamlStoreConfig {
-        try .init(
-            searchPaths: yamlSearchPaths(
-                resourceDirectoryName: resourceDirectoryName
-            )
+        let searchPaths = yamlSearchPaths(
+            resourceDirectoryName: resourceDirectoryName
         )
+
+        guard !searchPaths.isEmpty else {
+            throw YamlStoreError.noResourcePaths
+        }
+
+        return .init(searchPaths: searchPaths)
     }
 
-    func yamlSearchPaths(resourceDirectoryName: String) throws -> Set<URL> {
+    func yamlSearchPaths(resourceDirectoryName: String) -> Set<URL> {
         let resourceURLs = [
             /* Packages */ bundleURL
                 .appending(path: "Contents/Resources")
@@ -175,7 +185,7 @@ private extension YamlStore {
         var result: [String: [String: YamlValue]] = [:]
 
         guard !config.searchPaths.isEmpty else {
-            throw YamlStoreError.noPaths
+            throw YamlStoreError.noResourcePaths
         }
 
         for searchPath in config.searchPaths {

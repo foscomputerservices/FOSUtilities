@@ -24,7 +24,7 @@ import Vapor
 struct YamlLocalizationStoreInitTests {
     @Test func yamlStoreConfig() throws {
         let paths = paths
-        let config = try YamlStoreConfig(searchPaths: paths)
+        let config = YamlStoreConfig(searchPaths: paths)
         #expect(config.searchPaths.count == paths.count)
     }
 

@@ -119,6 +119,7 @@ private extension ViewModelView {
 }
 
 private struct PreviewHostingView<Inner: ViewModelView>: View {
+    @State private var loadingText = "Loading Localization for Preview..."
     @State private var localizationStore: LocalizationStore?
 
     let inner: Inner.Type
@@ -135,25 +136,29 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
                 viewModel: viewModel
             ))
             .setStates(modifier: setStates ?? { _ in () })
-            .preferredColorScheme(ColorScheme.light)
-            .environment(mmEnv(resourceDirectoryName: resourceDirectoryName))
+            .environment(mmEnv(localizationStore: localizationStore))
         } else {
-            Text("Loading...")
+            Text(loadingText)
                 .task {
                     do {
                         localizationStore = try await bundle.yamlLocalization(
                             resourceDirectoryName: resourceDirectoryName
                         )
                     } catch {
-                        fatalError("Unable to initialize the localization store: \(error)")
+                        loadingText = """
+                            Unable to initialize the localization store: \(error)
+
+                              - Bundle: \(bundle.bundlePath)
+                              - resourceDirectoryName: \(resourceDirectoryName.isEmpty ? "<Empty>" : resourceDirectoryName)
+                        """
                     }
                 }
         }
     }
 
-    private func mmEnv(resourceDirectoryName: String) -> MVVMEnvironment {
+    private func mmEnv(localizationStore: LocalizationStore) -> MVVMEnvironment {
         MVVMEnvironment(
-            resourceDirectoryName: resourceDirectoryName,
+            localizationStore: localizationStore,
             deploymentURLs: [
                 .debug: .init(serverBaseURL: URL(string: "https://localhost:8080")!)
             ]

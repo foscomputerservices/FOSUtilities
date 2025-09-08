@@ -497,6 +497,7 @@ private extension FormFieldView where Value == String? {
 
 private extension FormFieldView where Value == Date {
     func dateFieldView(onNewValue: ((Value) -> Void)?, onSubmit: ((Value) -> Void)?) -> some View {
+        #if !os(tvOS)
         DatePicker(
             selection: .init(
                 get: { fieldModel.wrappedValue },
@@ -511,6 +512,9 @@ private extension FormFieldView where Value == Date {
             label: { Text(fieldModel.formField.title) }
         )
         .datePickerStyle(DefaultDatePickerStyle())
+        #else
+        Text("DateField not supported on tvOS")
+        #endif
     }
 }
 
