@@ -61,8 +61,8 @@ public extension Bundle {
 
 public extension Collection<Bundle> {
     func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
-        let searchPaths = try reduce(into: Set<URL>()) { result, next in
-            try result.formUnion(next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
+        let searchPaths = reduce(into: Set<URL>()) { result, next in
+            result.formUnion(next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
         }
 
         let config = YamlStoreConfig(
