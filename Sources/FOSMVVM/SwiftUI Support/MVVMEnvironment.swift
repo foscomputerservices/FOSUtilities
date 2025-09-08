@@ -127,7 +127,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 )
             }
             _clientLocalizationStore = locStore
-            return localizationStore
+            return locStore
         }
     }
 
