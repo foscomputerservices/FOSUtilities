@@ -273,8 +273,7 @@ public extension FormField {
         switch type {
         case .text(let inputType): inputType.textContentType
         case .textArea(let inputType): inputType.textContentType
-        case .textArray(let inputType): inputType.textContentType
-        case .duration, .checkbox, .colorPicker, .select, .multipleRows, .multipleColumns: nil
+        case .checkbox, .colorPicker, .select: nil
         }
     }
 }
