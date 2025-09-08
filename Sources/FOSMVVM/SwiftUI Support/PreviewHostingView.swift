@@ -147,7 +147,7 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
                     } catch {
                         loadingText = """
                             Unable to initialize the localization store: \(error)
-                        
+
                               - Bundle: \(bundle.bundlePath)
                               - resourceDirectoryName: \(resourceDirectoryName.isEmpty ? "<Empty>" : resourceDirectoryName)
                         """

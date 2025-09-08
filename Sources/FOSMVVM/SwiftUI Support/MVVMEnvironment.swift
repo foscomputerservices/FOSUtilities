@@ -119,11 +119,10 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 return store
             }
 
-            let locStore: LocalizationStore
-            if let localizationStore {
-                locStore = localizationStore
+            let locStore: LocalizationStore = if let localizationStore {
+                localizationStore
             } else {
-                locStore = try await resourceBundles.yamlLocalization(
+                try await resourceBundles.yamlLocalization(
                     resourceDirectoryName: resourceDirectoryName ?? ""
                 )
             }

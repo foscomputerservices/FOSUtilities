@@ -59,10 +59,10 @@ public extension Bundle {
     }
 }
 
-public extension Collection where Element == Bundle {
+public extension Collection<Bundle> {
     func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
         let searchPaths = try reduce(into: Set<URL>()) { result, next in
-            result.union(try next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
+            try result.formUnion(next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
         }
 
         let config = YamlStoreConfig(
@@ -89,14 +89,18 @@ package struct YamlStoreConfig: Sendable { // Internal for testing
 
 package extension Bundle {
     func yamlStoreConfig(resourceDirectoryName: String) throws -> YamlStoreConfig {
-        return try .init(
-            searchPaths: yamlSearchPaths(
-                resourceDirectoryName: resourceDirectoryName
-            )
+        let searchPaths = yamlSearchPaths(
+            resourceDirectoryName: resourceDirectoryName
         )
+
+        guard !searchPaths.isEmpty else {
+            throw YamlStoreError.noResourcePaths
+        }
+
+        return .init(searchPaths: searchPaths)
     }
 
-    func yamlSearchPaths(resourceDirectoryName: String) throws -> Set<URL> {
+    func yamlSearchPaths(resourceDirectoryName: String) -> Set<URL> {
         let resourceURLs = [
             /* Packages */ bundleURL
                 .appending(path: "Contents/Resources")
