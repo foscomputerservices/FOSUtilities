@@ -75,7 +75,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
         }
     }
 
+    public let resourceBundles: [Bundle]
     public let resourceDirectoryName: String?
+    private let localizationStore: LocalizationStore?
 
     typealias ViewFactory = (Data) throws -> AnyView
 
@@ -117,10 +119,15 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 return store
             }
 
-            let localizationStore = try await Bundle.main.yamlLocalization(
-                resourceDirectoryName: resourceDirectoryName ?? ""
-            )
-            _clientLocalizationStore = localizationStore
+            let locStore: LocalizationStore
+            if let localizationStore {
+                locStore = localizationStore
+            } else {
+                locStore = try await resourceBundles.yamlLocalization(
+                    resourceDirectoryName: resourceDirectoryName ?? ""
+                )
+            }
+            _clientLocalizationStore = locStore
             return localizationStore
         }
     }
@@ -162,6 +169,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The application's *Bundle* (e.g. *Bundle.main*)
+    ///   - resourceBundles: All *Bundle*s that contain YAML resources (default: appBundle)
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
@@ -173,12 +181,15 @@ public final class MVVMEnvironment: @unchecked Sendable {
     @MainActor public init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
+        resourceBundles: [Bundle]? = nil,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URLPackage],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         loadingView: (@Sendable () -> AnyView)? = nil
     ) {
+        self.localizationStore = nil
+        self.resourceBundles = resourceBundles ?? [appBundle]
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
         self.deploymentURLs = deploymentURLs
@@ -200,6 +211,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The applications *Bundle* (e.g. *Bundle.main*)
+    ///   - resourceBundles: All *Bundle*s that contain YAML resources (default: appBundle)
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
@@ -211,6 +223,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     @MainActor public convenience init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
+        resourceBundles: [Bundle]? = nil,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URL],
@@ -220,6 +233,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,
+            resourceBundles: resourceBundles,
             resourceDirectoryName: resourceDirectoryName,
             requestHeaders: requestHeaders,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
@@ -236,10 +250,17 @@ public final class MVVMEnvironment: @unchecked Sendable {
 
     /// Initializes ``MVVMEnvironment`` for previews
     ///
-    /// > This overload does **NOT** check the application's version as it is not necessary
-    /// > for previews
-    @MainActor init(resourceDirectoryName: String? = nil, deploymentURLs: [Deployment: URLPackage], loadingView: (@Sendable () -> AnyView)? = nil) {
-        self.resourceDirectoryName = resourceDirectoryName
+    /// > This overload does **NOT** check the application's version as it is not necessary for previews
+    @MainActor init(
+        localizationStore: LocalizationStore,
+        deploymentURLs: [Deployment: URLPackage],
+        loadingView: (
+            @Sendable () -> AnyView
+        )? = nil
+    ) {
+        self.localizationStore = localizationStore
+        self.resourceBundles = []
+        self.resourceDirectoryName = nil
         self.requestHeaders = [:]
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = nil
