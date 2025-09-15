@@ -119,16 +119,27 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 return store
             }
 
-            let locStore: LocalizationStore = if let localizationStore {
-                localizationStore
-            } else {
-                try await resourceBundles.yamlLocalization(
-                    resourceDirectoryName: resourceDirectoryName ?? ""
-                )
-            }
+            let locStore = try await resolveClientLocalizationStore()
             _clientLocalizationStore = locStore
             return locStore
         }
+    }
+
+    /// Returns a ``LocalizationStore`` instance that provides access to the localization data
+    ///
+    /// > This is only provided/necessary for applications that created ``ViewModel``s
+    /// > in the application as opposed on the server.
+    ///
+    /// > The result of this function is **uncached** as opposed to ``clientLocalizationStore``
+    public func resolveClientLocalizationStore() async throws -> LocalizationStore {
+        let locStore: LocalizationStore = if let localizationStore {
+            localizationStore
+        } else {
+            try await resourceBundles.yamlLocalization(
+                resourceDirectoryName: resourceDirectoryName ?? ""
+            )
+        }
+        return locStore
     }
 
     @ObservationIgnored @MainActor
