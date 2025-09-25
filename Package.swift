@@ -27,10 +27,6 @@ let package = Package(
                 targets: ["FOSMVVM"]
             ),
             .library(
-                name: "FOSReporting",
-                targets: ["FOSReporting"]
-            ),
-            .library(
                 name: "FOSTesting",
                 targets: ["FOSTesting"]
             ),
@@ -39,6 +35,13 @@ let package = Package(
                 targets: ["FOSTestingUI"]
             )
         ]
+
+        #if os(macOS) || os(iOS) || os(visionOS) || os(watchOS)
+        result.append(.library(
+            name: "FOSReporting",
+            targets: ["FOSReporting"]
+        ))
+        #endif
 
         #if os(macOS) || os(Linux)
         result.append(.library(
@@ -99,13 +102,6 @@ let package = Package(
                 ]
             ),
             .target(
-                name: "FOSReporting",
-                dependencies: [
-                    .byName(name: "FOSFoundation"),
-                    .byName(name: "FOSMVVM")
-                ]
-            ),
-            .target(
                 name: "FOSTesting",
                 dependencies: [
                     .byName(name: "FOSFoundation"),
@@ -148,17 +144,27 @@ let package = Package(
                 resources: [
                     .copy("TestYAML")
                 ]
-            ),
-            .testTarget(
-                name: "FOSReportingTests",
-                dependencies: [
-                    .byName(name: "FOSFoundation"),
-                    .byName(name: "FOSMVVM"),
-                    .byName(name: "FOSTesting"),
-                    .byName(name: "FOSReporting")
-                ]
             )
         ]
+
+        #if os(macOS) || os(iOS) || os(visionOS) || os(watchOS)
+        result.append(.target(
+            name: "FOSReporting",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM")
+            ]
+        ))
+        result.append(.testTarget(
+            name: "FOSReportingTests",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM"),
+                .byName(name: "FOSTesting"),
+                .byName(name: "FOSReporting")
+            ]
+        ))
+        #endif
 
         #if os(macOS) || os(Linux)
         result.append(.target(
