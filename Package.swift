@@ -27,6 +27,10 @@ let package = Package(
                 targets: ["FOSMVVM"]
             ),
             .library(
+                name: "FOSReporting",
+                targets: ["FOSReporting"]
+            ),
+            .library(
                 name: "FOSTesting",
                 targets: ["FOSTesting"]
             ),
@@ -95,6 +99,13 @@ let package = Package(
                 ]
             ),
             .target(
+                name: "FOSReporting",
+                dependencies: [
+                    .byName(name: "FOSFoundation"),
+                    .byName(name: "FOSMVVM")
+                ]
+            ),
+            .target(
                 name: "FOSTesting",
                 dependencies: [
                     .byName(name: "FOSFoundation"),
@@ -136,6 +147,15 @@ let package = Package(
                 ],
                 resources: [
                     .copy("TestYAML")
+                ]
+            ),
+            .testTarget(
+                name: "FOSReportingTests",
+                dependencies: [
+                    .byName(name: "FOSFoundation"),
+                    .byName(name: "FOSMVVM"),
+                    .byName(name: "FOSTesting"),
+                    .byName(name: "FOSReporting")
                 ]
             )
         ]
