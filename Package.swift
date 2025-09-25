@@ -36,6 +36,13 @@ let package = Package(
             )
         ]
 
+        #if os(macOS) || os(iOS) || os(visionOS) || os(watchOS)
+        result.append(.library(
+            name: "FOSReporting",
+            targets: ["FOSReporting"]
+        ))
+        #endif
+
         #if os(macOS) || os(Linux)
         result.append(.library(
             name: "FOSMVVMVapor",
@@ -139,6 +146,25 @@ let package = Package(
                 ]
             )
         ]
+
+        #if os(macOS) || os(iOS) || os(visionOS) || os(watchOS)
+        result.append(.target(
+            name: "FOSReporting",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM")
+            ]
+        ))
+        result.append(.testTarget(
+            name: "FOSReportingTests",
+            dependencies: [
+                .byName(name: "FOSFoundation"),
+                .byName(name: "FOSMVVM"),
+                .byName(name: "FOSTesting"),
+                .byName(name: "FOSReporting")
+            ]
+        ))
+        #endif
 
         #if os(macOS) || os(Linux)
         result.append(.target(
