@@ -50,17 +50,17 @@ public enum YamlStoreError: Error {
 
 /// An extension on Bundle to allow initialization of the YamlStore
 public extension Bundle {
-    func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
+    func yamlLocalization(resourceDirectoryName: String) throws -> LocalizationStore {
         let config = try yamlStoreConfig(
             resourceDirectoryName: resourceDirectoryName
         )
 
-        return try await YamlStore(config: config)
+        return try YamlStore(config: config)
     }
 }
 
 public extension Collection<Bundle> {
-    func yamlLocalization(resourceDirectoryName: String) async throws -> LocalizationStore {
+    func yamlLocalization(resourceDirectoryName: String) throws -> LocalizationStore {
         let searchPaths = reduce(into: Set<URL>()) { result, next in
             result.formUnion(next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
         }
@@ -69,15 +69,15 @@ public extension Collection<Bundle> {
             searchPaths: searchPaths
         )
 
-        return try await YamlStore(config: config)
+        return try YamlStore(config: config)
     }
 }
 
 package struct YamlStoreConfig: Sendable { // Internal for testing
     let searchPaths: [URL]
 
-    fileprivate func localizationStore() async throws -> LocalizationStore {
-        try await YamlStore(config: self)
+    fileprivate func localizationStore() throws -> LocalizationStore {
+        try YamlStore(config: self)
     }
 
     init(searchPaths: some Collection<URL>) {
@@ -138,7 +138,7 @@ package struct YamlStore: LocalizationStore {
         return translation
     }
 
-    package init(config: YamlStoreConfig) async throws {
+    package init(config: YamlStoreConfig) throws {
         self.config = config
         self.yamlTree = try Self.loadFlattenedYAML(config: config)
     }

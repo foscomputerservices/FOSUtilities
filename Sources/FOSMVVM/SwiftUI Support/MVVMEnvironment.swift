@@ -114,12 +114,12 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// > in the application as opposed on the server.
     @MainActor
     public var clientLocalizationStore: LocalizationStore? {
-        get async throws {
+        get throws {
             if let store = _clientLocalizationStore {
                 return store
             }
 
-            let locStore = try await resolveClientLocalizationStore()
+            let locStore = try resolveClientLocalizationStore()
             _clientLocalizationStore = locStore
             return locStore
         }
@@ -131,11 +131,11 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// > in the application as opposed on the server.
     ///
     /// > The result of this function is **uncached** as opposed to ``clientLocalizationStore``
-    public func resolveClientLocalizationStore() async throws -> LocalizationStore {
+    public func resolveClientLocalizationStore() throws -> LocalizationStore {
         let locStore: LocalizationStore = if let localizationStore {
             localizationStore
         } else {
-            try await resourceBundles.yamlLocalization(
+            try resourceBundles.yamlLocalization(
                 resourceDirectoryName: resourceDirectoryName ?? ""
             )
         }

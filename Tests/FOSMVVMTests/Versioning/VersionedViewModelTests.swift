@@ -32,8 +32,8 @@ struct VersionedViewModelTests: LocalizableTestCase {
         .localizingEncoder(locale: Self.en, localizationStore: locStore)
     }
 
-    init() async throws {
-        self.locStore = try await Self.loadLocalizationStore(
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
             bundle: Bundle.module,
             resourceDirectoryName: "TestYAML"
         )

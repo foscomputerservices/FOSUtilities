@@ -16,8 +16,8 @@ struct MyViewModelTests: LocalizableTestCase {
 
     let locStore: LocalizationStore
     var locales: Set<Locale> {[Self.en, Self.es]}
-    init() async throws {
-        self.locStore = try await Self.loadLocalizationStore(bundle: .module)
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(bundle: .module)
     }
 }
 ```
@@ -43,8 +43,8 @@ struct MyViewModelTests: LocalizableTestCase {
 
     let locStore: LocalizationStore
     var locales: Set<Locale> {[Self.en, Self.es]}
-    init() async throws {
-        self.locStore = try await Self.loadLocalizationStore(bundle: .module)
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(bundle: .module)
     }
 }
 ```

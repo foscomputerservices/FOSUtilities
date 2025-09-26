@@ -202,7 +202,7 @@ import XCTest
     public func setUp(bundle: Bundle, resourceDirectoryName: String = "", appBundleIdentifier: String, locales: Set<Locale>? = nil) async throws {
         try await super.setUp()
 
-        locStore = try await bundle.yamlLocalization(
+        locStore = try bundle.yamlLocalization(
             resourceDirectoryName: resourceDirectoryName
         )
         self.locales = locales ?? [Self.en]
