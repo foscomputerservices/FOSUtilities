@@ -88,8 +88,8 @@ struct YamlLocalizationStoreTests: LocalizableTestCase {
     }
 
     let locStore: LocalizationStore
-    init() async throws {
-        self.locStore = try await Self.loadLocalizationStore(
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
             bundle: Bundle.module,
             resourceDirectoryName: "TestYAML"
         )

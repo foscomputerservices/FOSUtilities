@@ -106,8 +106,13 @@ public extension ClientHostedViewModelFactory where Self == Request.ResponseBody
 }
 
 public extension ClientHostedViewModelFactory where Self == Request.ResponseBody {
-    static func model(context: ClientHostedModelFactoryContext<Request, AppState>, vmRequest: Request) async throws -> Self where AppState: Sendable {
-        let model = try await Self.model(context: context)
+    static func model(
+        context: ClientHostedModelFactoryContext<Request, AppState>,
+        vmRequest: Request
+    ) throws -> Self where AppState: Sendable {
+        let model: Self = Task.synchronous {
+            try await Self.model(context: context)
+        }
 
         // Now localize the model
         let encoder = JSONEncoder.localizingEncoder(

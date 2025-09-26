@@ -139,9 +139,9 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
             .environment(mmEnv(localizationStore: localizationStore))
         } else {
             Text(loadingText)
-                .task {
+                .onAppear {
                     do {
-                        localizationStore = try await bundle.yamlLocalization(
+                        localizationStore = try bundle.yamlLocalization(
                             resourceDirectoryName: resourceDirectoryName
                         )
                     } catch {

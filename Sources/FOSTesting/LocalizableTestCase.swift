@@ -33,8 +33,8 @@ import Foundation
 ///
 ///      let locStore: LocalizationStore
 ///      var locales: Set<Locale> {[Self.en, Self.es]}
-///      init() async throws {
-///          self.locStore = try await Self.loadLocalizationStore(bundle: .module)
+///      init() throws {
+///          self.locStore = try Self.loadLocalizationStore(bundle: .module)
 ///      }
 ///  }
 ///  ```
@@ -51,8 +51,8 @@ public extension LocalizableTestCase {
     /// - Parameter resourceDirectoryName: The name of a resource directory
     ///    in the application's bundle (default: Localizations)
     /// - Parameter bundle: The *Bundle* to use to load the YAML store
-    static func loadLocalizationStore(bundle: Bundle, resourceDirectoryName: String = "Resources") async throws -> LocalizationStore {
-        try await bundle.yamlLocalization(
+    static func loadLocalizationStore(bundle: Bundle, resourceDirectoryName: String = "Resources") throws -> LocalizationStore {
+        try bundle.yamlLocalization(
             resourceDirectoryName: resourceDirectoryName
         )
     }

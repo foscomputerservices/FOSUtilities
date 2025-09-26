@@ -498,37 +498,25 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
     VMV.VM == VM {
     @Environment(MVVMEnvironment.self) private var mvvmEnv
     @Environment(\.locale) private var locale
-    @State private var viewModel: VM?
+    @State private var redraw = false
 
     private let query: VM.Request.Query?
     private let fragment: VM.Request.Fragment?
     private let appState: VM.AppState
 
     var body: some View {
-        ZStack {
-            if let viewModel {
-                VMV(viewModel: viewModel)
-                    .onChange(of: query, initial: true) {
-                        guard query != nil else { return }
-                        Task {
-                            self.viewModel = await resolveClientHostedRequest()
-                        }
-                    }
-                    .onChange(of: fragment, initial: true) {
-                        guard fragment != nil else { return }
-                        Task {
-                            self.viewModel = await resolveClientHostedRequest()
-                        }
-                    }
-                    .onChange(of: appState, initial: true) { Task {
-                        self.viewModel = await resolveClientHostedRequest()
-                    } }
-            } else {
-                ProgressView().task {
-                    viewModel = await resolveClientHostedRequest()
-                }
+        let vm = resolveClientHostedRequest()
+        VMV(viewModel: vm)
+            .id(vm.vmId)
+            .onChange(of: query, initial: false) {
+                redraw.toggle()
             }
-        }
+            .onChange(of: fragment, initial: false) {
+                redraw.toggle()
+            }
+            .onChange(of: appState, initial: false) {
+                redraw.toggle()
+            }
     }
 
     init(query: VM.Request.Query?, fragment: VM.Request.Fragment?, appState: VM.AppState) {
@@ -537,9 +525,11 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
         self.appState = appState
     }
 
-    private func resolveClientHostedRequest() async -> VM? {
+    private func resolveClientHostedRequest() -> VM {
         do {
-            guard let localizationStore = try await mvvmEnv.clientLocalizationStore else {
+            let locale = locale
+            let mvvmEnv = mvvmEnv
+            guard let localizationStore = try mvvmEnv.clientLocalizationStore else {
                 throw ViewModelViewError.missingLocalizationStore
             }
 
@@ -561,7 +551,7 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
                 appState: appState
             )
 
-            return try await VM.model(context: context, vmRequest: request)
+            return try VM.model(context: context, vmRequest: request)
         } catch {
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
@@ -571,7 +561,7 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
             // over the UI.  But instead, some top-level
             // way to display to the user that the app
             // encountered an error.
-            return nil
+            return .stub()
         }
     }
 }
@@ -586,28 +576,21 @@ private struct VMClientResolverView<VM, VMV>: View where
     VMV.VM == VM {
     @Environment(MVVMEnvironment.self) private var mvvmEnv
     @Environment(\.locale) private var locale
-    @State private var viewModel: VM?
+    @State private var redraw = false
 
     private let query: VM.Request.Query?
     private let fragment: VM.Request.Fragment?
 
     var body: some View {
-        if let viewModel {
-            VMV(viewModel: viewModel)
-                .onChange(of: query, initial: true) { Task {
-                    self.viewModel = await resolveClientHostedRequest()
-                } }
-                .onChange(of: fragment, initial: true) {
-                    guard fragment != nil else { return }
-                    Task {
-                        self.viewModel = await resolveClientHostedRequest()
-                    }
-                }
-        } else {
-            ProgressView().task {
-                viewModel = await resolveClientHostedRequest()
+        let vm = resolveClientHostedRequest()
+        VMV(viewModel: vm)
+            .id(vm.vmId)
+            .onChange(of: query, initial: false) {
+                redraw.toggle()
             }
-        }
+            .onChange(of: fragment, initial: false) {
+                redraw.toggle()
+            }
     }
 
     init(query: VM.Request.Query?, fragment: VM.Request.Fragment?) {
@@ -615,9 +598,10 @@ private struct VMClientResolverView<VM, VMV>: View where
         self.fragment = fragment
     }
 
-    private func resolveClientHostedRequest() async -> VM? {
+    private func resolveClientHostedRequest() -> VM {
         do {
-            guard let localizationStore = try await mvvmEnv.clientLocalizationStore else {
+            let locale = locale
+            guard let localizationStore = try mvvmEnv.clientLocalizationStore else {
                 throw ViewModelViewError.missingLocalizationStore
             }
 
@@ -639,7 +623,7 @@ private struct VMClientResolverView<VM, VMV>: View where
                 appState: ()
             )
 
-            return try await VM.model(context: context, vmRequest: request)
+            return try VM.model(context: context, vmRequest: request)
         } catch {
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
@@ -649,7 +633,7 @@ private struct VMClientResolverView<VM, VMV>: View where
             // over the UI.  But instead, some top-level
             // way to display to the user that the app
             // encountered an error.
-            return nil
+            return .stub()
         }
     }
 }

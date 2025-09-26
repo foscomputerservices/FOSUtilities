@@ -65,8 +65,8 @@ private struct LocalizableResolverView<L: Localizable>: View {
             Text(value)
         } else {
             Text("")
-                .task {
-                    if let store = try? await mvvmEnv.clientLocalizationStore {
+                .onAppear {
+                    if let store = try? mvvmEnv.clientLocalizationStore {
                         resolve(locale: locale, store: store)
                     } else {
                         // TODO: Error handling
