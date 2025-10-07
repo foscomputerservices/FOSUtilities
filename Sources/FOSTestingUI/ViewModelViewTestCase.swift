@@ -82,8 +82,38 @@ import XCTest
 /// ```
 @MainActor open class ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: XCTestCase, @unchecked Sendable {
     private var app: XCUIApplication?
+
     private var locStore: LocalizationStore?
-    private var locales: Set<Locale>?
+
+    /// Returns the `LocalizationStore` used to localize `ViewModel`
+    ///
+    /// - Throws: ``RunError.setupNotCalled`` if the test case's
+    ///    setup method has not yet been called.
+    public var localizationStore: LocalizationStore {
+        get throws {
+            guard let locStore else {
+                throw RunError.setupNotCalled
+            }
+            return locStore
+        }
+    }
+
+    /// Returns the `Locale`s that are known to the `XCTestCase`
+    public var locales: Set<Locale>?
+
+    /// Returns a localized version of `ViewModel`
+    ///
+    /// - Parameters:
+    ///   - viewModel: A `ViewModel` to localize (default: .stub())
+    ///   - locale: The `Locale` to localize the `ViewModel` to (default: nil)
+    public func localizedViewModel(
+        _ viewModel: VM = .stub(),
+        locale: Locale? = nil
+    ) throws -> VM {
+        try viewModel.toJSON(
+            encoder: encoder(locale: locale)
+        ).fromJSON()
+    }
 
     /// Presents a *ViewModelView* associated with the given *ViewModel*
     ///
@@ -130,17 +160,21 @@ import XCTest
     ///   - locale: The *Locale* to use to encode the *ViewModel* (default: Self.en)
     ///   - timeout: The number of seconds to wait for the application to respond (default: 3)
     /// - Returns: The *XCUIApplication* that proxies the *ViewModelView*
-    @MainActor public func presentView(testConfiguration: String = "", viewModel: VM = .stub(), locale: Locale? = nil, timeout: TimeInterval = 3) throws -> XCUIApplication {
+    @MainActor public func presentView(
+        testConfiguration: String = "",
+        viewModel: VM = .stub(),
+        locale: Locale? = nil,
+        timeout: TimeInterval = 3
+    ) throws -> XCUIApplication {
         guard let app else {
             throw RunError.setupNotCalled
         }
 
-        let encoder = encoder(locale: locale)
-
         app.launchEnvironment["__FOS_ViewModelType"] = String(describing: VM.self)
-        app.launchEnvironment["__FOS_ViewModel"] = try viewModel.toJSON(
-            encoder: encoder
-        ).obfuscate
+        app.launchEnvironment["__FOS_ViewModel"] =
+            try localizedViewModel(viewModel, locale: locale)
+                .toJSON()
+                .obfuscate
         app.launchEnvironment["__FOS_TestConfiguration"] = testConfiguration
         app.launch()
         guard app.wait(for: .runningForeground, timeout: timeout) else {
@@ -199,7 +233,12 @@ import XCTest
     ///   - resourceDirectoryName: The directory in the bundle to search for localizations (default: "")
     ///   - appBundleIdentifier: The application's bundle identifier
     ///   - locales: The locales to test (default: en)
-    public func setUp(bundle: Bundle, resourceDirectoryName: String = "", appBundleIdentifier: String, locales: Set<Locale>? = nil) async throws {
+    public func setUp(
+        bundle: Bundle,
+        resourceDirectoryName: String = "",
+        appBundleIdentifier: String,
+        locales: Set<Locale>? = nil
+    ) async throws {
         try await super.setUp()
 
         locStore = try bundle.yamlLocalization(
