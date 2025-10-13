@@ -173,7 +173,7 @@ import XCTest
         app.launchEnvironment["__FOS_ViewModelType"] = String(describing: VM.self)
         app.launchEnvironment["__FOS_ViewModel"] =
             try localizedViewModel(viewModel, locale: locale)
-                .toJSON()
+                .toJSON(encoder: encoder(locale: locale))
                 .obfuscate
         app.launchEnvironment["__FOS_TestConfiguration"] = testConfiguration
         app.launch()
