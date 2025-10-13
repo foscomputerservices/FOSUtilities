@@ -81,7 +81,11 @@ public extension LocalizableSubstitutions {
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
-        try container.encode(encoder.localizeString(self))
+        if case LocalizableString.constant(let string) = baseString {
+            try container.encode(string)
+        } else {
+            try container.encode(encoder.localizeString(self))
+        }
     }
 
     // MARK: Identifiable Protocol
