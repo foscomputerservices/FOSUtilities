@@ -60,15 +60,15 @@ let package = Package(
         var result: [Package.Dependency] = [
             // 🍎 frameworks
             .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMajor(from: "1.4.3")),
-            .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "3.10.0")),
+            .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "4.1.0")),
             .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
 
             // Third 🥳 frameworks
-            .package(url: "https://github.com/jpsim/Yams.git", .upToNextMajor(from: "5.1.3"))
+            .package(url: "https://github.com/jpsim/Yams.git", .upToNextMajor(from: "6.2.0"))
         ]
 
         #if os(macOS) || os(Linux)
-        result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.115.1")))
+        result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.119.0")))
         result.append(.package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")))
         #endif
 
