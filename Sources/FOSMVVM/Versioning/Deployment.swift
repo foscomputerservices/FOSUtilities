@@ -95,21 +95,56 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
 
     /// The current deployment
     ///
-    /// By default the process attempts to detect which deployment to use:
+    /// The deployment is determined through a priority-based detection system.
+    /// The first matching condition wins:
     ///
-    /// | Order | Detection | Deployment |
-    /// | ----- | -------------- | -------------- |
-    /// | 1) | Overridden Deployment | *overridden value* |
-    /// | 2) | Shell Environment Specification | *shell env value* |
-    /// | 3) | Bundle.isTestFlightInstall | staging |
-    /// | 4) | #if DEBUG is true | debug |
-    /// | 5) | default | production |
+    /// | Priority | Detection Method | Result | Use Case |
+    /// | -------- | ---------------- | ------ | -------- |
+    /// | 1 | ``overrideDeployment(to:)`` | *specified value* | Programmatic override, testing |
+    /// | 2 | `FOS-DEPLOYMENT` environment variable | *env value* | Local development via Xcode scheme |
+    /// | 3 | `FOS-DEPLOYMENT` Info.plist key | *plist value* | CI/CD build-time configuration |
+    /// | 4 | `Bundle.isTestFlightInstall` | ``staging`` | TestFlight distributions |
+    /// | 5 | `#if DEBUG` compiler flag | ``debug`` | Debug builds |
+    /// | 6 | Default | ``production`` | Release builds |
+    ///
+    /// ## CI/CD Integration
+    ///
+    /// To configure deployment at build time, set up your Xcode project:
+    ///
+    /// 1. **Add a user-defined build setting** in your target's Build Settings:
+    ///    - Click "+" → "Add User-Defined Setting"
+    ///    - Name: `FOS_DEPLOYMENT`
+    ///    - Value: leave empty (will be set at build time)
+    ///
+    /// 2. **Add the Info.plist entry** in your target's Info tab:
+    ///    - Key: `FOS-DEPLOYMENT`
+    ///    - Value: `$(FOS_DEPLOYMENT)`
+    ///
+    /// 3. **Pass the value during build**:
+    ///    ```bash
+    ///    xcodebuild archive ... FOS_DEPLOYMENT=staging
+    ///    ```
+    ///
+    /// ## Local Development
+    ///
+    /// Override the deployment in your Xcode scheme:
+    ///
+    /// 1. Edit Scheme → Run → Arguments → Environment Variables
+    /// 2. Add `FOS-DEPLOYMENT` with value `staging`, `production`, or custom name
+    ///
+    /// This takes precedence over the Info.plist value, allowing developers to test
+    /// against different environments without modifying the project.
+    ///
+    /// > The environment variable uses a hyphen (`FOS-DEPLOYMENT`) while the
+    ///   build setting uses an underscore (`FOS_DEPLOYMENT`) due to Xcode naming conventions.
     public static var current: Self {
         get async {
             if let override = await getDeploymentOverride() {
                 return override
             } else if let envSpecified = ProcessInfo.processInfo.deployment {
                 return envSpecified
+            } else if let plistValue = Bundle.main.infoDictionary?["FOS-DEPLOYMENT"] as? String {
+                return .init(string: plistValue)
             }
 
             #if os(iOS) || os(tvOS) || os(watchOS) || os(macOS) || os(visionOS)
