@@ -143,7 +143,7 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
                 return override
             } else if let envSpecified = ProcessInfo.processInfo.deployment {
                 return envSpecified
-            } else if let plistValue = Bundle.main.infoDictionary?["FOS-DEPLOYMENT"] as? String {
+            } else if let plistValue = Bundle.main.infoDictionary?["FOS-DEPLOYMENT"] as? String, !plistValue.isEmpty {
                 return .init(string: plistValue)
             }
 
