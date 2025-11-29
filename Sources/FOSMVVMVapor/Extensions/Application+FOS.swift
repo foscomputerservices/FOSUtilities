@@ -68,7 +68,7 @@ public extension Application {
 private struct YamlLocalizationInitializer: LifecycleHandler {
     let config: YamlStoreConfig
 
-    fileprivate func willBoot(_ app: Application) async throws {
+    fileprivate func willBootAsync(_ app: Application) async throws {
         app.logger.info("Begin: Loading YAML files")
 
         app.localizationStore = try YamlStore(config: config)
