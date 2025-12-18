@@ -15,6 +15,7 @@ en:
     substitutions:
       sub1: "Number 1"
       sub2: "Number 2"
+    aLocalizedMultiTypedSubstitution: "String: %{string}, Int: %{int}, Date: %{date}"
 
 es:
   TestLocalizableViewModel:
