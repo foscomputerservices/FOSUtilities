@@ -17,8 +17,51 @@
 import Foundation
 
 extension String {
-    func pluralize() -> String? {
-        Self.singularToPluralMapping[self]
+    /// Returns the plural form of the string.
+    ///
+    /// First checks a dictionary of known singular-to-plural mappings,
+    /// then falls back to English pluralization rules for unknown words.
+    ///
+    /// - Returns: The pluralized form of the string
+    func pluralize() -> String {
+        if let mapped = Self.singularToPluralMapping[self] {
+            return mapped
+        }
+
+        return pluralizeByRules()
+    }
+
+    private func pluralizeByRules() -> String {
+        guard !isEmpty else { return self }
+
+        let lowercased = self.lowercased()
+
+        // Words ending in -s, -ss, -x, -z, -ch, -sh → add "es"
+        if lowercased.hasSuffix("ss") ||
+            lowercased.hasSuffix("x") ||
+            lowercased.hasSuffix("z") ||
+            lowercased.hasSuffix("ch") ||
+            lowercased.hasSuffix("sh") {
+            return self + "es"
+        }
+
+        // Words ending in consonant + y → change y to "ies"
+        if lowercased.hasSuffix("y") {
+            let vowels: Set<Character> = ["a", "e", "i", "o", "u"]
+            let beforeY = lowercased.dropLast().last
+            if let beforeY, !vowels.contains(beforeY) {
+                return String(dropLast()) + "ies"
+            }
+        }
+
+        // Words ending in -s (but not -ss, handled above) are likely already plural
+        // or uncountable - just return as-is with "es" to be safe
+        if lowercased.hasSuffix("s") {
+            return self + "es"
+        }
+
+        // Default: add "s"
+        return self + "s"
     }
 
     private static let singularToPluralMapping: [String: String] = [
@@ -132,6 +175,93 @@ extension String {
         "schedule": "schedules",
         "appointment": "appointments",
         "reservation": "reservations",
-        "booking": "bookings"
+        "booking": "bookings",
+
+        // Irregular plurals (don't follow standard rules)
+        "person": "people",
+        "man": "men",
+        "woman": "women",
+        "child": "children",
+        "foot": "feet",
+        "tooth": "teeth",
+        "goose": "geese",
+        "mouse": "mice",
+        "ox": "oxen",
+
+        // Words ending in -f/-fe that change to -ves
+        "leaf": "leaves",
+        "life": "lives",
+        "wife": "wives",
+        "knife": "knives",
+        "wolf": "wolves",
+        "half": "halves",
+        "shelf": "shelves",
+        "self": "selves",
+        "calf": "calves",
+        "loaf": "loaves",
+        "thief": "thieves",
+
+        // Words ending in -f that just add -s (exceptions to -ves rule)
+        "roof": "roofs",
+        "proof": "proofs",
+        "chief": "chiefs",
+        "belief": "beliefs",
+        "cliff": "cliffs",
+        "gulf": "gulfs",
+
+        // Words ending in -o that add -es
+        "hero": "heroes",
+        "potato": "potatoes",
+        "tomato": "tomatoes",
+        "echo": "echoes",
+        "veto": "vetoes",
+
+        // Latin/Greek plurals commonly used in tech/science
+        "datum": "data",
+        "criterion": "criteria",
+        "phenomenon": "phenomena",
+        "analysis": "analyses",
+        "basis": "bases",
+        "crisis": "crises",
+        "thesis": "theses",
+        "hypothesis": "hypotheses",
+        "diagnosis": "diagnoses",
+        "index": "indices",
+        "appendix": "appendices",
+        "matrix": "matrices",
+        "vertex": "vertices",
+        "axis": "axes",
+        "focus": "foci",
+        "radius": "radii",
+        "stimulus": "stimuli",
+        "curriculum": "curricula",
+        "medium": "media",
+        "memorandum": "memoranda",
+        "schema": "schemas",
+        "antenna": "antennae",
+        "formula": "formulae",
+
+        // Uncountable nouns (same singular and plural)
+        "information": "information",
+        "equipment": "equipment",
+        "furniture": "furniture",
+        "software": "software",
+        "hardware": "hardware",
+        "feedback": "feedback",
+        "advice": "advice",
+        "knowledge": "knowledge",
+        "research": "research",
+        "traffic": "traffic",
+        "money": "money",
+        "music": "music",
+        "data": "data",
+        "sheep": "sheep",
+        "fish": "fish",
+        "deer": "deer",
+        "species": "species",
+        "series": "series",
+        "aircraft": "aircraft",
+        "offspring": "offspring",
+        "moose": "moose"
     ]
 }
