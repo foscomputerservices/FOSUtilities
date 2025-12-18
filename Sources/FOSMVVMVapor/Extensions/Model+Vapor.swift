@@ -35,9 +35,7 @@ public extension FOSMVVM.Model where Self: AnyModel & Fields {
             ending = String(fields[0])
         }
 
-        guard let plural = ending.pluralize() else {
-            fatalError("Unknown plural for \(ending)")
-        }
+        let plural = ending.pluralize()
 
         if !base.isEmpty {
             return [base, plural].joined(separator: "_")
