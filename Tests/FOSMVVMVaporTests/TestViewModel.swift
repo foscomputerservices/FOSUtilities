@@ -38,6 +38,14 @@ struct TestViewModel: RequestableViewModel {
     @LocalizedSubs(substitutions: \.substitutions) var aLocalizedSubstitution
     private let substitutions: [String: LocalizableInt]
 
+    @LocalizedSubs(substitutions: \.multiTypedSubs) var aLocalizedMultiTypedSubstitution
+
+    private var multiTypedSubs: [String: any Localizable] { [
+        "string": LocalizableString.constant("a constant string"),
+        "int": LocalizableInt(value: 42),
+        "date": LocalizableDate(value: .now)
+    ] }
+
     var vmId = ViewModelId()
 
     var displayName: LocalizableString { .constant("TestVM") }

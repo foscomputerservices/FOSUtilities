@@ -203,6 +203,8 @@ public extension RetrievablePropertyNames {
     ///    under the model name.  If no value (default: nil) is provided, the name of the property
     ///    that the *PropertyWrapper* is attached to is used.
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
     ///
     /// - See also: ``LocalizableRef``*.init()*
     public init(parentKey: String? = nil, propertyName: String? = nil, index: Int? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
@@ -223,6 +225,8 @@ public extension RetrievablePropertyNames {
     ///      under the model name.  If no value (default: nil) is provided, the name of the property
     ///      that the *PropertyWrapper* is attached to is used.
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
     ///
     /// - See also: ``LocalizableRef``*.init()*
     public init(parentKeys: String..., propertyName: String? = nil, index: Int? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
@@ -251,6 +255,8 @@ public extension RetrievablePropertyNames {
     ///      under the model name.  If no value (default: nil) is provided, the name of the property
     ///      that the *PropertyWrapper* is attached to is used.
     ///   - index: An optional index into an arrayValue that is appended to *propertyName*  (0...n-1)
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
     ///
     /// - See also: ``LocalizableRef``*.init()*
     public init(parentKeys: [String], propertyName: String? = nil, index: Int? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableString {
@@ -289,6 +295,8 @@ public extension RetrievablePropertyNames {
     ///      separated with the grouping separator (default: true)
     ///   - groupingSize: The number of digits in the group, if showing a grouping
     ///      separator (default: 3)
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
     public init(value: Int? = nil, showGroupingSeparator: Bool = true, groupingSize: Int = 3, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableInt {
         self.localizationId = .random(length: 10)
         self.wrappedValue = .init(
@@ -319,6 +327,8 @@ public extension RetrievablePropertyNames {
     ///   - separatorKeyPath:  An optional ``KeyPath`` to a property of type ``LocalizedString``
     ///       that contains the **String** to place between each **String** in the
     ///       pieces array
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
     public init(pieces piecesKeyPath: KeyPath<Model, _LocalizedArrayProperty<Model, LocalizableString>> & Sendable, separator separatorKeyPath: (KeyPath<Model, _LocalizedProperty<Model, LocalizableString>> & Sendable)? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableCompoundValue<LocalizableString> {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
@@ -368,8 +378,6 @@ public extension RetrievablePropertyNames {
 
     /// Initializes the ``LocalizeSubs`` property wrapper
     ///
-    ///
-    ///
     /// ## Example
     ///
     /// ``` swift
@@ -386,8 +394,9 @@ public extension RetrievablePropertyNames {
     /// ```
     ///
     /// - Parameters:
-    ///   - substitutions: A ``KeyPath`` to a property of type ``LocalizedStrings``
-    ///       that contains the **String** pieces to combine into a single **String**
+    ///   - substitutions: A ``KeyPath`` to a property of type ``Localizable`` that contains the ``Localizable`` pieces to combine into a single **String**
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
     public init(substitutions: KeyPath<Model, [String: some Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
@@ -413,7 +422,28 @@ public extension RetrievablePropertyNames {
         self.vLast = vLast
     }
 
-    public init(_ propertyName: String? = nil, substitutions: KeyPath<Model, [String: some Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
+    /// Initializes the ``LocalizeSubs`` property wrapper
+    ///
+    /// ## Example
+    ///
+    /// ``` swift
+    ///  @ViewModel struct MyViewModel {
+    ///    @LocalizedSubs(substitutions: \.multiTypedSubs) var aLocalizedMultiTypedSubstitution
+    ///
+    ///    private var multiTypedSubs: [String: any Localizable] { [
+    ///        "string": LocalizableString.constant("a constant string"),
+    ///        "int": LocalizableInt(value: 42),
+    ///        "date": LocalizableDate(value: .now)
+    ///    ] }
+    ///  }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - substitutions: A ``KeyPath`` to a property of type ``Localizable``
+    ///       that contains the ``Localizable`` pieces to combine into a single **String**
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
+    public init(substitutions: KeyPath<Model, [String: any Localizable]> & Sendable, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableSubstitutions {
         self.wrappedValue = Value.stub() // Bound later when propertyName is set
         self.localizationId = .random(length: 10)
         self.bindWrappedValue = { model, propertyName, _ in
@@ -437,6 +467,7 @@ public extension RetrievablePropertyNames {
         self.vFirst = vFirst ?? .vInitial
         self.vLast = vLast
     }
+
 }
 
 public extension _LocalizedProperty {
