@@ -75,9 +75,14 @@ public extension LocalizableInt {
         try container.encode(showGroupingSeparator, forKey: .showGroupingSeparator)
         try container.encode(groupingSize, forKey: .groupingSize)
 
-        // REVIEWED: DGH - The RHS of this ternary will never be executed, so a block
-        //   will never be covered
-        try container.encode(encoder.localizeString(self) ?? "", forKey: .localizedString)
+        // If we've already been localized, just send that
+        if let _localizedString {
+            try container.encode(_localizedString, forKey: .localizedString)
+        } else {
+            // REVIEWED: DGH - The RHS of this ternary will never be executed, so a block
+            //   will never be covered
+            try container.encode(encoder.localizeString(self) ?? "", forKey: .localizedString)
+        }
     }
 
     // MARK: Identifiable Protocol

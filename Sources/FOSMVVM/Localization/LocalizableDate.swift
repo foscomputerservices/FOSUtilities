@@ -36,9 +36,13 @@ public struct LocalizableDate: Codable, Hashable, Comparable, LocalizableValue, 
         timeStyle: DateFormatter.Style? = nil,
         dateFormat: String? = nil
     ) {
+        let defaultStyle: DateFormatter.Style? = (dateStyle == nil && timeStyle == nil && dateFormat == nil)
+            ? DateFormatter.Style.medium
+            : nil
+
         self.init(
             value: value,
-            dateStyle: dateStyle,
+            dateStyle: dateStyle ?? defaultStyle,
             timeStyle: timeStyle,
             dateFormat: dateFormat,
             localizedString: nil
@@ -91,9 +95,14 @@ public extension LocalizableDate {
         try container.encodeIfPresent(timeStyle?.rawValue, forKey: .timeStyle)
         try container.encodeIfPresent(dateFormat, forKey: .dateFormat)
 
-        // REVIEWED: DGH - The RHS of this ternary will never be executed, so a block
-        //   will never be covered
-        try container.encode(encoder.localizeString(self) ?? "", forKey: .localizedString)
+        // If we've already been localized, just send that
+        if let _localizedString {
+            try container.encode(_localizedString, forKey: .localizedString)
+        } else {
+            // REVIEWED: DGH - The RHS of this ternary will never be executed, so a block
+            //   will never be covered
+            try container.encode(encoder.localizeString(self) ?? "", forKey: .localizedString)
+        }
     }
 
     // MARK: Identifiable Protocol
