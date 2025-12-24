@@ -63,6 +63,33 @@ public extension Application {
         )
         lifecycle.use(YamlLocalizationInitializer(config: config))
     }
+
+    // MARK: MVVMEnvironment
+
+    var mvvmEnvironment: MVVMEnvironment? {
+        get { storage[MVVMEnvironmentStore.self] }
+        set { storage[MVVMEnvironmentStore.self] = newValue }
+    }
+
+    fileprivate var _serverBaseURL: URL? {
+        get { storage[ServerBaseURLStore.self] }
+        set { storage[ServerBaseURLStore.self] = newValue }
+    }
+
+    var serverBaseURL: URL {
+        guard let _serverBaseURL else {
+            fatalError("Attempted to access MVVMEnvironment/serverBaseURL before it was initialized")
+        }
+
+        return _serverBaseURL
+    }
+
+    func initMVVMEnvironment(_ mvvmEnvironment: MVVMEnvironment) async throws {
+        lifecycle.use(MVVMEnvironmentInitializer(
+            mvvmEnvironment: mvvmEnvironment,
+            serverBaseURL: try await mvvmEnvironment.serverBaseURL
+        ))
+    }
 }
 
 private struct YamlLocalizationInitializer: LifecycleHandler {
@@ -79,4 +106,23 @@ private struct YamlLocalizationInitializer: LifecycleHandler {
 
 private struct YamlLocalizationStore: StorageKey {
     typealias Value = LocalizationStore
+}
+
+private struct MVVMEnvironmentInitializer: LifecycleHandler {
+    let mvvmEnvironment: MVVMEnvironment
+    let serverBaseURL: URL
+
+    fileprivate func willBootAsync(_ app: Application) async throws {
+        app.logger.info("MVVM Environment WebService: \(serverBaseURL.absoluteString)")
+        app.mvvmEnvironment = mvvmEnvironment
+        app._serverBaseURL = try await mvvmEnvironment.serverBaseURL
+    }
+}
+
+private struct MVVMEnvironmentStore: StorageKey {
+    typealias Value = MVVMEnvironment
+}
+
+private struct ServerBaseURLStore: StorageKey {
+    typealias Value = URL
 }
