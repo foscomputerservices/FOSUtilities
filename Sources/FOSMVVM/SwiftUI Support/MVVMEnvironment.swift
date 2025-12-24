@@ -18,6 +18,8 @@ import FOSFoundation
 import Foundation
 #if canImport(SwiftUI)
 import SwiftUI
+#else
+import Observation
 #endif
 
 /// ``MVVMEnvironment`` provides configuration information to to the
@@ -315,12 +317,16 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
 
+        
         #if canImport(SwiftUI)
         self.loadingView = { AnyView(DefaultLoadingView()) }
-        #endif
-
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
         SystemVersion.setCurrentVersion(currentVersion)
+        #else
+        let currentVersion = currentVersion ?? SystemVersion.current
+        SystemVersion.setCurrentVersion(currentVersion)
+        #endif
+
     }
 
     /// Initializes the ``MVVMEnvironment`` for non-SwiftUI Applications
@@ -380,6 +386,7 @@ public enum MVVMEnvironmentError: Error, CustomDebugStringConvertible {
 
 private extension MVVMEnvironment {
     static func ensureVersionsCompatible(currentVersion: SystemVersion, appBundle: Bundle) {
+        #if canImport(SwiftUI)
         do {
             let bundleVersion = try appBundle.appleOSVersion
 
@@ -391,6 +398,7 @@ private extension MVVMEnvironment {
         } catch let e {
             fatalError("Error retrieving SystemVersion: \(e.localizedDescription)")
         }
+        #endif
     }
 }
 
