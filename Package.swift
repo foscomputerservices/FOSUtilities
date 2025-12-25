@@ -70,6 +70,7 @@ let package = Package(
         #if os(macOS) || os(Linux)
         result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.119.0")))
         result.append(.package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")))
+        result.append(.package(url: "https://github.com/vapor/leaf-kit.git", .upToNextMajor(from: "1.11.0")))
         #endif
 
         return result
@@ -175,6 +176,7 @@ let package = Package(
                 .byName(name: "FOSMacros"),
                 .product(name: "Vapor", package: "Vapor"),
                 .product(name: "FluentKit", package: "fluent-kit"),
+                .product(name: "LeafKit", package: "leaf-kit"),
                 .product(name: "Yams", package: "Yams")
             ]
         ))

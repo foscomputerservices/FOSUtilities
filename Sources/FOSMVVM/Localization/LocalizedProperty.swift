@@ -467,7 +467,6 @@ public extension RetrievablePropertyNames {
         self.vFirst = vFirst ?? .vInitial
         self.vLast = vLast
     }
-
 }
 
 public extension _LocalizedProperty {
