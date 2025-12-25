@@ -116,8 +116,7 @@ public extension _LocalizedArrayProperty {
 
         if let bindWrappedValue {
             guard
-                let propertyNames = encoder.propertyNameBindings(),
-                let propertyName = propertyNames[localizationId]
+                let propertyName = encoder.propertyNameBindings?[localizationId]
             else {
                 throw LocalizedArrayPropertyError.internalError("\(Self.self): Unable to resolve the property name")
             }

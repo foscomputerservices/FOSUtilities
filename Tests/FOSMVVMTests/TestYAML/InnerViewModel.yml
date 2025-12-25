@@ -1,3 +1,4 @@
 en:
   InnerViewModel:
     innerString: "Inner String"
+    innerSubs: "SubInt: %{subInt}"

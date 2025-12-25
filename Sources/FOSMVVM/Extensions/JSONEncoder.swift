@@ -93,8 +93,8 @@ extension Encoder {
             locale: locale,
             localizationStore: localizationStore
         )
-        encoder.userInfo[.currentModelKey] = model
-        encoder.userInfo[.propertyNamesKey] = model.allPropertyNames()
+        encoder.setCurrentModel(model)
+        encoder.propertyNameBindings = model.allPropertyNames()
 
         do {
             return try propertyWrapper
@@ -111,8 +111,8 @@ extension Encoder {
         }
 
         let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
-        encoder.userInfo[.currentModelKey] = model
-        encoder.userInfo[.propertyNamesKey] = model.allPropertyNames()
+        encoder.setCurrentModel(model)
+        encoder.propertyNameBindings = model.allPropertyNames()
 
         do {
             return try propertyWrapper
@@ -127,26 +127,45 @@ extension Encoder {
 private final class LocalizingEncoder: JSONEncoder {
     override func encode(_ value: some Encodable) throws -> Data {
         let parentModel = userInfo[.currentModelKey]
-        let parentPropertyNames = userInfo[.propertyNamesKey]
+        let parentPropertyNames = propertyNameBindings
 
         let newPropertyNames: [LocalizableId: String]
         if let model = value as? (any RetrievablePropertyNames) {
             newPropertyNames = model.allPropertyNames()
-            userInfo[.currentModelKey] = model
+            setCurrentModel(model)
         } else {
             newPropertyNames = value.allPropertyNames()
         }
-        var propertyNames = (userInfo[.propertyNamesKey] as? [LocalizableId: String]) ?? [:]
+        var propertyNames = propertyNameBindings ?? [:]
         for (key, value) in newPropertyNames {
             propertyNames[key] = value
         }
-        userInfo[.propertyNamesKey] = propertyNames
+        propertyNameBindings = propertyNames
 
-        let result = try super.encode(value)
-        userInfo[.currentModelKey] = parentModel
-        userInfo[.propertyNamesKey] = parentPropertyNames
+        let result: Data
+        if let viewModel = value as? any ViewModel {
+            result = try encodeViewModel(viewModel)
+        } else {
+            result = try super.encode(value)
+        }
+        setCurrentModel(parentModel)
+        propertyNameBindings = parentPropertyNames
 
         return result
+    }
+
+    private func encodeViewModel<T: ViewModel>(_ value: T) throws -> Data {
+        let config = ViewModelConfiguration()
+        return try encode(value, configuration: config)
+    }
+
+    override func encode<T>(_ value: T, configuration: T.EncodingConfiguration) throws -> Data where T : EncodableWithConfiguration {
+        guard let model = value as? (any ViewModel) else {
+            return try super.encode(value, configuration: configuration)
+        }
+
+//        fatalError("Do something amazing here!")
+        return try super.encode(value, configuration: configuration)
     }
 }
 
@@ -207,8 +226,23 @@ extension Encoder {
         userInfo[.currentModelKey] as? T
     }
 
-    func propertyNameBindings() -> [LocalizableId: String]? {
-        userInfo[.propertyNamesKey] as? [LocalizableId: String]
+    var currentModel: Any? {
+        userInfo[.currentModelKey]
+    }
+
+    var propertyNameBindings: [LocalizableId: String]? {
+        get { userInfo[.propertyNamesKey] as? [LocalizableId: String] }
+    }
+}
+
+extension JSONEncoder {
+    func setCurrentModel<T: Sendable>(_ model: T) {
+        userInfo[.currentModelKey] = model
+    }
+
+    var propertyNameBindings: [LocalizableId: String]? {
+        get { userInfo[.propertyNamesKey] as? [LocalizableId: String] }
+        set { userInfo[.propertyNamesKey] = newValue }
     }
 }
 
@@ -264,7 +298,7 @@ extension RetrievablePropertyNames { // Internal for testing
     }
 }
 
-extension CodingUserInfoKey { // Internal for testing
+private extension CodingUserInfoKey {
     static var localeKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCaLe*_")!
     }
@@ -273,10 +307,12 @@ extension CodingUserInfoKey { // Internal for testing
         CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_sTore*_")!
     }
 
+    /// The properties of the model currently being processed
     static var propertyNamesKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_pRoPerTy_NamEs*_")!
     }
 
+    /// The model currently being processed
     static var currentModelKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_curRenT_MOdel*_")!
     }

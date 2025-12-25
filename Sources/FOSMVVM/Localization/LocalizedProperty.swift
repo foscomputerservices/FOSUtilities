@@ -467,7 +467,6 @@ public extension RetrievablePropertyNames {
         self.vFirst = vFirst ?? .vInitial
         self.vLast = vLast
     }
-
 }
 
 public extension _LocalizedProperty {
@@ -487,7 +486,7 @@ public extension _LocalizedProperty {
 
         if let bindWrappedValue {
             guard
-                let propertyNames = encoder.propertyNameBindings()
+                let propertyNames = encoder.propertyNameBindings
             else {
                 throw LocalizedPropertyError.internalError(
                     "\(Self.self): Unable to resolve the bindings for the property names."
