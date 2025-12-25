@@ -34,7 +34,7 @@ extension String {
     private func pluralizeByRules() -> String {
         guard !isEmpty else { return self }
 
-        let lowercased = self.lowercased()
+        let lowercased = lowercased()
 
         // Words ending in -s, -ss, -x, -z, -ch, -sh → add "es"
         if lowercased.hasSuffix("ss") ||

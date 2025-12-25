@@ -102,7 +102,6 @@ public extension ServerRequest {
         return responseBody
     }
 
-    #if canImport(SwiftUI)
     /// Send the ``ServerRequest`` to the web service and wait for a response
     ///
     /// Upon receipt of a response from the server, ``responseBody`` will be updated with
@@ -131,7 +130,6 @@ public extension ServerRequest {
             }
         }
     }
-    #endif
 }
 
 public enum ServerRequestProcessingError: Error, CustomDebugStringConvertible {
