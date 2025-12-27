@@ -16,18 +16,21 @@ Generate ServerRequest types for client-server communication.
 **ServerRequest is THE way to communicate with an FOSMVVM server. No exceptions.**
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                 ALL CLIENTS USE ServerRequest                        │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  iOS App:         Button tap    →  request.processRequest(baseURL:)  │
-│  macOS App:       Button tap    →  request.processRequest(baseURL:)  │
-│  WebApp:          JS → WebApp   →  request.processRequest(baseURL:)  │
-│  CLI Tool:        main()        →  request.processRequest(baseURL:)  │
-│  Data Collector:  timer/event   →  request.processRequest(baseURL:)  │
-│  Background Job:  cron trigger  →  request.processRequest(baseURL:)  │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                 ALL CLIENTS USE ServerRequest                         │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  iOS App:         Button tap    →  request.processRequest(mvvmEnv:)   │
+│  macOS App:       Button tap    →  request.processRequest(mvvmEnv:)   │
+│  WebApp:          JS → WebApp   →  request.processRequest(mvvmEnv:)   │
+│  CLI Tool:        main()        →  request.processRequest(mvvmEnv:)   │
+│  Data Collector:  timer/event   →  request.processRequest(mvvmEnv:)   │
+│  Background Job:  cron trigger  →  request.processRequest(mvvmEnv:)   │
+│                                                                       │
+│  MVVMEnvironment holds: baseURL, headers, version, error handling     │
+│  Configure ONCE at startup, use EVERYWHERE via processRequest()       │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### What You Must NEVER Do
@@ -55,21 +58,36 @@ fetch(`/api/ideas/${ideaId}/move`)
 
 ### What You Must ALWAYS Do
 
+**Step 1: Configure MVVMEnvironment once at startup**
+
 ```swift
-// ✅ RIGHT - ServerRequest abstracts everything
+// CLI tool, background job, data collector - configure at startup
+let mvvmEnv = await MVVMEnvironment(
+    appBundle: Bundle.module,  // or Bundle.main for apps
+    requestHeaders: ["X-FOS-Version": "\"\(version)\""],
+    deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
+)
+```
+
+**Step 2: Use processRequest(mvvmEnv:) everywhere**
+
+```swift
+// ✅ RIGHT - ServerRequest with MVVMEnvironment
 let request = UserShowRequest(query: .init(userId: id))
-let response = try await request.processRequest(baseURL: serverURL)
+try await request.processRequest(mvvmEnv: mvvmEnv)
+let user = request.responseBody
 
 // ✅ RIGHT - Create operation
 let createRequest = CreateIdeaRequest(requestBody: .init(content: content))
-let response = try await createRequest.processRequest(baseURL: serverURL)
+try await createRequest.processRequest(mvvmEnv: mvvmEnv)
+let newId = createRequest.responseBody?.id
 
 // ✅ RIGHT - Update operation
 let updateRequest = MoveIdeaRequest(requestBody: .init(ideaId: id, newStatus: status))
-let response = try await updateRequest.processRequest(baseURL: serverURL)
+try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 ```
 
-**The path is derived from the type name. The HTTP method comes from the protocol. You NEVER write URL strings.**
+**The path is derived from the type name. The HTTP method comes from the protocol. You NEVER write URL strings. Configuration lives in MVVMEnvironment - you NEVER pass baseURL/headers to individual requests.**
 
 ---
 
@@ -227,11 +245,13 @@ try versionedGroup.register(collection: {Action}Controller())
 
 ### Step 6: Client Invocation
 
-**Native apps (iOS, macOS, CLI, etc.):**
+**All Swift clients (iOS, macOS, CLI, background jobs, etc.):**
+
 ```swift
+// MVVMEnvironment configured once at app/tool startup (see "What You Must ALWAYS Do")
 let request = {Action}Request(requestBody: .init(...))
-let response = try await request.processRequest(baseURL: serverURL)
-// Use response.responseBody
+try await request.processRequest(mvvmEnv: mvvmEnv)
+let result = request.responseBody
 ```
 
 **WebApp (browser clients):**
@@ -249,7 +269,7 @@ Browser                    WebApp (Swift)                      WebServer
    │  POST /action-name         │                                  │
    │  (JSON body)               │                                  │
    │ ─────────────────────────► │                                  │
-   │                            │  request.processRequest(baseURL:)│
+   │                            │  request.processRequest(mvvmEnv:)│
    │                            │ ────────────────────────────────►│
    │                            │ ◄────────────────────────────────│
    │  ◄──────────────────────── │  (ResponseBody)                  │
@@ -267,10 +287,14 @@ app.post("{action-name}") { req async throws -> Response in
     let body = try req.content.decode({Action}Request.RequestBody.self)
 
     // 2. Call server via ServerRequest (NOT hardcoded URL!)
+    // mvvmEnv is configured at WebApp startup
     let serverRequest = {Action}Request(requestBody: body)
-    let response = try await serverRequest.processRequest(baseURL: app.serverBaseURL)
+    try await serverRequest.processRequest(mvvmEnv: req.application.mvvmEnv)
 
     // 3. Return response (HTML fragment or JSON)
+    guard let response = serverRequest.responseBody else {
+        throw Abort(.internalServerError, reason: "No response from server")
+    }
     // ...
 }
 ```
@@ -352,3 +376,4 @@ public typealias ResponseBody = EmptyBody
 |---------|------|---------|
 | 1.0 | 2025-12-24 | Initial Kairos-specific skill |
 | 2.0 | 2025-12-26 | Complete rewrite: top-down architecture focus, "ServerRequest Is THE Way" principle, generalized from Kairos, WebApp bridge as platform pattern |
+| 2.1 | 2025-12-27 | MVVMEnvironment is THE configuration holder for all clients (CLI, iOS, macOS, etc.) - not raw baseURL/headers. DRY principle enforcement. |

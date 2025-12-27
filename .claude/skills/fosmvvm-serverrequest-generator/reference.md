@@ -6,20 +6,31 @@ Complete file templates for generating ServerRequest flows.
 
 ---
 
-## REMEMBER: No Hardcoded URLs
+## REMEMBER: MVVMEnvironment + processRequest()
 
 Before using these templates, remember:
 
 ```swift
-// ✅ Client invocation - ALWAYS
-let request = {Action}Request(requestBody: .init(...))
-let response = try await request.processRequest(baseURL: serverURL)
+// ✅ Configure MVVMEnvironment ONCE at app/tool startup
+let mvvmEnv = await MVVMEnvironment(
+    appBundle: Bundle.module,
+    requestHeaders: ["X-FOS-Version": "\"\(version)\""],
+    deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
+)
 
-// ❌ NEVER do this
+// ✅ Client invocation - ALWAYS use mvvmEnv
+let request = {Action}Request(requestBody: .init(...))
+try await request.processRequest(mvvmEnv: mvvmEnv)
+let result = request.responseBody
+
+// ❌ NEVER do this - violates DRY
+try await request.processRequest(baseURL: someURL, headers: someHeaders)
+
+// ❌ NEVER do this - hand-written HTTP
 let url = URL(string: "http://server/api/something")!
 ```
 
-The templates below define the **types**. The URL path is derived from the type name automatically.
+The templates below define the **types**. The URL path is derived from the type name automatically. Configuration lives in MVVMEnvironment.
 
 ---
 
@@ -187,18 +198,20 @@ try versionedGroup.register(collection: {Action}Controller())
 
 ## Template 4: Client Invocation
 
-### Native App (iOS, macOS, CLI, etc.)
+### All Swift Clients (iOS, macOS, CLI, background jobs, etc.)
 
 ```swift
-// This is all you need - no URL strings!
+// MVVMEnvironment configured ONCE at app/tool startup (see "REMEMBER" section above)
+
+// Make requests using mvvmEnv
 let request = {Action}Request(requestBody: .init(
     {entity}Id: entityId
     // ... other fields
 ))
 
 do {
-    let response = try await request.processRequest(baseURL: serverURL)
-    let viewModel = response?.viewModel
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+    let viewModel = request.responseBody?.viewModel
     // Use viewModel...
 } catch {
     // Handle error
@@ -215,8 +228,11 @@ app.post("{action-kebab-case}") { req async throws -> Response in
     let body = try req.content.decode({Action}Request.RequestBody.self)
 
     // 2. Call server via ServerRequest (NOT hardcoded URL!)
+    // mvvmEnv is configured at WebApp startup
     let serverRequest = {Action}Request(requestBody: body)
-    guard let response = try await serverRequest.processRequest(baseURL: app.serverBaseURL) else {
+    try await serverRequest.processRequest(mvvmEnv: req.application.mvvmEnv)
+
+    guard let response = serverRequest.responseBody else {
         throw Abort(.internalServerError, reason: "No response from server")
     }
 
@@ -356,13 +372,15 @@ public final class Delete{Entity}Request: DeleteRequest, @unchecked Sendable {
 - [ ] Controller registered in routes.swift
 
 ### Client Invocation
-- [ ] Uses `request.processRequest(baseURL:)` - NO hardcoded URLs
-- [ ] Handles response properly
+- [ ] MVVMEnvironment configured once at app/tool startup
+- [ ] Uses `request.processRequest(mvvmEnv:)` - NO baseURL/headers per-call
+- [ ] Handles response via `request.responseBody`
 - [ ] Error handling in place
 
 ### WebApp Bridge (if needed)
+- [ ] MVVMEnvironment configured at WebApp startup
 - [ ] Route decodes RequestBody
-- [ ] Route uses ServerRequest (not hardcoded URL to WebServer)
+- [ ] Route uses `processRequest(mvvmEnv:)` (not hardcoded URL to WebServer)
 - [ ] JS captures DOM references before await
 - [ ] JS POSTs to WebApp, not WebServer
 
