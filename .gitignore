@@ -10,3 +10,4 @@ DerivedData/
 .swiftpm
 .dependencies
 .derivedData
+*.tmp
