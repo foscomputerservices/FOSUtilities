@@ -14,5 +14,5 @@
     "viewmodel",
     "fluent"
   ],
-  "skillsDir": ".claude/skills"
+  "skills": "./.claude/skills/"
 }
