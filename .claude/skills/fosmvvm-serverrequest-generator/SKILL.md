@@ -62,9 +62,10 @@ fetch(`/api/ideas/${ideaId}/move`)
 
 ```swift
 // CLI tool, background job, data collector - configure at startup
+// NOTE: Version headers (X-FOS-Version) are AUTOMATIC - don't add manually!
+// SystemVersion.current is set from appBundle or via setCurrentVersion()
 let mvvmEnv = await MVVMEnvironment(
     appBundle: Bundle.module,  // or Bundle.main for apps
-    requestHeaders: ["X-FOS-Version": "\"\(version)\""],
     deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
 )
 ```

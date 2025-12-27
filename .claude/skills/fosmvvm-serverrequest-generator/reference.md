@@ -12,9 +12,9 @@ Before using these templates, remember:
 
 ```swift
 // ✅ Configure MVVMEnvironment ONCE at app/tool startup
+// NOTE: Version headers (X-FOS-Version) are AUTOMATIC via SystemVersion.current
 let mvvmEnv = await MVVMEnvironment(
-    appBundle: Bundle.module,
-    requestHeaders: ["X-FOS-Version": "\"\(version)\""],
+    appBundle: Bundle.module,  // Sets SystemVersion.current from bundle
     deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
 )
 
