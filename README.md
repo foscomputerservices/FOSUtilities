@@ -124,6 +124,53 @@ func routes(_ app: Application) throws {
 }
 ```
 
+## Claude Code Integration
+
+This repository includes [Claude Code](https://claude.ai/code) skills for generating FOSMVVM architecture components. These skills help automate the creation of ViewModels, Fields protocols, DataModels, ServerRequests, and Leaf Views following FOSMVVM patterns.
+
+### Available Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `fosmvvm-viewmodel-generator` | Generate ViewModels for UI screens and components |
+| `fosmvvm-fields-generator` | Generate Form Specifications with validation and localization |
+| `fosmvvm-serverrequest-generator` | Generate ServerRequest types for client-server communication |
+| `fosmvvm-fluent-datamodel-generator` | Generate Fluent DataModels for server-side persistence |
+| `fosmvvm-leaf-view-generator` | Generate Leaf templates for WebApps |
+
+### Installation
+
+To use these skills in your FOSMVVM projects, add this repository as a Claude Code plugin marketplace.
+
+**Option 1: Interactive**
+```bash
+/plugin marketplace add foscomputerservices/FOSUtilities
+/plugin install fosmvvm-generators@fosmvvm-tools
+```
+
+**Option 2: Project Configuration**
+
+Add to your project's `.claude/settings.json`:
+```json
+{
+  "enabledPlugins": {
+    "fosmvvm-generators@fosmvvm-tools": true
+  },
+  "extraKnownMarketplaces": {
+    "fosmvvm-tools": {
+      "source": {
+        "source": "github",
+        "repo": "foscomputerservices/FOSUtilities"
+      }
+    }
+  }
+}
+```
+
+### Architecture Documentation
+
+For detailed FOSMVVM architecture concepts, see [FOSMVVMArchitecture.md](.claude/docs/FOSMVVMArchitecture.md).
+
 ## FOSTesting
 
 FOSTestingUtilities is a package of testing patterns, types and routines that I have found generally useful in my projects.

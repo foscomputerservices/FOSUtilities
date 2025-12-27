@@ -68,16 +68,9 @@
 ///   }
 /// }
 /// ```
-public protocol ViewModelRequest: ServerRequest where ResponseBody: RequestableViewModel {}
+public protocol ViewModelRequest: ShowRequest where ResponseBody: RequestableViewModel {}
 
 public extension ViewModelRequest {
-    var action: ServerRequestAction {
-        .show
-    }
-
-    var fragment: EmptyFragment? { nil }
-
-    var requestBody: EmptyBody? { nil }
 
     var viewModel: ResponseBody {
         responseBody ?? .stub()
