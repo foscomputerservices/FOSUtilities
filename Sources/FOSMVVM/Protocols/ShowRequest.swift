@@ -16,8 +16,12 @@
 
 import FOSFoundation
 
+// TODO: Add Stubbable conformance
+// (dgh: 27-Dec-25) - If I add this now, it will be a breaking change for ViewModelRequest.
+// I'm not sure that we're ready for that yet, so just preparing for the future.
+
 /// A ``ServerRequest`` that requests that the server **show** a resource
-public protocol ShowRequest: ServerRequest, Stubbable {}
+public protocol ShowRequest: ServerRequest /*, Stubbable */ {}
 
 public extension ShowRequest {
     static var baseTypeName: String { "ShowRequest" }
