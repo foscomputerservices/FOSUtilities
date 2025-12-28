@@ -534,6 +534,41 @@ Specialized variants:
 - **DeleteRequest** - DELETE (soft)
 - **DestroyRequest** - DELETE (hard)
 
+### ServerRequestBody and Body Size Limits
+
+`ServerRequestBody` is the protocol for request/response body data:
+
+```swift
+public protocol ServerRequestBody: Codable, Sendable {
+    static var bodyPath: String { get }
+    static var maxBodySize: ServerRequestBodySize? { get }
+}
+```
+
+For large uploads (files, images, etc.), specify `maxBodySize` to override the server's default body collection limit:
+
+```swift
+struct FileUploadBody: ServerRequestBody {
+    static var maxBodySize: ServerRequestBodySize? { .mb(50) }
+
+    let fileName: String
+    let fileData: Data
+}
+```
+
+The `ServerRequestBodySize` enum provides type-safe size specifications:
+
+```swift
+public enum ServerRequestBodySize {
+    case bytes(_ count: UInt)  // Raw bytes
+    case kb(_ count: UInt)     // Kilobytes (× 1,024)
+    case mb(_ count: UInt)     // Megabytes (× 1,048,576)
+    case gb(_ count: UInt)     // Gigabytes (× 1,073,741,824)
+}
+```
+
+When a `ServerRequestController` registers routes, it automatically applies the body size limit from the `RequestBody` type.
+
 ---
 
 ## The Localization System

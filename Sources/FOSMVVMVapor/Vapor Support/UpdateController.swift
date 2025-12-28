@@ -43,12 +43,24 @@ public extension ServerRequestController {
         let routeGroup = routes
             .grouped(.constant(groupName))
 
+        let bodyStrategy = TRequest.RequestBody.maxBodySize.bodyStreamStrategy
+
         for pair in actions {
             switch pair.key {
-            case .create: routeGroup.post { try await Self.run($0, processor: pair.value) }
-            case .replace: routeGroup.put { try await Self.run($0, processor: pair.value) }
-            case .update: routeGroup.patch { try await Self.run($0, processor: pair.value) }
-            default: throw ServerRequestControllerError.invalidAction(pair.key)
+            case .create:
+                routeGroup.on(.POST, body: bodyStrategy) { req in
+                    try await Self.run(req, processor: pair.value)
+                }
+            case .replace:
+                routeGroup.on(.PUT, body: bodyStrategy) { req in
+                    try await Self.run(req, processor: pair.value)
+                }
+            case .update:
+                routeGroup.on(.PATCH, body: bodyStrategy) { req in
+                    try await Self.run(req, processor: pair.value)
+                }
+            default:
+                throw ServerRequestControllerError.invalidAction(pair.key)
             }
         }
     }
