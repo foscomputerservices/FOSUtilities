@@ -124,6 +124,7 @@ try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 | Request Body | `RequestBody` type, automatically JSON encoded via `requestBody?.toJSONData()` |
 | Response Body | `ResponseBody` type, automatically JSON decoded into `responseBody` |
 | Validation | `RequestBody: ValidatableModel` for write operations |
+| Body Size Limits | `RequestBody.maxBodySize` for large uploads (files, images) |
 | Type Safety | Compiler enforces correct types throughout |
 
 ---
@@ -391,3 +392,4 @@ public typealias ResponseBody = EmptyBody
 | 2.0 | 2025-12-26 | Complete rewrite: top-down architecture focus, "ServerRequest Is THE Way" principle, generalized from Kairos, WebApp bridge as platform pattern |
 | 2.1 | 2025-12-27 | MVVMEnvironment is THE configuration holder for all clients (CLI, iOS, macOS, etc.) - not raw baseURL/headers. DRY principle enforcement. |
 | 2.2 | 2025-12-27 | Added shared module pattern - SystemVersion.currentApplicationVersion from shared module, reference to FOSMVVMArchitecture.md |
+| 2.3 | 2025-12-27 | Added `ServerRequestBodySize` for large upload body size limits (`maxBodySize` on RequestBody) |

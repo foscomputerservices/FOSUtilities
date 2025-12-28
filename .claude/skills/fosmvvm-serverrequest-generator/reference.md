@@ -355,6 +355,39 @@ public final class Delete{Entity}Request: DeleteRequest, @unchecked Sendable {
 }
 ```
 
+### Large Upload RequestBody
+
+For file uploads or large payloads, specify `maxBodySize` to override the server's default limit:
+
+```swift
+public final class Upload{Entity}Request: CreateRequest, @unchecked Sendable {
+    // ...
+
+    public struct RequestBody: ServerRequestBody, ValidatableModel {
+        // Override default body size limit (e.g., 50MB for file uploads)
+        public static var maxBodySize: ServerRequestBodySize? { .mb(50) }
+
+        public let fileName: String
+        public let fileData: Data
+        // ... other fields
+
+        public func validate(
+            fields: [any FOSMVVM.FormFieldBase]?,
+            validations: FOSMVVM.Validations
+        ) -> FOSMVVM.ValidationResult.Status? {
+            nil
+        }
+    }
+    // ...
+}
+```
+
+Available size units:
+- `.bytes(_ count: UInt)` - Raw bytes
+- `.kb(_ count: UInt)` - Kilobytes (× 1,024)
+- `.mb(_ count: UInt)` - Megabytes (× 1,048,576)
+- `.gb(_ count: UInt)` - Gigabytes (× 1,073,741,824)
+
 ---
 
 ## Checklist
@@ -365,6 +398,7 @@ public final class Delete{Entity}Request: DeleteRequest, @unchecked Sendable {
 - [ ] ResponseBody contains what client needs back (often a ViewModel)
 - [ ] Stubbable conformance for testing
 - [ ] ValidatableModel on RequestBody (for write operations)
+- [ ] `maxBodySize` set on RequestBody if handling large uploads (files, images, etc.)
 
 ### Controller
 - [ ] Correct action mapping (.show, .create, .update, .delete)
