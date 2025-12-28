@@ -62,12 +62,24 @@ fetch(`/api/ideas/${ideaId}/move`)
 
 ```swift
 // CLI tool, background job, data collector - configure at startup
-// NOTE: Version headers (X-FOS-Version) are AUTOMATIC - don't add manually!
-// SystemVersion.current is set from appBundle or via setCurrentVersion()
+// Import your shared module to get SystemVersion.currentApplicationVersion
+import ViewModels  // ← Your shared module (see FOSMVVMArchitecture.md)
+
 let mvvmEnv = await MVVMEnvironment(
-    appBundle: Bundle.module,  // or Bundle.main for apps
+    currentVersion: .currentApplicationVersion,  // From shared module
+    appBundle: Bundle.module,
     deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
 )
+// NOTE: Version headers (X-FOS-Version) are AUTOMATIC via SystemVersion.current
+```
+
+The shared module contains `SystemVersion+App.swift`:
+```swift
+// In your shared ViewModels module
+public extension SystemVersion {
+    static var currentApplicationVersion: Self { .v1_0 }
+    static var v1_0: Self { .init(major: 1, minor: 0, patch: 0) }
+}
 ```
 
 **Step 2: Use processRequest(mvvmEnv:) everywhere**
@@ -378,3 +390,4 @@ public typealias ResponseBody = EmptyBody
 | 1.0 | 2025-12-24 | Initial Kairos-specific skill |
 | 2.0 | 2025-12-26 | Complete rewrite: top-down architecture focus, "ServerRequest Is THE Way" principle, generalized from Kairos, WebApp bridge as platform pattern |
 | 2.1 | 2025-12-27 | MVVMEnvironment is THE configuration holder for all clients (CLI, iOS, macOS, etc.) - not raw baseURL/headers. DRY principle enforcement. |
+| 2.2 | 2025-12-27 | Added shared module pattern - SystemVersion.currentApplicationVersion from shared module, reference to FOSMVVMArchitecture.md |

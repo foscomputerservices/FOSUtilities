@@ -11,12 +11,16 @@ Complete file templates for generating ServerRequest flows.
 Before using these templates, remember:
 
 ```swift
+// ✅ Import your shared module (contains ServerRequests AND SystemVersion)
+import ViewModels  // ← See "The Shared Module Pattern" in FOSMVVMArchitecture.md
+
 // ✅ Configure MVVMEnvironment ONCE at app/tool startup
-// NOTE: Version headers (X-FOS-Version) are AUTOMATIC via SystemVersion.current
 let mvvmEnv = await MVVMEnvironment(
-    appBundle: Bundle.module,  // Sets SystemVersion.current from bundle
+    currentVersion: .currentApplicationVersion,  // From shared module's SystemVersion extension
+    appBundle: Bundle.module,
     deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
 )
+// Version headers (X-FOS-Version) are AUTOMATIC via SystemVersion.current
 
 // ✅ Client invocation - ALWAYS use mvvmEnv
 let request = {Action}Request(requestBody: .init(...))
