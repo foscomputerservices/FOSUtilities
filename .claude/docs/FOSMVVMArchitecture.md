@@ -95,18 +95,20 @@ FOSMVVM defines a hierarchy of request types that all flow through the Model lay
 **Any code that communicates with an FOSMVVM server uses ServerRequest. No exceptions.**
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                 ALL CLIENTS USE ServerRequest                        │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  iOS App:         Button tap    →  request.processRequest(baseURL:)  │
-│  macOS App:       Button tap    →  request.processRequest(baseURL:)  │
-│  WebApp:          JS → WebApp   →  request.processRequest(baseURL:)  │
-│  CLI Tool:        main()        →  request.processRequest(baseURL:)  │
-│  Data Collector:  timer/event   →  request.processRequest(baseURL:)  │
-│  Background Job:  cron trigger  →  request.processRequest(baseURL:)  │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                 ALL CLIENTS USE ServerRequest                         │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  iOS App:         Button tap    →  request.processRequest(mvvmEnv:)   │
+│  macOS App:       Button tap    →  request.processRequest(mvvmEnv:)   │
+│  WebApp:          JS → WebApp   →  request.processRequest(mvvmEnv:)   │
+│  CLI Tool:        main()        →  request.processRequest(mvvmEnv:)   │
+│  Data Collector:  timer/event   →  request.processRequest(mvvmEnv:)   │
+│  Background Job:  cron trigger  →  request.processRequest(mvvmEnv:)   │
+│                                                                       │
+│  MVVMEnvironment configured ONCE at startup, used EVERYWHERE          │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 **NEVER do this:**
@@ -124,9 +126,10 @@ fetch('/api/users/123')
 
 **ALWAYS do this:**
 ```swift
-// RIGHT - ServerRequest abstracts everything
+// RIGHT - ServerRequest with MVVMEnvironment (configured once at startup)
 let request = UserShowRequest(query: .init(userId: id))
-let response = try await request.processRequest(baseURL: serverURL)
+try await request.processRequest(mvvmEnv: mvvmEnv)
+let user = request.responseBody
 ```
 
 **Why this matters:**
@@ -818,11 +821,131 @@ mutating func localizeMessages(encoder: JSONEncoder) throws {
 
 ---
 
+## The Shared Module Pattern
+
+A typical FOSMVVM project is a Swift Package with multiple targets. The key architectural element is the **shared module** - a target that both clients and server import.
+
+### Why a Shared Module?
+
+Clients and server must agree on:
+- **ServerRequest types** - The API contract (request/response shapes)
+- **ViewModels** - The data structures clients render
+- **Fields protocols** - Validation logic (same rules everywhere)
+- **SystemVersion** - App version constants (same version header everywhere)
+
+Without a shared module, these would be duplicated and drift apart.
+
+### Project Structure
+
+```
+Package.swift
+Sources/
+  ViewModels/                    ← SHARED MODULE (imported by ALL others)
+    ViewModels/
+      UserViewModel.swift
+      IdeaCardViewModel.swift
+    Requests/
+      CreateIdeaRequest.swift
+      MoveIdeaRequest.swift
+    FieldModels/
+      IdeaFields.swift
+      UserFields.swift
+    Versioning/
+      SystemVersion+App.swift    ← App version constants (see below)
+
+  WebServer/                     ← Server target (imports ViewModels)
+    Controllers/
+    DataModels/
+    ViewModelFactories/
+
+  WebApp/                        ← Web client (imports ViewModels)
+    Routes/
+    Views/
+
+  iOSApp/                        ← iOS app (imports ViewModels)
+
+  JSONLImporter/                 ← CLI tool (imports ViewModels)
+```
+
+### Dependency Graph
+
+```
+                    ┌─────────────────┐
+                    │   ViewModels    │  ← Shared module
+                    │  (shared types) │
+                    └────────┬────────┘
+                             │
+        ┌────────────────────┼────────────────────┐
+        │                    │                    │
+        ▼                    ▼                    ▼
+┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   WebServer   │   │    WebApp     │   │   CLI Tools   │
+│   (Vapor)     │   │   (Vapor)     │   │  (standalone) │
+└───────────────┘   └───────────────┘   └───────────────┘
+        │                    │                    │
+        └────────────────────┴────────────────────┘
+                             │
+                    All use same ServerRequest types
+                    All use same SystemVersion
+                    All use processRequest(mvvmEnv:)
+```
+
+### SystemVersion in the Shared Module
+
+The shared module defines app version constants:
+
+```swift
+// Sources/ViewModels/Versioning/SystemVersion+App.swift
+import FOSFoundation
+
+public extension SystemVersion {
+    /// The current application version
+    static var currentApplicationVersion: Self { .v1_0 }
+
+    // Version constants
+    static var v1_0: Self { .init(major: 1, minor: 0, patch: 0) }
+    static var v1_1: Self { .init(major: 1, minor: 1, patch: 0) }
+}
+```
+
+All targets import this and use the same version:
+
+```swift
+// In any client (iOS, CLI, WebApp, etc.)
+let mvvmEnv = await MVVMEnvironment(
+    currentVersion: .currentApplicationVersion,  // From shared module
+    appBundle: Bundle.module,
+    deploymentURLs: [.debug: URL(string: "http://localhost:8080")!]
+)
+```
+
+### What Belongs Where
+
+| Artifact | Location | Why |
+|----------|----------|-----|
+| ServerRequest types | Shared module | API contract |
+| ViewModels | Shared module | Response shapes |
+| Fields protocols | Shared module | Validation logic |
+| SystemVersion extension | Shared module | Version constants |
+| DataModels (Fluent) | Server only | Database schema |
+| ViewModelFactories | Server only | Query logic |
+| Controllers | Server only | Route handlers |
+| Views (SwiftUI/Leaf) | Client only | Rendering |
+
+### Key Insight
+
+If a type is needed by both client and server, it belongs in the shared module. This includes:
+- Anything in a `ServerRequest` definition
+- Anything used by `MVVMEnvironment`
+- Anything that must be consistent across all targets
+
+---
+
 ## File Organization Conventions
 
 ```
 Sources/
-  {ViewModelsTarget}/           # Shared ViewModels package
+  {ViewModelsTarget}/           # Shared ViewModels package (the shared module)
     ViewModels/
       {Name}ViewModel.swift
     FieldModels/
