@@ -85,9 +85,9 @@ public extension Application {
     }
 
     func initMVVMEnvironment(_ mvvmEnvironment: MVVMEnvironment) async throws {
-        lifecycle.use(MVVMEnvironmentInitializer(
+        try await lifecycle.use(MVVMEnvironmentInitializer(
             mvvmEnvironment: mvvmEnvironment,
-            serverBaseURL: try await mvvmEnvironment.serverBaseURL
+            serverBaseURL: mvvmEnvironment.serverBaseURL
         ))
     }
 }

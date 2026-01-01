@@ -11,3 +11,4 @@ DerivedData/
 .dependencies
 .derivedData
 *.tmp
+session-state-*.json

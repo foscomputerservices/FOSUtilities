@@ -1,0 +1,14 @@
+{
+  "name": "fosmvvm-tools",
+  "owner": {
+    "name": "FOS Computer Services"
+  },
+  "description": "Claude Code plugins for FOSMVVM architecture development",
+  "plugins": [
+    {
+      "name": "fosmvvm-generators",
+      "source": "./",
+      "description": "FOSMVVM architecture generators for ViewModels, Fields, DataModels, ServerRequests, and Leaf Views"
+    }
+  ]
+}

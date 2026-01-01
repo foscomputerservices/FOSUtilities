@@ -257,12 +257,23 @@ public protocol ServerRequestBody: Codable, Sendable {
     /// If the type is generic, then the generic constraints will be added to the path
     /// (e.g. MyBody<String> will be "my_body_string").
     static var bodyPath: String { get }
+
+    /// Maximum body size for collection by the server
+    ///
+    /// When set, the server will collect the entire request body up to this
+    /// size before processing. This is required for large uploads that exceed
+    /// the server's default streaming threshold.
+    ///
+    /// - Note: If `nil`, the server's default collection behavior is used.
+    static var maxBodySize: ServerRequestBodySize? { get }
 }
 
 public extension ServerRequestBody {
     static var bodyPath: String {
         Self.bodyPath(for: Self.self)
     }
+
+    static var maxBodySize: ServerRequestBodySize? { nil }
 
     static func bodyPath<Model: ServerRequestBody>(for model: Model.Type) -> String {
         let path = String(describing: Model.self)
@@ -294,6 +305,43 @@ public struct EmptyBody: ServerRequestBody {
     public init() {}
 
     public static var bodyPath: String { "" }
+}
+
+/// Represents a byte size for request body collection limits
+///
+/// Use this to specify the maximum size of request bodies that should
+/// be collected before processing. This is particularly useful for
+/// file uploads or large form submissions.
+///
+/// ## Example
+///
+/// ```swift
+/// struct FileUploadBody: ServerRequestBody {
+///     static var maxBodySize: ServerRequestBodySize? { .mb(50) }
+///
+///     let fileName: String
+///     let fileData: Data
+/// }
+/// ```
+public enum ServerRequestBodySize: Equatable, Hashable, Sendable {
+    /// Raw bytes
+    case bytes(_ count: UInt)
+    /// Kilobytes (× 1,024)
+    case kb(_ count: UInt)
+    /// Megabytes (× 1,048,576)
+    case mb(_ count: UInt)
+    /// Gigabytes (× 1,073,741,824)
+    case gb(_ count: UInt)
+
+    /// The size in bytes
+    public var byteCount: UInt {
+        switch self {
+        case .bytes(let count): count
+        case .kb(let count): count << 10
+        case .mb(let count): count << 20
+        case .gb(let count): count << 30
+        }
+    }
 }
 
 /// A custom *Error* implementation that the server will send in the event of an error

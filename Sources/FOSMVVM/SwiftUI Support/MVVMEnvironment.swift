@@ -317,7 +317,6 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
 
-        
         #if canImport(SwiftUI)
         self.loadingView = { AnyView(DefaultLoadingView()) }
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
@@ -326,7 +325,6 @@ public final class MVVMEnvironment: @unchecked Sendable {
         let currentVersion = currentVersion ?? SystemVersion.current
         SystemVersion.setCurrentVersion(currentVersion)
         #endif
-
     }
 
     /// Initializes the ``MVVMEnvironment`` for non-SwiftUI Applications

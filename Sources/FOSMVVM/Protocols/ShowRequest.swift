@@ -1,4 +1,4 @@
-// MVVMEnvirontmentView.swift
+// ShowRequest.swift
 //
 // Copyright 2024 FOS Computer Services, LLC
 //
@@ -14,22 +14,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if canImport(SwiftUI)
+import FOSFoundation
 
-import SwiftUI
+// TODO: Add Stubbable conformance
+// (dgh: 27-Dec-25) - If I add this now, it will be a breaking change for ViewModelRequest.
+// I'm not sure that we're ready for that yet, so just preparing for the future.
 
-struct MVVMEnvironmentView<Base: View>: View {
-    @Environment(MVVMEnvironment.self) private var mvvmEnv
-    @Environment(\.locale) private var locale
-    private let baseViewFunc: (MVVMEnvironment, Locale) -> Base
+/// A ``ServerRequest`` that requests that the server **show** a resource
+public protocol ShowRequest: ServerRequest /*, Stubbable */ {}
 
-    var body: some View {
-        baseViewFunc(mvvmEnv, locale)
-    }
+public extension ShowRequest {
+    static var baseTypeName: String { "ShowRequest" }
 
-    init(baseViewFunc: @escaping (MVVMEnvironment, Locale) -> Base) {
-        self.baseViewFunc = baseViewFunc
-    }
+    var action: ServerRequestAction { .show }
+
+    var fragment: EmptyFragment? { nil }
+
+    var requestBody: EmptyBody? { nil }
 }
-
-#endif
