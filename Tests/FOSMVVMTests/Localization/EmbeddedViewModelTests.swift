@@ -52,6 +52,107 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
         #expect(try vm.innerViewModel2.innerSubs.localizedString == "SubInt: 43")
     }
 
+    // MARK: - Optional ViewModel Tests
+
+    @Test func optionalEmbeddedViewModel_present() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: OptionalInnerViewModel = try .stub(inner: .stub(subInt: 99))
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(vm.inner != nil)
+        #expect(try vm.inner?.innerSubs.localizedString == "SubInt: 99")
+    }
+
+    @Test func optionalEmbeddedViewModel_nil() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: OptionalInnerViewModel = try .stub(inner: nil)
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(vm.inner == nil)
+    }
+
+    @Test func arrayOfOptionalViewModels() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: ArrayOfOptionalsViewModel = try .stub(items: [
+            .stub(subInt: 10),
+            nil,
+            .stub(subInt: 30)
+        ]).toJSON(encoder: vmEncoder).fromJSON()
+
+        #expect(vm.items.count == 3)
+        #expect(try vm.items[0]?.innerSubs.localizedString == "SubInt: 10")
+        #expect(vm.items[1] == nil)
+        #expect(try vm.items[2]?.innerSubs.localizedString == "SubInt: 30")
+    }
+
+    @Test func optionalArrayOfViewModels_present() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: OptionalArrayViewModel = try .stub(items: [.stub(subInt: 55)])
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(vm.items != nil)
+        #expect(try vm.items?[0].innerSubs.localizedString == "SubInt: 55")
+    }
+
+    @Test func optionalArrayOfViewModels_nil() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: OptionalArrayViewModel = try .stub(items: nil)
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(vm.items == nil)
+    }
+
+    // MARK: - Deep Nesting Tests
+
+    @Test func deeplyNestedViewModels() throws {
+        // Tests 3 levels of nesting: DeepLevel1 > DeepLevel2 > InnerViewModel
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: DeepLevel1ViewModel = try .stub(deepValue: 777)
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(try vm.level2.inner.innerSubs.localizedString == "SubInt: 777")
+    }
+
+    @Test func nestedArraysOfViewModels() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: NestedArraysViewModel = try .stub()
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        // First outer array element, first inner array element
+        #expect(try vm.outer[0].inner[0].innerSubs.localizedString == "SubInt: 100")
+        // First outer array element, second inner array element
+        #expect(try vm.outer[0].inner[1].innerSubs.localizedString == "SubInt: 101")
+        // Second outer array element, first inner array element
+        #expect(try vm.outer[1].inner[0].innerSubs.localizedString == "SubInt: 200")
+    }
+
+    // MARK: - Empty/Single Collection Tests
+
+    @Test func emptyArrayOfViewModels() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: MainViewModel = try .init(innerViewModels: [], vmId: .init())
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(vm.innerViewModels.isEmpty)
+    }
+
+    @Test func singleElementArray() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: MainViewModel = try .init(innerViewModels: [.stub(subInt: 42)], vmId: .init())
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        #expect(vm.innerViewModels.count == 1)
+        #expect(try vm.innerViewModels[0].innerSubs.localizedString == "SubInt: 42")
+    }
+
     let locStore: LocalizationStore
     init() throws {
         self.locStore = try Self.loadLocalizationStore(
@@ -119,6 +220,110 @@ private struct MultipleInnerViewModel: ViewModel {
         .init(
             innerViewModel1: .stub(subInt: 42),
             innerViewModel2: .stub(subInt: 43),
+            vmId: .init()
+        )
+    }
+}
+
+// MARK: - Optional ViewModel Test Structs
+
+private struct OptionalInnerViewModel: ViewModel {
+    @LocalizedString var title
+    let inner: InnerViewModel?
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self { stub(inner: .stub()) }
+
+    static func stub(inner: InnerViewModel?) -> Self {
+        .init(inner: inner, vmId: .init())
+    }
+}
+
+private struct ArrayOfOptionalsViewModel: ViewModel {
+    @LocalizedString var title
+    let items: [InnerViewModel?]
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self { stub(items: [.stub()]) }
+
+    static func stub(items: [InnerViewModel?]) -> Self {
+        .init(items: items, vmId: .init())
+    }
+}
+
+private struct OptionalArrayViewModel: ViewModel {
+    @LocalizedString var title
+    let items: [InnerViewModel]?
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self { stub(items: [.stub()]) }
+
+    static func stub(items: [InnerViewModel]?) -> Self {
+        .init(items: items, vmId: .init())
+    }
+}
+
+// MARK: - Deep Nesting Test Structs (reuses InnerViewModel which has YAML entries)
+
+private struct DeepLevel1ViewModel: ViewModel {
+    @LocalizedString var mainString
+    let level2: DeepLevel2ViewModel
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self { stub(deepValue: 42) }
+
+    static func stub(deepValue: Int) -> Self {
+        .init(level2: .stub(deepValue: deepValue), vmId: .init())
+    }
+}
+
+private struct DeepLevel2ViewModel: ViewModel {
+    @LocalizedString var mainString
+    let inner: InnerViewModel
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self { stub(deepValue: 42) }
+
+    static func stub(deepValue: Int) -> Self {
+        .init(inner: .stub(subInt: deepValue), vmId: .init())
+    }
+}
+
+// MARK: - Nested Arrays Test Structs
+
+private struct NestedArraysViewModel: ViewModel {
+    @LocalizedString var title
+    let outer: [MiddleViewModel]
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self {
+        .init(
+            outer: [
+                .stub(innerValues: [100, 101]),
+                .stub(innerValues: [200])
+            ],
+            vmId: .init()
+        )
+    }
+}
+
+private struct MiddleViewModel: ViewModel {
+    @LocalizedString var middleString
+    let inner: [InnerViewModel]
+
+    var vmId: FOSMVVM.ViewModelId
+
+    static func stub() -> Self { stub(innerValues: [42]) }
+
+    static func stub(innerValues: [Int]) -> Self {
+        .init(
+            inner: innerValues.map { .stub(subInt: $0) },
             vmId: .init()
         )
     }

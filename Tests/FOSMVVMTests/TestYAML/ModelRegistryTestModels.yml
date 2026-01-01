@@ -1,0 +1,36 @@
+en:
+  SingleSubsViewModel:
+    label: "Value: %{value}"
+
+  ArrayContainerViewModel:
+    title: "Array Container"
+
+  MultipleArraysViewModel:
+    title: "Multiple Arrays"
+
+  TwoLevelNestingViewModel:
+    title: "Two Level Nesting"
+
+  Level2ViewModel:
+    middleTitle: "Middle Level"
+
+  Level3ViewModel:
+    label: "Value: %{value}"
+
+  ThreeLevelNestingViewModel:
+    title: "Three Level Nesting"
+
+  MixedNestingViewModel:
+    title: "Mixed Nesting"
+
+  DualInstanceViewModel:
+    title: "Dual Instance"
+
+  FallbackTestViewModel:
+    title: "Fallback Test"
+
+  ErrorPathTestViewModel:
+    label: "Value: %{value}"
+
+  NestedPropertyTestViewModel:
+    parentLabel: "Parent Label"

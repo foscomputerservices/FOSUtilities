@@ -162,6 +162,108 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
         #expect(decodedLoc.substitutions.count == 0)
     }
 
+    // MARK: - Edge Case Tests
+    //
+    // Note: When using constant base strings, substitution happens via localizedString
+    // directly without encoding/decoding. Encoding only applies substitutions when
+    // using localized (non-constant) base strings.
+
+    @Test func substitution_emptyDictionary() throws {
+        // When no substitutions are provided, the base string should be used as-is
+        let base = LocalizableString.constant("No substitutions here")
+        let subs: [String: any Localizable] = [:]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "No substitutions here")
+    }
+
+    @Test func substitution_multipleSubstitutions() throws {
+        // Multiple substitutions should all be applied
+        let base = LocalizableString.constant("Hello %{name}, you have %{count} messages")
+        let subs: [String: any Localizable] = [
+            "name": LocalizableString.constant("Alice"),
+            "count": LocalizableString.constant("5")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "Hello Alice, you have 5 messages")
+    }
+
+    @Test func substitution_sameKeyMultipleTimes() throws {
+        // Same substitution key used multiple times in template
+        let base = LocalizableString.constant("%{word} %{word} %{word}")
+        let subs: [String: any Localizable] = [
+            "word": LocalizableString.constant("echo")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "echo echo echo")
+    }
+
+    @Test func substitution_unusedKey_passesThrough() throws {
+        // If a substitution key is not used in the template, it should be ignored
+        let base = LocalizableString.constant("Only %{used} here")
+        let subs: [String: any Localizable] = [
+            "used": LocalizableString.constant("this"),
+            "unused": LocalizableString.constant("that")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "Only this here")
+    }
+
+    @Test func substitution_specialCharactersInValue() throws {
+        // Substitution values with special characters should be preserved
+        let base = LocalizableString.constant("Path: %{path}")
+        let subs: [String: any Localizable] = [
+            "path": LocalizableString.constant("/usr/local/bin")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "Path: /usr/local/bin")
+    }
+
+    @Test func substitution_emptyStringValue() throws {
+        // Substituting with an empty string should work
+        let base = LocalizableString.constant("Hello%{suffix}")
+        let subs: [String: any Localizable] = [
+            "suffix": LocalizableString.constant("")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "Hello")
+    }
+
+    @Test func substitution_missingKey_leftUnsubstituted() throws {
+        // If a substitution key in the template is not provided, it remains as-is
+        let base = LocalizableString.constant("Hello %{name}, you have %{missing} messages")
+        let subs: [String: any Localizable] = [
+            "name": LocalizableString.constant("Alice")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "Hello Alice, you have %{missing} messages")
+    }
+
+    @Test func substitution_numericSubstitution() throws {
+        // Numeric values formatted as strings
+        let base = LocalizableString.constant("Count: %{num}")
+        let subs: [String: any Localizable] = [
+            "num": LocalizableString.constant("42")
+        ]
+
+        let locSub = LocalizableSubstitutions(baseString: base, substitutions: subs)
+
+        #expect(try locSub.localizedString == "Count: 42")
+    }
+
     let locStore: LocalizationStore
     init() throws {
         self.locStore = try Self.loadLocalizationStore(
