@@ -120,5 +120,4 @@ public extension ViewModel {
     }
 }
 
-public struct ViewModelConfiguration: Sendable {
-}
+public struct ViewModelConfiguration: Sendable {}

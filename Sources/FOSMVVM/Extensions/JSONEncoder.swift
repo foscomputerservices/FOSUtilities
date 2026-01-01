@@ -93,7 +93,7 @@ extension Encoder {
             locale: locale,
             localizationStore: localizationStore
         )
-        encoder.setCurrentModel(model)
+        encoder.registerModel(model, at: "")
         encoder.propertyNameBindings = model.allPropertyNames()
 
         do {
@@ -111,7 +111,7 @@ extension Encoder {
         }
 
         let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
-        encoder.setCurrentModel(model)
+        encoder.registerModel(model, at: "")
         encoder.propertyNameBindings = model.allPropertyNames()
 
         do {
@@ -124,48 +124,119 @@ extension Encoder {
     }
 }
 
+/// Unwraps Optional values using Mirror reflection
+private func unwrapOptional(_ value: Any) -> Any? {
+    let mirror = Mirror(reflecting: value)
+    guard mirror.displayStyle == .optional else {
+        return value
+    }
+    return mirror.children.first?.value
+}
+
+/// Registry of models keyed by their coding path for lookup during encoding
+private final class ModelRegistry: @unchecked Sendable {
+    private var models: [String: Any] = [:]
+
+    func register(_ model: Any, at path: String) {
+        models[path] = model
+    }
+
+    func model<T>(for type: T.Type, at codingPath: [CodingKey]) -> T? {
+        // Convert codingPath to path parts, using intValue for array indices
+        var pathParts = codingPath.map { key -> String in
+            if let intValue = key.intValue {
+                return String(intValue)
+            }
+            return key.stringValue
+        }
+        while !pathParts.isEmpty {
+            pathParts.removeLast()
+            let pathKey = pathParts.joined(separator: ".")
+            if let model = models[pathKey] as? T {
+                return model
+            }
+        }
+        return models[""] as? T
+    }
+}
+
+/// Extracts elements from a collection using Mirror (works for any collection type)
+private func extractCollectionElements(from value: Any) -> [Any]? {
+    let mirror = Mirror(reflecting: value)
+    guard mirror.displayStyle == .collection else {
+        return nil
+    }
+    return mirror.children.map(\.value)
+}
+
+/// Pre-registers all RetrievablePropertyNames in the object graph
+private func registerModels(from value: Any, path: String, into registry: ModelRegistry) {
+    if value is (any RetrievablePropertyNames) {
+        registry.register(value, at: path)
+    }
+
+    let mirror = Mirror(reflecting: value)
+    for child in mirror.children {
+        guard let label = child.label else { continue }
+        let cleanLabel = String(label.trimmingPrefix("_"))
+        let childPath = path.isEmpty ? cleanLabel : "\(path).\(cleanLabel)"
+
+        let unwrappedValue = unwrapOptional(child.value)
+        let valueToCheck = unwrappedValue ?? child.value
+
+        // Check if it's a collection (array) - use Mirror-based extraction
+        if let elements = extractCollectionElements(from: valueToCheck) {
+            for (index, element) in elements.enumerated() {
+                let elementPath = "\(childPath).\(index)"
+                if let unwrappedElement = unwrapOptional(element) {
+                    registerModels(from: unwrappedElement, path: elementPath, into: registry)
+                } else {
+                    registerModels(from: element, path: elementPath, into: registry)
+                }
+            }
+        } else if let unwrapped = unwrappedValue {
+            // Not a collection, recurse for nested models
+            registerModels(from: unwrapped, path: childPath, into: registry)
+        }
+    }
+}
+
 private final class LocalizingEncoder: JSONEncoder {
     override func encode(_ value: some Encodable) throws -> Data {
-        let parentModel = userInfo[.currentModelKey]
+        // Save parent state for nested encoding
         let parentPropertyNames = propertyNameBindings
 
-        let newPropertyNames: [LocalizableId: String]
-        if let model = value as? (any RetrievablePropertyNames) {
-            newPropertyNames = model.allPropertyNames()
-            setCurrentModel(model)
-        } else {
-            newPropertyNames = value.allPropertyNames()
+        // Build model registry (only at top level)
+        if userInfo[.modelRegistryKey] == nil {
+            let registry = ModelRegistry()
+            registerModels(from: value, path: "", into: registry)
+            userInfo[.modelRegistryKey] = registry
         }
-        var propertyNames = propertyNameBindings ?? [:]
-        for (key, value) in newPropertyNames {
-            propertyNames[key] = value
-        }
-        propertyNameBindings = propertyNames
 
-        let result: Data
-        if let viewModel = value as? any ViewModel {
-            result = try encodeViewModel(viewModel)
-        } else {
-            result = try super.encode(value)
+        // Merge property names with existing bindings
+        let newPropertyNames = value.allPropertyNames()
+        var mergedPropertyNames = propertyNameBindings ?? [:]
+        for (key, propValue) in newPropertyNames {
+            mergedPropertyNames[key] = propValue
         }
-        setCurrentModel(parentModel)
+        propertyNameBindings = mergedPropertyNames
+
+        // Encode
+        let result: Data = if let viewModel = value as? any ViewModel {
+            try encodeViewModel(viewModel)
+        } else {
+            try super.encode(value)
+        }
+
+        // Restore parent state
         propertyNameBindings = parentPropertyNames
 
         return result
     }
 
-    private func encodeViewModel<T: ViewModel>(_ value: T) throws -> Data {
+    private func encodeViewModel(_ value: some ViewModel) throws -> Data {
         let config = ViewModelConfiguration()
         return try encode(value, configuration: config)
-    }
-
-    override func encode<T>(_ value: T, configuration: T.EncodingConfiguration) throws -> Data where T : EncodableWithConfiguration {
-        guard let model = value as? (any ViewModel) else {
-            return try super.encode(value, configuration: configuration)
-        }
-
-//        fatalError("Do something amazing here!")
-        return try super.encode(value, configuration: configuration)
     }
 }
 
@@ -173,20 +244,18 @@ private extension Encodable {
     /// Returns the property names for the RetrievablePropertyNames and all embedded RetrievablePropertyNames
     func allPropertyNames() -> [LocalizableId: String] {
         var result = (self as? RetrievablePropertyNames)?.propertyNames() ?? [:]
-
         let mirror = Mirror(reflecting: self)
 
         for child in mirror.children {
-            if let model = child.value as? RetrievablePropertyNames {
-                for (key, value) in model.allPropertyNames() {
-                    result[key] = value
-                }
-            } else if let collection = child.value as? (any Collection) {
-                for child in collection {
-                    if let model = child as? RetrievablePropertyNames {
-                        for (key, value) in model.allPropertyNames() {
-                            result[key] = value
-                        }
+            let unwrappedValue = unwrapOptional(child.value)
+
+            if let model = (unwrappedValue ?? child.value) as? RetrievablePropertyNames {
+                result.merge(model.allPropertyNames()) { _, new in new }
+            } else if let collection = (unwrappedValue ?? child.value) as? (any Collection) {
+                for element in collection {
+                    let unwrappedElement = unwrapOptional(element)
+                    if let model = (unwrappedElement ?? element) as? RetrievablePropertyNames {
+                        result.merge(model.allPropertyNames()) { _, new in new }
                     }
                 }
             }
@@ -216,28 +285,32 @@ private extension Encoder {
 }
 
 extension Encoder {
-    // NOTE: Passing the model through the encoder has been known to cause problems
-    //    in client UnitTests.  The exact cause is T.B.D.  However, with more work
-    //    in the macros, it might be possible to completely eliminate this need.
-    //    Right now, the model is only used by the substitution localizers
-    //    (e.g., LocalizedCompoundString, LocalizeSubs).
+    // NOTE: The model is used by the substitution localizers
+    //    (e.g., LocalizedCompoundString, LocalizeSubs) to access substitution values.
+    //    The ModelRegistry approach uses codingPath to find the correct model instance
+    //    when there are multiple ViewModels of the same type.
 
     func currentModel<T>(for type: T.Type) -> T? {
-        userInfo[.currentModelKey] as? T
+        guard let registry = userInfo[.modelRegistryKey] as? ModelRegistry else {
+            return nil
+        }
+        return registry.model(for: type, at: codingPath)
     }
 
-    var currentModel: Any? {
-        userInfo[.currentModelKey]
-    }
-
-    var propertyNameBindings: [LocalizableId: String]? {
-        get { userInfo[.propertyNamesKey] as? [LocalizableId: String] }
-    }
+    var propertyNameBindings: [LocalizableId: String]? { userInfo[.propertyNamesKey] as? [LocalizableId: String] }
 }
 
 extension JSONEncoder {
-    func setCurrentModel<T: Sendable>(_ model: T) {
-        userInfo[.currentModelKey] = model
+    /// Registers a model at a given path for lookup during encoding
+    func registerModel(_ model: Any, at path: String) {
+        let registry: ModelRegistry
+        if let existing = userInfo[.modelRegistryKey] as? ModelRegistry {
+            registry = existing
+        } else {
+            registry = ModelRegistry()
+            userInfo[.modelRegistryKey] = registry
+        }
+        registry.register(model, at: path)
     }
 
     var propertyNameBindings: [LocalizableId: String]? {
@@ -312,9 +385,9 @@ private extension CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_pRoPerTy_NamEs*_")!
     }
 
-    /// The model currently being processed
-    static var currentModelKey: CodingUserInfoKey {
-        CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_curRenT_MOdel*_")!
+    /// Registry of models by path for looking up the correct model during nested encoding
+    static var modelRegistryKey: CodingUserInfoKey {
+        CodingUserInfoKey(rawValue: "_*MoDeL_ReGiStRy*_")!
     }
 }
 

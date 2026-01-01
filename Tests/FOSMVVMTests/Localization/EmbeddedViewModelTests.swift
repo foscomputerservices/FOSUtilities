@@ -42,6 +42,16 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
         #expect(try parent.innerViewModel.innerString.localizedString == "Inner String")
     }
 
+    @Test func multipleEmbeddedViewModelsOfSameType() throws {
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vm: MultipleInnerViewModel = try .stub().toJSON(encoder: vmEncoder).fromJSON()
+
+        // innerViewModel1 should have subInt: 42
+        #expect(try vm.innerViewModel1.innerSubs.localizedString == "SubInt: 42")
+        // innerViewModel2 should have subInt: 43 (NOT 42!)
+        #expect(try vm.innerViewModel2.innerSubs.localizedString == "SubInt: 43")
+    }
+
     let locStore: LocalizationStore
     init() throws {
         self.locStore = try Self.loadLocalizationStore(
@@ -97,15 +107,9 @@ private struct NonRetrievablePropertyNamesParent: Codable, Sendable {
     }
 }
 
-// TODO: Future
-
-private struct BrokenViewModel: ViewModel {
+private struct MultipleInnerViewModel: ViewModel {
     @LocalizedString var mainString
 
-    // This doesn't work because there's no way to encode
-    // the inner property values and keep them separate.
-    // Current lookup is only by type.
-    // See JSONEncoder.Encoder.currentModel<T>(for:)
     let innerViewModel1: InnerViewModel
     let innerViewModel2: InnerViewModel
 
@@ -119,4 +123,3 @@ private struct BrokenViewModel: ViewModel {
         )
     }
 }
-
