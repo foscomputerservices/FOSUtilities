@@ -12,3 +12,4 @@ DerivedData/
 .derivedData
 *.tmp
 session-state-*.json
+Sources/.VersionedTestJSON
