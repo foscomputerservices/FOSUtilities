@@ -830,6 +830,8 @@ With `clientHostedFactory` option, it additionally generates:
 
 ## Testing Support
 
+FOSMVVM provides comprehensive testing infrastructure for ViewModels, ensuring codable round-trips, versioning stability, and multi-locale translations all work correctly.
+
 ### Stubbable Protocol
 
 All ViewModels conform to `Stubbable`:
@@ -840,17 +842,132 @@ public protocol Stubbable {
 }
 ```
 
-Use `isStub` property to detect stub instances.
+Use `isStub` property to detect stub instances. The `stub()` method provides default instances for testing and SwiftUI previews.
 
-### Test Patterns
+### LocalizableTestCase Protocol
+
+Test suites that verify ViewModels should conform to `LocalizableTestCase`:
 
 ```swift
-// Create test instance
-let testIdea = TestIdea.stub()
+import FOSTesting
+import Testing
 
-// Localize for testing
-mutating func localizeMessages(encoder: JSONEncoder) throws {
-    ideaValidationMessages = try IdeaFieldsMessages().toJSON(encoder: encoder).fromJSON()
+@Suite("My ViewModel Tests")
+struct MyViewModelTests: LocalizableTestCase {
+    let locStore: LocalizationStore
+
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: Bundle.module,
+            resourceDirectoryName: "TestYAML"
+        )
+    }
+}
+```
+
+This protocol provides:
+- `locStore` - The localization store loaded from YAML
+- `locales` - Set of locales to test (default: `en`, `es`)
+- `encoder(locale:)` - Helper to create localizing encoders
+- Testing methods for ViewModels, FieldValidationModels, and FormFields
+
+### Core Testing Method: expectFullViewModelTests
+
+The primary testing method verifies everything in one call:
+
+```swift
+@Test func dashboardViewModel() throws {
+    try expectFullViewModelTests(DashboardViewModel.self)
+}
+```
+
+This single call verifies:
+1. **Codable round-trip** - ViewModel can encode and decode without data loss
+2. **Versioned ViewModel stability** - Structure hasn't changed unexpectedly
+3. **Translations for all locales** - Every `@LocalizedString` property has values in all configured locales
+
+**This is the standard pattern for most ViewModel tests.**
+
+### Testing Specific Formatting Behavior
+
+When you need to verify specific substitution or formatting behavior, add locale-specific assertions after `expectFullViewModelTests()`:
+
+```swift
+@Test func embeddedLocalization() throws {
+    // First: comprehensive tests for all locales
+    try expectFullViewModelTests(MainViewModel.self)
+
+    // Then: verify specific substitution behavior with known English values
+    let vm: MainViewModel = try .stub()
+        .toJSON(encoder: encoder(locale: en))
+        .fromJSON()
+
+    #expect(try vm.greeting.localizedString == "Welcome, John!")
+    #expect(try vm.itemCount.localizedString == "42 items")
+}
+```
+
+This extended pattern is optional - use it only when testing specific formatting techniques like `@LocalizedSubs` substitutions or `@LocalizedCompoundString` composition.
+
+### Available Testing Methods
+
+| Method | Purpose |
+|--------|---------|
+| `expectFullViewModelTests(_:locales:)` | Complete ViewModel testing (codable, versioning, translations) |
+| `expectTranslations(_:locales:)` | Translation-only verification |
+| `expectFullFieldValidationModelTests(_:locales:)` | Complete FieldValidationModel testing |
+| `expectFullFormFieldTests(_:locales:)` | FormField title/placeholder translations |
+| `expectCodable(_:encoder:decoder:)` | Codable round-trip only |
+| `expectVersionedViewModel(_:encoder:)` | Versioning stability only |
+
+### YAML Structure for Test ViewModels
+
+Test ViewModels need YAML entries for their `@LocalizedString` properties:
+
+```yaml
+# TestYAML/MyViewModel.yml
+en:
+  MyViewModel:
+    pageTitle: "Dashboard"
+    emptyMessage: "No items yet"
+
+es:
+  MyViewModel:
+    pageTitle: "Tablero"
+    emptyMessage: "No hay elementos todavía"
+```
+
+For embedded/child ViewModels, include entries for all ViewModel types in the hierarchy.
+
+### Test File Organization
+
+```
+Tests/
+  {Target}Tests/
+    Localization/
+      {Feature}ViewModelTests.swift
+    TestYAML/
+      {ViewModelName}.yml
+```
+
+### Quick Reference
+
+**Standard test (most cases):**
+```swift
+@Test func myFeature() throws {
+    try expectFullViewModelTests(MyViewModel.self)
+}
+```
+
+**With specific behavior verification:**
+```swift
+@Test func myFeatureWithSubstitutions() throws {
+    try expectFullViewModelTests(MyViewModel.self)
+
+    let vm: MyViewModel = try .stub()
+        .toJSON(encoder: encoder(locale: en))
+        .fromJSON()
+    #expect(try vm.greeting.localizedString == "Hello, World!")
 }
 ```
 

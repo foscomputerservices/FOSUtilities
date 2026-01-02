@@ -15,7 +15,7 @@
 // limitations under the License.
 
 import FOSFoundation
-import FOSMVVM
+@testable import FOSMVVM
 import FOSTesting
 import Foundation
 import Testing
@@ -90,6 +90,69 @@ struct LocalizablePropertyTests: LocalizableTestCase {
         }
     }
 
+    // MARK: - Error Path Tests
+
+    @Test func encode_withPlainEncoder_throwsLocalizationStoreMissing() throws {
+        // Using plain JSONEncoder without localization configuration should throw
+        let locString = LocalizableString.localized(key: "TestViewModel.aLocalizedString")
+
+        #expect(throws: LocalizerError.self) {
+            _ = try locString.toJSON(encoder: JSONEncoder())
+        }
+    }
+
+    @Test func encode_localizableDate_withPlainEncoder_throwsLocalizationStoreMissing() throws {
+        let locDate = LocalizableDate(value: Date())
+
+        #expect(throws: LocalizerError.self) {
+            _ = try locDate.toJSON(encoder: JSONEncoder())
+        }
+    }
+
+    @Test func encode_localizableInt_withPlainEncoder_throwsLocalizationStoreMissing() throws {
+        let locInt = LocalizableInt(value: 42)
+
+        #expect(throws: LocalizerError.self) {
+            _ = try locInt.toJSON(encoder: JSONEncoder())
+        }
+    }
+
+    // MARK: - Encoder State Management Tests
+
+    @Test func encoderReuse_multipleViewModels_freshEncoders() throws {
+        // Using fresh encoders for each ViewModel should work correctly
+        let vmEncoder1 = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder2 = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+
+        // Each encode with its own fresh encoder
+        let vm1: ErrorPathTestViewModel = try .stub(value: 100)
+            .toJSON(encoder: vmEncoder1)
+            .fromJSON()
+
+        let vm2: ErrorPathTestViewModel = try .stub(value: 200)
+            .toJSON(encoder: vmEncoder2)
+            .fromJSON()
+
+        // Each should have its own value
+        #expect(try vm1.label.localizedString == "Value: 100")
+        #expect(try vm2.label.localizedString == "Value: 200")
+    }
+
+    @Test func nestedEncode_propertyNamesRestored() throws {
+        // After encoding a nested ViewModel, the parent's property names should be restored
+        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+
+        // Parent with nested children
+        let parent: NestedPropertyTestViewModel = try .stub()
+            .toJSON(encoder: vmEncoder)
+            .fromJSON()
+
+        // Parent's own localized property should still work after nested encoding
+        #expect(try parent.parentLabel.localizedString == "Parent Label")
+        // Nested child's property should also work
+        #expect(try parent.child.label.localizedString == "Value: 42")
+    }
+
     let locStore: LocalizationStore
     init() throws {
         self.locStore = try Self.loadLocalizationStore(
@@ -102,5 +165,44 @@ struct LocalizablePropertyTests: LocalizableTestCase {
 extension String {
     static var localized: String {
         ""
+    }
+}
+
+// MARK: - Test ViewModels for Error Path Tests
+
+private struct ErrorPathTestViewModel: ViewModel {
+    @LocalizedSubs(substitutions: \.subs) var label
+
+    var subs: [String: any Localizable] { [
+        "value": LocalizableInt(value: value)
+    ] }
+
+    var vmId: ViewModelId
+
+    private let value: Int
+
+    static func stub() -> Self { stub(value: 42) }
+
+    static func stub(value: Int) -> Self {
+        .init(vmId: .init(type: Self.self), value: value)
+    }
+
+    func propertyNames() -> [LocalizableId: String] {
+        [_label.localizationId: "label"]
+    }
+}
+
+private struct NestedPropertyTestViewModel: ViewModel {
+    @LocalizedString var parentLabel
+    let child: ErrorPathTestViewModel
+
+    var vmId: ViewModelId
+
+    static func stub() -> Self {
+        .init(child: .stub(value: 42), vmId: .init())
+    }
+
+    func propertyNames() -> [LocalizableId: String] {
+        [_parentLabel.localizationId: "parentLabel"]
     }
 }

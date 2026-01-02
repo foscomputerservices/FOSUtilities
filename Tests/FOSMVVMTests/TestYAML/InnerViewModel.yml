@@ -1,3 +1,63 @@
 en:
   InnerViewModel:
     innerString: "Inner String"
+    innerSubs: "SubInt: %{subInt}"
+
+  MainViewModel:
+    mainString: "Main String"
+
+  MultipleInnerViewModel:
+    mainString: "Multiple Inner"
+
+  OptionalInnerViewModel:
+    title: "Optional Inner"
+
+  ArrayOfOptionalsViewModel:
+    title: "Array of Optionals"
+
+  OptionalArrayViewModel:
+    title: "Optional Array"
+
+  DeepLevel1ViewModel:
+    mainString: "Deep Level 1"
+
+  DeepLevel2ViewModel:
+    mainString: "Deep Level 2"
+
+  NestedArraysViewModel:
+    title: "Nested Arrays"
+
+  MiddleViewModel:
+    middleString: "Middle"
+
+es:
+  InnerViewModel:
+    innerString: "Cadena Interna"
+    innerSubs: "SubInt: %{subInt}"
+
+  MainViewModel:
+    mainString: "Cadena Principal"
+
+  MultipleInnerViewModel:
+    mainString: "Múltiple Interno"
+
+  OptionalInnerViewModel:
+    title: "Interno Opcional"
+
+  ArrayOfOptionalsViewModel:
+    title: "Arreglo de Opcionales"
+
+  OptionalArrayViewModel:
+    title: "Arreglo Opcional"
+
+  DeepLevel1ViewModel:
+    mainString: "Nivel Profundo 1"
+
+  DeepLevel2ViewModel:
+    mainString: "Nivel Profundo 2"
+
+  NestedArraysViewModel:
+    title: "Arreglos Anidados"
+
+  MiddleViewModel:
+    middleString: "Medio"

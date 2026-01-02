@@ -27,7 +27,7 @@ public extension ServerRequestBodySize {
     }
 }
 
-extension Optional where Wrapped == ServerRequestBodySize {
+extension ServerRequestBodySize? {
     /// Convert to Vapor's HTTPBodyStreamStrategy
     var bodyStreamStrategy: HTTPBodyStreamStrategy {
         switch self {

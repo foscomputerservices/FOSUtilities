@@ -71,7 +71,6 @@
 public protocol ViewModelRequest: ShowRequest where ResponseBody: RequestableViewModel {}
 
 public extension ViewModelRequest {
-
     var viewModel: ResponseBody {
         responseBody ?? .stub()
     }

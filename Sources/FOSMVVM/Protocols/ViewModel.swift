@@ -108,10 +108,16 @@ import Foundation
 ///   }
 /// }
 /// ```
-public protocol ViewModel: ServerRequestBody, RetrievablePropertyNames, Identifiable, Stubbable {
+public protocol ViewModel: ServerRequestBody, RetrievablePropertyNames, Identifiable, Stubbable, EncodableWithConfiguration where EncodingConfiguration == ViewModelConfiguration {
     var vmId: ViewModelId { get }
 }
 
 public extension ViewModel {
     var id: ViewModelId { vmId }
+
+    func encode(to encoder: Encoder, configuration: ViewModelConfiguration) throws {
+        try (self as Encodable).encode(to: encoder)
+    }
 }
+
+public struct ViewModelConfiguration: Sendable {}

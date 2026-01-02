@@ -20,7 +20,7 @@ import Foundation
 import Testing
 
 @ViewModel
-struct TestViewModel: RequestableViewModel {
+struct TestViewModel: RequestableViewModel, Hashable {
     typealias Request = TestViewModelRequest
 
     @LocalizedString var aLocalizedString
@@ -36,16 +36,18 @@ struct TestViewModel: RequestableViewModel {
     @LocalizedCompoundString(pieces: \._pieces, separator: \Self._separator) var aLocalizedCompoundSep
 
     @LocalizedSubs(substitutions: \.substitutions) var aLocalizedSubstitution
-    private let substitutions: [String: LocalizableInt]
+    private var substitutions: [String: any Localizable] { [
+        "aSub": LocalizableInt(value: subInt)
+    ] }
+
+    private let subInt: Int
 
     var vmId = ViewModelId()
 
     var displayName: LocalizableString { .constant("TestVM") }
 
     init() {
-        self.substitutions = [
-            "aSub": .init(value: 42)
-        ]
+        self.subInt = 42
     }
 
     static func stub() -> Self {
