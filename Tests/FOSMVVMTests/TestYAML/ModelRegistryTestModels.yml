@@ -34,3 +34,40 @@ en:
 
   NestedPropertyTestViewModel:
     parentLabel: "Parent Label"
+
+es:
+  SingleSubsViewModel:
+    label: "Valor: %{value}"
+
+  ArrayContainerViewModel:
+    title: "Contenedor de Arreglo"
+
+  MultipleArraysViewModel:
+    title: "Arreglos Múltiples"
+
+  TwoLevelNestingViewModel:
+    title: "Anidamiento de Dos Niveles"
+
+  Level2ViewModel:
+    middleTitle: "Nivel Medio"
+
+  Level3ViewModel:
+    label: "Valor: %{value}"
+
+  ThreeLevelNestingViewModel:
+    title: "Anidamiento de Tres Niveles"
+
+  MixedNestingViewModel:
+    title: "Anidamiento Mixto"
+
+  DualInstanceViewModel:
+    title: "Instancia Dual"
+
+  FallbackTestViewModel:
+    title: "Prueba de Respaldo"
+
+  ErrorPathTestViewModel:
+    label: "Valor: %{value}"
+
+  NestedPropertyTestViewModel:
+    parentLabel: "Etiqueta Padre"

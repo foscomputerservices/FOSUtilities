@@ -23,9 +23,10 @@ import Testing
 @Suite("Embedded View Model Tests")
 struct EmbeddedViewModelTests: LocalizableTestCase {
     @Test func embeddedLocalization() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
-        let vm: MainViewModel = try .stub().toJSON(encoder: vmEncoder).fromJSON()
+        try expectFullViewModelTests(MainViewModel.self)
 
+        // Check the exact strings in English to make sure that the substitutions are correct
+        let vm: MainViewModel = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
         #expect(try vm.innerViewModels[0].innerString.localizedString == "Inner String")
         #expect(try vm.innerViewModels[0].innerSubs.localizedString == "SubInt: 42")
 
@@ -34,17 +35,18 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     }
 
     @Test func embeddedLocalization_nonRetrievablePropertyNamesParent() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let parent: NonRetrievablePropertyNamesParent = try .stub()
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(try parent.innerViewModel.innerString.localizedString == "Inner String")
     }
 
     @Test func multipleEmbeddedViewModelsOfSameType() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
-        let vm: MultipleInnerViewModel = try .stub().toJSON(encoder: vmEncoder).fromJSON()
+        try expectFullViewModelTests(MultipleInnerViewModel.self)
+
+        // Check the exact strings in English to make sure that the substitutions are correct
+        let vm: MultipleInnerViewModel = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
 
         // innerViewModel1 should have subInt: 42
         #expect(try vm.innerViewModel1.innerSubs.localizedString == "SubInt: 42")
@@ -55,9 +57,10 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     // MARK: - Optional ViewModel Tests
 
     @Test func optionalEmbeddedViewModel_present() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        try expectFullViewModelTests(OptionalInnerViewModel.self)
+
         let vm: OptionalInnerViewModel = try .stub(inner: .stub(subInt: 99))
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(vm.inner != nil)
@@ -65,21 +68,21 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     }
 
     @Test func optionalEmbeddedViewModel_nil() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: OptionalInnerViewModel = try .stub(inner: nil)
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(vm.inner == nil)
     }
 
     @Test func arrayOfOptionalViewModels() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        try expectFullViewModelTests(ArrayOfOptionalsViewModel.self)
+
         let vm: ArrayOfOptionalsViewModel = try .stub(items: [
             .stub(subInt: 10),
             nil,
             .stub(subInt: 30)
-        ]).toJSON(encoder: vmEncoder).fromJSON()
+        ]).toJSON(encoder: encoder(locale: en)).fromJSON()
 
         #expect(vm.items.count == 3)
         #expect(try vm.items[0]?.innerSubs.localizedString == "SubInt: 10")
@@ -88,9 +91,10 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     }
 
     @Test func optionalArrayOfViewModels_present() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        try expectFullViewModelTests(OptionalArrayViewModel.self)
+
         let vm: OptionalArrayViewModel = try .stub(items: [.stub(subInt: 55)])
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(vm.items != nil)
@@ -98,9 +102,8 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     }
 
     @Test func optionalArrayOfViewModels_nil() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: OptionalArrayViewModel = try .stub(items: nil)
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(vm.items == nil)
@@ -109,19 +112,21 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     // MARK: - Deep Nesting Tests
 
     @Test func deeplyNestedViewModels() throws {
+        try expectFullViewModelTests(DeepLevel1ViewModel.self)
+
         // Tests 3 levels of nesting: DeepLevel1 > DeepLevel2 > InnerViewModel
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: DeepLevel1ViewModel = try .stub(deepValue: 777)
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(try vm.level2.inner.innerSubs.localizedString == "SubInt: 777")
     }
 
     @Test func nestedArraysOfViewModels() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        try expectFullViewModelTests(NestedArraysViewModel.self)
+
         let vm: NestedArraysViewModel = try .stub()
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         // First outer array element, first inner array element
@@ -135,18 +140,16 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
     // MARK: - Empty/Single Collection Tests
 
     @Test func emptyArrayOfViewModels() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: MainViewModel = try .init(innerViewModels: [], vmId: .init())
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(vm.innerViewModels.isEmpty)
     }
 
     @Test func singleElementArray() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: MainViewModel = try .init(innerViewModels: [.stub(subInt: 42)], vmId: .init())
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(vm.innerViewModels.count == 1)

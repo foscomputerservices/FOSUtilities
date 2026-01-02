@@ -30,10 +30,11 @@ struct ModelRegistryTests: LocalizableTestCase {
     // MARK: - Direct Property Lookup Tests
 
     @Test func directProperty_singleViewModel() throws {
+        try expectFullViewModelTests(SingleSubsViewModel.self)
+
         // Tests that a single ViewModel at the root level is correctly registered and found
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: SingleSubsViewModel = try .stub(value: 42)
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(try vm.label.localizedString == "Value: 42")
@@ -42,10 +43,11 @@ struct ModelRegistryTests: LocalizableTestCase {
     // MARK: - Array Element Lookup Tests
 
     @Test func arrayElement_indexedLookup() throws {
+        try expectFullViewModelTests(ArrayContainerViewModel.self)
+
         // Tests that array elements are registered with correct numeric indices
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: ArrayContainerViewModel = try .stub(values: [10, 20, 30])
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(try vm.items[0].label.localizedString == "Value: 10")
@@ -54,10 +56,11 @@ struct ModelRegistryTests: LocalizableTestCase {
     }
 
     @Test func arrayElement_multipleArrays() throws {
+        try expectFullViewModelTests(MultipleArraysViewModel.self)
+
         // Tests that multiple arrays in the same ViewModel have independent paths
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: MultipleArraysViewModel = try .stub()
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         // First array
@@ -71,30 +74,33 @@ struct ModelRegistryTests: LocalizableTestCase {
     // MARK: - Nested Path Lookup Tests
 
     @Test func nestedPath_twoLevels() throws {
+        try expectFullViewModelTests(TwoLevelNestingViewModel.self)
+
         // Tests parent > child path resolution
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: TwoLevelNestingViewModel = try .stub(innerValue: 55)
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(try vm.child.label.localizedString == "Value: 55")
     }
 
     @Test func nestedPath_threeLevels() throws {
+        try expectFullViewModelTests(ThreeLevelNestingViewModel.self)
+
         // Tests parent > child > grandchild path resolution
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: ThreeLevelNestingViewModel = try .stub(deepValue: 777)
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         #expect(try vm.level2.level3.label.localizedString == "Value: 777")
     }
 
     @Test func nestedPath_mixedArrayAndDirect() throws {
+        try expectFullViewModelTests(MixedNestingViewModel.self)
+
         // Tests path resolution with both array and direct property access
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: MixedNestingViewModel = try .stub()
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         // Direct child
@@ -107,11 +113,12 @@ struct ModelRegistryTests: LocalizableTestCase {
     // MARK: - Multiple Instances of Same Type Tests
 
     @Test func multipleInstances_distinctValues() throws {
+        try expectFullViewModelTests(DualInstanceViewModel.self)
+
         // Tests that multiple instances of the same ViewModel type get their own values
         // This is the core functionality that the ModelRegistry was created to support
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: DualInstanceViewModel = try .stub()
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         // Both properties are SingleSubsViewModel, but should have different substitution values
@@ -121,9 +128,8 @@ struct ModelRegistryTests: LocalizableTestCase {
 
     @Test func multipleInstances_inArrays() throws {
         // Tests that array elements of the same type maintain distinct values
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: ArrayContainerViewModel = try .stub(values: [1, 2, 3, 4, 5])
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         // Each element should have its own substitution value
@@ -135,11 +141,12 @@ struct ModelRegistryTests: LocalizableTestCase {
     // MARK: - Registry Fallback Tests
 
     @Test func registryFallback_rootModel() throws {
+        try expectFullViewModelTests(FallbackTestViewModel.self)
+
         // Tests that when a nested path isn't found, the registry falls back to parent paths
         // This happens when encoding @LocalizedSubs in a model that uses RetrievablePropertyNames
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
         let vm: FallbackTestViewModel = try .stub()
-            .toJSON(encoder: vmEncoder)
+            .toJSON(encoder: encoder(locale: en))
             .fromJSON()
 
         // The inner model should still resolve even if the registry traverses up
