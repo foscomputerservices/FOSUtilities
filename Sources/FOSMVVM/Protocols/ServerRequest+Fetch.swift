@@ -90,8 +90,15 @@ public extension ServerRequest {
             requestHeaders += headers
         }
 
+        let requestData: Data
+        if RequestBody.self == EmptyBody.self {
+            requestData = Data()
+        } else {
+            requestData = try requestBody?.toJSONData() ?? Data()
+        }
+
         responseBody = try await dataFetch.send(
-            data: requestBody?.toJSONData() ?? Data(),
+            data: requestData,
             to: requestURL(baseURL: baseURL),
             httpMethod: action.httpMethod,
             headers: requestHeaders,

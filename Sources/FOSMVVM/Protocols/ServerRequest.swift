@@ -116,20 +116,20 @@ public extension URL {
 }
 
 public extension ServerRequest where Query == EmptyQuery {
-    var query: EmptyQuery? { .init() }
+    var query: EmptyQuery? { nil }
 }
 
 public extension ServerRequest where Fragment == EmptyFragment {
-    var fragment: EmptyFragment? { .init() }
+    var fragment: EmptyFragment? { nil }
 }
 
 public extension ServerRequest where RequestBody == EmptyBody {
-    var requestBody: EmptyBody? { .init() }
+    var requestBody: EmptyBody? { nil }
 }
 
 public extension ServerRequest where ResponseBody == EmptyBody {
     var responseBody: EmptyBody? {
-        get { .init() }
+        get { nil }
         set {} // swiftlint:disable:this unused_setter_value
     }
 }
