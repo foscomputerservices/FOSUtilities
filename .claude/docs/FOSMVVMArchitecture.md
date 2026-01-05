@@ -971,6 +971,65 @@ Tests/
 }
 ```
 
+### ServerRequest Testing
+
+ServerRequest types are tested using VaporTesting infrastructure with typed request/response handling.
+
+**Core Pattern:** Use `TestingApplicationTester.test()` with a typed `ServerRequest`:
+
+```swift
+import FOSTestingVapor
+import VaporTesting
+
+@Test func showRequest_success() async throws {
+    try await withTestApp { app in
+        let request = UserShowRequest(query: .init(userId: validId))
+
+        try await app.testing().test(request, locale: en) { response in
+            #expect(response.status == .ok)
+            #expect(response.body?.viewModel.name == "Expected Name")
+        }
+    }
+}
+```
+
+**What the infrastructure handles:**
+- Path derivation from type name (`UserShowRequest` → `/user_show`)
+- HTTP method from action (`ShowRequest` → GET)
+- Query/body encoding
+- Header injection (locale, version)
+- Response decoding to typed `ResponseBody`
+
+**TestingServerRequestResponse<R>** provides typed access:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `status` | `HTTPStatus` | HTTP status code |
+| `headers` | `HTTPHeaders` | Response headers |
+| `body` | `R.ResponseBody?` | Typed response (auto-decoded) |
+| `error` | `R.ResponseError?` | Typed error (auto-decoded) |
+
+**NEVER do this:**
+```swift
+// WRONG - manual URL construction
+try await app.test(.GET, "/user_show?userId=123") { response in }
+
+// WRONG - manual HTTP request
+let url = URL(string: "http://localhost/path")!
+```
+
+**Test organization:**
+```
+Tests/
+  {Target}Tests/
+    Requests/
+      {Feature}RequestTests.swift
+    TestYAML/
+      {ViewModelName}.yml
+```
+
+For complete ServerRequest test patterns, see the [fosmvvm-serverrequest-test-generator](../.claude/skills/fosmvvm-serverrequest-test-generator/SKILL.md) skill.
+
 ---
 
 ## The Shared Module Pattern
@@ -1132,6 +1191,6 @@ FOSMVVM provides:
 5. **Deferred localization** - Localization happens at encode time, wherever that occurs
 6. **Type-safe requests** - ServerRequest protocol hierarchy for CRUD operations
 7. **Platform-agnostic forms** - FormField abstraction works on iOS, web, etc.
-8. **Testing support** - Stubbable throughout
+8. **Testing support** - Stubbable ViewModels, LocalizableTestCase for ViewModel tests, TestingApplicationTester for ServerRequest tests
 
 The key insight is that **the Model is the center**. ViewModels are projections of Model data shaped for display. CRUD requests are validated mutations of Model data. Both reads and writes flow through the Model layer.
