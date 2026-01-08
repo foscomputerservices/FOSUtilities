@@ -219,6 +219,20 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
 
 ### Step 4: Generate Controller
 
+**Controller action = Protocol name (minus "Request")**
+
+| Protocol | Action | HTTP Method |
+|----------|--------|-------------|
+| `ShowRequest` | `.show` | GET |
+| `ViewModelRequest` | `.show` | GET |
+| `CreateRequest` | `.create` | POST |
+| `UpdateRequest` | `.update` | PATCH |
+| `DeleteRequest` | `.delete` | DELETE |
+| `DestroyRequest` | `.destroy` | DELETE |
+| Custom request | Whatever fits your semantics | Depends on action |
+
+The pattern is mechanical: `UpdateRequest` → `.update`. `CreateRequest` → `.create`. Just match the names.
+
 ```swift
 // {Action}Controller.swift
 import Vapor
@@ -374,9 +388,31 @@ public typealias ResponseBody = EmptyBody
 
 ---
 
+## Testing ServerRequests
+
+**Always test via `ServerRequest.processRequest(mvvmEnv:)` - never via manual HTTP.**
+
+See [fosmvvm-serverrequest-test-generator](../fosmvvm-serverrequest-test-generator/SKILL.md) for complete testing guidance.
+
+```swift
+// ✅ RIGHT - tests the actual client code path
+let request = Update{Entity}Request(
+    query: .init(entityId: id),
+    requestBody: .init(name: "New Name")
+)
+try await request.processRequest(mvvmEnv: testMvvmEnv)
+#expect(request.responseBody?.viewModel.name == "New Name")
+
+// ❌ WRONG - manual HTTP bypasses version negotiation
+try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
+```
+
+---
+
 ## See Also
 
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full architecture, especially "Core Principle: ServerRequest Is THE Way"
+- [fosmvvm-serverrequest-test-generator](../fosmvvm-serverrequest-test-generator/SKILL.md) - For testing ServerRequest types
 - [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) - For ViewModels returned by requests
 - [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) - For ValidatableModel in RequestBody
 - [fosmvvm-leaf-view-generator](../fosmvvm-leaf-view-generator/SKILL.md) - For Leaf templates that render ViewModels
@@ -393,3 +429,5 @@ public typealias ResponseBody = EmptyBody
 | 2.1 | 2025-12-27 | MVVMEnvironment is THE configuration holder for all clients (CLI, iOS, macOS, etc.) - not raw baseURL/headers. DRY principle enforcement. |
 | 2.2 | 2025-12-27 | Added shared module pattern - SystemVersion.currentApplicationVersion from shared module, reference to FOSMVVMArchitecture.md |
 | 2.3 | 2025-12-27 | Added `ServerRequestBodySize` for large upload body size limits (`maxBodySize` on RequestBody) |
+| 2.4 | 2026-01-08 | Added controller action mapping table, testing section with reference to test generator skill |
+| 2.5 | 2026-01-08 | Simplified action mapping: "action = protocol name minus Request". Removed drama, just state the pattern. |
