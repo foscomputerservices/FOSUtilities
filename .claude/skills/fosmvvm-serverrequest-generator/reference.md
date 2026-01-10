@@ -388,38 +388,98 @@ Available size units:
 - `.mb(_ count: UInt)` - Megabytes (× 1,048,576)
 - `.gb(_ count: UInt)` - Gigabytes (× 1,073,741,824)
 
-### Custom ResponseError
+### Custom ResponseError - Pattern 1: Associated Values
 
-For operations with known failure modes, define a custom error type:
+For errors with dynamic data in messages, use `LocalizableSubstitutions`:
 
 ```swift
 public final class Create{Entity}Request: CreateRequest, @unchecked Sendable {
-    public typealias Query = EmptyQuery
-    public typealias Fragment = EmptyFragment
-    public typealias ResponseError = Create{Entity}Error  // Custom error type
-
-    // ... RequestBody, ResponseBody, init ...
+    public typealias ResponseError = Create{Entity}Error
+    // ...
 }
 
-// Define the error type (can be in same file or separate)
 public struct Create{Entity}Error: ServerRequestError {
     public let code: ErrorCode
-    public let message: LocalizableString
-    public let field: String?
+    public let message: LocalizableSubstitutions
 
-    public enum ErrorCode: String, Codable {
+    public enum ErrorCode: Codable {
         case duplicateContent
-        case quotaExceeded
-        case invalidCategory
-        case permissionDenied
+        case quotaExceeded(requestedSize: Int, maximumSize: Int)
+        case invalidCategory(category: String)
+
+        var message: LocalizableSubstitutions {
+            switch self {
+            case .duplicateContent:
+                .init(
+                    baseString: .localized(for: Self.self, parentType: Create{Entity}Error.self, propertyName: "duplicateContent"),
+                    substitutions: [:]
+                )
+            case .quotaExceeded(let requestedSize, let maximumSize):
+                .init(
+                    baseString: .localized(for: Self.self, parentType: Create{Entity}Error.self, propertyName: "quotaExceeded"),
+                    substitutions: [
+                        "requestedSize": LocalizableInt(value: requestedSize),
+                        "maximumSize": LocalizableInt(value: maximumSize)
+                    ]
+                )
+            case .invalidCategory(let category):
+                .init(
+                    baseString: .localized(for: Self.self, parentType: Create{Entity}Error.self, propertyName: "invalidCategory"),
+                    substitutions: [
+                        "category": LocalizableString.constant(category)
+                    ]
+                )
+            }
+        }
     }
 
-    public init(code: ErrorCode, message: LocalizableString, field: String? = nil) {
+    public init(code: ErrorCode) {
         self.code = code
-        self.message = message
-        self.field = field
+        self.message = code.message  // Required to localize properly via Codable
     }
 }
+```
+
+```yaml
+en:
+  Create{Entity}Error:
+    ErrorCode:
+      duplicateContent: "The requested content is a duplicate."
+      quotaExceeded: "Size %{requestedSize} exceeds maximum %{maximumSize}."
+      invalidCategory: "The category %{category} is not valid."
+```
+
+### Custom ResponseError - Pattern 2: Simple String Codes
+
+For simpler errors without associated values:
+
+```swift
+public struct Simple{Entity}Error: ServerRequestError {
+    public let code: ErrorCode
+    public let message: LocalizableString
+
+    public enum ErrorCode: String, Codable, Sendable {
+        case notFound
+        case permissionDenied
+
+        var message: LocalizableString {
+            .localized(for: Self.self, parentType: Simple{Entity}Error.self, propertyName: rawValue)
+        }
+    }
+
+    public init(code: ErrorCode) {
+        self.code = code
+        self.message = code.message
+    }
+}
+```
+
+```yaml
+en:
+  Simple{Entity}Error:
+    ErrorCode:
+      notFound: "The requested item was not found."
+      permissionDenied: "You don't have permission to perform this action."
 ```
 
 **Controller throwing custom error:**
@@ -435,20 +495,16 @@ private extension Create{Entity}Request {
         if try await {Entity}.query(on: request.db)
             .filter(\.$content == requestBody.content)
             .first() != nil {
-            throw Create{Entity}Error(
-                code: .duplicateContent,
-                message: .localized(for: Create{Entity}Error.self, propertyName: "duplicateContent"),
-                field: "content"
-            )
+            throw Create{Entity}Error(code: .duplicateContent)
         }
 
         // Check quota
         let count = try await {Entity}.query(on: request.db).count()
         if count >= quotaLimit {
-            throw Create{Entity}Error(
-                code: .quotaExceeded,
-                message: .localized(for: Create{Entity}Error.self, propertyName: "quotaExceeded")
-            )
+            throw Create{Entity}Error(code: .quotaExceeded(
+                requestedSize: requestBody.size,
+                maximumSize: quotaLimit
+            ))
         }
 
         // ... proceed with creation
@@ -464,15 +520,11 @@ do {
 } catch let error as Create{Entity}Error {
     switch error.code {
     case .duplicateContent:
-        showDuplicateWarning()
-    case .quotaExceeded:
-        showUpgradePrompt()
-    case .invalidCategory:
-        if let field = error.field {
-            highlightField(field)
-        }
-    case .permissionDenied:
-        showPermissionError()
+        showDuplicateWarning(message: error.message)
+    case .quotaExceeded(let requestedSize, let maximumSize):
+        showQuotaError(requested: requestedSize, maximum: maximumSize, message: error.message)
+    case .invalidCategory(let category):
+        highlightInvalidCategory(category, message: error.message)
     }
 } catch {
     showGenericError(error)
@@ -548,30 +600,43 @@ public struct ResponseBody: ShowResponseBody {
 
 ---
 
-## Common ResponseError Patterns
+## Built-in ValidationError
 
-### Validation Error (field-level)
+FOSMVVM provides `ValidationError` for field-level validation. Use instead of custom error types for form validation:
+
 ```swift
-public struct ValidationError: ServerRequestError {
-    public let errors: [FieldError]
+// In controller
+let validations = Validations()
 
-    public struct FieldError: Codable, Sendable {
-        public let field: String
-        public let messages: [LocalizableString]
+if requestBody.email.isEmpty {
+    validations.validations.append(.init(
+        status: .error,
+        fieldId: "email",
+        message: .localized(for: Create{Entity}Request.self, propertyName: "emailRequired")
+    ))
+}
+
+if let error = validations.validationError {
+    throw error
+}
+```
+
+```swift
+// Client handling
+catch let error as ValidationError {
+    for validation in error.validations {
+        for message in validation.messages {
+            for fieldId in message.fieldIds {
+                formFields[fieldId]?.showError(message.message)
+            }
+        }
     }
 }
 ```
 
-### Permission Error
-```swift
-public struct PermissionError: ServerRequestError {
-    public let requiredRole: String
-    public let currentRole: String?
-    public let message: LocalizableString
-}
-```
+## Other Common Error Patterns
 
-### Rate Limit Error (with retry info)
+### Rate Limit Error
 ```swift
 public struct RateLimitError: ServerRequestError {
     public let retryAfterSeconds: Int
@@ -580,20 +645,24 @@ public struct RateLimitError: ServerRequestError {
 }
 ```
 
-### Quota Error
+### Permission Error
 ```swift
-public struct QuotaError: ServerRequestError {
-    public let current: Int
-    public let limit: Int
+public struct PermissionError: ServerRequestError {
+    public let code: ErrorCode
     public let message: LocalizableString
-}
-```
 
-### Not Found Error (with context)
-```swift
-public struct NotFoundError: ServerRequestError {
-    public let entityType: String
-    public let entityId: String
-    public let message: LocalizableString
+    public enum ErrorCode: String, Codable, Sendable {
+        case insufficientRole
+        case accountSuspended
+
+        var message: LocalizableString {
+            .localized(for: Self.self, parentType: PermissionError.self, propertyName: rawValue)
+        }
+    }
+
+    public init(code: ErrorCode) {
+        self.code = code
+        self.message = code.message
+    }
 }
 ```

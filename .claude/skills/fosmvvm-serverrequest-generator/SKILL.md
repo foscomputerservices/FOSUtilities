@@ -404,28 +404,93 @@ When processing a response:
 - No structured error response expected
 - You only need success/failure, not why
 
-### Defining Custom ResponseError
+### Pattern 1: Errors with Associated Values
+
+For errors that need dynamic data in their messages, use `LocalizableSubstitutions`:
 
 ```swift
-public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
-    // Use custom error instead of EmptyError
-    public typealias ResponseError = CreateIdeaError
-
-    // ... rest of request
-}
-
-// Define the error type
 public struct CreateIdeaError: ServerRequestError {
     public let code: ErrorCode
-    public let message: LocalizableString  // Localized via YAML
-    public let field: String?              // Which field failed (for validation)
+    public let message: LocalizableSubstitutions
 
-    public enum ErrorCode: String, Codable {
+    public enum ErrorCode: Codable {
         case duplicateContent
-        case quotaExceeded
-        case invalidCategory
+        case quotaExceeded(requestedSize: Int, maximumSize: Int)
+        case invalidCategory(category: String)
+
+        var message: LocalizableSubstitutions {
+            switch self {
+            case .duplicateContent:
+                .init(
+                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "duplicateContent"),
+                    substitutions: [:]
+                )
+            case .quotaExceeded(let requestedSize, let maximumSize):
+                .init(
+                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "quotaExceeded"),
+                    substitutions: [
+                        "requestedSize": LocalizableInt(value: requestedSize),
+                        "maximumSize": LocalizableInt(value: maximumSize)
+                    ]
+                )
+            case .invalidCategory(let category):
+                .init(
+                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "invalidCategory"),
+                    substitutions: [
+                        "category": LocalizableString.constant(category)
+                    ]
+                )
+            }
+        }
+    }
+
+    public init(code: ErrorCode) {
+        self.code = code
+        self.message = code.message  // Required to localize properly via Codable
     }
 }
+```
+
+```yaml
+en:
+  CreateIdeaError:
+    ErrorCode:
+      duplicateContent: "The requested content is a duplicate of an existing idea."
+      quotaExceeded: "The requested content size %{requestedSize} exceeds the maximum allowed size %{maximumSize}."
+      invalidCategory: "The category %{category} is not valid."
+```
+
+### Pattern 2: Simple Errors (String-Based Codes)
+
+For simpler errors without associated values, use a `String` raw value enum:
+
+```swift
+public struct SimpleError: ServerRequestError {
+    public let code: ErrorCode
+    public let message: LocalizableString
+
+    public enum ErrorCode: String, Codable, Sendable {
+        case serverFailed
+        case applicationFailed
+
+        var message: LocalizableString {
+            .localized(for: Self.self, parentType: SimpleError.self, propertyName: rawValue)
+        }
+    }
+
+    public init(code: ErrorCode) {
+        self.code = code
+        self.message = code.message  // Required to localize properly via Codable
+    }
+}
+```
+
+```yaml
+en:
+  SimpleError:
+    ErrorCode:
+      serverFailed: "The server failed"
+      applicationFailed: "The application failed"
 ```
 
 ### Client Error Handling
@@ -435,49 +500,52 @@ The primary pattern is try/catch at the call site:
 ```swift
 do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
-    // Success - use request.responseBody
 } catch let error as CreateIdeaError {
-    // Handle specific error cases
     switch error.code {
-    case .duplicateContent: showDuplicateWarning()
-    case .quotaExceeded: showUpgradePrompt()
-    case .invalidCategory: highlightField(error.field)
+    case .duplicateContent:
+        showDuplicateWarning(message: error.message)
+    case .quotaExceeded(let requestedSize, let maximumSize):
+        showQuotaError(requested: requestedSize, maximum: maximumSize, message: error.message)
+    case .invalidCategory(let category):
+        highlightInvalidCategory(category, message: error.message)
     }
 } catch {
-    // Fallback for unexpected errors
     showGenericError(error)
 }
 ```
 
-This gives you full context about what operation failed and lets you take appropriate action.
+### Built-in ValidationError
 
-### Common Error Patterns
+FOSMVVM provides `ValidationError` for field-level validation failures:
 
-**Validation errors with field detail:**
 ```swift
-public struct ValidationError: ServerRequestError {
-    public let errors: [FieldError]
+// In controller - use Validations to collect errors
+let validations = Validations()
 
-    public struct FieldError: Codable {
-        public let field: String
-        public let messages: [LocalizableString]
+if requestBody.email.isEmpty {
+    validations.validations.append(.init(
+        status: .error,
+        fieldId: "email",
+        message: .localized(for: CreateUserRequest.self, propertyName: "emailRequired")
+    ))
+}
+
+// Throw if any errors
+if let error = validations.validationError {
+    throw error
+}
+```
+
+```swift
+// Client catches ValidationError
+catch let error as ValidationError {
+    for validation in error.validations {
+        for message in validation.messages {
+            for fieldId in message.fieldIds {
+                formFields[fieldId]?.showError(message.message)
+            }
+        }
     }
-}
-```
-
-**Rate limiting with retry info:**
-```swift
-public struct RateLimitError: ServerRequestError {
-    public let retryAfterSeconds: Int
-    public let resetAt: LocalizableDate
-}
-```
-
-**Permission errors:**
-```swift
-public struct PermissionError: ServerRequestError {
-    public let requiredRole: String
-    public let currentRole: String?
 }
 ```
 
@@ -539,4 +607,4 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.3 | 2025-12-27 | Added `ServerRequestBodySize` for large upload body size limits (`maxBodySize` on RequestBody) |
 | 2.4 | 2026-01-08 | Added controller action mapping table, testing section with reference to test generator skill |
 | 2.5 | 2026-01-08 | Simplified action mapping: "action = protocol name minus Request". Removed drama, just state the pattern. |
-| 2.6 | 2026-01-09 | Added ResponseError section with guidance on custom error types, when to use them, and common patterns |
+| 2.6 | 2026-01-09 | Added ResponseError section with two patterns: associated values (LocalizableSubstitutions) and simple string codes (LocalizableString). Added YAML examples and built-in ValidationError usage. |

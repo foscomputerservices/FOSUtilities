@@ -621,21 +621,98 @@ The key insight: if the server returns JSON that can't decode as `ResponseBody` 
 
 #### Why Use Custom ServerRequestError?
 
-**1. Type-Safe Error Handling**
+**1. Errors with Associated Values (Parameterized Messages)**
+
+For errors that need dynamic data in their messages, use `LocalizableSubstitutions`:
 
 ```swift
 struct CreateIdeaError: ServerRequestError {
-    let field: String
-    let message: String
     let code: ErrorCode
+    let message: LocalizableSubstitutions
 
-    enum ErrorCode: String, Codable {
+    enum ErrorCode: Codable {
         case duplicateContent
-        case quotaExceeded
-        case invalidCategory
+        case quotaExceeded(requestedSize: Int, maximumSize: Int)
+        case invalidCategory(category: String)
+
+        var message: LocalizableSubstitutions {
+            switch self {
+            case .duplicateContent:
+                .init(
+                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "duplicateContent"),
+                    substitutions: [:]
+                )
+            case .quotaExceeded(let requestedSize, let maximumSize):
+                .init(
+                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "quotaExceeded"),
+                    substitutions: [
+                        "requestedSize": LocalizableInt(value: requestedSize),
+                        "maximumSize": LocalizableInt(value: maximumSize)
+                    ]
+                )
+            case .invalidCategory(let category):
+                .init(
+                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "invalidCategory"),
+                    substitutions: [
+                        "category": LocalizableString.constant(category)
+                    ]
+                )
+            }
+        }
+    }
+
+    init(code: ErrorCode) {
+        self.code = code
+        self.message = code.message  // Required to localize properly via Codable
     }
 }
+```
 
+```yaml
+en:
+  CreateIdeaError:
+    ErrorCode:
+      duplicateContent: "The requested content is a duplicate of an existing idea."
+      quotaExceeded: "The requested content size %{requestedSize} exceeds the maximum allowed size %{maximumSize}."
+      invalidCategory: "The category %{category} is not valid."
+```
+
+**2. Simple Errors (String-Based Codes)**
+
+For simpler errors without associated values, use a `String` raw value enum:
+
+```swift
+struct SimpleError: ServerRequestError {
+    let code: ErrorCode
+    let message: LocalizableString
+
+    enum ErrorCode: String, Codable, Sendable {
+        case serverFailed
+        case applicationFailed
+
+        var message: LocalizableString {
+            .localized(for: Self.self, parentType: SimpleError.self, propertyName: rawValue)
+        }
+    }
+
+    init(code: ErrorCode) {
+        self.code = code
+        self.message = code.message  // Required to localize properly via Codable
+    }
+}
+```
+
+```yaml
+en:
+  SimpleError:
+    ErrorCode:
+      serverFailed: "The server failed"
+      applicationFailed: "The application failed"
+```
+
+**3. Type-Safe Client Handling**
+
+```swift
 final class CreateIdeaRequest: CreateRequest {
     typealias ResponseError = CreateIdeaError
     // ...
@@ -646,40 +723,90 @@ do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
 } catch let error as CreateIdeaError {
     switch error.code {
-    case .duplicateContent: showDuplicateWarning()
-    case .quotaExceeded: showUpgradePrompt()
-    case .invalidCategory: highlightCategoryField()
+    case .duplicateContent:
+        showDuplicateWarning(message: error.message)
+    case .quotaExceeded(let requestedSize, let maximumSize):
+        showQuotaError(requested: requestedSize, maximum: maximumSize, message: error.message)
+    case .invalidCategory(let category):
+        highlightInvalidCategory(category, message: error.message)
     }
 }
 ```
 
-**2. Validation Errors with Field-Level Detail**
+**4. Validation Errors with Field-Level Detail**
+
+FOSMVVM provides built-in `ValidationError` that conforms to `ServerRequestError`:
 
 ```swift
-struct ValidationError: ServerRequestError {
-    let errors: [FieldError]
-
-    struct FieldError: Codable {
-        let field: String
-        let messages: [LocalizableString]
-    }
+// ValidationError contains ValidationResults with field-specific messages
+public struct ValidationError: ValidatableViewModelRequestError {
+    public let validations: [ValidationResult]
 }
 
-// Server returns:
-// { "errors": [
-//     { "field": "email", "messages": ["Invalid format"] },
-//     { "field": "password", "messages": ["Too short", "Needs uppercase"] }
-// ]}
+public struct ValidationResult: Codable, Hashable, Sendable {
+    public let status: Status           // .info, .warning, .error
+    public let messages: [Message]
 
-// Client highlights specific fields
-catch let error as ValidationError {
-    for fieldError in error.errors {
-        formFields[fieldError.field]?.showErrors(fieldError.messages)
+    public struct Message: Codable, Hashable, Sendable {
+        public let fieldIds: [FormFieldIdentifier]
+        public let message: LocalizableString
     }
 }
 ```
 
-**3. Different Requests, Different Error Shapes**
+**Controller throwing validation errors:**
+
+```swift
+static func performCreate(
+    _ request: Vapor.Request,
+    _ serverRequest: CreateUserRequest,
+    _ requestBody: RequestBody
+) async throws -> ResponseBody {
+    let validations = Validations()
+
+    // Validate fields
+    if requestBody.email.isEmpty {
+        validations.validations.append(.init(
+            status: .error,
+            fieldId: "email",
+            message: .localized(for: CreateUserRequest.self, propertyName: "emailRequired")
+        ))
+    }
+
+    if requestBody.password.count < 8 {
+        validations.validations.append(.init(
+            status: .error,
+            fieldId: "password",
+            message: .localized(for: CreateUserRequest.self, propertyName: "passwordTooShort")
+        ))
+    }
+
+    // Throw if any errors
+    if let error = validations.validationError {
+        throw error
+    }
+
+    // ... proceed with creation
+}
+```
+
+**Client handling validation errors:**
+
+```swift
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as ValidationError {
+    for validation in error.validations {
+        for message in validation.messages {
+            for fieldId in message.fieldIds {
+                formFields[fieldId]?.showError(message.message)
+            }
+        }
+    }
+}
+```
+
+**5. Different Requests, Different Error Shapes**
 
 ```swift
 final class LoginRequest: CreateRequest {
@@ -695,7 +822,7 @@ final class PaymentRequest: CreateRequest {
 }
 ```
 
-**4. Error Recovery Information**
+**6. Error Recovery Information**
 
 ```swift
 struct RateLimitError: ServerRequestError {
@@ -711,30 +838,9 @@ catch let error as RateLimitError {
 }
 ```
 
-**5. Contextual Error Handling at Call Site**
+**7. Localized Error Messages**
 
-The primary pattern is try/catch where you make the request:
-
-```swift
-do {
-    try await request.processRequest(mvvmEnv: mvvmEnv)
-    // Success - use request.responseBody
-} catch let error as CreateIdeaError {
-    switch error.code {
-    case .duplicateContent: showDuplicateWarning()
-    case .quotaExceeded: showUpgradePrompt()
-    case .invalidCategory: highlightCategoryField()
-    }
-} catch {
-    showGenericError(error)
-}
-```
-
-This gives you full context about what operation failed and lets you take appropriate action.
-
-**6. Localized Error Messages**
-
-Error types can use `LocalizableString` for automatic localization (see [The Localization System](#the-localization-system)):
+Error types can use any `Localizable` type for automatic localization (see [The Localization System](#the-localization-system)):
 
 ```swift
 struct LocalizedError: ServerRequestError {
