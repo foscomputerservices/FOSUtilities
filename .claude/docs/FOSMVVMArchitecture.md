@@ -612,9 +612,8 @@ Server returns response
          │
          ▼
 ┌────────────────────────────────┐
-│ MVVMEnvironment catches error  │
-│  - Has handler? Route to it    │
-│  - No handler? Re-throw        │
+│ Client catches error           │
+│  try/catch at call site        │
 └────────────────────────────────┘
 ```
 
@@ -712,23 +711,26 @@ catch let error as RateLimitError {
 }
 ```
 
-**5. Centralized Error Handling via MVVMEnvironment**
+**5. Contextual Error Handling at Call Site**
+
+The primary pattern is try/catch where you make the request:
 
 ```swift
-let mvvmEnv = MVVMEnvironment(
-    // ...
-    requestErrorHandler: { request, error in
-        switch error {
-        case let authError as AuthenticationError:
-            router.navigate(to: .login)
-        case let quotaError as QuotaError:
-            showUpgradeModal(remaining: quotaError.remaining)
-        default:
-            showErrorToast(error.localizedDescription)
-        }
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+    // Success - use request.responseBody
+} catch let error as CreateIdeaError {
+    switch error.code {
+    case .duplicateContent: showDuplicateWarning()
+    case .quotaExceeded: showUpgradePrompt()
+    case .invalidCategory: highlightCategoryField()
     }
-)
+} catch {
+    showGenericError(error)
+}
 ```
+
+This gives you full context about what operation failed and lets you take appropriate action.
 
 **6. Localized Error Messages**
 

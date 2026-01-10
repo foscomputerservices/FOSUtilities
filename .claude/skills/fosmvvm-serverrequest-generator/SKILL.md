@@ -388,7 +388,7 @@ When processing a response:
 1. Framework tries to decode as `ResponseBody`
 2. If that fails, tries to decode as `ResponseError`
 3. If `ResponseError` decode succeeds, that error is thrown
-4. `MVVMEnvironment.requestErrorHandler` can catch and handle centrally
+4. Client catches with try/catch at the call site
 
 ### When to Use Custom ResponseError
 
@@ -430,37 +430,26 @@ public struct CreateIdeaError: ServerRequestError {
 
 ### Client Error Handling
 
+The primary pattern is try/catch at the call site:
+
 ```swift
 do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
+    // Success - use request.responseBody
 } catch let error as CreateIdeaError {
+    // Handle specific error cases
     switch error.code {
     case .duplicateContent: showDuplicateWarning()
     case .quotaExceeded: showUpgradePrompt()
     case .invalidCategory: highlightField(error.field)
     }
+} catch {
+    // Fallback for unexpected errors
+    showGenericError(error)
 }
 ```
 
-### Centralized Error Handling
-
-Configure in `MVVMEnvironment` for app-wide handling:
-
-```swift
-let mvvmEnv = MVVMEnvironment(
-    // ...
-    requestErrorHandler: { request, error in
-        switch error {
-        case let authError as AuthenticationError:
-            router.navigate(to: .login)
-        case let validationError as ValidationError:
-            showValidationErrors(validationError.errors)
-        default:
-            showErrorToast(error.localizedDescription)
-        }
-    }
-)
-```
+This gives you full context about what operation failed and lets you take appropriate action.
 
 ### Common Error Patterns
 
