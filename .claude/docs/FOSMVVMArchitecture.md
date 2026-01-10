@@ -569,6 +569,197 @@ public enum ServerRequestBodySize {
 
 When a `ServerRequestController` registers routes, it automatically applies the body size limit from the `RequestBody` type.
 
+### ServerRequestError - Typed Error Responses
+
+Each `ServerRequest` can define a custom `ResponseError` type for structured error handling:
+
+```swift
+public protocol ServerRequest {
+    associatedtype ResponseError: ServerRequestError
+    // ...
+}
+
+public protocol ServerRequestError: Error, Codable, Sendable {}
+```
+
+#### How Error Decoding Works
+
+When processing a response, the framework follows this flow:
+
+```
+Server returns response
+         │
+         ▼
+┌────────────────────────────────┐
+│ Check HTTP status (200-299)   │
+│  - Success? Continue to decode │
+│  - Failure? Fall to error path │
+└────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────┐
+│ Try decode as ResponseBody     │
+│  - Success? Return result      │
+│  - Failure? Fall to error path │
+└────────────────────────────────┘
+         │ (on any error)
+         ▼
+┌────────────────────────────────┐
+│ Try decode as ResponseError    │
+│  - Success? THROW that error   │◄── Custom error surfaces here
+│  - Failure? Throw DataFetchError│
+└────────────────────────────────┘
+         │
+         ▼
+┌────────────────────────────────┐
+│ MVVMEnvironment catches error  │
+│  - Has handler? Route to it    │
+│  - No handler? Re-throw        │
+└────────────────────────────────┘
+```
+
+The key insight: if the server returns JSON that can't decode as `ResponseBody` but CAN decode as `ResponseError`, that typed error is thrown. This works even when HTTP status is 200 (some APIs return errors with success status codes).
+
+#### Why Use Custom ServerRequestError?
+
+**1. Type-Safe Error Handling**
+
+```swift
+struct CreateIdeaError: ServerRequestError {
+    let field: String
+    let message: String
+    let code: ErrorCode
+
+    enum ErrorCode: String, Codable {
+        case duplicateContent
+        case quotaExceeded
+        case invalidCategory
+    }
+}
+
+final class CreateIdeaRequest: CreateRequest {
+    typealias ResponseError = CreateIdeaError
+    // ...
+}
+
+// Client gets structured error handling
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as CreateIdeaError {
+    switch error.code {
+    case .duplicateContent: showDuplicateWarning()
+    case .quotaExceeded: showUpgradePrompt()
+    case .invalidCategory: highlightCategoryField()
+    }
+}
+```
+
+**2. Validation Errors with Field-Level Detail**
+
+```swift
+struct ValidationError: ServerRequestError {
+    let errors: [FieldError]
+
+    struct FieldError: Codable {
+        let field: String
+        let messages: [LocalizableString]
+    }
+}
+
+// Server returns:
+// { "errors": [
+//     { "field": "email", "messages": ["Invalid format"] },
+//     { "field": "password", "messages": ["Too short", "Needs uppercase"] }
+// ]}
+
+// Client highlights specific fields
+catch let error as ValidationError {
+    for fieldError in error.errors {
+        formFields[fieldError.field]?.showErrors(fieldError.messages)
+    }
+}
+```
+
+**3. Different Requests, Different Error Shapes**
+
+```swift
+final class LoginRequest: CreateRequest {
+    typealias ResponseError = LoginError  // credentials, lockout, 2FA required
+}
+
+final class FileUploadRequest: CreateRequest {
+    typealias ResponseError = UploadError  // file too large, invalid type, quota
+}
+
+final class PaymentRequest: CreateRequest {
+    typealias ResponseError = PaymentError  // card declined, insufficient funds
+}
+```
+
+**4. Error Recovery Information**
+
+```swift
+struct RateLimitError: ServerRequestError {
+    let retryAfterSeconds: Int
+    let currentLimit: Int
+    let resetAt: LocalizableDate
+}
+
+// Client implements smart retry
+catch let error as RateLimitError {
+    await Task.sleep(for: .seconds(error.retryAfterSeconds))
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+}
+```
+
+**5. Centralized Error Handling via MVVMEnvironment**
+
+```swift
+let mvvmEnv = MVVMEnvironment(
+    // ...
+    requestErrorHandler: { request, error in
+        switch error {
+        case let authError as AuthenticationError:
+            router.navigate(to: .login)
+        case let quotaError as QuotaError:
+            showUpgradeModal(remaining: quotaError.remaining)
+        default:
+            showErrorToast(error.localizedDescription)
+        }
+    }
+)
+```
+
+**6. Localized Error Messages**
+
+Error types can use `LocalizableString` for automatic localization (see [The Localization System](#the-localization-system)):
+
+```swift
+struct LocalizedError: ServerRequestError {
+    let userMessage: LocalizableString  // Localized via YAML like any ViewModel property
+    let technicalCode: String           // "SESSION_EXPIRED"
+}
+```
+
+#### When to Use EmptyError
+
+Use `EmptyError` (the default) when:
+- The operation rarely fails
+- Failures are truly exceptional (network down, server crash)
+- No structured error response is expected from the server
+- You only need success/failure, not why
+
+#### Quick Reference
+
+| Aspect | EmptyError | Custom ServerRequestError |
+|--------|------------|---------------------------|
+| Error detail | None | Full structured context |
+| Field-level info | No | Yes |
+| Recovery guidance | No | Yes |
+| Type-safe handling | No | Yes |
+| Localized messages | No | Yes |
+| Per-request customization | No | Yes |
+
 ---
 
 ## The Localization System

@@ -123,6 +123,7 @@ try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 | HTTP Method | Determined by `action.httpMethod` (ShowRequest=GET, CreateRequest=POST, etc.) |
 | Request Body | `RequestBody` type, automatically JSON encoded via `requestBody?.toJSONData()` |
 | Response Body | `ResponseBody` type, automatically JSON decoded into `responseBody` |
+| Error Response | `ResponseError` type, automatically decoded when response can't decode as `ResponseBody` |
 | Validation | `RequestBody: ValidatableModel` for write operations |
 | Body Size Limits | `RequestBody.maxBodySize` for large uploads (files, images) |
 | Type Safety | Compiler enforces correct types throughout |
@@ -377,6 +378,124 @@ public typealias ResponseBody = EmptyBody
 
 ---
 
+## ResponseError - Typed Error Handling
+
+Each `ServerRequest` can define a custom `ResponseError` type for structured error responses from the server.
+
+### How It Works
+
+When processing a response:
+1. Framework tries to decode as `ResponseBody`
+2. If that fails, tries to decode as `ResponseError`
+3. If `ResponseError` decode succeeds, that error is thrown
+4. `MVVMEnvironment.requestErrorHandler` can catch and handle centrally
+
+### When to Use Custom ResponseError
+
+**Use custom `ResponseError` when:**
+- Operation has known failure modes (validation, quota, permissions)
+- Server returns structured error details (field names, error codes)
+- Client needs to take specific action based on error type
+- You want field-level validation error display
+
+**Use `EmptyError` (default) when:**
+- Operation rarely fails
+- Failures are exceptional (network down, server crash)
+- No structured error response expected
+- You only need success/failure, not why
+
+### Defining Custom ResponseError
+
+```swift
+public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
+    // Use custom error instead of EmptyError
+    public typealias ResponseError = CreateIdeaError
+
+    // ... rest of request
+}
+
+// Define the error type
+public struct CreateIdeaError: ServerRequestError {
+    public let code: ErrorCode
+    public let message: LocalizableString  // Localized via YAML
+    public let field: String?              // Which field failed (for validation)
+
+    public enum ErrorCode: String, Codable {
+        case duplicateContent
+        case quotaExceeded
+        case invalidCategory
+    }
+}
+```
+
+### Client Error Handling
+
+```swift
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as CreateIdeaError {
+    switch error.code {
+    case .duplicateContent: showDuplicateWarning()
+    case .quotaExceeded: showUpgradePrompt()
+    case .invalidCategory: highlightField(error.field)
+    }
+}
+```
+
+### Centralized Error Handling
+
+Configure in `MVVMEnvironment` for app-wide handling:
+
+```swift
+let mvvmEnv = MVVMEnvironment(
+    // ...
+    requestErrorHandler: { request, error in
+        switch error {
+        case let authError as AuthenticationError:
+            router.navigate(to: .login)
+        case let validationError as ValidationError:
+            showValidationErrors(validationError.errors)
+        default:
+            showErrorToast(error.localizedDescription)
+        }
+    }
+)
+```
+
+### Common Error Patterns
+
+**Validation errors with field detail:**
+```swift
+public struct ValidationError: ServerRequestError {
+    public let errors: [FieldError]
+
+    public struct FieldError: Codable {
+        public let field: String
+        public let messages: [LocalizableString]
+    }
+}
+```
+
+**Rate limiting with retry info:**
+```swift
+public struct RateLimitError: ServerRequestError {
+    public let retryAfterSeconds: Int
+    public let resetAt: LocalizableDate
+}
+```
+
+**Permission errors:**
+```swift
+public struct PermissionError: ServerRequestError {
+    public let requiredRole: String
+    public let currentRole: String?
+}
+```
+
+> **Architecture context:** See [ServerRequestError - Typed Error Responses](../../docs/FOSMVVMArchitecture.md#serverrequesterror---typed-error-responses) for full details.
+
+---
+
 ## Collaboration Protocol
 
 1. **Clarify the operation** - What are we doing?
@@ -431,3 +550,4 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.3 | 2025-12-27 | Added `ServerRequestBodySize` for large upload body size limits (`maxBodySize` on RequestBody) |
 | 2.4 | 2026-01-08 | Added controller action mapping table, testing section with reference to test generator skill |
 | 2.5 | 2026-01-08 | Simplified action mapping: "action = protocol name minus Request". Removed drama, just state the pattern. |
+| 2.6 | 2026-01-09 | Added ResponseError section with guidance on custom error types, when to use them, and common patterns |

@@ -388,6 +388,97 @@ Available size units:
 - `.mb(_ count: UInt)` - Megabytes (× 1,048,576)
 - `.gb(_ count: UInt)` - Gigabytes (× 1,073,741,824)
 
+### Custom ResponseError
+
+For operations with known failure modes, define a custom error type:
+
+```swift
+public final class Create{Entity}Request: CreateRequest, @unchecked Sendable {
+    public typealias Query = EmptyQuery
+    public typealias Fragment = EmptyFragment
+    public typealias ResponseError = Create{Entity}Error  // Custom error type
+
+    // ... RequestBody, ResponseBody, init ...
+}
+
+// Define the error type (can be in same file or separate)
+public struct Create{Entity}Error: ServerRequestError {
+    public let code: ErrorCode
+    public let message: LocalizableString
+    public let field: String?
+
+    public enum ErrorCode: String, Codable {
+        case duplicateContent
+        case quotaExceeded
+        case invalidCategory
+        case permissionDenied
+    }
+
+    public init(code: ErrorCode, message: LocalizableString, field: String? = nil) {
+        self.code = code
+        self.message = message
+        self.field = field
+    }
+}
+```
+
+**Controller throwing custom error:**
+
+```swift
+private extension Create{Entity}Request {
+    static func performCreate(
+        _ request: Vapor.Request,
+        _ serverRequest: Create{Entity}Request,
+        _ requestBody: RequestBody
+    ) async throws -> ResponseBody {
+        // Check for duplicate
+        if try await {Entity}.query(on: request.db)
+            .filter(\.$content == requestBody.content)
+            .first() != nil {
+            throw Create{Entity}Error(
+                code: .duplicateContent,
+                message: .localized(for: Create{Entity}Error.self, propertyName: "duplicateContent"),
+                field: "content"
+            )
+        }
+
+        // Check quota
+        let count = try await {Entity}.query(on: request.db).count()
+        if count >= quotaLimit {
+            throw Create{Entity}Error(
+                code: .quotaExceeded,
+                message: .localized(for: Create{Entity}Error.self, propertyName: "quotaExceeded")
+            )
+        }
+
+        // ... proceed with creation
+    }
+}
+```
+
+**Client handling custom error:**
+
+```swift
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as Create{Entity}Error {
+    switch error.code {
+    case .duplicateContent:
+        showDuplicateWarning()
+    case .quotaExceeded:
+        showUpgradePrompt()
+    case .invalidCategory:
+        if let field = error.field {
+            highlightField(field)
+        }
+    case .permissionDenied:
+        showPermissionError()
+    }
+} catch {
+    showGenericError(error)
+}
+```
+
 ---
 
 ## Checklist
@@ -396,6 +487,7 @@ Available size units:
 - [ ] Extends correct protocol (ShowRequest, CreateRequest, UpdateRequest, DeleteRequest)
 - [ ] RequestBody has all fields client needs to send
 - [ ] ResponseBody contains what client needs back (often a ViewModel)
+- [ ] ResponseError defined if operation has known failure modes (use EmptyError otherwise)
 - [ ] Stubbable conformance for testing
 - [ ] ValidatableModel on RequestBody (for write operations)
 - [ ] `maxBodySize` set on RequestBody if handling large uploads (files, images, etc.)
@@ -413,7 +505,8 @@ Available size units:
 - [ ] MVVMEnvironment configured once at app/tool startup
 - [ ] Uses `request.processRequest(mvvmEnv:)` - NO baseURL/headers per-call
 - [ ] Handles response via `request.responseBody`
-- [ ] Error handling in place
+- [ ] Catches custom `ResponseError` type if defined
+- [ ] Generic error fallback for unexpected errors
 
 ### WebApp Bridge (if needed)
 - [ ] MVVMEnvironment configured at WebApp startup
@@ -450,5 +543,57 @@ public typealias ResponseBody = EmptyBody
 public struct ResponseBody: ShowResponseBody {
     public let items: [{Entity}ViewModel]
     public let totalCount: Int
+}
+```
+
+---
+
+## Common ResponseError Patterns
+
+### Validation Error (field-level)
+```swift
+public struct ValidationError: ServerRequestError {
+    public let errors: [FieldError]
+
+    public struct FieldError: Codable, Sendable {
+        public let field: String
+        public let messages: [LocalizableString]
+    }
+}
+```
+
+### Permission Error
+```swift
+public struct PermissionError: ServerRequestError {
+    public let requiredRole: String
+    public let currentRole: String?
+    public let message: LocalizableString
+}
+```
+
+### Rate Limit Error (with retry info)
+```swift
+public struct RateLimitError: ServerRequestError {
+    public let retryAfterSeconds: Int
+    public let limit: Int
+    public let resetAt: LocalizableDate
+}
+```
+
+### Quota Error
+```swift
+public struct QuotaError: ServerRequestError {
+    public let current: Int
+    public let limit: Int
+    public let message: LocalizableString
+}
+```
+
+### Not Found Error (with context)
+```swift
+public struct NotFoundError: ServerRequestError {
+    public let entityType: String
+    public let entityId: String
+    public let message: LocalizableString
 }
 ```
