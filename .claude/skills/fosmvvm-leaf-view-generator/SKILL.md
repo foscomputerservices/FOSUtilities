@@ -417,6 +417,27 @@ public init(cards: [CardViewModel]) {
 <span class="status">#(card.statusDisplayName)</span>
 ```
 
+### Concatenating Localized Values
+
+```html
+<!-- BAD - breaks RTL languages and locale-specific word order -->
+#(conversation.messageCount) #(conversation.messagesLabel)
+
+<!-- GOOD - ViewModel composes via @LocalizedSubs -->
+#(conversation.messageCountDisplay)
+```
+
+Template-level concatenation assumes left-to-right order. Use `@LocalizedSubs` in the ViewModel so YAML can define locale-appropriate ordering:
+
+```yaml
+en:
+  ConversationViewModel:
+    messageCountDisplay: "%{messageCount} %{messagesLabel}"
+ar:
+  ConversationViewModel:
+    messageCountDisplay: "%{messagesLabel} %{messageCount}"
+```
+
 ### Mismatched Filenames
 
 ```
@@ -499,4 +520,4 @@ Use [reference.md](reference.md) templates as starting point.
 | 1.0 | 2025-12-24 | Initial Kairos-specific skill |
 | 2.0 | 2025-12-27 | Generalized for FOSMVVM, added View-ViewModel alignment principle, full-page templates, architecture connection |
 | 2.1 | 2026-01-08 | Added Leaf Built-in Functions section (count, contains, loop variables). Clarified Codable/computed properties. Corrected earlier false claims about #count() not working. |
-| 2.2 | 2026-01-19 | Updated Pattern 3 to use stored LocalizableString for dynamic enum displays; linked to Enum Localization Pattern. |
+| 2.2 | 2026-01-19 | Updated Pattern 3 to use stored LocalizableString for dynamic enum displays; linked to Enum Localization Pattern. Added anti-pattern for concatenating localized values (RTL breakage). |
