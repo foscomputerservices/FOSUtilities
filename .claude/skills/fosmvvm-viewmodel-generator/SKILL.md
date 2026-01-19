@@ -89,7 +89,8 @@ A ViewModel answers: **"What does the View need to display?"**
 
 | Content Type | How It's Represented | Example |
 |--------------|---------------------|---------|
-| Static UI text | `@LocalizedString` | Page titles, button labels |
+| Static UI text | `@LocalizedString` | Page titles, button labels (fixed text) |
+| Dynamic enum values | `LocalizableString` (stored) | Status/state display (see Enum Localization Pattern) |
 | Dynamic data in text | `@LocalizedSubs` | "Welcome, %{name}!" with substitutions |
 | Composed text | `@LocalizedCompoundString` | Full name from pieces (locale-aware order) |
 | Formatted dates | `LocalizableDate` | `createdAt: LocalizableDate` |
@@ -426,6 +427,47 @@ public let itemCount: LocalizableInt     // NOT String
 
 The client formats these according to user's locale and timezone.
 
+### Enum Localization Pattern
+
+For dynamic enum values (status, state, category), use a **stored `LocalizableString`** - NOT `@LocalizedString`.
+
+`@LocalizedString` always looks up the same key (the property name). A stored `LocalizableString` carries the dynamic key from the enum case.
+
+```swift
+// Enum provides localizableString
+public enum SessionState: String, CaseIterable, Codable, Sendable {
+    case pending, running, completed, failed
+
+    public var localizableString: LocalizableString {
+        .localized(for: Self.self, propertyName: rawValue)
+    }
+}
+
+// ViewModel stores it (NOT @LocalizedString)
+@ViewModel
+public struct SessionCardViewModel {
+    public let state: SessionState                // Raw enum for data attributes
+    public let stateDisplay: LocalizableString   // Localized display text
+
+    public init(session: Session) {
+        self.state = session.state
+        self.stateDisplay = session.state.localizableString
+    }
+}
+```
+
+```yaml
+# YAML keys match enum type and case names
+en:
+  SessionState:
+    pending: "Pending"
+    running: "Running"
+    completed: "Completed"
+    failed: "Failed"
+```
+
+**Constraint:** `LocalizableString` only works in ViewModels encoded with `localizingEncoder()`. Do not use in Fluent JSONB fields or other persisted types.
+
 ### Child ViewModels
 
 Top-level ViewModels contain their children:
@@ -504,3 +546,4 @@ See [reference.md](reference.md) for complete file templates.
 | 2.2 | 2024-12-26 | Added shaping responsibility, @LocalizedSubs/@LocalizedCompoundString, anti-pattern |
 | 2.3 | 2025-12-27 | Added Display vs Form ViewModels section; clarified Fields adoption |
 | 2.4 | 2026-01-08 | Added Codable/computed properties section. Clarified when to pre-compute vs use Leaf built-ins. |
+| 2.5 | 2026-01-19 | Added Enum Localization Pattern section. Clarified @LocalizedString is for static text only; stored LocalizableString for dynamic enum values. |

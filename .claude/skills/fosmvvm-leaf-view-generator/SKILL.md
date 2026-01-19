@@ -170,20 +170,20 @@ FOSMVVM's `LeafDataRepresentable` conformance handles Localizable types automati
 
 ### Pattern 3: Display Values vs Identifiers
 
-ViewModels should provide both:
+ViewModels should provide both raw values (for data attributes) and localized strings (for display). For enum localization, see the [Enum Localization Pattern](../fosmvvm-viewmodel-generator/SKILL.md#enum-localization-pattern).
 
 ```swift
 @ViewModel
 public struct {Entity}CardViewModel {
     public let id: ModelIdType              // For data-{entity}-id
     public let status: {Entity}Status       // Raw enum for data-status
-    @LocalizedString public var statusDisplayName  // For visible text
+    public let statusDisplay: LocalizableString  // Localized (stored, not @LocalizedString)
 }
 ```
 
 ```html
-<div data-status="#(card.status)">           <!-- Raw: "queued" -->
-    <span class="badge">#(card.statusDisplayName)</span>  <!-- Localized: "In Queue" -->
+<div data-status="#(card.status)">           <!-- Raw: "queued" for JS -->
+    <span class="badge">#(card.statusDisplay)</span>  <!-- Localized: "In Queue" -->
 </div>
 ```
 
@@ -499,3 +499,4 @@ Use [reference.md](reference.md) templates as starting point.
 | 1.0 | 2025-12-24 | Initial Kairos-specific skill |
 | 2.0 | 2025-12-27 | Generalized for FOSMVVM, added View-ViewModel alignment principle, full-page templates, architecture connection |
 | 2.1 | 2026-01-08 | Added Leaf Built-in Functions section (count, contains, loop variables). Clarified Codable/computed properties. Corrected earlier false claims about #count() not working. |
+| 2.2 | 2026-01-19 | Updated Pattern 3 to use stored LocalizableString for dynamic enum displays; linked to Enum Localization Pattern. |
