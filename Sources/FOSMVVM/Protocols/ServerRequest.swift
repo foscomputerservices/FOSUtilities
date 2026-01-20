@@ -351,22 +351,96 @@ public enum ServerRequestBodySize: Equatable, Hashable, Sendable {
 /// then an attempt will be made to convert it to ``ServerRequest/ResponseError``.  The resulting
 /// error will be thrown by the requesting api.
 ///
-/// ## Example
+/// ## Simple Errors
+///
+/// For errors without associated values, use ``LocalizableString`` for user-facing messages:
 ///
 /// ```swift
-/// struct ServerResponse: Codable, Sendable {
-///   let validServerResponse: String
-/// }
+/// struct MyError: ServerRequestError {
+///     let code: ErrorCode
+///     let message: LocalizableString
 ///
-/// struct ServerRequestError: Error, Codable, Sendable {
-///    let errorMessage: String
-/// }
+///     enum ErrorCode: String, Codable, Sendable {
+///         case serverFailed
+///         case applicationFailed
 ///
+///         var message: LocalizableString {
+///             .localized(for: Self.self, parentType: MyError.self, propertyName: rawValue)
+///         }
+///     }
+///
+///     init(code: ErrorCode) {
+///         self.code = code
+///         self.message = code.message
+///     }
+/// }
+/// ```
+///
+/// With YAML localization:
+///
+/// ```yaml
+/// en:
+///   MyError:
+///     ErrorCode:
+///       serverFailed: "The server failed"
+///       applicationFailed: "The application failed"
+/// ```
+///
+/// ## Errors with Associated Values
+///
+/// For errors that need dynamic data in their messages, use ``LocalizableSubstitutions``:
+///
+/// ```swift
+/// struct QuotaError: ServerRequestError {
+///     let code: ErrorCode
+///     let message: LocalizableSubstitutions
+///
+///     enum ErrorCode: Codable, Sendable {
+///         case quotaExceeded(requested: Int, maximum: Int)
+///
+///         var message: LocalizableSubstitutions {
+///             switch self {
+///             case .quotaExceeded(let requested, let maximum):
+///                 .init(
+///                     baseString: .localized(for: Self.self, parentType: QuotaError.self, propertyName: "quotaExceeded"),
+///                     substitutions: [
+///                         "requested": LocalizableInt(value: requested),
+///                         "maximum": LocalizableInt(value: maximum)
+///                     ]
+///                 )
+///             }
+///         }
+///     }
+///
+///     init(code: ErrorCode) {
+///         self.code = code
+///         self.message = code.message
+///     }
+/// }
+/// ```
+///
+/// With YAML localization using `%{key}` substitution points:
+///
+/// ```yaml
+/// en:
+///   QuotaError:
+///     ErrorCode:
+///       quotaExceeded: "Requested %{requested} exceeds maximum %{maximum}"
+/// ```
+///
+/// ## Usage
+///
+/// ```swift
 /// final class MyRequest: ServerRequest {
-///     ...
-///     typealias ResponseBody = ServerResponse
-///     typealias ResponseError = ServerRequestError
-///     ...
+///     typealias ResponseError = MyError
+///     // ...
+/// }
+///
+/// // Type-safe error handling
+/// do {
+///     try await request.processRequest(mvvmEnv: mvvmEnv)
+/// } catch let error as MyError {
+///     showAlert(error.message)
 /// }
 /// ```
 public protocol ServerRequestError: Error, Codable, Sendable {}

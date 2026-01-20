@@ -386,6 +386,95 @@ swift test --filter {TestSuiteName}
 
 ---
 
+## Testing ServerRequestError Localizations
+
+### Why Error Localization Testing is Different
+
+Unlike ViewModels, `ServerRequestError` types:
+- Are often **enums**, not structs
+- Do **not** conform to `Stubbable` or `RetrievablePropertyNames`
+- Cannot use `expectTranslations(ErrorType.self)` like ViewModels
+
+This means you must **manually test each error case** individually.
+
+### The Pattern
+
+Use `LocalizableTestCase.expectTranslations(_ localizable:)` on each error's `Localizable` property:
+
+```swift
+@Suite("MyError Localization Tests")
+struct MyErrorLocalizationTests: LocalizableTestCase {
+    let locStore: LocalizationStore
+
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: Bundle.module,
+            resourceDirectoryName: "TestYAML"
+        )
+    }
+
+    @Test func errorMessages_simpleErrors() throws {
+        // Test each error case individually
+        let serverFailed = MyError(code: .serverFailed)
+        try expectTranslations(serverFailed.message)
+
+        let appFailed = MyError(code: .applicationFailed)
+        try expectTranslations(appFailed.message)
+    }
+
+    @Test func errorMessages_withSubstitutions() throws {
+        // For errors with associated values, test with representative values
+        let quotaError = QuotaError(code: .quotaExceeded(requested: 100, maximum: 50))
+        try expectTranslations(quotaError.message)
+    }
+}
+```
+
+### Testing Error Messages in Integration Tests
+
+When testing the full request/response cycle, verify error messages resolve:
+
+```swift
+@Test func createRequest_validationError_hasLocalizedMessage() async throws {
+    try await withTestApp { app in
+        let request = CreateIdeaRequest(requestBody: .init(content: ""))
+
+        try await app.testing().test(request, locale: en) { response in
+            #expect(response.status == .badRequest)
+            let error = try #require(response.error)
+
+            // Verify the message resolved (not empty or pending)
+            #expect(!error.message.isEmpty)
+
+            // Optionally verify specific text for English locale
+            #expect(try error.message.localizedString.contains("required"))
+        }
+    }
+}
+```
+
+### Why Not Stubbable?
+
+`Stubbable` works well for ViewModels because:
+- ViewModels are structs with many properties
+- A single `stub()` provides a complete test instance
+
+`ServerRequestError` types are often enums where:
+- Each case may have different associated values
+- Each case may have a different localized message
+- A single `stub()` can't cover all cases
+
+**You must enumerate and test each error case explicitly.**
+
+### Checklist for Error Localization Tests
+
+- [ ] Test each enum case for simple errors
+- [ ] Test representative associated values for parameterized errors
+- [ ] Verify messages resolve (not empty) for all configured locales
+- [ ] Verify substitution placeholders are replaced in `LocalizableSubstitutions`
+
+---
+
 ## Troubleshooting
 
 ### "Route not found" Error
@@ -466,4 +555,5 @@ See [reference.md](reference.md) for complete file templates.
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1 | 2025-01-20 | Add ServerRequestError localization testing guidance |
 | 1.0 | 2025-01-05 | Initial skill |
