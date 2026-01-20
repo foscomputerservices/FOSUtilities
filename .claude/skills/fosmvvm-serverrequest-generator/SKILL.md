@@ -191,7 +191,7 @@ import FOSMVVM
 public final class {Action}Request: {Protocol}, @unchecked Sendable {
     public typealias Query = EmptyQuery       // or custom Query type
     public typealias Fragment = EmptyFragment
-    public typealias ResponseError = EmptyError
+    // ResponseError: use EmptyError OR define nested ResponseError struct (see below)
 
     public let requestBody: RequestBody?
     public var responseBody: ResponseBody?
@@ -206,6 +206,9 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
         // Fields (often contains a ViewModel)
     }
 
+    // Optional: Custom error type (nested, not top-level!)
+    // public struct ResponseError: ServerRequestError { ... }
+
     public init(
         query: Query? = nil,
         fragment: Fragment? = nil,
@@ -217,6 +220,8 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
     }
 }
 ```
+
+**Note:** All subtypes (RequestBody, ResponseBody, ResponseError) are nested inside the request class. This avoids namespace pollution and provides unique YAML localization keys automatically.
 
 ### Step 4: Generate Controller
 
@@ -404,60 +409,93 @@ When processing a response:
 - No structured error response expected
 - You only need success/failure, not why
 
+### Nesting Pattern
+
+**ResponseError MUST be nested inside the request class**, just like RequestBody and ResponseBody:
+
+```swift
+public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
+    public typealias Query = EmptyQuery
+    public typealias Fragment = EmptyFragment
+    // No typealias needed - ResponseError is nested
+
+    public let requestBody: RequestBody?
+    public var responseBody: ResponseBody?
+
+    // ✅ All subtypes nested inside the request
+    public struct RequestBody: ServerRequestBody, ValidatableModel { ... }
+    public struct ResponseBody: CreateResponseBody { ... }
+    public struct ResponseError: ServerRequestError { ... }  // ← Nested, not top-level
+
+    public init(...) { ... }
+}
+```
+
+**Why nesting matters:**
+- Consistent with RequestBody/ResponseBody pattern
+- Avoids namespace pollution (no `CreateIdeaError`, `MoveIdeaError`, etc. at top level)
+- YAML localization keys are scoped: `CreateIdeaRequest.ResponseError.ErrorCode.quotaExceeded`
+- No need for unique type names like `GovernanceLessonCreateError` - nesting provides uniqueness
+
 ### Pattern 1: Errors with Associated Values
 
 For errors that need dynamic data in their messages, use `LocalizableSubstitutions`:
 
 ```swift
-public struct CreateIdeaError: ServerRequestError {
-    public let code: ErrorCode
-    public let message: LocalizableSubstitutions
+public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
+    // ... other typealiases and properties ...
 
-    public enum ErrorCode: Codable {
-        case duplicateContent
-        case quotaExceeded(requestedSize: Int, maximumSize: Int)
-        case invalidCategory(category: String)
+    public struct ResponseError: ServerRequestError {
+        public let code: ErrorCode
+        public let message: LocalizableSubstitutions
 
-        var message: LocalizableSubstitutions {
-            switch self {
-            case .duplicateContent:
-                .init(
-                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "duplicateContent"),
-                    substitutions: [:]
-                )
-            case .quotaExceeded(let requestedSize, let maximumSize):
-                .init(
-                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "quotaExceeded"),
-                    substitutions: [
-                        "requestedSize": LocalizableInt(value: requestedSize),
-                        "maximumSize": LocalizableInt(value: maximumSize)
-                    ]
-                )
-            case .invalidCategory(let category):
-                .init(
-                    baseString: .localized(for: Self.self, parentType: CreateIdeaError.self, propertyName: "invalidCategory"),
-                    substitutions: [
-                        "category": LocalizableString.constant(category)
-                    ]
-                )
+        public enum ErrorCode: Codable, Sendable {
+            case duplicateContent
+            case quotaExceeded(requestedSize: Int, maximumSize: Int)
+            case invalidCategory(category: String)
+
+            var message: LocalizableSubstitutions {
+                switch self {
+                case .duplicateContent:
+                    .init(
+                        baseString: .localized(for: Self.self, parentType: ResponseError.self, propertyName: "duplicateContent"),
+                        substitutions: [:]
+                    )
+                case .quotaExceeded(let requestedSize, let maximumSize):
+                    .init(
+                        baseString: .localized(for: Self.self, parentType: ResponseError.self, propertyName: "quotaExceeded"),
+                        substitutions: [
+                            "requestedSize": LocalizableInt(value: requestedSize),
+                            "maximumSize": LocalizableInt(value: maximumSize)
+                        ]
+                    )
+                case .invalidCategory(let category):
+                    .init(
+                        baseString: .localized(for: Self.self, parentType: ResponseError.self, propertyName: "invalidCategory"),
+                        substitutions: [
+                            "category": LocalizableString.constant(category)
+                        ]
+                    )
+                }
             }
         }
-    }
 
-    public init(code: ErrorCode) {
-        self.code = code
-        self.message = code.message  // Required to localize properly via Codable
+        public init(code: ErrorCode) {
+            self.code = code
+            self.message = code.message  // Required to localize properly via Codable
+        }
     }
 }
 ```
 
 ```yaml
 en:
-  CreateIdeaError:
-    ErrorCode:
-      duplicateContent: "The requested content is a duplicate of an existing idea."
-      quotaExceeded: "The requested content size %{requestedSize} exceeds the maximum allowed size %{maximumSize}."
-      invalidCategory: "The category %{category} is not valid."
+  CreateIdeaRequest:
+    ResponseError:
+      ErrorCode:
+        duplicateContent: "The requested content is a duplicate of an existing idea."
+        quotaExceeded: "The requested content size %{requestedSize} exceeds the maximum allowed size %{maximumSize}."
+        invalidCategory: "The category %{category} is not valid."
 ```
 
 ### Pattern 2: Simple Errors (String-Based Codes)
@@ -465,33 +503,86 @@ en:
 For simpler errors without associated values, use a `String` raw value enum:
 
 ```swift
-public struct SimpleError: ServerRequestError {
-    public let code: ErrorCode
-    public let message: LocalizableString
+public final class MoveIdeaRequest: UpdateRequest, @unchecked Sendable {
+    // ... other typealiases and properties ...
 
-    public enum ErrorCode: String, Codable, Sendable {
-        case serverFailed
-        case applicationFailed
+    public struct ResponseError: ServerRequestError {
+        public let code: ErrorCode
+        public let message: LocalizableString
 
-        var message: LocalizableString {
-            .localized(for: Self.self, parentType: SimpleError.self, propertyName: rawValue)
+        public enum ErrorCode: String, Codable, Sendable {
+            case ideaNotFound
+            case invalidTransition
+
+            var message: LocalizableString {
+                .localized(for: Self.self, parentType: ResponseError.self, propertyName: rawValue)
+            }
         }
-    }
 
-    public init(code: ErrorCode) {
-        self.code = code
-        self.message = code.message  // Required to localize properly via Codable
+        public init(code: ErrorCode) {
+            self.code = code
+            self.message = code.message  // Required to localize properly via Codable
+        }
     }
 }
 ```
 
 ```yaml
 en:
-  SimpleError:
-    ErrorCode:
-      serverFailed: "The server failed"
-      applicationFailed: "The application failed"
+  MoveIdeaRequest:
+    ResponseError:
+      ErrorCode:
+        ideaNotFound: "The idea was not found"
+        invalidTransition: "Cannot move to the requested status"
 ```
+
+### Type Safety Means You Already Know
+
+**STOP. Before you panic about "how do I know what error type I have?"**
+
+This isn't JavaScript. The type system tells you everything at compile time:
+
+```swift
+// When you write this request...
+let request = MoveIdeaRequest(requestBody: body)
+
+// ...you KNOW:
+// - MoveIdeaRequest.ResponseError exists (it's declared in the type)
+// - It has exactly the cases you defined (ideaNotFound, invalidTransition)
+// - Each case has whatever properties you gave it
+
+// So when you catch, you catch THE SPECIFIC TYPE:
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as MoveIdeaRequest.ResponseError {
+    // I KNOW this is MoveIdeaRequest.ResponseError
+    // I KNOW it has .code
+    // I KNOW .code is ErrorCode enum with ideaNotFound, invalidTransition
+    // No mystery. No runtime discovery. No "what if?"
+}
+```
+
+**The anti-pattern (JavaScript brain):**
+```swift
+// ❌ WRONG - treating typed errors as unknown
+catch let error as ServerRequestError {
+    // "How do I get the message? What properties does it have?"
+    // This thinking is WRONG. You're not in a typeless world.
+}
+```
+
+**The pattern (Swift brain):**
+```swift
+// ✅ RIGHT - you know the exact type
+catch let error as MoveIdeaRequest.ResponseError {
+    switch error.code {
+    case .ideaNotFound: // I know this exists
+    case .invalidTransition: // I know this exists
+    }
+}
+```
+
+The `ServerRequestError` protocol is a marker (`Error, Codable, Sendable`). It doesn't guarantee properties because **it doesn't need to** - you catch the concrete type, not the protocol.
 
 ### Client Error Handling
 
@@ -608,3 +699,5 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.4 | 2026-01-08 | Added controller action mapping table, testing section with reference to test generator skill |
 | 2.5 | 2026-01-08 | Simplified action mapping: "action = protocol name minus Request". Removed drama, just state the pattern. |
 | 2.6 | 2026-01-09 | Added ResponseError section with two patterns: associated values (LocalizableSubstitutions) and simple string codes (LocalizableString). Added YAML examples and built-in ValidationError usage. |
+| 2.7 | 2026-01-20 | ResponseError MUST be nested inside request class (like RequestBody/ResponseBody). Updated patterns to show nesting with correct YAML key paths. |
+| 2.8 | 2026-01-20 | Added "Type Safety Means You Already Know" section - explicit mental model that Swift's type system means you catch concrete error types, not protocols. Prevents JavaScript-brain panic about runtime type discovery. |

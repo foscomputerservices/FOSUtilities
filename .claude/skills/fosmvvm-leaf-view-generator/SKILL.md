@@ -471,6 +471,43 @@ Template:  UserProfileCardView.leaf
 
 ---
 
+## Rendering Errors in Leaf Templates
+
+When a WebApp route catches an error, the error type is **known at compile time**. You don't need generic "ErrorViewModel" patterns:
+
+```swift
+// WebApp route - you KNOW the request type, so you KNOW the error type
+app.post("move-idea") { req async throws -> Response in
+    let body = try req.content.decode(MoveIdeaRequest.RequestBody.self)
+    let serverRequest = MoveIdeaRequest(requestBody: body)
+
+    do {
+        try await serverRequest.processRequest(mvvmEnv: req.application.mvvmEnv)
+        // success path...
+    } catch let error as MoveIdeaRequest.ResponseError {
+        // I KNOW this is MoveIdeaRequest.ResponseError
+        // I KNOW it has .code and .message
+        return try await req.view.render(
+            "Shared/ToastView",
+            ["message": error.message.value, "type": "error"]
+        ).encodeResponse(for: req)
+    }
+}
+```
+
+**The anti-pattern (JavaScript brain):**
+```swift
+// ❌ WRONG - treating errors as opaque
+catch let error as ServerRequestError {
+    // "How do I extract the message? The protocol doesn't guarantee it!"
+    // This is wrong thinking. You catch the CONCRETE type.
+}
+```
+
+Each route handles its own specific error type. There's no mystery about what properties are available.
+
+---
+
 ## Generation Process
 
 ### Step 1: Identify the ViewModel
@@ -540,3 +577,4 @@ Use [reference.md](reference.md) templates as starting point.
 | 2.0 | 2025-12-27 | Generalized for FOSMVVM, added View-ViewModel alignment principle, full-page templates, architecture connection |
 | 2.1 | 2026-01-08 | Added Leaf Built-in Functions section (count, contains, loop variables). Clarified Codable/computed properties. Corrected earlier false claims about #count() not working. |
 | 2.2 | 2026-01-19 | Updated Pattern 3 to use stored LocalizableString for dynamic enum displays; linked to Enum Localization Pattern. Added anti-patterns for concatenating localized values and formatting dates in templates. |
+| 2.3 | 2026-01-20 | Added "Rendering Errors in Leaf Templates" section - error types are known at compile time, no need for generic ErrorViewModel patterns. Prevents JavaScript-brain thinking about runtime type discovery. |
