@@ -530,6 +530,7 @@ See [reference.md](reference.md) for complete file templates.
 
 ## See Also
 
+- [Architecture Patterns](../shared/architecture-patterns.md) - Mental models (errors are data, type safety, etc.)
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full FOSMVVM architecture
 - [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) - For form validation
 - [fosmvvm-fluent-datamodel-generator](../fosmvvm-fluent-datamodel-generator/SKILL.md) - For Fluent persistence layer

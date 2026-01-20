@@ -562,6 +562,7 @@ Use [reference.md](reference.md) templates as starting point.
 
 ## See Also
 
+- [Architecture Patterns](../shared/architecture-patterns.md) - Mental models (errors are data, type safety, etc.)
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full architecture
 - [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) - Creates the ViewModels this skill renders
 - [fosmvvm-serverrequest-generator](../fosmvvm-serverrequest-generator/SKILL.md) - Creates requests that return ViewModels
