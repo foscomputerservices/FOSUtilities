@@ -4,9 +4,28 @@ Mental models for working with FOSMVVM. Reference this when you find yourself cr
 
 ---
 
+## Trust the Type System
+
+Swift's type system and FOSMVVM's macros handle the complexity. Your job is to use them, not rebuild them.
+
+**Red flags - if you're thinking any of these, STOP:**
+
+| Thought | Reality |
+|---------|---------|
+| "How do I detect if this is an error?" | You caught the concrete type. You already know. |
+| "What if the localization isn't done?" | It is. The server/macro handled it. |
+| "Should I create a protocol for...?" | No. Three similar lines of code beats a premature abstraction. |
+| "How do I handle all error types uniformly?" | You don't. Each route catches its specific type. |
+| "What format should error responses use?" | ViewModel → View. Same as everything else. |
+| "Do I need to configure...?" | Probably not. The macro generates it. |
+
+**The FOSMVVM contract:** If you use `@ViewModel`, `@ViewModel(options: [.clientHostedFactory])`, or `ServerRequest` correctly, they work. No defensive code needed. No edge cases to handle. The infrastructure is tested.
+
+---
+
 ## Error UI Is Not Special
 
-**Errors are just data to render.**
+**Errors are just data to render.** The ViewModel → View pattern still applies.
 
 When you display a user profile, you:
 1. Get data (ViewModel)
@@ -14,27 +33,53 @@ When you display a user profile, you:
 3. Render
 
 When you display an error, you:
-1. Get data (error code + message)
-2. Pass it to a template
-3. Render
+1. Get data (ResponseError)
+2. Wrap in a client-hosted ViewModel
+3. Pass it to a template
+4. Render
 
-There is no difference. Do NOT create:
+**Same pattern.** The only difference: error data already exists (from the caught `ResponseError`), so you use a **client-hosted ViewModel**.
+
+Do NOT create:
 - `ErrorDisplayable` protocol
-- `ErrorPageViewModel`
-- `ToastViewModel`
-- Unified error handling architecture
+- Generic error handling middleware
+- Unified error architecture
+- Runtime type discovery for errors
 
 **The pattern:**
 ```swift
+// Client-hosted ViewModel for THIS SPECIFIC error
+@ViewModel(options: [.clientHostedFactory])
+struct MoveIdeaErrorViewModel {
+    let message: LocalizableString
+    let errorCode: String
+
+    public var vmId = ViewModelId()
+
+    // Takes the specific ResponseError - tight coupling is good here
+    init(responseError: MoveIdeaRequest.ResponseError) {
+        self.message = responseError.message
+        self.errorCode = responseError.code.rawValue
+    }
+}
+
 // WebApp route - you KNOW the request type, so you KNOW the error type
 catch let error as MoveIdeaRequest.ResponseError {
-    // Pass error data to template - that's it
-    return try await req.view.render("Shared/Toast", [
-        "message": error.message.value,
-        "code": error.code
-    ])
+    let vm = MoveIdeaErrorViewModel(responseError: error)
+    return try await req.view.render("Shared/ToastView", vm)
 }
 ```
+
+**Each error scenario gets its own ViewModel** - just like any other UI:
+- `MoveIdeaErrorViewModel` for `MoveIdeaRequest.ResponseError`
+- `CreateIdeaErrorViewModel` for `CreateIdeaRequest.ResponseError`
+- `SettingsValidationErrorViewModel` for settings form errors
+
+Don't create a generic "ToastViewModel" or "ErrorViewModel" - that's the unified architecture we're avoiding.
+
+**Why client-hosted?** You already have the error data from `ResponseError`. No server fetch needed. The macro generates the factory from the init parameters.
+
+**Note:** The `LocalizableString` properties in `ResponseError` are **already localized** - the server localized them when encoding the error response. The standard ViewModel → View encoding chain handles this correctly; already-localized strings pass through unchanged.
 
 Each error scenario is a **UX design decision**, not a type system problem:
 - What does the user need to understand?

@@ -37,6 +37,7 @@ Ask: **Where does THIS ViewModel's data come from?**
 |-------------|--------------|---------|
 | Server/Database | Server-Hosted | Hand-written |
 | Local state/preferences | Client-Hosted | Macro-generated |
+| **ResponseError (caught error)** | **Client-Hosted** | Macro-generated |
 
 ### Server-Hosted Mode
 
@@ -56,20 +57,63 @@ When data is local to the device:
 - Client bundles YAML resources
 - Client localizes during encoding
 
-**Examples:** Settings screen, onboarding, offline-first features
+**Examples:** Settings screen, onboarding, offline-first features, **error display**
+
+### Error Display Pattern
+
+Error display is a classic client-hosted scenario. You already have the data from `ResponseError` - just wrap it in a **specific** ViewModel for that error:
+
+```swift
+// Specific ViewModel for MoveIdeaRequest errors
+@ViewModel(options: [.clientHostedFactory])
+struct MoveIdeaErrorViewModel {
+    let message: LocalizableString
+    let errorCode: String
+
+    public var vmId = ViewModelId()
+
+    // Takes the specific ResponseError
+    init(responseError: MoveIdeaRequest.ResponseError) {
+        self.message = responseError.message
+        self.errorCode = responseError.code.rawValue
+    }
+}
+```
+
+Usage:
+```swift
+catch let error as MoveIdeaRequest.ResponseError {
+    let vm = MoveIdeaErrorViewModel(responseError: error)
+    return try await req.view.render("Shared/ToastView", vm)
+}
+```
+
+**Each error scenario gets its own ViewModel:**
+- `MoveIdeaErrorViewModel` for `MoveIdeaRequest.ResponseError`
+- `CreateIdeaErrorViewModel` for `CreateIdeaRequest.ResponseError`
+- `SettingsValidationErrorViewModel` for settings form errors
+
+Don't create a generic "ToastViewModel" or "ErrorViewModel" - that's unified error architecture, which we avoid.
+
+**Key insights:**
+- No server request needed - you already caught the error
+- The `LocalizableString` properties in `ResponseError` are **already localized** (server did it)
+- Standard ViewModel → View encoding chain handles this correctly; already-localized strings pass through unchanged
+- Client-hosted ViewModel wraps existing data; the macro generates the factory
 
 ### Hybrid Apps
 
 Many apps use both:
 ```
-┌─────────────────────────────────────────┐
-│            iPhone App                    │
-├─────────────────────────────────────────┤
-│ SettingsViewModel      → Client-Hosted  │
-│ OnboardingViewModel    → Client-Hosted  │
-│ SignInViewModel        → Server-Hosted  │
-│ UserProfileViewModel   → Server-Hosted  │
-└─────────────────────────────────────────┘
+┌───────────────────────────────────────────────┐
+│               iPhone App                       │
+├───────────────────────────────────────────────┤
+│ SettingsViewModel           → Client-Hosted   │
+│ OnboardingViewModel         → Client-Hosted   │
+│ MoveIdeaErrorViewModel      → Client-Hosted   │  ← Error display
+│ SignInViewModel             → Server-Hosted   │
+│ UserProfileViewModel        → Server-Hosted   │
+└───────────────────────────────────────────────┘
 ```
 
 **Same ViewModel patterns work in both modes** - only the factory creation differs.
