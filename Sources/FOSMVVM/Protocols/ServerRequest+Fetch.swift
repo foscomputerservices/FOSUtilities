@@ -90,11 +90,10 @@ public extension ServerRequest {
             requestHeaders += headers
         }
 
-        let requestData: Data
-        if RequestBody.self == EmptyBody.self {
-            requestData = Data()
+        let requestData: Data = if RequestBody.self == EmptyBody.self {
+            Data()
         } else {
-            requestData = try requestBody?.toJSONData() ?? Data()
+            try requestBody?.toJSONData() ?? Data()
         }
 
         responseBody = try await dataFetch.send(
@@ -114,7 +113,9 @@ public extension ServerRequest {
     /// Upon receipt of a response from the server, ``responseBody`` will be updated with
     /// the response from the server.
     ///
-    /// - Parameter mvvmEnv: The current ``MVVMEnvironment`` for the client application
+    /// - Parameters
+    ///   - mvvmEnv: The current ``MVVMEnvironment`` for the client application
+    ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     func processRequest(mvvmEnv: MVVMEnvironment) async throws {
         do {
             var headers = [(field: String, value: String)]()
@@ -127,7 +128,8 @@ public extension ServerRequest {
 
             try await processRequest(
                 baseURL: mvvmEnv.serverBaseURL,
-                headers: headers
+                headers: headers,
+                session: mvvmEnv.session
             )
         } catch let error as ServerRequestError {
             if let errorHandler = mvvmEnv.requestErrorHandler {

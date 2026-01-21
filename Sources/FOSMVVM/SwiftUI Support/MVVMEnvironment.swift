@@ -91,6 +91,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// A function that is called when there is an error processing a ``ServerRequest``
     public let requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)?
 
+    /// A custom ``URLSession``
+    public let session: URLSession?
+
     #if canImport(SwiftUI)
     typealias ViewFactory = (Data) throws -> AnyView
 
@@ -192,6 +195,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
+    ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
     @MainActor public init(
@@ -202,6 +206,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URLPackage],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
+        session: URLSession? = nil,
         loadingView: (@Sendable () -> AnyView)? = nil
     ) {
         self.localizationStore = nil
@@ -210,6 +215,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.requestHeaders = requestHeaders
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
+        self.session = session
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
@@ -234,6 +240,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
+    ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
     @MainActor public convenience init(
@@ -244,6 +251,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URL],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
+        session: URLSession? = nil,
         loadingView: (@Sendable () -> AnyView)? = nil
     ) {
         self.init(
@@ -260,6 +268,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 return result
             },
             requestErrorHandler: requestErrorHandler,
+            session: session,
             loadingView: loadingView
         )
     }
@@ -270,6 +279,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     @MainActor init(
         localizationStore: LocalizationStore,
         deploymentURLs: [Deployment: URLPackage],
+        session: URLSession? = nil,
         loadingView: (
             @Sendable () -> AnyView
         )? = nil
@@ -280,6 +290,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.requestHeaders = [:]
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = nil
+        self.session = session
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
         SystemVersion.setCurrentVersion(SystemVersion.current)
@@ -299,6 +310,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
+    ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
     @MainActor public init(
@@ -308,6 +320,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URLPackage],
+        session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) {
         self.localizationStore = nil
@@ -316,6 +329,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.requestHeaders = requestHeaders
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
+        self.session = session
 
         #if canImport(SwiftUI)
         self.loadingView = { AnyView(DefaultLoadingView()) }
@@ -342,6 +356,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
+    ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
     @MainActor public convenience init(
@@ -351,6 +366,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         deploymentURLs: [Deployment: URL],
+        session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) {
         self.init(
@@ -366,6 +382,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
                 result[deployment] = .init(serverBaseURL: url, resourcesBaseURL: url)
                 return result
             },
+            session: session,
             requestErrorHandler: requestErrorHandler
         )
     }
