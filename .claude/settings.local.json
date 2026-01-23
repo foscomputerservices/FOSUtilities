@@ -5,7 +5,11 @@
       "Bash(cat:*)",
       "Bash(while read f)",
       "Bash(do basename \"$f\")",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(du:*)",
+      "Bash(tmutil listlocalsnapshots:*)",
+      "Bash(mdls:*)",
+      "Bash(defaults read:*)"
     ],
     "deny": [],
     "ask": []

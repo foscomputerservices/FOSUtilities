@@ -33,6 +33,7 @@ public protocol URLSessionProtocol: Sendable {
     static func session(config: URLSessionConfiguration) -> Self
 }
 
+#if !os(WASI)
 extension URLSession: URLSessionProtocol {
     public static func session(config: URLSessionConfiguration) -> Self {
         // REVIEWED - dgh: This odd construction is due to the way that
@@ -47,3 +48,4 @@ extension URLSession: URLSessionProtocol {
         URLSession(configuration: config) as! Self
     }
 }
+#endif

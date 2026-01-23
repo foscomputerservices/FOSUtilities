@@ -16,6 +16,7 @@
 
 import Foundation
 
+#if !os(WASI)
 public extension Task where Failure == Error {
     /// Performs an async task in a synchronous context
     ///
@@ -90,3 +91,4 @@ public extension Task where Failure == Error, Success == Void {
         return result
     }
 }
+#endif // !os(WASI)

@@ -64,7 +64,8 @@ let package = Package(
             .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
 
             // Third 🥳 frameworks
-            .package(url: "https://github.com/jpsim/Yams.git", .upToNextMajor(from: "6.2.0"))
+            .package(url: "https://github.com/foscomputerservices/Yams.git", branch: "add-wasi-support"),  // Local fork for WASM fixes
+            .package(url: "https://github.com/swiftwasm/JavaScriptKit", from: "0.19.0")
         ]
 
         #if os(macOS) || os(Linux)
@@ -80,7 +81,9 @@ let package = Package(
             .target(
                 name: "FOSFoundation",
                 dependencies: [
-                    .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))
+                    // Crypto only for Linux (not needed for WASI/WASM)
+                    .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
+                    .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi]))
                 ]
             ),
             .macro(
@@ -174,9 +177,9 @@ let package = Package(
                 .byName(name: "FOSFoundation"),
                 .byName(name: "FOSMVVM"),
                 .byName(name: "FOSMacros"),
-                .product(name: "Vapor", package: "Vapor"),
-                .product(name: "FluentKit", package: "fluent-kit"),
-                .product(name: "LeafKit", package: "leaf-kit"),
+                .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
+                .product(name: "FluentKit", package: "fluent-kit", condition: .when(platforms: [.macOS, .linux])),
+                .product(name: "LeafKit", package: "leaf-kit", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
             ]
         ))

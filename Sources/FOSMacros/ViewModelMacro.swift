@@ -231,12 +231,25 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             )
             newDecls.append(DeclSyntax(requestClass))
 
+            // Generate synchronous helper - does the actual work
+            let modelSyncDecl = try FunctionDeclSyntax(
+                """
+                public static func modelSync(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) throws -> Self {
+                    .init(\(raw: modelInitArgs))
+                }
+                """
+            )
+            newDecls.append(DeclSyntax(modelSyncDecl))
+
+            // Generate async wrapper that satisfies ViewModelFactory protocol
             let modelDecl = try FunctionDeclSyntax(
                 """
                 public static func model(
                     context: ClientHostedModelFactoryContext<Request, AppState>
                 ) async throws -> Self {
-                    .init(\(raw: modelInitArgs))
+                    try modelSync(context: context)
                 }
                 """
             )

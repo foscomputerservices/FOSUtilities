@@ -383,10 +383,16 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
+                public static func modelSync(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+
                 public static func model(
                     context: ClientHostedModelFactoryContext<Request, AppState>
                 ) async throws -> Self {
-                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                    try modelSync(context: context)
                 }
 
                 public func propertyNames() -> [LocalizableId: String] {
@@ -468,10 +474,16 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
+                public static func modelSync(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+
                 public static func model(
                     context: ClientHostedModelFactoryContext<Request, AppState>
                 ) async throws -> Self {
-                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                    try modelSync(context: context)
                 }
 
                 public func propertyNames() -> [LocalizableId: String] {
@@ -550,10 +562,16 @@ final class ViewModelMacroTests: XCTestCase {
                     }
                 }
 
+                public static func modelSync(
+                    context: ClientHostedModelFactoryContext<Request, AppState>
+                ) throws -> Self {
+                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                }
+
                 public static func model(
                     context: ClientHostedModelFactoryContext<Request, AppState>
                 ) async throws -> Self {
-                    .init(foo: context.appState.foo, bar: context.appState.bar)
+                    try modelSync(context: context)
                 }
 
                 public func propertyNames() -> [LocalizableId: String] {

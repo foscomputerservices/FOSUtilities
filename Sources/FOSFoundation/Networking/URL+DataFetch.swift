@@ -19,6 +19,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
+#if !os(WASI)
 public extension URL {
     /// Fetches the given data of type **ResultValue** from the given **URL**
     ///
@@ -143,3 +144,4 @@ public extension URL {
             )
     }
 }
+#endif

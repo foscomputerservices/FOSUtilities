@@ -76,28 +76,46 @@ public struct SystemVersion: Codable, Hashable, LosslessStringConvertible, Stubb
     /// In **Client** applications, this value is set via *MVVMEnvironment*.  In
     /// **Server** applications, this value is set by calling ``setCurrentVersion(_:)``
     /// in the application's initialization routine.
+    ///
+    /// - Warning: After initialization, this value must be treated as immutable.
+    ///   Reading this value during ``setCurrentVersion(_:)`` from another thread
+    ///   results in undefined behavior.
     public private(set) nonisolated(unsafe) static var current: Self = .vInitial
 
     /// Returns the lowest version of the application that is supported by the server
     ///
     /// In **Client** applications, this value is *undefined*
     /// In **Server** applications, this value is set by calling ``setMinimumSupportedVersion(_:)`` in the application's initialization routine.
+    ///
+    /// - Warning: After initialization, this value must be treated as immutable.
+    ///   Reading this value during ``setMinimumSupportedVersion(_:)`` from another thread
+    ///   results in undefined behavior.
     public private(set) nonisolated(unsafe) static var minimumSupportedVersion: Self = .vInitial
 
     /// Sets the version of the application
     ///
-    /// - NOTE: This should **only be called once during the initialization of the application** as this method is **not** thread-safe!
-    @MainActor public static func setCurrentVersion(_ version: Self) {
+    /// - Warning: **NOT THREAD-SAFE.** This method MUST be called exactly once during
+    ///   single-threaded application initialization, before any concurrent code accesses
+    ///   ``current``. Calling from multiple threads or after initialization has begun
+    ///   results in undefined behavior and potential crashes.
+    ///
+    /// - Parameter version: The application version to set
+    public static func setCurrentVersion(_ version: Self) {
         current = version
     }
 
     /// Sets the minimum supported version of the application
     ///
-    /// - NOTE: The default value is **vInitial**
+    /// - Warning: **NOT THREAD-SAFE.** This method MUST be called exactly once during
+    ///   single-threaded application initialization, before any concurrent code accesses
+    ///   ``minimumSupportedVersion``. Calling from multiple threads or after initialization
+    ///   has begun results in undefined behavior and potential crashes.
     ///
-    /// - NOTE: This should **only be called once during the initialization of the application** as this method is **not** thread-safe!
-    @MainActor public static func setMinimumSupportedVersion(_ version: Self) {
-        current = version
+    /// - Note: The default value is ``vInitial``
+    ///
+    /// - Parameter version: The minimum supported version to set
+    public static func setMinimumSupportedVersion(_ version: Self) {
+        minimumSupportedVersion = version
     }
 
     /// Returns the first possible version number (v1.0.0)
