@@ -56,7 +56,6 @@ public final class URLSession: URLSessionProtocol {
     ) -> URLSessionDataTask {
         URLSessionDataTask {
             log("[WASM URLSession] dataTask called for URL: \(request.url.absoluteString)")
-            let fetch = JSObject.global.fetch.function!
 
             // Build fetch options
             let options = JSObject.global.Object.function!.new()
@@ -73,8 +72,9 @@ public final class URLSession: URLSessionProtocol {
                 options["headers"] = .object(headersObj)
             }
 
-            // Add body
-            if let body = request.httpBody {
+            // Add body (but not for GET/HEAD requests)
+            let method = request.httpMethod?.uppercased() ?? "GET"
+            if let body = request.httpBody, method != "GET" && method != "HEAD" {
                 let uint8Array = JSObject.global.Uint8Array.function!
                 let jsArray = uint8Array.new(body.count)
                 for (index, byte) in body.enumerated() {
@@ -83,10 +83,11 @@ public final class URLSession: URLSessionProtocol {
                 options["body"] = .object(jsArray)
             }
 
-            // Make fetch call
+            // Make fetch call - use wasmFetch wrapper (defined in HTML) to preserve 'this' context
             log("[WASM URLSession] Making fetch call...")
+            let wasmFetch = JSObject.global.wasmFetch.function!
             let responsePromise = JSPromise(
-                fetch(request.url.absoluteString, options).object!
+                wasmFetch(request.url.absoluteString, options).object!
             )!
 
             // Handle fetch response
@@ -96,17 +97,17 @@ public final class URLSession: URLSessionProtocol {
 
                 // Extract status and mime type
                 let statusCode = Int(response.status.number!)
-                let contentType = response.headers.object!.get.function!("content-type").string
+                let headersObj = response.headers.object!
+                let contentType = JSObject.global.wasmHeadersGet.function!(headersObj, "content-type").string
                 log("[WASM URLSession] Status: \(statusCode), Content-Type: \(contentType ?? "none")")
 
                 // Extract headers from fetch response
                 var headerFields: [String: String] = [:]
-                let headersObj = response.headers.object!
-                let headersEntries = headersObj.entries.function!().object!
+                let headersEntries = JSObject.global.wasmHeadersEntries.function!(headersObj).object!
 
                 // Iterate through headers using JavaScript iterator protocol
                 while true {
-                    let next = headersEntries.next.function!().object!
+                    let next = JSObject.global.wasmIteratorNext.function!(headersEntries).object!
                     if next.done.boolean! {
                         break
                     }
@@ -117,7 +118,7 @@ public final class URLSession: URLSessionProtocol {
                 }
 
                 // Get response body as ArrayBuffer
-                let arrayBufferPromise = JSPromise(response.arrayBuffer.function!().object!)!
+                let arrayBufferPromise = JSPromise(JSObject.global.wasmArrayBuffer.function!(response).object!)!
 
                 // Handle arrayBuffer response
                 arrayBufferPromise.then { arrayBufferValue in
@@ -152,8 +153,19 @@ public final class URLSession: URLSessionProtocol {
 
                 return .undefined
             }.catch { error in
-                log("[WASM URLSession] Fetch error: \(error.string ?? "Unknown")")
-                completionHandler(nil, nil, NSError(domain: "URLSession", code: -1, userInfo: [NSLocalizedDescriptionKey: error.string ?? "Unknown error"]))
+                let errorMessage = error.string ?? "Unknown"
+                let errorObj = error.object
+                log("[WASM URLSession] Fetch error: \(errorMessage)")
+                if let errorObj = errorObj {
+                    log("[WASM URLSession] Error object: \(errorObj)")
+                    if let message = errorObj.message.string {
+                        log("[WASM URLSession] Error message: \(message)")
+                    }
+                    if let stack = errorObj.stack.string {
+                        log("[WASM URLSession] Error stack: \(stack)")
+                    }
+                }
+                completionHandler(nil, nil, NSError(domain: "URLSession", code: -1, userInfo: [NSLocalizedDescriptionKey: errorMessage]))
                 return .undefined
             }
         }
