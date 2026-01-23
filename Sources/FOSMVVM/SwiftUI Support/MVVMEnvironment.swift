@@ -24,6 +24,9 @@ import Observation
 #if os(WASI)
 import JavaScriptKit
 #endif
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// ``MVVMEnvironment`` provides configuration information to to the
 /// SwiftUI MVVM implementation
