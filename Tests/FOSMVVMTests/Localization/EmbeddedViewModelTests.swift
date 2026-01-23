@@ -29,9 +29,11 @@ struct EmbeddedViewModelTests: LocalizableTestCase {
         let vm: MainViewModel = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
         #expect(try vm.innerViewModels[0].innerString.localizedString == "Inner String")
         #expect(try vm.innerViewModels[0].innerSubs.localizedString == "SubInt: 42")
+        #expect(try vm.innerViewModels[0].innerConstantString.localizedString == "Constant: I am a constant%")
 
         #expect(try vm.innerViewModels[1].innerString.localizedString == "Inner String")
         #expect(try vm.innerViewModels[1].innerSubs.localizedString == "SubInt: 43")
+        #expect(try vm.innerViewModels[1].innerConstantString.localizedString == "Constant: I am a constant%")
     }
 
     @Test func embeddedLocalization_nonRetrievablePropertyNamesParent() throws {
@@ -182,9 +184,11 @@ private struct MainViewModel: ViewModel {
 private struct InnerViewModel: ViewModel {
     @LocalizedString var innerString
     @LocalizedSubs(substitutions: \.subs) var innerSubs
+    @LocalizedSubs(substitutions: \.subs) var innerConstantString
 
     var subs: [String: any Localizable] { [
-        "subInt": LocalizableInt(value: subInt)
+        "subInt": LocalizableInt(value: subInt),
+        "constant": LocalizableString.constant("I am a constant")
     ] }
 
     var vmId: FOSMVVM.ViewModelId

@@ -2,6 +2,7 @@ en:
   InnerViewModel:
     innerString: "Inner String"
     innerSubs: "SubInt: %{subInt}"
+    innerConstantString: "Constant: %{constant}%"
 
   MainViewModel:
     mainString: "Main String"
@@ -34,6 +35,7 @@ es:
   InnerViewModel:
     innerString: "Cadena Interna"
     innerSubs: "SubInt: %{subInt}"
+    innerConstantString: "Constante: %{constant}%"
 
   MainViewModel:
     mainString: "Cadena Principal"

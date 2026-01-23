@@ -20,8 +20,13 @@ import FOSFoundation
 // (dgh: 27-Dec-25) - If I add this now, it will be a breaking change for ViewModelRequest.
 // I'm not sure that we're ready for that yet, so just preparing for the future.
 
-/// A ``ServerRequest`` that requests that the server **show** a resource
-public protocol ShowRequest: ServerRequest /* , Stubbable */ {}
+/// A ``ServerRequest`` that requests that the server **show** (retrieve) a resource.
+///
+/// Unlike ``ViewModelRequest`` which returns a ``ViewModel``, ``ShowRequest``
+/// returns a plain data response conforming to ``ShowResponseBody``.
+///
+/// Use this for lightweight data retrieval that doesn't require full ViewModel machinery.
+public protocol ShowRequest: ServerRequest /* , Stubbable where ResponseBody: ShowResponseBody */ {}
 
 public extension ShowRequest {
     static var baseTypeName: String { "ShowRequest" }
@@ -32,3 +37,6 @@ public extension ShowRequest {
 
     var requestBody: EmptyBody? { nil }
 }
+
+/// Response body marker protocol for ``ShowRequest``.
+public protocol ShowResponseBody: ServerRequestBody {}
