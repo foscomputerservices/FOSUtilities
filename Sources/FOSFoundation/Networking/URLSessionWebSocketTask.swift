@@ -19,6 +19,7 @@ import Foundation
 import FoundationNetworking
 #endif
 
+#if !os(WASI)
 /// Errors resulting from calls to various **URLSessionWebSocketTask** APIs
 public enum WebSocketError: Error, CustomDebugStringConvertible {
     /// The **URLSessionTask** is not currently running
@@ -58,3 +59,4 @@ public extension URLSessionWebSocketTask {
         }
     }
 }
+#endif // !os(WASI)

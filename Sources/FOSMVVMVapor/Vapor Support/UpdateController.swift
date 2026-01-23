@@ -18,10 +18,10 @@ import FOSFoundation
 import FOSMVVM
 import Vapor
 
-public protocol ServerRequestController: AnyObject, ControllerRouting, RouteCollection {
+public protocol ServerRequestController: AnyObject, ControllerRouting, RouteCollection, SendableMetatype {
     associatedtype TRequest: ServerRequest
 
-    typealias ActionProcessor = (
+    typealias ActionProcessor = @Sendable (
         Vapor.Request,
         TRequest,
         TRequest.RequestBody
@@ -46,18 +46,20 @@ public extension ServerRequestController {
         let bodyStrategy = TRequest.RequestBody.maxBodySize.bodyStreamStrategy
 
         for pair in actions {
+            let processor = pair.value
+
             switch pair.key {
             case .create:
                 routeGroup.on(.POST, body: bodyStrategy) { req in
-                    try await Self.run(req, processor: pair.value)
+                    try await Self.run(req, processor: processor)
                 }
             case .replace:
                 routeGroup.on(.PUT, body: bodyStrategy) { req in
-                    try await Self.run(req, processor: pair.value)
+                    try await Self.run(req, processor: processor)
                 }
             case .update:
                 routeGroup.on(.PATCH, body: bodyStrategy) { req in
-                    try await Self.run(req, processor: pair.value)
+                    try await Self.run(req, processor: processor)
                 }
             default:
                 throw ServerRequestControllerError.invalidAction(pair.key)

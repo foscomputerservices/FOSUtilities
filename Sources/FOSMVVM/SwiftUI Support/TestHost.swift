@@ -114,7 +114,7 @@ private extension ProcessInfo {
         return str.data(using: .utf8)
     }
 
-    func view(registeredTypes: [String: MVVMEnvironment.ViewFactory]) -> AnyView? {
+    @MainActor func view(registeredTypes: [String: MVVMEnvironment.ViewFactory]) -> AnyView? {
         guard
             let vmTypeStr = viewModelType,
             let viewModelData

@@ -21,6 +21,9 @@ import SwiftUI
 #else
 import Observation
 #endif
+#if os(WASI)
+import JavaScriptKit
+#endif
 
 /// ``MVVMEnvironment`` provides configuration information to to the
 /// SwiftUI MVVM implementation
@@ -95,15 +98,15 @@ public final class MVVMEnvironment: @unchecked Sendable {
     public let session: URLSession?
 
     #if canImport(SwiftUI)
-    typealias ViewFactory = (Data) throws -> AnyView
+    typealias ViewFactory = @MainActor (Data) throws -> AnyView
 
     #if DEBUG
     var registeredTestTypes: [String: ViewFactory] = [:]
     #endif
 
-    @MainActor public func registerTestView<V: ViewModelView>(_ type: V.Type) {
+    public func registerTestView<V: ViewModelView>(_ type: V.Type) {
         #if DEBUG
-        registeredTestTypes[String(describing: V.VM.self)] = { data in
+        registeredTestTypes[String(describing: V.VM.self)] = { @MainActor data in
             try AnyView(V(viewModel: data.fromJSON()))
         }
         #endif
@@ -120,7 +123,6 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// > This is only provided/necessary for applications that created ``ViewModel``s
     /// > in the application as opposed on the server.
-    @MainActor
     public var clientLocalizationStore: LocalizationStore? {
         get throws {
             if let store = _clientLocalizationStore {
@@ -150,11 +152,10 @@ public final class MVVMEnvironment: @unchecked Sendable {
         return locStore
     }
 
-    @ObservationIgnored @MainActor
+    @ObservationIgnored
     private var _clientLocalizationStore: LocalizationStore?
 
     /// Returns the URL for the web server that provides ``ViewModel``s for the current ``Deployment``
-    @MainActor
     public var serverBaseURL: URL {
         get async throws {
             let deployment = await Deployment.current
@@ -167,7 +168,6 @@ public final class MVVMEnvironment: @unchecked Sendable {
     }
 
     /// Returns the URL for the web server that provides images and resources for the current ``Deployment``
-    @MainActor
     public var resourcesBaseURL: URL {
         get async throws {
             let deployment = await Deployment.current
@@ -198,7 +198,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    @MainActor public init(
+    public init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
         resourceBundles: [Bundle]? = nil,
@@ -243,7 +243,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
-    @MainActor public convenience init(
+    public convenience init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
         resourceBundles: [Bundle]? = nil,
@@ -276,7 +276,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// Initializes ``MVVMEnvironment`` for SwiftUI previews
     ///
     /// > This overload does **NOT** check the application's version as it is not necessary for previews
-    @MainActor init(
+    init(
         localizationStore: LocalizationStore,
         deploymentURLs: [Deployment: URLPackage],
         session: URLSession? = nil,
@@ -313,7 +313,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
-    @MainActor public init(
+    public init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
         resourceBundles: [Bundle]? = nil,
@@ -323,6 +323,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) {
+        #if os(WASI)
+        _ = JSObject.global.console.log("[MVVMEnv] Designated init started")
+        #endif
         self.localizationStore = nil
         self.resourceBundles = resourceBundles ?? [appBundle]
         self.resourceDirectoryName = resourceDirectoryName
@@ -331,6 +334,10 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.requestErrorHandler = requestErrorHandler
         self.session = session
 
+        #if os(WASI)
+        _ = JSObject.global.console.log("[MVVMEnv] Before version setup")
+        #endif
+
         #if canImport(SwiftUI)
         self.loadingView = { AnyView(DefaultLoadingView()) }
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
@@ -338,6 +345,10 @@ public final class MVVMEnvironment: @unchecked Sendable {
         #else
         let currentVersion = currentVersion ?? SystemVersion.current
         SystemVersion.setCurrentVersion(currentVersion)
+        #endif
+
+        #if os(WASI)
+        _ = JSObject.global.console.log("[MVVMEnv] Init complete")
         #endif
     }
 
@@ -359,7 +370,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
-    @MainActor public convenience init(
+    public convenience init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
         resourceBundles: [Bundle]? = nil,
@@ -369,6 +380,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) {
+        #if os(WASI)
+        _ = JSObject.global.console.log("[MVVMEnv] Convenience init started")
+        #endif
         self.init(
             currentVersion: currentVersion,
             appBundle: appBundle,
