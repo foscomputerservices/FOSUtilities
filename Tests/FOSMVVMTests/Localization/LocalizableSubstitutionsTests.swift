@@ -163,6 +163,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
     }
 
     // MARK: - Edge Case Tests
+
     //
     // Note: When using constant base strings, substitution happens via localizedString
     // directly without encoding/decoding. Encoding only applies substitutions when

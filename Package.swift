@@ -64,7 +64,7 @@ let package = Package(
             .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
 
             // Third 🥳 frameworks
-            .package(url: "https://github.com/foscomputerservices/Yams.git", branch: "add-wasi-support"),  // Local fork for WASM fixes
+            .package(url: "https://github.com/foscomputerservices/Yams.git", branch: "add-wasi-support"), // Local fork for WASM fixes
             .package(url: "https://github.com/swiftwasm/JavaScriptKit", from: "0.19.0")
         ]
 
@@ -105,7 +105,7 @@ let package = Package(
                     .product(name: "Yams", package: "Yams")
                 ],
                 resources: [
-                    .process("Resources/React")
+                    .copy("Resources/React")
                 ]
             ),
             .target(

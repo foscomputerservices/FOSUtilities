@@ -1,6 +1,6 @@
 // URLSession.swift
 //
-// Copyright 2024 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ private func log(_ message: String) {
 public class URLSessionDataTask {
     private let task: () -> Void
 
-    internal init(task: @escaping () -> Void) {
+    init(task: @escaping () -> Void) {
         self.task = task
     }
 
@@ -74,7 +74,7 @@ public final class URLSession: URLSessionProtocol {
 
             // Add body (but not for GET/HEAD requests)
             let method = request.httpMethod?.uppercased() ?? "GET"
-            if let body = request.httpBody, method != "GET" && method != "HEAD" {
+            if let body = request.httpBody, method != "GET", method != "HEAD" {
                 let uint8Array = JSObject.global.Uint8Array.function!
                 let jsArray = uint8Array.new(body.count)
                 for (index, byte) in body.enumerated() {
@@ -156,7 +156,7 @@ public final class URLSession: URLSessionProtocol {
                 let errorMessage = error.string ?? "Unknown"
                 let errorObj = error.object
                 log("[WASM URLSession] Fetch error: \(errorMessage)")
-                if let errorObj = errorObj {
+                if let errorObj {
                     log("[WASM URLSession] Error object: \(errorObj)")
                     if let message = errorObj.message.string {
                         log("[WASM URLSession] Error message: \(message)")
@@ -173,7 +173,7 @@ public final class URLSession: URLSessionProtocol {
 
     public static func session(config: URLSessionConfiguration) -> Self {
         // For WASI, we ignore config and return shared
-        return shared as! Self
+        shared as! Self
     }
 }
 #endif // os(WASI)

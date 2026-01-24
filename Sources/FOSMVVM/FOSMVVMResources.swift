@@ -1,6 +1,6 @@
-// URLRequest.swift
+// FOSMVVMResources.swift
 //
-// Copyright 2024 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -14,23 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if os(WASI)
 import Foundation
 
-/// Minimal URLRequest implementation for WASI using JavaScriptKit fetch
-public struct URLRequest {
-    public var url: URL
-    public var httpMethod: String?
-    public var httpBody: Data?
-
-    var headers: [String: String] = [:]
-
-    public init(url: URL) {
-        self.url = url
-    }
-
-    public mutating func setValue(_ value: String?, forHTTPHeaderField field: String) {
-        headers[field] = value
-    }
+/// Resource bundle accessor for FOSMVVM Resources.
+///
+/// Provides access to Resources/React.
+public enum FOSMVVMResourceAccess {
+    /// The resource bundle for the ViewModels target.
+    ///
+    /// Use this to access ViewModel YAML localization files.
+    public static let resourcesBundle: Bundle = .module
 }
-#endif // os(WASI)
