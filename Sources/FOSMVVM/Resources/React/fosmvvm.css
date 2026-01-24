@@ -1,0 +1,187 @@
+/* fosmvvm.css
+ *
+ * Copyright (c) 2026 FOS Computer Services. All rights reserved.
+ * Licensed under the Apache License, Version 2.0
+ *
+ * Default styles for FOSMVVM React utilities
+ *
+ * Usage:
+ *   <link rel="stylesheet" href="/fosmvvm/react/fosmvvm.css">
+ */
+
+/* ============================================================================
+ * Loading View Styles
+ * ========================================================================== */
+
+.fosmvvm-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    min-height: 200px;
+}
+
+.fosmvvm-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #3498db;
+    border-radius: 50%;
+    animation: fosmvvm-spin 1s linear infinite;
+}
+
+@keyframes fosmvvm-spin {
+    to { transform: rotate(360deg); }
+}
+
+.fosmvvm-loading p {
+    margin-top: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* ============================================================================
+ * Error View Styles
+ * ========================================================================== */
+
+.fosmvvm-error {
+    padding: 1.5rem;
+    background-color: #fee;
+    border: 1px solid #fcc;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.fosmvvm-error h3 {
+    margin: 0 0 0.5rem 0;
+    color: #c33;
+    font-size: 1.1rem;
+}
+
+.fosmvvm-error p {
+    margin: 0 0 1rem 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.fosmvvm-error button {
+    padding: 0.5rem 1rem;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.fosmvvm-error button:hover {
+    background-color: #2980b9;
+}
+
+.fosmvvm-error button:active {
+    background-color: #1f6ba6;
+}
+
+/* ============================================================================
+ * Domain Error Styles (Optional - for ViewModels)
+ * ========================================================================== */
+
+/* NotFoundError ViewModel */
+.error.not-found {
+    padding: 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.error.not-found h3 {
+    margin: 0 0 0.5rem 0;
+    color: #666;
+    font-size: 1.2rem;
+}
+
+.error.not-found p {
+    margin: 0;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.error.not-found .suggestion {
+    margin-top: 1rem;
+    font-style: italic;
+    color: #6c757d;
+}
+
+/* ValidationError ViewModel */
+.error.validation-error {
+    padding: 1.5rem;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.error.validation-error h3 {
+    margin: 0 0 1rem 0;
+    color: #856404;
+    font-size: 1.1rem;
+}
+
+.error.validation-error ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.error.validation-error li {
+    margin-bottom: 0.5rem;
+    color: #856404;
+    font-size: 0.9rem;
+}
+
+.error.validation-error li strong {
+    font-weight: 600;
+}
+
+/* Generic error styling */
+.error {
+    padding: 1.5rem;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.error h3 {
+    margin: 0 0 0.5rem 0;
+    color: #721c24;
+    font-size: 1.1rem;
+}
+
+.error p {
+    margin: 0;
+    color: #721c24;
+    font-size: 0.9rem;
+}
+
+/* ============================================================================
+ * Utility Classes
+ * ========================================================================== */
+
+.fosmvvm-hidden {
+    display: none !important;
+}
+
+.fosmvvm-loading-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.fosmvvm-loading-inline .fosmvvm-spinner {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+}

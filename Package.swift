@@ -103,6 +103,9 @@ let package = Package(
                     .byName(name: "FOSFoundation"),
                     .byName(name: "FOSMacros"),
                     .product(name: "Yams", package: "Yams")
+                ],
+                resources: [
+                    .process("Resources/React")
                 ]
             ),
             .target(

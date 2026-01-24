@@ -371,6 +371,42 @@ public init(cards: [CardViewModel]) {
 
 ---
 
+## ViewModelId Initialization - CRITICAL
+
+**IMPORTANT:** Even though Leaf templates don't use `vmId` directly, the ViewModels being rendered must initialize `vmId` correctly for SwiftUI clients.
+
+**❌ WRONG - Never use this:**
+```swift
+public var vmId: ViewModelId = .init()  // NO! Generic identity
+```
+
+**✅ MINIMUM - Use type-based identity:**
+```swift
+public var vmId: ViewModelId = .init(type: Self.self)
+```
+
+**✅ IDEAL - Use data-based identity when available:**
+```swift
+public struct TaskCardViewModel {
+    public let id: ModelIdType
+    public var vmId: ViewModelId
+
+    public init(id: ModelIdType, /* other params */) {
+        self.id = id
+        self.vmId = .init(id: id)  // Ties view identity to data identity
+        // ...
+    }
+}
+```
+
+**Why this matters for Leaf ViewModels:**
+- ViewModels are shared between Leaf (web) and SwiftUI (native) clients
+- SwiftUI uses `.id(vmId)` to determine when to recreate vs update views
+- Wrong identity = SwiftUI views don't update when data changes
+- Data-based identity (`.init(id:)`) is best practice
+
+---
+
 ## Common Mistakes
 
 ### Missing Data Attributes
@@ -468,6 +504,24 @@ Template:  ProfileCard.leaf
 ViewModel: UserProfileCardViewModel
 Template:  UserProfileCardView.leaf
 ```
+
+### Incorrect ViewModelId Initialization
+
+```swift
+// ❌ BAD - Generic identity (breaks SwiftUI clients)
+public var vmId: ViewModelId = .init()
+
+// ✅ MINIMUM - Type-based identity
+public var vmId: ViewModelId = .init(type: Self.self)
+
+// ✅ IDEAL - Data-based identity (when id available)
+public init(id: ModelIdType) {
+    self.id = id
+    self.vmId = .init(id: id)
+}
+```
+
+ViewModels rendered by Leaf are often shared with SwiftUI clients. Correct `vmId` initialization is critical for SwiftUI's view identity system.
 
 ---
 
