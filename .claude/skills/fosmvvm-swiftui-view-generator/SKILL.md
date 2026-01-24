@@ -391,34 +391,43 @@ public struct ContainerView: ViewModelView {
 | `{ViewsTarget}` | SwiftUI views SPM target | `MyAppViews` |
 | `{Feature}` | Feature/module grouping | `Tasks`, `Auth` |
 
-## Generation Process
+## Pattern Implementation
 
-### Step 1: Determine View Type
+This skill references conversation context to determine view structure:
 
-Ask:
-1. **What ViewModel does this render?** → Determines the data source
-2. **Is this display-only or interactive?** → Determines if operations needed
-3. **Is this a form with validation?** → Determines if FormFieldView needed
-4. **Does this compose child views?** → Determines if .bind() pattern needed
+### View Type Detection
 
-### Step 2: Identify Required Components
+From conversation context, the skill identifies:
+- **ViewModel structure** (from prior discussion or specifications read by Claude)
+- **View category**: Display-only, interactive, form, or container
+- **Operations needed**: Whether view has user-initiated actions
+- **Child composition**: Whether view binds child views
+
+### Component Selection
 
 Based on view type:
-- **Display-only**: Just viewModel property
-- **Interactive**: Add operations, repaintToggle, testDataTransporter
-- **Form**: Add Validations environment, FormFieldView, error handling
-- **Container**: Add child view binding with .bind()
+- **Display-only**: ViewModelView protocol, viewModel property only
+- **Interactive**: Add operations, repaintToggle, testDataTransporter, toggleRepaint()
+- **Form**: Add Validations environment, FormFieldView, validation error handling
+- **Container**: Add child view `.bind()` calls
 
-### Step 3: Generate View File
+### Code Generation
 
-Create the view with:
-1. Correct protocol conformance (`ViewModelView`)
-2. ViewModel and operations properties
-3. Body with appropriate rendering
-4. Init that stores viewModel (and operations if needed)
-5. Private methods for actions (if interactive)
+Generates view file with:
+1. `ViewModelView` protocol conformance
+2. Properties (viewModel, operations if needed, repaintToggle if interactive)
+3. Body with rendering logic
+4. Init storing viewModel and operations
+5. Action methods (if interactive)
 6. Test infrastructure (if interactive)
-7. Previews
+7. Previews for different states
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Requirements discussed with user
+- **Specification files**: If Claude has read specifications into context
+- **ViewModel definitions**: From codebase or discussion
 
 ## Key Patterns
 
@@ -820,15 +829,23 @@ See [reference.md](reference.md) for complete file templates.
 
 Apply standard modifiers as needed for layout, styling, etc.
 
-## Collaboration Protocol
+## How to Use This Skill
 
-1. Confirm the ViewModel exists and understand its structure
-2. Determine if the view needs operations (interactive vs display-only)
-3. Identify if this is a form (needs validation)
-4. Identify if this composes child views (needs .bind())
-5. Generate the view file with appropriate patterns
-6. Add previews for different states
-7. Verify test infrastructure if operations present
+**Invocation:**
+```bash
+/fosmvvm-swiftui-view-generator
+```
+
+**Prerequisites:**
+- ViewModel and its structure are understood from conversation
+- Optionally, specification files have been read into context
+- View requirements (display-only, interactive, form, container) are clear from discussion
+
+**Output:**
+- `{ViewName}View.swift` - SwiftUI view conforming to ViewModelView protocol
+
+**Workflow integration:**
+This skill is typically used after discussing requirements or reading specification files. The skill references that context automatically—no file paths or Q&A needed.
 
 ## See Also
 

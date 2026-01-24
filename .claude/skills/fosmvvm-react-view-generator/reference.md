@@ -18,7 +18,7 @@ Complete file templates for generating React ViewModelViews.
 
 ## Specification Document Format
 
-The skill accepts Markdown specifications in this format:
+Specifications serve as documentation and reference. When Claude reads specification files into conversation context, the skill references that information during generation. Recommended format:
 
 ```markdown
 # {Feature} UI Specification

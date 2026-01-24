@@ -66,14 +66,14 @@ This alignment provides:
 This skill generates **tests FIRST, implementation SECOND** in a single invocation:
 
 ```
-1. Read specification (file or conversational)
+1. Reference ViewModel and ServerRequest details from conversation context
 2. Generate .test.js file → Tests FAIL (no implementation yet)
 3. Generate .jsx file → Tests PASS
 4. Verify completeness (both files exist)
 5. User runs `npm test` → All tests pass ✓
 ```
 
-**No prompting between test and implementation.** Both files created automatically.
+**Context-aware:** Skill references conversation understanding of requirements. No file parsing or Q&A needed.
 
 ---
 
@@ -373,47 +373,43 @@ export default SignInForm;
 
 ---
 
-## Generation Process
+## Pattern Implementation
 
-### Step 1: Determine Component Type
+This skill references conversation context to determine component structure:
 
-Ask:
-1. **What ViewModel does this render?** → Determines the data source
-2. **What ServerRequest provides the ViewModel?** → Determines the .bind() pattern
-3. **Is this display-only or interactive?** → Determines if operations needed
-4. **Is this a form with validation?** → Determines if form state needed
-5. **Does this compose child components?** → Determines if .bind() calls needed
+### Component Type Detection
 
-### Step 2: Identify Required Tests
+From conversation context, the skill identifies:
+- **ViewModel structure** (from prior discussion or specifications read by Claude)
+- **ServerRequest details** (from requirements already in context)
+- **Component category**: Display-only, interactive, form, or list
+- **Error ViewModels** to handle
 
-Based on component type:
-- **Display-only**: Test rendering with success ViewModel, error ViewModels
-- **Interactive**: Add tests for button clicks, operation calls
-- **Form**: Add tests for input changes, validation errors, submission
-- **List**: Add tests for empty state, multiple items, child binding
+### Test Generation (FIRST)
 
-### Step 3: Generate Test File (FIRST)
+Based on component type, generates `.test.js` with:
+- **All components**: Success ViewModel rendering, error ViewModel rendering
+- **Interactive**: Button clicks, operation verification
+- **Form**: Input changes, validation errors, submission
+- **List**: Empty state, multiple items, child binding
 
-Create `.test.js` with:
-1. Import React Testing Library
-2. Import the component (won't exist yet)
-3. Test rendering with success ViewModel
-4. Test rendering with error ViewModels
-5. Test user interactions (if interactive)
-6. Test form submission (if form)
-7. Test child .bind() calls (if container)
+### Component Generation (SECOND)
 
-### Step 4: Generate Component File (SECOND)
+Generates `.jsx` following patterns:
+1. Import `viewModelComponent` wrapper
+2. Handle error ViewModels with conditional rendering
+3. Render success ViewModel
+4. Add interactions (if interactive)
+5. Add form state (if form)
+6. Add child `.bind()` calls (if container)
+7. Export wrapped component
 
-Create `.jsx` with:
-1. Import `viewModelComponent` from `/fosmvvm/react/viewModelComponent.js`
-2. Define component function receiving `{ viewModel }`
-3. Handle error ViewModels with conditional rendering
-4. Render success ViewModel
-5. Add event handlers for interactions (if interactive)
-6. Add form state management (if form)
-7. Add child .bind() calls (if container)
-8. Wrap with `viewModelComponent()` and export
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Requirements discussed with user
+- **Specification files**: If Claude has read specifications into context
+- **ViewModel definitions**: From codebase or discussion
 
 ### Step 5: Verify Completeness
 
@@ -740,16 +736,24 @@ it('calls operation when button clicked', () => {
 
 ---
 
-## Collaboration Protocol
+## How to Use This Skill
 
-1. Confirm the ViewModel exists and understand its structure
-2. Identify the ServerRequest that provides the ViewModel
-3. Determine if the component needs operations (interactive vs display-only)
-4. Identify if this is a form (needs validation)
-5. Identify if this composes child components (needs .bind())
-6. Generate test file (tests fail initially)
-7. Generate component file (tests pass)
-8. Verify completeness (both files exist)
+**Invocation:**
+```bash
+/fosmvvm-react-view-generator
+```
+
+**Prerequisites:**
+- ViewModel and ServerRequest details are understood from conversation
+- Optionally, specification files have been read into context
+- Component requirements (display-only, interactive, form, list) are clear from discussion
+
+**Output:**
+- `{ComponentName}.test.js` - Generated FIRST (tests fail)
+- `{ComponentName}.jsx` - Generated SECOND (tests pass)
+
+**Workflow integration:**
+This skill is typically used after discussing requirements or reading specification files. The skill references that context automatically—no file paths or Q&A needed.
 
 ---
 
