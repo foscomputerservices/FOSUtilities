@@ -31,7 +31,7 @@ A **ViewModel** is the bridge in the Model-View-ViewModel architecture:
 
 **This is a per-ViewModel decision.** An app can mix both modes - for example, a standalone iPhone app with server-based sign-in.
 
-Ask: **Where does THIS ViewModel's data come from?**
+**The key question: Where does THIS ViewModel's data come from?**
 
 | Data Source | Hosting Mode | Factory |
 |-------------|--------------|---------|
@@ -291,7 +291,7 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
 
 ### Quick Decision Guide
 
-Ask: **"Is the user editing data in this ViewModel?"**
+**The key question: "Is the user editing data in this ViewModel?"**
 
 - **No** → Display ViewModel (no Fields)
 - **Yes** → Form ViewModel (adopt Fields)
@@ -350,31 +350,48 @@ Ask: **"Is the user editing data in this ViewModel?"**
 | `{ResourcesPath}` | Localization resources | `Sources/Resources` |
 | `{WebServerTarget}` | Server-side target | `WebServer`, `AppServer` |
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Determine Hosting Mode
+**Invocation:**
+/fosmvvm-viewmodel-generator
 
-Ask: **Where does this ViewModel's data come from?**
-- **Server/database** → Server-Hosted (hand-written factory)
-- **Local state** → Client-Hosted (macro-generated factory)
+**Prerequisites:**
+- View requirements understood from conversation context
+- Data source determined (server/database vs local state)
+- Display vs Form decision made (if user input involved, Fields protocol exists)
 
-### Step 2: Understand What the View Needs
+**Workflow integration:**
+This skill is typically used after discussing View requirements or reading specification files. The skill references conversation context automatically—no file paths or Q&A needed. For Form ViewModels, run fosmvvm-fields-generator first to create the Fields protocol.
 
-Clarify:
-1. **What is this View displaying?** (page, modal, card, row?)
-2. **What data does it need?** (from database? from AppState?)
-3. **What static text does it have?** (titles, labels, buttons)
-4. **Does it contain child ViewModels?**
-5. **Is it top-level or a child?**
+## Pattern Implementation
 
-### Step 3: Design the ViewModel
+This skill references conversation context to determine ViewModel structure:
 
-Determine:
-- **Properties** - What does the View need to render?
-- **Localization** - Which properties are `@LocalizedString`?
-- **Identity** - Singleton (`vmId = .init(type: Self.self)`) or instance (`vmId = .init(id: id)`)?
+### Hosting Mode Detection
 
-### Step 4: Generate Files
+From conversation context, the skill identifies:
+- **Data source** (server/database vs local state/preferences)
+- Server-hosted → Hand-written factory, server-side localization
+- Client-hosted → Macro-generated factory, client-side localization
+
+### ViewModel Design
+
+From requirements already in context:
+- **View purpose** (page, modal, card, row component)
+- **Data needs** (from database query, from AppState, from caught error)
+- **Static UI text** (titles, labels, buttons requiring @LocalizedString)
+- **Child ViewModels** (nested components)
+- **Hierarchy level** (top-level RequestableViewModel vs child ViewModel)
+
+### Property Planning
+
+Based on View requirements:
+- **Display properties** (data to render)
+- **Localization requirements** (which properties use @LocalizedString)
+- **Identity strategy** (singleton vmId vs instance-based vmId)
+- **Form adoption** (whether ViewModel adopts Fields protocol)
+
+### File Generation
 
 **Server-Hosted Top-Level:**
 1. ViewModel struct (with `RequestableViewModel`)
@@ -389,6 +406,13 @@ Determine:
 **Child (either mode):**
 1. ViewModel struct
 2. YAML localization (if needed)
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: View requirements, data sources discussed with user
+- **Specification files**: If Claude has read UI specs or feature docs into context
+- **Fields protocols**: From codebase or previous fosmvvm-fields-generator invocation
 
 ## Key Patterns
 
@@ -564,14 +588,6 @@ See [reference.md](reference.md) for complete file templates.
 | Factory extension | `{Name}ViewModel+Factory.swift` | `DashboardViewModel+Factory.swift` |
 | YAML file | `{Name}ViewModel.yml` | `DashboardViewModel.yml` |
 
-## Collaboration Protocol
-
-1. Understand what the View needs to display
-2. Confirm whether it's top-level or child
-3. **Display or Form?** - If form, use fields-generator first to create Fields protocol
-4. Identify which properties need localization
-5. Generate files one at a time with feedback
-
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models (errors are data, type safety, etc.)
@@ -592,3 +608,4 @@ See [reference.md](reference.md) for complete file templates.
 | 2.3 | 2025-12-27 | Added Display vs Form ViewModels section; clarified Fields adoption |
 | 2.4 | 2026-01-08 | Added Codable/computed properties section. Clarified when to pre-compute vs use Leaf built-ins. |
 | 2.5 | 2026-01-19 | Added Enum Localization Pattern section. Clarified @LocalizedString is for static text only; stored LocalizableString for dynamic enum values. |
+| 2.6 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

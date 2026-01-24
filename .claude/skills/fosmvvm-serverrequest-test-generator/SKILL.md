@@ -232,34 +232,62 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
 
 ---
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Identify ServerRequest to Test
+**Invocation:**
+/fosmvvm-serverrequest-test-generator
 
-Determine which ServerRequest types need coverage:
-- New ServerRequest being created
-- Existing ServerRequest without tests
-- ServerRequest with localized ResponseBody
+**Prerequisites:**
+- ServerRequest type understood from conversation context
+- Test scenarios identified (success paths, error paths, validation)
+- Controller implementation exists or is being created
+- VaporTesting infrastructure understood
 
-### Step 2: Create Test Suite
+**Workflow integration:**
+This skill is used when testing ServerRequest implementations. The skill references conversation context automatically—no file paths or Q&A needed. Typically follows fosmvvm-serverrequest-generator.
 
-Generate test file conforming to testing patterns:
-- One `@Test` function per scenario (success, not found, validation error, etc.)
-- Use `app.testing().test(request, locale:)` for ALL request testing
-- Verify both success and error paths
+## Pattern Implementation
 
-### Step 3: Configure Test Application
+This skill references conversation context to determine test structure:
 
-Set up Vapor Application with required:
-- Localization store (if ResponseBody has localized fields)
-- Route registration for the controller
-- Database configuration (if testing persistence)
+### Request Analysis
 
-### Step 4: Run Tests
+From conversation context, the skill identifies:
+- **ServerRequest type** (from prior discussion or server implementation)
+- **Request protocol** (ShowRequest, CreateRequest, UpdateRequest, etc.)
+- **ResponseBody type** (ViewModel or simple structure)
+- **ResponseError type** (custom errors or EmptyError)
 
-```bash
-swift test --filter {TestSuiteName}
-```
+### Test Scenario Planning
+
+Based on operation semantics:
+- **Success paths** (valid input, expected output)
+- **Error paths** (not found, validation failure, business logic errors)
+- **Localization** (if ResponseBody has localized fields)
+- **Multi-locale** (testing across supported locales)
+
+### Infrastructure Detection
+
+From project state:
+- **Existing test patterns** (similar test files in codebase)
+- **Localization setup** (YAML fixtures needed)
+- **Database requirements** (seed data for tests)
+
+### Test File Generation
+
+1. Test suite conforming to VaporTesting patterns
+2. One @Test function per scenario
+3. withTestApp helper for application setup
+4. Route registration
+5. Request invocations using app.testing().test()
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Test requirements, scenarios discussed
+- **ServerRequest**: If Claude has read ServerRequest code into context
+- **Controller**: From server implementation
+- **Existing tests**: From codebase analysis of similar test files
 
 ---
 
@@ -526,14 +554,6 @@ try app.initYamlLocalization(
 
 ---
 
-## Collaboration Protocol
-
-1. **Identify the ServerRequest to test** - Which request type needs coverage?
-2. **Confirm test scenarios** - Success paths, error paths, validation errors
-3. **Generate test file** - One file per feature/request area
-4. **Verify route registration** - Ensure controller is registered in test app
-5. **Run tests** - `swift test --filter {TestSuiteName}`
-
 ---
 
 ## File Templates
@@ -556,4 +576,5 @@ See [reference.md](reference.md) for complete file templates.
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.1 | 2025-01-20 | Add ServerRequestError localization testing guidance |
+| 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 1.0 | 2025-01-05 | Initial skill |

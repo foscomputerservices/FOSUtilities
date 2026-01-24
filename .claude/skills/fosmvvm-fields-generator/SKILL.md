@@ -80,34 +80,51 @@ Sources/
       {Name}FieldsMessages.yml
 ```
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Understand the Form Purpose
+**Invocation:**
+/fosmvvm-fields-generator
 
-Before generating, clarify:
-- **What is this form for?** (create, edit, filter, login, etc.)
-- **What entity does it relate to?** (User, Idea, Document, etc.)
-- **Name** should reflect purpose: `CreateIdea`, `UpdateProfile`, `LoginCredentials`
+**Prerequisites:**
+- Form purpose understood from conversation context
+- Field requirements discussed (names, types, constraints)
+- Entity relationship identified (what is this form creating/editing)
 
-### Step 2: Gather Field Requirements
+**Workflow integration:**
+This skill is used when defining form validation and user input contracts. The skill references conversation context automatically—no file paths or Q&A needed. Often precedes fosmvvm-fluent-datamodel-generator for form-backed models.
 
-For each field, determine:
-- **Property name and type** (String, Int, Date, enum, optional?)
-- **Presentation** - What FormFieldType? What FormInputType?
-- **Constraints** - Required? Length range? Value range? Date range?
-- **Localization** - Title, placeholder, error messages
+## Pattern Implementation
 
-### Step 3: Generate Files in Order
+This skill references conversation context to determine Fields protocol structure:
 
-1. `{Name}Fields.swift` - The protocol and validation logic
-2. `{Name}FieldsMessages.swift` - The localized message struct
-3. `{Name}FieldsMessages.yml` - The actual localized strings
+### Form Analysis
 
-### Step 4: Verify
+From conversation context, the skill identifies:
+- **Form purpose** (create, edit, filter, login, settings)
+- **Entity relation** (User, Idea, Document - what's being created/edited)
+- **Protocol naming** (CreateIdeaFields, UpdateProfile, LoginCredentials)
 
-After generation:
-1. Run `swift build` to verify compilation
-2. Check YAML keys match Swift property paths
+### Field Design
+
+For each field from requirements:
+- **Property specification** (name, type, optional vs required)
+- **Presentation type** (FormFieldType: text, textArea, select, checkbox)
+- **Input semantics** (FormInputType: email, password, tel, date)
+- **Constraints** (required, length range, value range, date range)
+- **Localization** (title, placeholder, validation error messages)
+
+### File Generation Order
+
+1. Fields protocol with FormField definitions and validation
+2. FieldsMessages struct with @LocalizedString properties
+3. FieldsMessages YAML with localized strings
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Form requirements, field specifications discussed
+- **Specification files**: If Claude has read form specs into context
+- **Existing patterns**: From codebase analysis of similar Fields protocols
 
 ## Key Patterns
 
@@ -222,13 +239,6 @@ en:
 | Required message | `{fieldName}RequiredMessage` | `contentRequiredMessage` |
 | OutOfRange message | `{fieldName}OutOfRangeMessage` | `contentOutOfRangeMessage` |
 
-## Collaboration Protocol
-
-1. Clarify the form purpose first (what is this form for?)
-2. Confirm field list with types and constraints
-3. Generate one file at a time with feedback
-4. The implementer will wire the protocol to their consumer types
-
 ## See Also
 
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full FOSMVVM architecture reference
@@ -242,3 +252,4 @@ en:
 |---------|------|---------|
 | 1.0 | 2024-12-24 | Initial skill |
 | 2.0 | 2024-12-26 | Rewritten with conceptual foundation; generalized from Kairos-specific |
+| 2.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

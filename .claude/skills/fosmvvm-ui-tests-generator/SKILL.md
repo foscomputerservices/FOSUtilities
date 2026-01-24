@@ -364,38 +364,68 @@ func testNavigationToDetailView() async throws {
 | `{ViewName}` | The ViewModelView name (without "View" suffix) | `TaskList`, `Dashboard` |
 | `{Feature}` | Feature/module grouping | `Tasks`, `Settings` |
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Determine Test Type
+**Invocation:**
+/fosmvvm-ui-tests-generator
 
-Ask:
-1. **Is this the first UI test for the project?** → Need base test case setup
-2. **What view are we testing?** → Determines ViewModel and Operations types
-3. **What interactions need testing?** → Determines test methods
+**Prerequisites:**
+- View and ViewModel structure understood from conversation context
+- ViewModelOperations type identified (or confirmed as display-only)
+- Interactive elements and user flows discussed
 
-### Step 2: Set Up Base Infrastructure (if needed)
+**Workflow integration:**
+This skill is typically used after implementing ViewModelViews. The skill references conversation context automatically—no file paths or Q&A needed. Often follows fosmvvm-swiftui-view-generator or fosmvvm-react-view-generator.
 
-If this is the first UI test:
-1. Create base test case class
-2. Create XCUIElement extensions
-3. Configure app bundle identifier
+## Pattern Implementation
 
-### Step 3: Create UI Test File
+This skill references conversation context to determine test structure:
+
+### Test Type Detection
+
+From conversation context, the skill identifies:
+- **First test vs additional test** (whether base test infrastructure exists)
+- **ViewModel type** (from prior discussion or View implementation)
+- **ViewModelOperations type** (from View implementation or context)
+- **Interactive vs display-only** (whether operations need verification)
+
+### View Analysis
+
+From requirements already in context:
+- **Interactive elements** (buttons, fields, controls requiring test coverage)
+- **User flows** (navigation paths, form submission, drag-and-drop)
+- **State variations** (enabled/disabled, visible/hidden, error states)
+- **Operation triggers** (which UI actions invoke which operations)
+
+### Infrastructure Planning
+
+Based on project state:
+- **Base test case** (create if first test, reuse if exists)
+- **XCUIElement extensions** (helper methods for common interactions)
+- **App bundle identifier** (for launching test host)
+
+### Test File Generation
 
 For the specific view:
-1. Determine ViewModel and ViewModelOperations types
-2. Create test class inheriting from base test case
-3. Add UI state tests
-4. Add operation tests
-5. Add XCUIApplication extension with element accessors
+1. Test class inheriting from base test case
+2. UI state tests (verify display based on ViewModel)
+3. Operation tests (verify user interactions invoke operations)
+4. XCUIApplication extension with element accessors
 
-### Step 4: Add Test Identifiers to View
+### View Requirements
 
-Ensure the view has:
+Ensure test identifiers and data transport:
 1. `.uiTestingIdentifier()` on all interactive elements
-2. `@State private var repaintToggle`
-3. `.testDataTransporter()` modifier
-4. `toggleRepaint()` calls after operations
+2. `@State private var repaintToggle` (if has operations)
+3. `.testDataTransporter()` modifier (if has operations)
+4. `toggleRepaint()` calls after operations (if has operations)
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: View requirements, user flows discussed
+- **View implementation**: If Claude has read View code into context
+- **ViewModelOperations**: From codebase or discussion
 
 ## Key Patterns
 
@@ -539,16 +569,6 @@ See [reference.md](reference.md) for complete file templates.
 | Element accessor | `{elementName}` | `submitButton`, `emailTextField` |
 | UI testing identifier | `{elementName}Identifier` or `{elementName}` | `"submitButton"`, `"emailTextField"` |
 
-## Collaboration Protocol
-
-1. Confirm the view to be tested exists and has ViewModelOperations
-2. Identify all interactive elements that need testing
-3. Determine which operations each interaction should invoke
-4. Create/update base test case if this is first test
-5. Generate UI test file with appropriate test methods
-6. Verify view has test identifiers and test data transporter
-7. Run tests and iterate
-
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models and patterns
@@ -562,3 +582,4 @@ See [reference.md](reference.md) for complete file templates.
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for UI tests |
+| 1.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

@@ -194,34 +194,54 @@ Add entries to a test YAML file for these private types.
 
 ---
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Identify ViewModels to Test
+**Invocation:**
+/fosmvvm-viewmodel-test-generator
 
-Determine which ViewModels need test coverage:
-- New ViewModels being created
-- Existing ViewModels without tests
-- ViewModels with localization properties
+**Prerequisites:**
+- ViewModel structure understood from conversation context
+- Localization properties identified (@LocalizedString, @LocalizedSubs, etc.)
+- YAML localization files exist or will be created
+- Child ViewModels identified (if any)
 
-### Step 2: Check YAML Coverage
+**Workflow integration:**
+This skill is used when adding test coverage for ViewModels. The skill references conversation context automatically—no file paths or Q&A needed. Typically follows fosmvvm-viewmodel-generator.
 
-Verify YAML entries exist for:
-- The ViewModel itself
-- Any embedded/child ViewModels
-- All supported locales (typically en, es)
+## Pattern Implementation
 
-### Step 3: Generate Test File
+This skill references conversation context to determine test structure:
 
-Create test suite conforming to `LocalizableTestCase`:
-- One `@Test` function per ViewModel (or logical grouping)
-- Use `expectFullViewModelTests()` as the primary assertion
-- Add specific formatting tests only when needed
+### ViewModel Analysis
 
-### Step 4: Run Tests
+From conversation context, the skill identifies:
+- **ViewModels to test** (from prior discussion or codebase)
+- **Localization requirements** (@LocalizedString properties)
+- **Child ViewModels** (embedded within parent)
+- **Substitution behavior** (@LocalizedSubs needing specific verification)
 
-```bash
-swift test --filter {TestSuiteName}
-```
+### YAML Coverage Check
+
+Verifies completeness:
+- **ViewModel YAML entries** (all @LocalizedString properties)
+- **Child ViewModel entries** (nested types)
+- **Locale coverage** (en, es, or project-specific locales)
+
+### Test File Generation
+
+Creates test suite with:
+- LocalizableTestCase conformance
+- Localization store initialization
+- expectFullViewModelTests() calls for each ViewModel
+- Optional specific formatting tests (substitutions, compound strings)
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: ViewModels discussed or recently created
+- **ViewModel code**: If Claude has read ViewModel files into context
+- **YAML files**: From codebase analysis of existing localizations
+- **Test patterns**: From existing test files in project
 
 ---
 
@@ -355,3 +375,4 @@ let vm = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
 |---------|------|---------|
 | 1.0 | 2025-01-02 | Initial skill |
 | 1.1 | 2026-01-19 | Updated LocalizableTestCase example to use {ViewModelsTarget}.resourceAccess pattern. |
+| 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

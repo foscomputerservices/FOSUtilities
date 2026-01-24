@@ -165,31 +165,61 @@ private extension MyApp {
 | `{AppTarget}` | Main app target | `App` |
 | `{ResourceBundles}` | Module names with localization | `MyAppViewModels`, `SharedResources` |
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Gather Configuration
+**Invocation:**
+/fosmvvm-swiftui-app-setup
 
-Ask the user:
-1. **App name** - What should the app struct be called?
-2. **Deployment URLs** - What are the server URLs for each environment?
-3. **Resource bundles** - Which modules contain localization resources?
-4. **Test support** - Do you want test infrastructure included?
+**Prerequisites:**
+- App name understood from conversation context
+- Deployment URLs discussed or documented
+- Resource bundles identified (modules with localization)
+- Test support requirements clarified
 
-### Step 2: Generate App Struct
+**Workflow integration:**
+This skill is used when setting up a new FOSMVVM SwiftUI application or adding FOSMVVM infrastructure to an existing app. The skill references conversation context automatically—no file paths or Q&A needed.
 
-Create the main App struct with:
-- `@main` attribute
-- `var body: some Scene` with WindowGroup
-- Computed `var mvvmEnv: MVVMEnvironment`
-- Environment injection on WindowGroup
+## Pattern Implementation
 
-### Step 3: Add Test Infrastructure (if requested)
+This skill references conversation context to determine App struct configuration:
 
-Add DEBUG-only components:
-- `@State private var underTest = false`
-- `.testHost { }` modifier with default case
-- `registerTestingViews()` extension
-- Call to `registerTestingViews()` from `init()`
+### Configuration Detection
+
+From conversation context, the skill identifies:
+- **App name** (from project discussion or existing code)
+- **Deployment environments** (production, staging, debug URLs)
+- **Resource bundles** (modules containing localization YAML files)
+- **Test infrastructure** (whether UI testing support needed)
+
+### MVVMEnvironment Setup
+
+Based on project structure:
+- **App bundle** (typically Bundle.main)
+- **Resource bundle accessors** (from identified modules)
+- **Deployment URLs** (for each environment)
+- **Current version** (from shared module)
+
+### Test Infrastructure Planning
+
+If test support needed:
+- **Test detection** (process arguments check)
+- **Test host modifier** (wrapping top-level view)
+- **View registration** (all ViewModelViews for testing)
+
+### File Generation
+
+1. Main App struct with @main attribute
+2. MVVMEnvironment computed property
+3. WindowGroup with environment injection
+4. Test infrastructure (if requested, DEBUG-only)
+5. registerTestingViews() extension (if test support)
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: App requirements, deployment environments discussed
+- **Project structure**: From codebase analysis of module organization
+- **Existing patterns**: From other FOSMVVM apps if context available
 
 ## Key Patterns
 
@@ -343,15 +373,6 @@ Runtime Detection:
 - Edit Scheme → Run → Arguments → Environment Variables
 - Add: `FOS-DEPLOYMENT = staging`
 
-## Collaboration Protocol
-
-1. Confirm app name and target structure
-2. Gather deployment URLs for each environment
-3. Identify resource bundles with localization
-4. Determine if test infrastructure is needed
-5. Generate App struct with all components
-6. Verify build and deployment detection
-
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models and patterns
@@ -364,3 +385,4 @@ Runtime Detection:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for SwiftUI app setup |
+| 1.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

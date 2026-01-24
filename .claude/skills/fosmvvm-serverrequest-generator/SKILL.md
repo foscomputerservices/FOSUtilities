@@ -164,25 +164,74 @@ Choose based on the operation:
 
 ---
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Understand the Operation
+**Invocation:**
+/fosmvvm-serverrequest-generator
 
-Ask:
-1. **What operation?** (create, read, update, delete)
-2. **What data goes IN?** (RequestBody fields)
-3. **What data comes OUT?** (ResponseBody - often a ViewModel)
-4. **Who calls this?** (iOS app, WebApp, CLI tool, etc.)
+**Prerequisites:**
+- Operation requirements understood from conversation context
+- RequestBody and ResponseBody structures discussed or documented
+- Client type identified (iOS app, WebApp, CLI tool, background job, etc.)
 
-### Step 2: Choose Protocol
+**Workflow integration:**
+This skill is typically used when implementing client-server communication. The skill references conversation context automatically—no file paths or Q&A needed. Often follows fosmvvm-viewmodel-generator (for ResponseBody ViewModels) and fosmvvm-fields-generator (for RequestBody validation).
 
-Based on operation type:
-- Reading → `ShowRequest` or `ViewModelRequest`
-- Creating → `CreateRequest`
-- Updating → `UpdateRequest`
-- Deleting → `DeleteRequest`
+## Pattern Implementation
 
-### Step 3: Generate ServerRequest Type
+This skill references conversation context to determine ServerRequest structure:
+
+### Operation Type Detection
+
+From conversation context, the skill identifies:
+- **CRUD operation** (create, read, update, delete)
+- **HTTP semantics** (GET for read, POST for create, PATCH/PUT for update, DELETE for delete)
+- **Protocol choice** (ShowRequest, ViewModelRequest, CreateRequest, UpdateRequest, DeleteRequest)
+
+### Request Structure Design
+
+From requirements already in context:
+- **RequestBody fields** (what data the client sends)
+- **Query parameters** (URL query string data)
+- **Fragment parameters** (URL fragment/anchor data)
+- **Validation requirements** (ValidatableModel for write operations)
+
+### Response Structure Design
+
+From requirements already in context:
+- **ResponseBody type** (often a ViewModel, sometimes just an ID)
+- **ResponseError type** (custom error structure or EmptyError)
+- **Success scenarios** (what indicates successful operation)
+- **Error scenarios** (known failure modes requiring structured errors)
+
+### Client Detection
+
+From conversation context:
+- **Target platform** (iOS/macOS app, WebApp browser, CLI tool, background job)
+- **Bridge requirements** (whether WebApp route needed for browser clients)
+- **MVVMEnvironment setup** (how client configures baseURL and headers)
+
+### File Generation
+
+**Core files:**
+1. ServerRequest type with RequestBody, ResponseBody, ResponseError
+2. Controller with action handler
+3. Route registration
+
+**Optional (for WebApp clients):**
+4. WebApp route bridging JS to ServerRequest
+5. JavaScript handler guidance
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Operation requirements, data structures discussed
+- **Specification files**: If Claude has read API specs or feature docs into context
+- **Existing patterns**: From codebase analysis of similar requests
+
+---
+
+### ServerRequest Type Template
 
 ```swift
 // {Action}Request.swift
@@ -223,7 +272,7 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
 
 **Note:** All subtypes (RequestBody, ResponseBody, ResponseError) are nested inside the request class. This avoids namespace pollution and provides unique YAML localization keys automatically.
 
-### Step 4: Generate Controller
+### Controller Template
 
 **Controller action = Protocol name (minus "Request")**
 
@@ -270,14 +319,14 @@ private extension {Action}Request {
 }
 ```
 
-### Step 5: Register Controller
+### Controller Registration
 
 ```swift
 // In WebServer routes.swift
 try versionedGroup.register(collection: {Action}Controller())
 ```
 
-### Step 6: Client Invocation
+### Client Invocation
 
 **All Swift clients (iOS, macOS, CLI, background jobs, etc.):**
 
@@ -644,17 +693,6 @@ catch let error as ValidationError {
 
 ---
 
-## Collaboration Protocol
-
-1. **Clarify the operation** - What are we doing?
-2. **Confirm RequestBody/ResponseBody** - What goes in, what comes out?
-3. **Generate ServerRequest type** - Get feedback
-4. **Generate Controller** - Get feedback
-5. **Show registration** - Where to wire it up
-6. **Client invocation** - How to call it (native vs WebApp)
-
----
-
 ## Testing ServerRequests
 
 **Always test via `ServerRequest.processRequest(mvvmEnv:)` - never via manual HTTP.**
@@ -702,3 +740,4 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.6 | 2026-01-09 | Added ResponseError section with two patterns: associated values (LocalizableSubstitutions) and simple string codes (LocalizableString). Added YAML examples and built-in ValidationError usage. |
 | 2.7 | 2026-01-20 | ResponseError MUST be nested inside request class (like RequestBody/ResponseBody). Updated patterns to show nesting with correct YAML key paths. |
 | 2.8 | 2026-01-20 | Added "Type Safety Means You Already Know" section - explicit mental model that Swift's type system means you catch concrete error types, not protocols. Prevents JavaScript-brain panic about runtime type discovery. |
+| 2.9 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

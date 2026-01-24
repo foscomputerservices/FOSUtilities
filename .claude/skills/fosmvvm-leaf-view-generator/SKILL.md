@@ -562,55 +562,76 @@ Each route handles its own specific error type. There's no mystery about what pr
 
 ---
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Identify the ViewModel
+**Invocation:**
+/fosmvvm-leaf-view-generator
 
-What ViewModel does this template render?
-- `{Feature}ViewModel` → Full-page template
-- `{Entity}CardViewModel` → Card fragment
-- `{Entity}RowViewModel` → Row fragment
+**Prerequisites:**
+- ViewModel structure understood from conversation context
+- Template type determined (full-page vs fragment)
+- Data attributes needed for JS interactions identified
+- HTML-over-the-wire pattern understood if using fragments
 
-### Step 2: Determine Template Type
+**Workflow integration:**
+This skill is used when creating Leaf templates for web clients. The skill references conversation context automatically—no file paths or Q&A needed. Typically follows fosmvvm-viewmodel-generator.
 
-| ViewModel Purpose | Template Type | Has Layout? |
-|-------------------|---------------|-------------|
-| Page content | Full-page | Yes |
-| List item / Card | Fragment | No |
-| Modal content | Fragment | No |
-| Inline component | Fragment | No |
+## Pattern Implementation
 
-### Step 3: Map ViewModel Properties to Template
+This skill references conversation context to determine template structure:
 
-| Property | Template Usage |
-|----------|----------------|
-| `id` | `data-{entity}-id="#(vm.id)"` |
-| Raw enum | `data-{field}="#(vm.field)"` |
-| `LocalizedString` | Display text: `#(vm.displayName)` |
-| `LocalizedDate` | Formatted date: `#(vm.createdAt)` |
-| Nested ViewModel | Embed fragment or access properties |
+### ViewModel Analysis
 
-### Step 4: Generate Template
+From conversation context, the skill identifies:
+- **ViewModel type** (from prior discussion or server implementation)
+- **Properties** (what data the template will display)
+- **Localization** (which properties are Localizable types)
+- **Nested ViewModels** (child components)
 
-Use [reference.md](reference.md) templates as starting point.
+### Template Type Detection
 
-### Step 5: Verify
+From ViewModel purpose:
+- **Page content** → Full-page template (extends layout)
+- **List item/Card** → Fragment (no layout, single root)
+- **Modal content** → Fragment
+- **Inline component** → Fragment
 
-1. Filename matches ViewModel name
-2. Data attributes have all state JS needs
-3. Localizable types render correctly (not as debug output)
-4. Single root element for fragments
-5. No layout extension for fragments
+### Property Mapping
 
----
+For each ViewModel property:
+- **`id: ModelIdType`** → `data-{entity}-id="#(vm.id)"` (for JS)
+- **Raw enum** → `data-{field}="#(vm.field)"` (for state)
+- **`LocalizableString`** → `#(vm.displayName)` (display text)
+- **`LocalizableDate`** → `#(vm.createdAt)` (formatted date)
+- **Nested ViewModel** → Embed fragment or access properties
 
-## Collaboration Protocol
+### Data Attributes Planning
 
-1. **Identify the ViewModel** - What are we rendering?
-2. **Full-page or fragment?** - Determines structure
-3. **List data attributes needed** - What state does JS need?
-4. **Generate template** - Get feedback
-5. **Show WebApp route** - How the template gets rendered
+Based on JS interaction needs:
+- **Entity identifier** (for operations)
+- **State values** (enum raw values for requests)
+- **Drag/drop attributes** (if interactive)
+- **Category/grouping** (for filtering/sorting)
+
+### Template Generation
+
+**Full-page:**
+1. Layout extension
+2. Content export
+3. Embedded fragments for components
+
+**Fragment:**
+1. Single root element
+2. Data attributes for state
+3. Localized text from ViewModel
+4. No layout extension
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Template requirements, user flows discussed
+- **ViewModel**: If Claude has read ViewModel code into context
+- **Existing templates**: From codebase analysis of similar views
 
 ---
 
@@ -633,3 +654,4 @@ Use [reference.md](reference.md) templates as starting point.
 | 2.1 | 2026-01-08 | Added Leaf Built-in Functions section (count, contains, loop variables). Clarified Codable/computed properties. Corrected earlier false claims about #count() not working. |
 | 2.2 | 2026-01-19 | Updated Pattern 3 to use stored LocalizableString for dynamic enum displays; linked to Enum Localization Pattern. Added anti-patterns for concatenating localized values and formatting dates in templates. |
 | 2.3 | 2026-01-20 | Added "Rendering Errors in Leaf Templates" section - error types are known at compile time, no need for generic ErrorViewModel patterns. Prevents JavaScript-brain thinking about runtime type discovery. |
+| 2.4 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |

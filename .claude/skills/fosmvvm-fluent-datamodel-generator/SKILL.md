@@ -119,62 +119,77 @@ database.swift                       ← Register migrations
 
 ---
 
-## Generation Process
+## How to Use This Skill
 
-### Step 1: Gather Requirements
+**Invocation:**
+/fosmvvm-fluent-datamodel-generator
 
-Before generating, ask/confirm:
-1. **Model name** (singular, PascalCase): e.g., `User`, `Idea`, `Document`
-2. **Fields** with types and constraints
-3. **Enums** for constrained string fields
-4. **Relationships** to other models (foreign keys)
-5. **Seed data** requirements (debug vs test environments)
+**Prerequisites:**
+- Model structure understood from conversation context
+- Fields protocol exists (if form-backed model) via fosmvvm-fields-generator
+- Relationships and system-assigned fields identified
+- Fluent confirmed as the persistence layer
 
-### Step 2: Design Checkpoint
+**Workflow integration:**
+This skill is used for server-side persistence with Fluent. For form-backed models, run fosmvvm-fields-generator first to create the Fields protocol. The skill references conversation context automatically—no file paths or Q&A needed.
 
-Before generating files, explicitly confirm:
+## Pattern Implementation
 
-1. **Is this a form?** If no user input, skip Fields entirely.
-   - System-generated entities (Session, audit records) → DataModel-only
-   - Junction tables → DataModel-only, no Fields
+This skill references conversation context to determine DataModel structure:
 
-2. **Relationships?**
-   - One-to-many: `@Parent` in DataModel only, not in Fields
-   - Many-to-many: Junction table + `@Siblings`, NEVER UUID arrays
+### Model Type Detection
 
-3. **System-assigned fields?** (createdBy, timestamps, status history)
-   - These go in DataModel only, not Fields
+From conversation context, the skill identifies:
+- **Entity purpose** (user data, system records, audit logs, junction table)
+- **User input involvement** (form-backed vs system-generated)
+- **Fields protocol requirement** (if user edits this data)
 
-4. **Clear naming?** Relationship names must be self-documenting.
-   - Bad: `sourceNodes` (what sources? what nodes?)
-   - Good: `originatingConversations` (clear relationship meaning)
+### Relationship Analysis
 
-Get explicit approval before generating.
+From requirements already in context:
+- **One-to-many relationships** (@Parent in DataModel, not in Fields)
+- **Many-to-many relationships** (Junction table + @Siblings, NOT UUID arrays)
+- **Relationship naming** (self-documenting names, not vague references)
 
-### Step 3: Generate Files in Order
+### Field Classification
 
-Generate files in this order (dependencies flow down):
+Based on data source:
+- **User-editable fields** (from Fields protocol)
+- **System-assigned fields** (createdBy, timestamps, status - DataModel only)
+- **Computed relationships** (@Parent, @Children, @Siblings)
 
-**If form-backed model, run fosmvvm-fields-generator first:**
-1. `{Model}Fields.swift` - Protocol defines the contract *(via fosmvvm-fields-generator)*
-2. `{Model}FieldsMessages.swift` - Validation message struct *(via fosmvvm-fields-generator)*
-3. `{Model}FieldsMessages.yml` - Localization strings *(via fosmvvm-fields-generator)*
+### File Generation Order
 
-**Then generate DataModel layer (this skill):**
-4. `{Model}.swift` - Fluent model implementation
-5. `{Model}+Schema.swift` - Database migration
-6. `{Model}+Seed.swift` - Seed data
-7. `{Model}FieldsTests.swift` - Tests
-8. Update `database.swift` - Register migrations
+**If form-backed model (Fields protocol exists):**
+1. Fields layer already created via fosmvvm-fields-generator
+2. DataModel implementation referencing Fields
+3. Schema migration
+4. Seed data migration
+5. Tests
+6. Migration registration
 
-### Step 4: Verify
+**If system-only model (no Fields):**
+1. DataModel struct
+2. Schema migration
+3. Seed data migration (if needed)
+4. Tests
+5. Migration registration
 
-After generation:
-1. Run `swiftformat .` to add file headers and format code
-2. Run `swiftlint` to verify lint rules are upheld
-3. Run `swift build` to verify compilation
-4. Run `swift test` to verify tests pass
-5. Run migrations: server will auto-migrate on startup
+### Design Validation
+
+Before generating, the skill validates:
+1. **Form requirement** - System-generated entities skip Fields
+2. **Relationship patterns** - Junction tables for many-to-many, @Parent for foreign keys
+3. **Naming clarity** - Relationships have self-documenting names
+4. **Field separation** - User fields in protocol, system fields in DataModel only
+
+### Context Sources
+
+Skill references information from:
+- **Prior conversation**: Model requirements, relationships discussed
+- **Fields protocol**: If Claude has read Fields protocol into context or just created it
+- **Database schema**: From codebase analysis of existing models
+- **Migration patterns**: From existing migrations in project
 
 ---
 
@@ -335,18 +350,6 @@ private struct TestUser: UserFields {
 
 ---
 
-## Collaboration Protocol
-
-**IMPORTANT**: Work WITH the user, not ahead of them:
-
-1. Show the proposed file structure first
-2. Generate one file at a time, getting feedback
-3. Let the user review/modify patterns as needed
-4. Don't assume - ask when uncertain
-5. The user's patterns may differ from examples - learn from their code
-
----
-
 ## See Also
 
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full FOSMVVM architecture
@@ -365,3 +368,4 @@ private struct TestUser: UserFields {
 | 1.2 | 2025-12-23 | Associated types for relationships (not existentials), raw SQL patterns, test struct patterns |
 | 1.3 | 2025-12-24 | Factored out Fields layer to fields-generator skill |
 | 2.0 | 2025-12-26 | Renamed to fosmvvm-fluent-datamodel-generator, added Scope Guard, generalized from Kairos-specific to FOSMVVM patterns, added architecture context |
+| 2.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
