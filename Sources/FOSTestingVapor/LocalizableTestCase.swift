@@ -22,7 +22,6 @@ import Foundation
 import Vapor
 
 public extension LocalizableTestCase {
-
     /// The port that the test server runs on
     var testServerPort: Int { 8888 }
 
