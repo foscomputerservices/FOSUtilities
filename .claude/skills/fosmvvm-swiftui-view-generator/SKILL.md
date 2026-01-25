@@ -779,6 +779,46 @@ public init(id: ModelIdType) {
 }
 ```
 
+### Force-Unwrapping Localizable Strings
+
+```swift
+// ❌ BAD - Force-unwrapping to work around missing overload
+import SwiftUI
+
+Text(try! viewModel.title.localizedString  // Anti-pattern!
+Label(try! viewModel.label.localizedString, systemImage: "star")
+
+// ✅ GOOD - Request the proper SwiftUI overload instead
+// File a feature request or enhancement for:
+extension Text {
+    public init(_ localizable: Localizable) {
+        self.init(localizable.localized)
+    }
+}
+
+extension Label where Title == Text, Icon == Image {
+    public init(_ title: Localizable, systemImage: String) {
+        self.init(title.localized, systemImage: systemImage)
+    }
+}
+
+// Then use cleanly in views:
+Text(viewModel.title)
+Label(viewModel.label, systemImage: "star")
+```
+
+**Why this matters:**
+
+FOSMVVM provides `Localizable` protocol for all localized strings with SwiftUI init overloads for common elements like `Text`. However, not every SwiftUI element has an overload yet.
+
+When you encounter a SwiftUI element that doesn't accept `Localizable` directly:
+
+1. **DON'T** work around it with `try! localizable.localizedString` - this bypasses the type system and creates force-unwrap calls throughout your codebase
+2. **DO** request that we add the proper init overload to the SwiftUI element
+3. **Pattern:** Overloads are simple extensions that accept `Localizable` and pass `.localized` to the standard init
+
+This keeps the codebase clean, type-safe, and eliminates force-unwraps from view code.
+
 ---
 
 ## File Templates
