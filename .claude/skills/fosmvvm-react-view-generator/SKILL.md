@@ -84,7 +84,7 @@ This skill generates **tests FIRST, implementation SECOND** in a single invocati
 Every component is wrapped with `viewModelComponent()`:
 
 ```jsx
-const MyView = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const MyView = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <div>{viewModel.title}</div>;
 });
 
@@ -92,9 +92,9 @@ export default MyView;
 ```
 
 **Required:**
-- Access `viewModelComponent` from `window.FOSMVVM` global namespace
+- Use `FOSMVVM.viewModelComponent()` from global namespace (loaded via script tag)
 - Component function receives `{ viewModel }` prop
-- Wrap with `window.FOSMVVM.viewModelComponent()` before export
+- No imports needed - FOSMVVM utilities loaded via `<script>` tags
 
 ### 2. The .bind() Pattern
 
@@ -125,7 +125,7 @@ function Dashboard() {
 Error ViewModels are rendered like any other ViewModel:
 
 ```jsx
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   // Handle error ViewModels
   if (viewModel.errorType === 'NotFoundError') {
     return (
@@ -170,19 +170,19 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 Use navigation intents, not hardcoded paths:
 
 ```jsx
-const Link = window.FOSMVVM.Link;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
 // ❌ NEVER
 <a href="/tasks/123">View Task</a>
 
 // ✅ ALWAYS
-<Link to={{ intent: 'viewTask', id: viewModel.id }}>
+<FOSMVVM.Link to={{ intent: 'viewTask', id: viewModel.id }}>
   {viewModel.linkText}
-</Link>
+</FOSMVVM.Link>
 ```
 
 **Navigation patterns:**
-- Access `Link` from `window.FOSMVVM` global namespace
+- Use `FOSMVVM.Link` from global namespace (loaded via script tag)
 - Use `intent` property, not hardcoded paths
 - Router maps intents to routes
 - Platform-independent navigation
@@ -196,7 +196,7 @@ const Link = window.FOSMVVM.Link;
 Components that just render data (no user interactions):
 
 ```jsx
-const InfoCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const InfoCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <div className="info-card">
       <h2>{viewModel.title}</h2>
@@ -223,7 +223,7 @@ export default InfoCard;
 Components with user actions that trigger ServerRequests:
 
 ```jsx
-const ActionCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const ActionCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <div className="action-card">
       <h2>{viewModel.title}</h2>
@@ -253,7 +253,7 @@ export default ActionCard;
 Components that render collections:
 
 ```jsx
-const TaskList = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskList = FOSMVVM.viewModelComponent(({ viewModel }) => {
   if (viewModel.isEmpty) {
     return <div className="empty">{viewModel.emptyMessage}</div>;
   }
@@ -281,7 +281,7 @@ export default TaskList;
 Components with validated input fields:
 
 ```jsx
-const SignInForm = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const SignInForm = FOSMVVM.viewModelComponent(({ viewModel }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
@@ -414,7 +414,7 @@ Skill references information from:
 Check:
 - [ ] `.test.js` file exists
 - [ ] `.jsx` file exists
-- [ ] Component uses `window.FOSMVVM.viewModelComponent()` wrapper
+- [ ] Component uses `FOSMVVM.viewModelComponent()` wrapper
 - [ ] Component accesses FOSMVVM functions from global namespace
 - [ ] Tests cover success and error ViewModels
 - [ ] Tests cover user interactions (if applicable)
@@ -427,13 +427,13 @@ Check:
 
 ```jsx
 // ❌ BAD - Component is transforming data
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   const daysLeft = Math.ceil((viewModel.dueDate - Date.now()) / 86400000);
   return <span>{daysLeft} days remaining</span>;
 });
 
 // ✅ GOOD - ViewModel provides shaped result
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <span>{viewModel.daysRemainingText}</span>;
 });
 ```
@@ -442,7 +442,7 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 
 ```jsx
 // ❌ BAD - Component making HTTP requests
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -465,7 +465,7 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 
 ```jsx
 // ❌ BAD - Generic error handling
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   if (viewModel.error) {
     return <div>Error: {viewModel.error.message}</div>;
   }
@@ -473,7 +473,7 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 });
 
 // ✅ GOOD - Specific error ViewModels
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   if (viewModel.errorType === 'NotFoundError') {
     return (
       <div className="not-found">
@@ -505,7 +505,7 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 
 ```jsx
 // ❌ BAD - Hardcoded URLs
-const TaskRow = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskRow = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <div>
       <a href={`/tasks/${viewModel.id}`}>{viewModel.title}</a>
@@ -514,14 +514,14 @@ const TaskRow = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 });
 
 // ✅ GOOD - Navigation intents
-const Link = window.FOSMVVM.Link;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const TaskRow = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskRow = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <div>
-      <Link to={{ intent: 'viewTask', id: viewModel.id }}>
+      <FOSMVVM.Link to={{ intent: 'viewTask', id: viewModel.id }}>
         {viewModel.title}
-      </Link>
+      </FOSMVVM.Link>
     </div>
   );
 });
@@ -552,12 +552,12 @@ src/components/
 
 ```jsx
 // ❌ BAD - Component is transforming data
-const UserCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const UserCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <div>{viewModel.firstName} {viewModel.lastName}</div>;
 });
 
 // ✅ GOOD - ViewModel provides shaped result
-const UserCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const UserCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <div>{viewModel.fullName}</div>;
 });
 ```
@@ -566,7 +566,7 @@ const UserCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 
 ```jsx
 // ❌ BAD - fetch() call in component
-const TaskList = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskList = FOSMVVM.viewModelComponent(({ viewModel }) => {
   const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
@@ -587,7 +587,7 @@ const TaskList = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 
 ```jsx
 // ❌ BAD - Not localizable
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <button onClick={viewModel.operations.submit}>
       Submit
@@ -596,7 +596,7 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 });
 
 // ✅ GOOD - ViewModel provides localized text
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <button onClick={viewModel.operations.submit}>
       {viewModel.submitLabel}
@@ -609,18 +609,18 @@ const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
 
 ```jsx
 // ❌ BAD - Hardcoded path
-const TaskRow = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskRow = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <a href={`/tasks/${viewModel.id}`}>{viewModel.title}</a>;
 });
 
 // ✅ GOOD - Navigation intent
-const Link = window.FOSMVVM.Link;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const TaskRow = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskRow = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
-    <Link to={{ intent: 'viewTask', id: viewModel.id }}>
+    <FOSMVVM.Link to={{ intent: 'viewTask', id: viewModel.id }}>
       {viewModel.title}
-    </Link>
+    </FOSMVVM.Link>
   );
 });
 ```
@@ -635,7 +635,7 @@ const TaskCard = ({ viewModel }) => {
 export default TaskCard;
 
 // ✅ GOOD - Wrapped with viewModelComponent()
-const TaskCard = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
+const TaskCard = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <div>{viewModel.title}</div>;
 });
 export default TaskCard;

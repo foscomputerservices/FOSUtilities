@@ -268,10 +268,9 @@ describe('{ViewName}View', () => {
 // Copyright (c) 2026 Your Organization. All rights reserved.
 // License: Your License
 
-// Access viewModelComponent from global FOSMVVM namespace
-const viewModelComponent = window.FOSMVVM.viewModelComponent;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const {ViewName}View = viewModelComponent(({ viewModel }) => {
+const {ViewName}View = FOSMVVM.viewModelComponent(({ viewModel }) => {
   // Handle error ViewModels
   if (viewModel.errorType === 'NotFoundError') {
     return (
@@ -328,10 +327,9 @@ export default {ViewName}View;
 // Copyright (c) 2026 Your Organization. All rights reserved.
 // License: Your License
 
-// Access viewModelComponent from global FOSMVVM namespace
-const viewModelComponent = window.FOSMVVM.viewModelComponent;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const {ViewName}View = viewModelComponent(({ viewModel }) => {
+const {ViewName}View = FOSMVVM.viewModelComponent(({ viewModel }) => {
   // Handle error ViewModels
   if (viewModel.errorType === 'ValidationError') {
     return (
@@ -401,11 +399,10 @@ export default {ViewName}View;
 // Copyright (c) 2026 Your Organization. All rights reserved.
 // License: Your License
 
-// Access viewModelComponent from global FOSMVVM namespace
-const viewModelComponent = window.FOSMVVM.viewModelComponent;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 import {Entity}CardView from './{Entity}CardView';
 
-const {ViewName}View = viewModelComponent(({ viewModel }) => {
+const {ViewName}View = FOSMVVM.viewModelComponent(({ viewModel }) => {
   // Handle error ViewModels
   if (viewModel.errorType === 'NotFoundError') {
     return (
@@ -486,10 +483,9 @@ export default {ViewName}View;
 // License: Your License
 
 import { useState } from 'react';
-// Access viewModelComponent from global FOSMVVM namespace
-const viewModelComponent = window.FOSMVVM.viewModelComponent;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const {ViewName}View = viewModelComponent(({ viewModel }) => {
+const {ViewName}View = FOSMVVM.viewModelComponent(({ viewModel }) => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -1042,10 +1038,9 @@ it('calls async operation', async () => {
 ## Pattern: Basic Component Structure
 
 ```jsx
-// Access viewModelComponent from global FOSMVVM namespace
-const viewModelComponent = window.FOSMVVM.viewModelComponent;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const MyView = viewModelComponent(({ viewModel }) => {
+const MyView = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return <div>{viewModel.title}</div>;
 });
 
@@ -1055,7 +1050,7 @@ export default MyView;
 ## Pattern: Error Handling
 
 ```jsx
-const MyView = viewModelComponent(({ viewModel }) => {
+const MyView = FOSMVVM.viewModelComponent(({ viewModel }) => {
   if (viewModel.errorType === 'NotFoundError') {
     return <div className="error">{viewModel.errorMessage}</div>;
   }
@@ -1067,7 +1062,7 @@ const MyView = viewModelComponent(({ viewModel }) => {
 ## Pattern: Conditional Rendering
 
 ```jsx
-const MyView = viewModelComponent(({ viewModel }) => {
+const MyView = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <div>
       <h2>{viewModel.title}</h2>
@@ -1081,7 +1076,7 @@ const MyView = viewModelComponent(({ viewModel }) => {
 ## Pattern: Button Handler
 
 ```jsx
-const MyView = viewModelComponent(({ viewModel }) => {
+const MyView = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
     <button
       onClick={() => viewModel.operations.submit()}
@@ -1113,14 +1108,13 @@ const ListView = viewModelComponent(({ viewModel }) => {
 ## Pattern: Navigation
 
 ```jsx
-// Access Link from global FOSMVVM namespace
-const Link = window.FOSMVVM.Link;
+// FOSMVVM utilities loaded via <script> tag, available on global namespace
 
-const MyView = viewModelComponent(({ viewModel }) => {
+const MyView = FOSMVVM.viewModelComponent(({ viewModel }) => {
   return (
-    <Link to={{ intent: 'viewDetails', id: viewModel.id }}>
+    <FOSMVVM.Link to={{ intent: 'viewDetails', id: viewModel.id }}>
       {viewModel.linkText}
-    </Link>
+    </FOSMVVM.Link>
   );
 });
 ```
@@ -1132,7 +1126,7 @@ const MyView = viewModelComponent(({ viewModel }) => {
 ## Component Checklist
 
 **All Components:**
-- [ ] Accesses `viewModelComponent` from `window.FOSMVVM` global namespace
+- [ ] Uses `FOSMVVM.viewModelComponent()` from global namespace (script tag loaded)
 - [ ] Wrapped with `viewModelComponent()`
 - [ ] Receives `{ viewModel }` prop
 - [ ] Exported as default
@@ -1192,7 +1186,7 @@ Before completing generation, verify:
 
 - [ ] `.test.js` file exists
 - [ ] `.jsx` file exists
-- [ ] Component accesses `viewModelComponent` from `window.FOSMVVM` global namespace
+- [ ] Component uses `FOSMVVM.viewModelComponent()` from global namespace (script tag loaded)
 - [ ] Component wrapped with `viewModelComponent()`
 - [ ] Tests cover success ViewModel
 - [ ] Tests cover error ViewModels
