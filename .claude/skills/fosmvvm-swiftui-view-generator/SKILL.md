@@ -785,11 +785,11 @@ public init(id: ModelIdType) {
 // ❌ BAD - Force-unwrapping to work around missing overload
 import SwiftUI
 
-Text(try! viewModel.title.localizedString  // Anti-pattern!
+Text(try! viewModel.title.localizedString)  // Anti-pattern - don't do this!
 Label(try! viewModel.label.localizedString, systemImage: "star")
 
 // ✅ GOOD - Request the proper SwiftUI overload instead
-// File a feature request or enhancement for:
+// The correct solution is to add an init extension like this:
 extension Text {
     public init(_ localizable: Localizable) {
         self.init(localizable.localized)
@@ -802,22 +802,22 @@ extension Label where Title == Text, Icon == Image {
     }
 }
 
-// Then use cleanly in views:
+// Then views use it cleanly without force-unwraps:
 Text(viewModel.title)
 Label(viewModel.label, systemImage: "star")
 ```
 
 **Why this matters:**
 
-FOSMVVM provides `Localizable` protocol for all localized strings with SwiftUI init overloads for common elements like `Text`. However, not every SwiftUI element has an overload yet.
+FOSMVVM provides the `Localizable` protocol for all localized strings and includes SwiftUI init overloads for common elements like `Text`. However, not every SwiftUI element has a `Localizable` overload yet.
 
-When you encounter a SwiftUI element that doesn't accept `Localizable` directly:
+**When you encounter a SwiftUI element that doesn't accept `Localizable` directly:**
 
-1. **DON'T** work around it with `try! localizable.localizedString` - this bypasses the type system and creates force-unwrap calls throughout your codebase
-2. **DO** request that we add the proper init overload to the SwiftUI element
-3. **Pattern:** Overloads are simple extensions that accept `Localizable` and pass `.localized` to the standard init
+1. **DON'T** work around it with `try! localizable.localizedString` - this bypasses the type system and spreads force-unwrap calls throughout the view code
+2. **DO** request that we add the proper init overload to FOSUtilities for that SwiftUI element
+3. **The pattern is simple:** Extensions that accept `Localizable` and pass `.localized` to the standard initializer
 
-This keeps the codebase clean, type-safe, and eliminates force-unwraps from view code.
+This approach keeps the codebase clean, type-safe, and eliminates force-unwraps from view code entirely.
 
 ---
 

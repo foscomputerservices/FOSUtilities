@@ -819,10 +819,14 @@ When you need to embed dynamic values in localized text:
 public struct WelcomeViewModel {
     @LocalizedSubs(substitutions: \.subs) var welcomeMessage
 
-    public let userName: String
+    private let userName: String
+    private let userIndex: LocalizableInt
 
     private var subs: [String: any Localizable] {
-        ["userName": LocalizableString.constant(userName)]
+        [
+            "userName": LocalizableString.constant(userName),
+            "userIndex: userIndex
+        ],
     }
 }
 ```
@@ -830,14 +834,15 @@ public struct WelcomeViewModel {
 ```yaml
 en:
   WelcomeViewModel:
-    welcomeMessage: "Welcome back, %{userName}!"
+    welcomeMessage: "Welcome back, %{userName}:%{userIndex}!"
 
 ja:
   WelcomeViewModel:
-    welcomeMessage: "%{userName}さん、おかえりなさい！"
+    welcomeMessage: "お帰りなさい、%{userName}:%{userIndex}さん！"
 ```
 
-The `%{userName}` substitution point is placed correctly per locale.
+The `%{userName}` and `%{userIndex}` substitution points are placed correctly per locale.
+Use LocalizableInt and not Int to ensure proper localization of numbers in all locales.
 
 ### @LocalizedCompoundString - Composed Text
 
