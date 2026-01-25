@@ -26,15 +26,18 @@ public extension TabContent {
     ///
     /// ```swift
     /// Tab("MyTab", image: "MyTabImage") { Text("Hello World") }
-    ///   .uiTestingIdentifier("signInButton")
+    ///   .uiTestingIdentifier("myTabButton")
     /// ```
     ///
     /// ### XCUITest
     ///
     /// ```swift
     /// private extension XCUIApplication {
-    ///   var signInButton: XCUIElement {
-    ///       buttons.element(matching: .button, identifier: "signInButton")
+    ///   var myTab: XCUIElement {
+    ///       buttons.element(matching: .button, identifier: "myTabButton")
+    ///
+    ///       // Or possibly if button matching won't work -- breaks localization tests, however
+    ///       buttons["MyTab"].firstMatch
     ///   }
     /// }
     /// ```
