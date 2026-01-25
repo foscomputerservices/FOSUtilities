@@ -4,70 +4,71 @@
 // Licensed under the Apache License, Version 2.0
 
 /**
- * WASM Bridge for FOSMVVM React Applications
+ * FOSMVVM WASM Runtime for React Applications
  *
  * Provides JavaScript → Swift WASM communication for ServerRequest processing.
  *
  * Usage:
- *   import { initializeWasmBridge } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
- *
  *   // After WASM module is loaded:
- *   initializeWasmBridge(wasmInstance);
+ *   window.FOSMVVM.initializeWasmRuntime(wasmInstance);
  *
  *   // Then use window.wasm.processRequest():
  *   const viewModel = await window.wasm.processRequest('GetTasksRequest', { status: 'active' });
  */
+
+// Establish FOSMVVM namespace
+window.FOSMVVM = window.FOSMVVM || {};
 
 // ============================================================================
 // Error Types
 // ============================================================================
 
 /**
- * Thrown when WASM module is not loaded or connection failed
+ * Thrown when WASM Runtime is not initialized or connection failed
  */
-export class BridgeConnectionError extends Error {
+window.FOSMVVM.WasmRuntimeConnectionError = class WasmRuntimeConnectionError extends Error {
     constructor(message) {
         super(message);
-        this.name = 'BridgeConnectionError';
+        this.name = 'WasmRuntimeConnectionError';
     }
-}
+};
 
 /**
- * Thrown when WASM function execution fails
+ * Thrown when WASM Runtime function execution fails
  */
-export class BridgeError extends Error {
+window.FOSMVVM.WasmRuntimeError = class WasmRuntimeError extends Error {
     constructor(message, originalError) {
         super(message);
-        this.name = 'BridgeError';
+        this.name = 'WasmRuntimeError';
         this.originalError = originalError;
     }
-}
+};
 
 /**
- * Thrown when network request fails (if using HTTP bridge instead of WASM)
+ * Thrown when network request fails (if using HTTP runtime instead of WASM)
  */
-export class NetworkError extends Error {
+window.FOSMVVM.NetworkError = class NetworkError extends Error {
     constructor(message, status) {
         super(message);
         this.name = 'NetworkError';
         this.status = status;
     }
-}
+};
 
 // ============================================================================
-// WASM Bridge Implementation
+// FOSMVVM WASM Runtime Implementation
 // ============================================================================
 
 let wasmInstance = null;
 let isInitialized = false;
 
 /**
- * Initialize the WASM bridge with a loaded WASM module instance
+ * Initialize the FOSMVVM WASM Runtime with a loaded WASM module instance
  *
  * @param {Object} wasm - The loaded WASM module instance
  * @throws {Error} If wasm instance doesn't have required processRequest function
  */
-export function initializeWasmBridge(wasm) {
+window.FOSMVVM.initializeWasmRuntime = function(wasm) {
     if (!wasm) {
         throw new Error('WASM instance is required');
     }
@@ -86,21 +87,24 @@ export function initializeWasmBridge(wasm) {
 
     window.wasm.processRequest = processRequest;
     window.wasm.isInitialized = () => isInitialized;
-}
+};
 
 /**
- * Process a ServerRequest via WASM bridge
+ * Process a ServerRequest via FOSMVVM WASM Runtime
  *
  * @param {string} requestType - The ServerRequest type name (e.g., "GetTasksRequest")
  * @param {Object} params - Request parameters (query, fragment, or body)
  * @returns {Promise<Object>} Resolves with ViewModel (success or domain error)
- * @throws {BridgeConnectionError} If WASM bridge not initialized
- * @throws {BridgeError} If WASM function execution fails
+ * @throws {WasmRuntimeConnectionError} If WASM Runtime not initialized
+ * @throws {WasmRuntimeError} If WASM Runtime function execution fails
  */
 async function processRequest(requestType, params = {}) {
+    const WasmRuntimeConnectionError = window.FOSMVVM.WasmRuntimeConnectionError;
+    const WasmRuntimeError = window.FOSMVVM.WasmRuntimeError;
+
     if (!isInitialized || !wasmInstance) {
-        throw new BridgeConnectionError(
-            'WASM bridge not initialized. Call initializeWasmBridge(wasm) first.'
+        throw new WasmRuntimeConnectionError(
+            'FOSMVVM WASM Runtime not initialized. Call initializeWasmRuntime(wasm) first.'
         );
     }
 
@@ -121,30 +125,30 @@ async function processRequest(requestType, params = {}) {
 
     } catch (error) {
         // Infrastructure errors are thrown
-        if (error instanceof BridgeConnectionError) {
+        if (error instanceof WasmRuntimeConnectionError) {
             throw error;
         }
 
-        throw new BridgeError(
-            `WASM bridge error processing ${requestType}: ${error.message}`,
+        throw new WasmRuntimeError(
+            `FOSMVVM WASM Runtime error processing ${requestType}: ${error.message}`,
             error
         );
     }
 }
 
 /**
- * Check if WASM bridge is initialized
+ * Check if FOSMVVM WASM Runtime is initialized
  *
- * @returns {boolean} True if bridge is ready to use
+ * @returns {boolean} True if runtime is ready to use
  */
-export function isWasmBridgeInitialized() {
+window.FOSMVVM.isWasmRuntimeInitialized = function() {
     return isInitialized;
-}
+};
 
 /**
- * Reset the WASM bridge (useful for testing)
+ * Reset the FOSMVVM WASM Runtime (useful for testing)
  */
-export function resetWasmBridge() {
+window.FOSMVVM.resetWasmRuntime = function() {
     wasmInstance = null;
     isInitialized = false;
 
@@ -152,23 +156,23 @@ export function resetWasmBridge() {
         delete window.wasm.processRequest;
         delete window.wasm.isInitialized;
     }
-}
+};
 
 // ============================================================================
-// HTTP Fallback Bridge (Optional)
+// HTTP Fallback Runtime (Optional)
 // ============================================================================
 
 /**
- * Initialize HTTP fallback bridge for environments without WASM support
+ * Initialize HTTP fallback runtime for environments without WASM support
  *
  * This provides the same window.wasm.processRequest() API but uses HTTP
  * requests to a Vapor server instead of WASM.
  *
  * @param {string} baseURL - Base URL for ServerRequest endpoints (e.g., "https://api.example.com")
  */
-export function initializeHttpBridge(baseURL) {
+window.FOSMVVM.initializeHttpRuntime = function(baseURL) {
     if (!baseURL) {
-        throw new Error('Base URL is required for HTTP bridge');
+        throw new Error('Base URL is required for HTTP runtime');
     }
 
     isInitialized = true;
@@ -178,6 +182,8 @@ export function initializeHttpBridge(baseURL) {
     }
 
     window.wasm.processRequest = async (requestType, params = {}) => {
+        const NetworkError = window.FOSMVVM.NetworkError;
+
         try {
             // POST to /api/{requestType}
             const url = `${baseURL}/api/${requestType}`;
@@ -214,4 +220,4 @@ export function initializeHttpBridge(baseURL) {
     };
 
     window.wasm.isInitialized = () => isInitialized;
-}
+};

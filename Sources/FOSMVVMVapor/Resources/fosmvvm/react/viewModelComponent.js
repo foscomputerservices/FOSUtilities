@@ -9,9 +9,7 @@
  * Wraps React components to add .bind() method that mirrors SwiftUI's ViewModelView.bind() pattern.
  *
  * Usage:
- *   import { viewModelComponent } from '/fosmvvm/react/viewModelComponent.js';
- *
- *   const TaskList = viewModelComponent(({ viewModel }) => {
+ *   const TaskList = window.FOSMVVM.viewModelComponent(({ viewModel }) => {
  *     return <div>{viewModel.title}</div>;
  *   });
  *
@@ -21,12 +19,17 @@
  *   <TaskList.bind requestType="GetTasksRequest" params={{ status: 'active' }} />
  */
 
-import React, { useState, useEffect } from 'react';
-import {
-    WasmRuntimeConnectionError,
-    WasmRuntimeError,
-    NetworkError
-} from '/fosmvvm/react/fosmvvmWasmRuntime.js';
+// Establish FOSMVVM namespace
+window.FOSMVVM = window.FOSMVVM || {};
+
+// React must be available globally
+const React = window.React;
+const { useState, useEffect } = React;
+
+// Access error classes from FOSMVVM namespace
+const WasmRuntimeConnectionError = window.FOSMVVM.WasmRuntimeConnectionError;
+const WasmRuntimeError = window.FOSMVVM.WasmRuntimeError;
+const NetworkError = window.FOSMVVM.NetworkError;
 
 // ============================================================================
 // Default Loading Component
@@ -77,7 +80,7 @@ const DefaultErrorView = ({ error, retry }) => (
  * @param {React.Component} options.ErrorView - Custom error component for infrastructure errors
  * @returns {React.Component} Wrapped component with .bind() method
  */
-export function viewModelComponent(Component, options = {}) {
+window.FOSMVVM.viewModelComponent = function(Component, options = {}) {
     const {
         LoadingView = DefaultLoadingView,
         ErrorView = DefaultErrorView
@@ -160,7 +163,7 @@ export function viewModelComponent(Component, options = {}) {
     };
 
     return WrappedComponent;
-}
+};
 
 // ============================================================================
 // Utility: Custom Loading/Error Views
@@ -178,21 +181,21 @@ let globalConfig = {
     ErrorView: DefaultErrorView
 };
 
-export function configureViewModelComponent(config) {
+window.FOSMVVM.configureViewModelComponent = function(config) {
     if (config.LoadingView) {
         globalConfig.LoadingView = config.LoadingView;
     }
     if (config.ErrorView) {
         globalConfig.ErrorView = config.ErrorView;
     }
-}
+};
 
 /**
  * Get current global configuration
  */
-export function getViewModelComponentConfig() {
+window.FOSMVVM.getViewModelComponentConfig = function() {
     return { ...globalConfig };
-}
+};
 
 // ============================================================================
 // Utility: Preload ViewModel
@@ -207,7 +210,7 @@ export function getViewModelComponentConfig() {
  * @param {Object} params - Request parameters
  * @returns {Promise<Object>} Resolves with ViewModel
  */
-export async function preloadViewModel(requestType, params = {}) {
+window.FOSMVVM.preloadViewModel = async function(requestType, params = {}) {
     if (!window.wasm || !window.wasm.isInitialized()) {
         throw new WasmRuntimeConnectionError(
             'FOSMVVM WASM Runtime not initialized'
@@ -215,7 +218,7 @@ export async function preloadViewModel(requestType, params = {}) {
     }
 
     return await window.wasm.processRequest(requestType, params);
-}
+};
 
 // ============================================================================
 // Utility: Invalidate Cache (Future)
@@ -228,7 +231,7 @@ export async function preloadViewModel(requestType, params = {}) {
  *
  * @param {string} requestType - ServerRequest type to invalidate
  */
-export function invalidateViewModel(requestType) {
+window.FOSMVVM.invalidateViewModel = function(requestType) {
     // Future: implement cache invalidation
     console.log(`Cache invalidation requested for ${requestType} (not yet implemented)`);
-}
+};

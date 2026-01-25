@@ -268,7 +268,8 @@ describe('{ViewName}View', () => {
 // Copyright (c) 2026 Your Organization. All rights reserved.
 // License: Your License
 
-import { viewModelComponent } from '/fosmvvm/react/viewModelComponent.js';
+// Access viewModelComponent from global FOSMVVM namespace
+const viewModelComponent = window.FOSMVVM.viewModelComponent;
 
 const {ViewName}View = viewModelComponent(({ viewModel }) => {
   // Handle error ViewModels
@@ -327,7 +328,8 @@ export default {ViewName}View;
 // Copyright (c) 2026 Your Organization. All rights reserved.
 // License: Your License
 
-import { viewModelComponent } from '/fosmvvm/react/viewModelComponent.js';
+// Access viewModelComponent from global FOSMVVM namespace
+const viewModelComponent = window.FOSMVVM.viewModelComponent;
 
 const {ViewName}View = viewModelComponent(({ viewModel }) => {
   // Handle error ViewModels
@@ -399,7 +401,8 @@ export default {ViewName}View;
 // Copyright (c) 2026 Your Organization. All rights reserved.
 // License: Your License
 
-import { viewModelComponent } from '/fosmvvm/react/viewModelComponent.js';
+// Access viewModelComponent from global FOSMVVM namespace
+const viewModelComponent = window.FOSMVVM.viewModelComponent;
 import {Entity}CardView from './{Entity}CardView';
 
 const {ViewName}View = viewModelComponent(({ viewModel }) => {
@@ -483,7 +486,8 @@ export default {ViewName}View;
 // License: Your License
 
 import { useState } from 'react';
-import { viewModelComponent } from '/fosmvvm/react/viewModelComponent.js';
+// Access viewModelComponent from global FOSMVVM namespace
+const viewModelComponent = window.FOSMVVM.viewModelComponent;
 
 const {ViewName}View = viewModelComponent(({ viewModel }) => {
   const [formData, setFormData] = useState({
@@ -1038,7 +1042,8 @@ it('calls async operation', async () => {
 ## Pattern: Basic Component Structure
 
 ```jsx
-import { viewModelComponent } from '/fosmvvm/react/viewModelComponent.js';
+// Access viewModelComponent from global FOSMVVM namespace
+const viewModelComponent = window.FOSMVVM.viewModelComponent;
 
 const MyView = viewModelComponent(({ viewModel }) => {
   return <div>{viewModel.title}</div>;
@@ -1108,7 +1113,8 @@ const ListView = viewModelComponent(({ viewModel }) => {
 ## Pattern: Navigation
 
 ```jsx
-import { Link } from '/fosmvvm/react/navigation.js';
+// Access Link from global FOSMVVM namespace
+const Link = window.FOSMVVM.Link;
 
 const MyView = viewModelComponent(({ viewModel }) => {
   return (
@@ -1126,7 +1132,7 @@ const MyView = viewModelComponent(({ viewModel }) => {
 ## Component Checklist
 
 **All Components:**
-- [ ] Imports `viewModelComponent` from `/fosmvvm/react/viewModelComponent.js`
+- [ ] Accesses `viewModelComponent` from `window.FOSMVVM` global namespace
 - [ ] Wrapped with `viewModelComponent()`
 - [ ] Receives `{ viewModel }` prop
 - [ ] Exported as default
@@ -1186,7 +1192,7 @@ Before completing generation, verify:
 
 - [ ] `.test.js` file exists
 - [ ] `.jsx` file exists
-- [ ] Component imports from `/fosmvvm/react/viewModelComponent.js`
+- [ ] Component accesses `viewModelComponent` from `window.FOSMVVM` global namespace
 - [ ] Component wrapped with `viewModelComponent()`
 - [ ] Tests cover success ViewModel
 - [ ] Tests cover error ViewModels
