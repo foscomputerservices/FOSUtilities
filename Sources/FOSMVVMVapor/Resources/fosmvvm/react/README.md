@@ -11,37 +11,37 @@ These utilities enable React components to consume ViewModels via WebAssembly (o
 | File | Purpose |
 |------|---------|
 | `viewModelComponent.js` | Wraps React components to add `.bind()` method |
-| `wasmBridge.js` | Provides `window.wasm.processRequest()` for JavaScript → Swift communication |
+| `fosmvvmWasmRuntime.js` | Provides `window.wasm.processRequest()` for JavaScript → Swift communication |
 
 ## Usage
 
 ### 1. Load Utilities
 
 ```html
-<script type="module" src="/fosmvvm/react/wasmBridge.js"></script>
+<script type="module" src="/fosmvvm/react/fosmvvmWasmRuntime.js"></script>
 <script type="module" src="/fosmvvm/react/viewModelComponent.js"></script>
 ```
 
-### 2. Initialize WASM Bridge
+### 2. Initialize FOSMVVM WASM Runtime
 
 After loading your WASM module:
 
 ```javascript
-import { initializeWasmBridge } from '/fosmvvm/react/wasmBridge.js';
+import { initializeFOSMVVMWasmRuntime } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
 
 // Load your WASM module
 const wasmModule = await loadYourWasmModule();
 
-// Initialize bridge
-initializeWasmBridge(wasmModule);
+// Initialize FOSMVVM WASM Runtime
+initializeFOSMVVMWasmRuntime(wasmModule);
 ```
 
 Or use HTTP fallback:
 
 ```javascript
-import { initializeHttpBridge } from '/fosmvvm/react/wasmBridge.js';
+import { initializeHttpWasmRuntime } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
 
-initializeHttpBridge('https://api.example.com');
+initializeHttpWasmRuntime('https://api.example.com');
 ```
 
 ### 3. Create ViewModelComponent
@@ -87,11 +87,11 @@ function Dashboard() {
 
 ## API Reference
 
-### wasmBridge.js
+### fosmvvmWasmRuntime.js
 
-#### `initializeWasmBridge(wasm)`
+#### `initializeFOSMVVMWasmRuntime(wasm)`
 
-Initialize WASM bridge with loaded WASM module.
+Initialize FOSMVVM WASM Runtime with loaded WASM module.
 
 **Parameters:**
 - `wasm` - WASM module instance that exports `processRequest(requestType, paramsJSON)` function
@@ -101,13 +101,13 @@ Initialize WASM bridge with loaded WASM module.
 
 **Example:**
 ```javascript
-import { initializeWasmBridge } from '/fosmvvm/react/wasmBridge.js';
+import { initializeFOSMVVMWasmRuntime } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
 
 const wasm = await loadWasmModule();
-initializeWasmBridge(wasm);
+initializeFOSMVVMWasmRuntime(wasm);
 ```
 
-#### `initializeHttpBridge(baseURL)`
+#### `initializeHttpWasmRuntime(baseURL)`
 
 Initialize HTTP fallback bridge for environments without WASM support.
 
@@ -116,9 +116,9 @@ Initialize HTTP fallback bridge for environments without WASM support.
 
 **Example:**
 ```javascript
-import { initializeHttpBridge } from '/fosmvvm/react/wasmBridge.js';
+import { initializeHttpWasmRuntime } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
 
-initializeHttpBridge('https://api.example.com');
+initializeHttpWasmRuntime('https://api.example.com');
 ```
 
 #### `window.wasm.processRequest(requestType, params)`
@@ -132,8 +132,8 @@ Process a ServerRequest via WASM or HTTP bridge.
 **Returns:** `Promise<Object>` - Resolves with ViewModel (success or domain error)
 
 **Throws:**
-- `BridgeConnectionError` - WASM bridge not initialized
-- `BridgeError` - WASM function execution failed
+- `WasmRuntimeConnectionError` - WASM bridge not initialized
+- `WasmRuntimeError` - WASM function execution failed
 - `NetworkError` - HTTP request failed (HTTP bridge only)
 
 **Example:**
@@ -145,10 +145,10 @@ const viewModel = await window.wasm.processRequest('GetTasksRequest', {
 
 #### Error Classes
 
-**`BridgeConnectionError`**
+**`WasmRuntimeConnectionError`**
 Thrown when WASM module is not loaded or connection failed.
 
-**`BridgeError`**
+**`WasmRuntimeError`**
 Thrown when WASM function execution fails. Contains `originalError` property.
 
 **`NetworkError`**
@@ -239,8 +239,8 @@ await preloadViewModel('GetTaskRequest', { id: taskId });
 ### Infrastructure Errors vs Domain Errors
 
 **Infrastructure errors** are thrown as JavaScript exceptions:
-- `BridgeConnectionError` - WASM not initialized
-- `BridgeError` - WASM function crashed
+- `WasmRuntimeConnectionError` - WASM not initialized
+- `WasmRuntimeError` - WASM function crashed
 - `NetworkError` - HTTP request failed
 
 These are caught by `viewModelComponent` and shown with `ErrorView`.
@@ -315,16 +315,16 @@ func configure(_ app: Application) throws {
     <div id="root"></div>
 
     <!-- Load FOSMVVM utilities -->
-    <script type="module" src="/fosmvvm/react/wasmBridge.js"></script>
+    <script type="module" src="/fosmvvm/react/fosmvvmWasmRuntime.js"></script>
     <script type="module" src="/fosmvvm/react/viewModelComponent.js"></script>
 
     <!-- Load your WASM module -->
     <script type="module">
-        import { initializeWasmBridge } from '/fosmvvm/react/wasmBridge.js';
+        import { initializeFOSMVVMWasmRuntime } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
 
         // Load WASM
         const wasm = await loadYourWasmModule();
-        initializeWasmBridge(wasm);
+        initializeFOSMVVMWasmRuntime(wasm);
 
         // Now render your React app
         // ...

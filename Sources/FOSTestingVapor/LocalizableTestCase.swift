@@ -22,11 +22,16 @@ import Foundation
 import Vapor
 
 public extension LocalizableTestCase {
+
+    /// The port that the test server runs on
+    var testServerPort: Int { 8888 }
+
     /// Returns a localized *Vapor.Application* to use with tests
     ///
     /// - Parameter localizationStore: The **LocalizationStore** containing localized values to use for the tests (default: self.locStore)
     func vaporApplication(localizationStore: LocalizationStore? = nil) async throws -> Vapor.Application {
-        let result = try await Application.make()
+        let result = try await Application.make(.testing)
+        result.http.server.configuration.port = testServerPort
         result.localizationStore = localizationStore ?? locStore
 
         return result

@@ -103,9 +103,6 @@ let package = Package(
                     .byName(name: "FOSFoundation"),
                     .byName(name: "FOSMacros"),
                     .product(name: "Yams", package: "Yams")
-                ],
-                resources: [
-                    .copy("Resources/React")
                 ]
             ),
             .target(
@@ -184,6 +181,9 @@ let package = Package(
                 .product(name: "FluentKit", package: "fluent-kit", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "LeafKit", package: "leaf-kit", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
+            ],
+            resources: [
+                .copy("Resources/fosmvvm")
             ]
         ))
         result.append(.target(

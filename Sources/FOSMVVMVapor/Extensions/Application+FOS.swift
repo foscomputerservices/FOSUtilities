@@ -100,6 +100,9 @@ private struct YamlLocalizationInitializer: LifecycleHandler {
 
         app.localizationStore = try YamlStore(config: config)
 
+        // Serve FOSMVVM client integration files from FOSMVVMVapor bundle
+        try app.configureFOSMVVMReactResources()
+
         app.logger.info("End: Loading YAML files")
     }
 }
@@ -116,6 +119,29 @@ private struct MVVMEnvironmentInitializer: LifecycleHandler {
         app.logger.info("MVVM Environment WebService: \(serverBaseURL.absoluteString)")
         app.mvvmEnvironment = mvvmEnvironment
         app._serverBaseURL = try await mvvmEnvironment.serverBaseURL
+    }
+}
+
+// MARK: - FOSMVVM Client Resource Serving
+
+private extension Application {
+    /// Configures FileMiddleware to serve FOSMVVM client integration files from the FOSMVVMVapor bundle
+    /// Files are served at /fosmvvm/react/* to match client import paths
+    func configureFOSMVVMReactResources() throws {
+        // Access the FOSMVVMVapor module bundle
+        let bundle = Bundle.module
+
+        let reactResourceURL = bundle.bundleURL.appending(path: "Contents/Resources")
+
+        logger.info("Serving FOSMVVM client resources from: \(reactResourceURL.path)")
+
+        middleware.use(
+            FileMiddleware(
+                publicDirectory: reactResourceURL.path,
+                defaultFile: nil
+            ),
+            at: .end
+        )
     }
 }
 

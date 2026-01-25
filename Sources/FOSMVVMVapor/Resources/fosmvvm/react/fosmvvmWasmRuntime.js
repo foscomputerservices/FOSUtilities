@@ -1,4 +1,4 @@
-// wasmBridge.js
+// fosmvvmWasmRuntime.js
 //
 // Copyright (c) 2026 FOS Computer Services. All rights reserved.
 // Licensed under the Apache License, Version 2.0
@@ -9,7 +9,7 @@
  * Provides JavaScript → Swift WASM communication for ServerRequest processing.
  *
  * Usage:
- *   import { initializeWasmBridge } from '/fosmvvm/react/wasmBridge.js';
+ *   import { initializeWasmBridge } from '/fosmvvm/react/fosmvvmWasmRuntime.js';
  *
  *   // After WASM module is loaded:
  *   initializeWasmBridge(wasmInstance);

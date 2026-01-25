@@ -67,6 +67,32 @@ struct ApplicationFOSAdditionTests: LocalizableTestCase {
         }
     }
 
+    @Test func reactResourcesServed() async throws {
+        let app = try await vaporApplication()
+        defer { Task {
+            try await app.asyncShutdown()
+        }}
+
+        try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
+
+        Task { try await app.execute() }
+
+        sleep(1)
+
+        // Test that React resources are accessible at /fosmvvm/react/
+        let testFiles = ["fosmvvmWasmRuntime.js", "viewModelComponent.js", "fosmvvm.css", "README.md"]
+
+        for fileName in testFiles {
+            try await app.test(.GET, "fosmvvm/react/\(fileName)") { response in
+                #expect(response.status == .ok, "Expected \(fileName) to be served with status 200, got \(response.status)")
+
+                // Verify content is not empty
+                let body = response.body.string
+                #expect(!body.isEmpty, "Expected fosmvvm/react/\(fileName) to have content")
+            }
+        }
+    }
+
     let locStore: LocalizationStore
     init() throws {
         self.locStore = try Self.loadLocalizationStore(

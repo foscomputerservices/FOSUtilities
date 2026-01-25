@@ -23,10 +23,10 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-    BridgeConnectionError,
-    BridgeError,
+    WasmRuntimeConnectionError,
+    WasmRuntimeError,
     NetworkError
-} from '/fosmvvm/react/wasmBridge.js';
+} from '/fosmvvm/react/fosmvvmWasmRuntime.js';
 
 // ============================================================================
 // Default Loading Component
@@ -110,14 +110,14 @@ export function viewModelComponent(Component, options = {}) {
                 setState({ viewModel: null, loading: true, error: null });
 
                 try {
-                    // Check if WASM bridge is initialized
+                    // Check if WASM Runtime is initialized
                     if (!window.wasm || !window.wasm.isInitialized()) {
-                        throw new BridgeConnectionError(
-                            'WASM bridge not initialized. Ensure wasmBridge.js is loaded and initializeWasmBridge() has been called.'
+                        throw new WasmRuntimeConnectionError(
+                            'WASM Runtime not initialized. Ensure fosmvvmWasmRuntime.js is loaded and initializeFOSMVVMWasmRuntime() has been called.'
                         );
                     }
 
-                    // Call WASM bridge to get ViewModel
+                    // Call WASM runtime to get ViewModel
                     const viewModel = await window.wasm.processRequest(requestType, params);
 
                     // ViewModel received (could be success or domain error like NotFoundViewModel)
@@ -125,7 +125,7 @@ export function viewModelComponent(Component, options = {}) {
                     setState({ viewModel, loading: false, error: null });
 
                 } catch (error) {
-                    // Infrastructure errors (BridgeConnectionError, BridgeError, NetworkError)
+                    // Infrastructure errors (WasmRuntimeConnectionError, WasmRuntimeError, NetworkError)
                     // are caught here and shown with ErrorView
                     console.error('ViewModelComponent error:', error);
                     setState({ viewModel: null, loading: false, error });
@@ -209,8 +209,8 @@ export function getViewModelComponentConfig() {
  */
 export async function preloadViewModel(requestType, params = {}) {
     if (!window.wasm || !window.wasm.isInitialized()) {
-        throw new BridgeConnectionError(
-            'WASM bridge not initialized'
+        throw new WasmRuntimeConnectionError(
+            'FOSMVVM WASM Runtime not initialized'
         );
     }
 
