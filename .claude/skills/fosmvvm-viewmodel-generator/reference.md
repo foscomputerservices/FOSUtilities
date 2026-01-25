@@ -192,7 +192,167 @@ public extension {Name}ViewModel {
 
 ---
 
-## Template 4: ViewModelRequest
+## Template 4: ViewModel with Nested Child Types
+
+For ViewModels that contain child types used only by this parent. Shows proper placement, conformances, and two-tier Stubbable pattern.
+
+**Reference:** `Sources/KairosModels/Governance/GovernancePrincipleCardViewModel.swift`
+
+**File:** `Sources/{Module}/{Feature}/{Name}ViewModel.swift`
+
+```swift
+// {Name}ViewModel.swift
+//
+// Copyright 2026 {YourOrganization}
+// Licensed under the Apache License, Version 2.0
+
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+@ViewModel
+public struct {Name}ViewModel: Codable, Sendable, Identifiable {
+    // MARK: - Localized Strings
+
+    @LocalizedString public var {field}Label
+
+    // MARK: - Data Identity
+
+    public let id: ModelIdType
+
+    // MARK: - Content
+
+    public let title: String
+    public let description: String
+
+    // MARK: - Collections (referencing nested types)
+
+    /// Array of child summaries (only populated when expanded).
+    public let childSummaries: [ChildSummary]?
+
+    /// Related items that reference this entity.
+    public let relatedItems: [RelatedItemReference]?
+
+    // MARK: - Nested Types
+
+    /// Summary of a child item for display in lists.
+    public struct ChildSummary: Codable, Sendable, Identifiable, Stubbable {
+        public let id: ModelIdType
+        public let name: String
+        public let createdAt: Date
+
+        public init(id: ModelIdType, name: String, createdAt: Date) {
+            self.id = id
+            self.name = name
+            self.createdAt = createdAt
+        }
+    }
+
+    /// Reference to a related item.
+    public struct RelatedItemReference: Codable, Sendable, Identifiable, Stubbable {
+        public let id: ModelIdType
+        public let title: String
+        public let status: String
+
+        public init(id: ModelIdType, title: String, status: String) {
+            self.id = id
+            self.title = title
+            self.status = status
+        }
+    }
+
+    // MARK: - View Identity
+
+    public let vmId: ViewModelId
+
+    public init(
+        id: ModelIdType,
+        title: String,
+        description: String,
+        childSummaries: [ChildSummary]? = nil,
+        relatedItems: [RelatedItemReference]? = nil
+    ) {
+        self.vmId = .init(id: id)
+        self.id = id
+        self.title = title
+        self.description = description
+        self.childSummaries = childSummaries
+        self.relatedItems = relatedItems
+    }
+}
+
+// MARK: - Parent Stubbable
+
+public extension {Name}ViewModel {
+    // Tier 1: Zero-arg (delegates to tier 2)
+    static func stub() -> Self {
+        .stub(id: .init())
+    }
+
+    // Tier 2: Parameterized with defaults
+    static func stub(
+        id: ModelIdType = .init(),
+        title: String = "A Title",
+        description: String = "A Description",
+        childSummaries: [ChildSummary]? = [.stub()],
+        relatedItems: [RelatedItemReference]? = [.stub()]
+    ) -> Self {
+        .init(
+            id: id,
+            title: title,
+            description: description,
+            childSummaries: childSummaries,
+            relatedItems: relatedItems
+        )
+    }
+}
+
+// MARK: - Nested Type Stubbable Extensions (fully qualified names)
+
+public extension {Name}ViewModel.ChildSummary {
+    // Tier 1: Zero-arg (delegates to tier 2)
+    static func stub() -> Self {
+        .stub(id: .init())
+    }
+
+    // Tier 2: Parameterized with defaults
+    static func stub(
+        id: ModelIdType = .init(),
+        name: String = "A Name",
+        createdAt: Date = .now
+    ) -> Self {
+        .init(id: id, name: name, createdAt: createdAt)
+    }
+}
+
+public extension {Name}ViewModel.RelatedItemReference {
+    // Tier 1: Zero-arg (delegates to tier 2)
+    static func stub() -> Self {
+        .stub(id: .init())
+    }
+
+    // Tier 2: Parameterized with defaults
+    static func stub(
+        id: ModelIdType = .init(),
+        title: String = "A Title",
+        status: String = "Active"
+    ) -> Self {
+        .init(id: id, title: title, status: status)
+    }
+}
+```
+
+**Key Points:**
+- Nested types placed AFTER properties that reference them
+- Nested types placed BEFORE `vmId` and parent init
+- Each nested type conforms to: `Codable, Sendable, Identifiable, Stubbable`
+- Extensions use fully qualified names: `{Parent}.{NestedType}`
+- Two-tier Stubbable: zero-arg always delegates to parameterized
+- Section markers: `// MARK: - Nested Types`
+
+---
+
+## Template 5: ViewModelRequest
 
 For top-level ViewModels - the Request type for fetching from server.
 
@@ -223,7 +383,7 @@ public final class {Name}Request: ViewModelRequest, @unchecked Sendable {
 
 ---
 
-## Template 5: ViewModelFactory
+## Template 6: ViewModelFactory
 
 For top-level ViewModels - builds the ViewModel from database.
 
@@ -266,7 +426,7 @@ extension {Name}ViewModel: VaporViewModelFactory {
 
 ---
 
-## Template 6: Localization YAML
+## Template 7: Localization YAML
 
 **Location:** `{ResourcesPath}/ViewModels/{Feature}/{Name}ViewModel.yml`
 
@@ -287,7 +447,7 @@ Use these templates for standalone apps without a backend server.
 
 ---
 
-## Template 7: Client-Hosted Top-Level ViewModel
+## Template 8: Client-Hosted Top-Level ViewModel
 
 For standalone apps - the macro generates the factory automatically.
 
@@ -379,7 +539,7 @@ extension {Name}ViewModel {
 
 ---
 
-## Template 8: Client-Hosted Complete Example
+## Template 9: Client-Hosted Complete Example
 
 A settings screen for a standalone iPhone app.
 

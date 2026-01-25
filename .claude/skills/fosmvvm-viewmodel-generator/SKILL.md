@@ -342,6 +342,8 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
 | `{Name}ViewModel.swift` | `{ViewModelsTarget}/` | The ViewModel struct |
 | `{Name}ViewModel.yml` | `{ResourcesPath}/` | Localization (if has `@LocalizedString`) |
 
+**Note:** If child is only used by one parent and represents a summary/reference (not a full ViewModel), nest it inside the parent file instead. See **Nested Child Types Pattern** under Key Patterns.
+
 ## Project Structure Configuration
 
 | Placeholder | Description | Example |
@@ -550,6 +552,151 @@ public struct BoardViewModel: RequestableViewModel {
 
 The Factory builds all children when building the parent.
 
+#### Nested Child Types Pattern
+
+When a child type is **only used by one parent** and represents a summary or reference (not a full ViewModel), nest it inside the parent:
+
+```swift
+@ViewModel
+public struct GovernancePrincipleCardViewModel: Codable, Sendable, Identifiable {
+    // Properties come first
+    public let versionHistory: [GovernancePrincipleVersionSummary]?
+    public let referencingDecisions: [GovernanceDecisionReference]?
+
+    // MARK: - Nested Types
+
+    /// Summary of a principle version for display in version history.
+    public struct GovernancePrincipleVersionSummary: Codable, Sendable, Identifiable, Stubbable {
+        public let id: ModelIdType
+        public let version: Int
+        public let createdAt: Date
+
+        public init(id: ModelIdType, version: Int, createdAt: Date) {
+            self.id = id
+            self.version = version
+            self.createdAt = createdAt
+        }
+    }
+
+    /// Reference to a decision that cites this principle.
+    public struct GovernanceDecisionReference: Codable, Sendable, Identifiable, Stubbable {
+        public let id: ModelIdType
+        public let title: String
+        public let decisionNumber: String
+        public let createdAt: Date
+
+        public init(id: ModelIdType, title: String, decisionNumber: String, createdAt: Date) {
+            self.id = id
+            self.title = title
+            self.decisionNumber = decisionNumber
+            self.createdAt = createdAt
+        }
+    }
+
+    // vmId and parent init follow
+    public let vmId: ViewModelId
+    // ...
+}
+```
+
+**Reference:** `Sources/KairosModels/Governance/GovernancePrincipleCardViewModel.swift`
+
+**Placement rules:**
+1. Nested types go AFTER the properties that reference them
+2. Before `vmId` and the parent's init
+3. Use `// MARK: - Nested Types` section marker
+4. Each nested type gets its own doc comment
+
+**Conformances for nested types:**
+- `Codable` - for ViewModel encoding
+- `Sendable` - for Swift 6 concurrency
+- `Identifiable` - for SwiftUI ForEach if used in arrays
+- `Stubbable` - for testing/previews
+
+**Two-Tier Stubbable Pattern:**
+
+Nested types use fully qualified names in their extensions:
+
+```swift
+public extension GovernancePrincipleCardViewModel.GovernancePrincipleVersionSummary {
+    // Tier 1: Zero-arg convenience (ALWAYS delegates to tier 2)
+    static func stub() -> Self {
+        .stub(id: .init())
+    }
+
+    // Tier 2: Full parameterized with defaults
+    static func stub(
+        id: ModelIdType = .init(),
+        version: Int = 1,
+        createdAt: Date = .now
+    ) -> Self {
+        .init(id: id, version: version, createdAt: createdAt)
+    }
+}
+
+public extension GovernancePrincipleCardViewModel.GovernanceDecisionReference {
+    static func stub() -> Self {
+        .stub(id: .init())
+    }
+
+    static func stub(
+        id: ModelIdType = .init(),
+        title: String = "A Title",
+        decisionNumber: String = "DEC-12345",
+        createdAt: Date = .now
+    ) -> Self {
+        .init(id: id, title: title, decisionNumber: decisionNumber, createdAt: createdAt)
+    }
+}
+```
+
+**Why two tiers:**
+- Tests often just need `[.stub()]` without caring about values
+- Other tests need specific values: `.stub(name: "Specific Name")`
+- Zero-arg ALWAYS calls parameterized version (single source of truth)
+
+**When to nest vs keep top-level:**
+
+| Nest Inside Parent | Keep Top-Level |
+|-------------------|----------------|
+| Child is ONLY used by this parent | Child is shared across multiple parents |
+| Child represents subset/summary | Child is a full ViewModel |
+| Child has no @ViewModel macro | Child has @ViewModel macro |
+| Child is not RequestableViewModel | Child is RequestableViewModel |
+| Example: VersionSummary, Reference | Example: CardViewModel, ListViewModel |
+
+**Examples:**
+
+Card with nested summaries:
+```swift
+@ViewModel
+public struct TaskCardViewModel {
+    public let assignees: [AssigneeSummary]?
+
+    public struct AssigneeSummary: Codable, Sendable, Identifiable, Stubbable {
+        public let id: ModelIdType
+        public let name: String
+        public let avatarUrl: String?
+        // ...
+    }
+}
+```
+
+List with nested references:
+```swift
+@ViewModel
+public struct ProjectListViewModel {
+    public let relatedProjects: [ProjectReference]?
+
+    public struct ProjectReference: Codable, Sendable, Identifiable, Stubbable {
+        public let id: ModelIdType
+        public let title: String
+        public let status: String
+        // ...
+    }
+}
+```
+
 ### Codable and Computed Properties
 
 Swift's synthesized `Codable` only encodes **stored properties**. Since ViewModels are serialized (for JSON transport, Leaf rendering, etc.), computed properties won't be available.
@@ -609,3 +756,4 @@ See [reference.md](reference.md) for complete file templates.
 | 2.4 | 2026-01-08 | Added Codable/computed properties section. Clarified when to pre-compute vs use Leaf built-ins. |
 | 2.5 | 2026-01-19 | Added Enum Localization Pattern section. Clarified @LocalizedString is for static text only; stored LocalizableString for dynamic enum values. |
 | 2.6 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.7 | 2026-01-25 | Added Nested Child Types Pattern section with two-tier Stubbable pattern, placement rules, conformances, and decision criteria for when to nest vs keep top-level. |
