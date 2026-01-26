@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if canImport(SwiftUI)
 import SwiftUI
 
 @available(iOS 18.0, macOS 15.0, *)
@@ -54,3 +55,4 @@ public extension TabContent {
         #endif
     }
 }
+#endif
