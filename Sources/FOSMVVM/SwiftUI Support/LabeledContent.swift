@@ -38,7 +38,7 @@ public extension LabeledContent where Label == Text, Content == Text {
     }
 }
 
-public extension LabeledContent where Label == Text {
+public extension LabeledContent where Label == Text, Content: View {
     /// Creates a labeled content component with a title generated from a Localizable
     /// and a custom content view.
     ///
