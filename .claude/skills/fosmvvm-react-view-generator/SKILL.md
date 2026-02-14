@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-react-view-generator
-description: Generate React ViewModelViews following FOSMVVM patterns. Use when creating UI that renders ViewModels in React applications.
+description: Generate React components that render FOSMVVM ViewModels. Scaffolds ViewModelView pattern with hooks, loading states, and TypeScript types.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "⚛️", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM React View Generator
@@ -9,7 +11,7 @@ Generate React components that render FOSMVVM ViewModels.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 In FOSMVVM, **React components are thin rendering layers** that display ViewModels:
 

@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-ui-tests-generator
-description: Generate UI tests for FOSMVVM ViewModelViews using XCTest and FOSTestingUI infrastructure.
+description: Generate UI tests for FOSMVVM SwiftUI views using XCTest and FOSTestingUI. Covers accessibility identifiers, ViewModelOperations, and test data transport.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🖥️", "os": ["darwin"]}}
 ---
 
 # FOSMVVM UI Tests Generator
@@ -9,7 +11,7 @@ Generate comprehensive UI tests for ViewModelViews in FOSMVVM applications.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 UI testing in FOSMVVM follows a specific pattern that leverages:
 - **FOSTestingUI** framework for test infrastructure

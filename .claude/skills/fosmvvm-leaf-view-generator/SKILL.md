@@ -1,13 +1,15 @@
 ---
 name: fosmvvm-leaf-view-generator
-description: Generate Leaf templates (Views) for FOSMVVM WebApps. Use when creating HTML views that render ViewModels - both full-page templates and fragments for HTML-over-the-wire updates.
+description: Generate Leaf templates for FOSMVVM WebApps. Create full-page views and HTML-over-the-wire fragments that render ViewModels.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🍃", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM Leaf View Generator
 
 Generate Leaf templates that render ViewModels for web clients.
 
-> **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 ---
 

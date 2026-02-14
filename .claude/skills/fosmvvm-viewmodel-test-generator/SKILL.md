@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-viewmodel-test-generator
-description: Generate comprehensive ViewModel tests with multi-locale translation verification. Use when creating test coverage for ViewModels, especially those with localization.
+description: Generate ViewModel tests with codable round-trip, versioning stability, and multi-locale translation verification.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🔬", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM ViewModel Test Generator
@@ -9,7 +11,7 @@ Generate test files for ViewModels following FOSMVVM testing patterns.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md#testing-support)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md#testing-support) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 ViewModel testing in FOSMVVM verifies three critical aspects:
 

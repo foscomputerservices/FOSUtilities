@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-viewmodel-generator
-description: Generate FOSMVVM ViewModels - the bridge between server-side data and client-side Views. Use when creating new screens, pages, components, or any UI that displays data.
+description: Generate FOSMVVM ViewModels for SwiftUI screens, pages, and components. Scaffolds RequestableViewModel, localization bindings, and stub factories.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🏗️", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM ViewModel Generator
@@ -9,7 +11,7 @@ Generate ViewModels following FOSMVVM architecture patterns.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 A **ViewModel** is the bridge in the Model-View-ViewModel architecture:
 

@@ -1,13 +1,15 @@
 ---
 name: fosmvvm-serverrequest-generator
-description: Generate ServerRequest types for client-server communication in FOSMVVM. Use when implementing any operation that talks to the server - CRUD operations, data sync, actions, etc. ServerRequest is THE way clients communicate with servers.
+description: Generate FOSMVVM ServerRequest types for CRUD operations and client-server communication. Scaffolds requests, response bodies, and typed error handling.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🔌", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM ServerRequest Generator
 
 Generate ServerRequest types for client-server communication.
 
-> **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 ---
 

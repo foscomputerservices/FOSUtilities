@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-swiftui-app-setup
-description: Set up the main App struct for a FOSMVVM SwiftUI application with MVVMEnvironment, test infrastructure, and environment injection.
+description: Set up the @main App struct for FOSMVVM SwiftUI apps. Configures MVVMEnvironment, deployment URLs, and test infrastructure.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🚀", "os": ["darwin"]}}
 ---
 
 # FOSMVVM SwiftUI App Setup
@@ -9,7 +11,7 @@ Generate the main App struct for a SwiftUI application using FOSMVVM architectur
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 The **App struct** is the entry point of a SwiftUI application. In FOSMVVM, it has three core responsibilities:
 

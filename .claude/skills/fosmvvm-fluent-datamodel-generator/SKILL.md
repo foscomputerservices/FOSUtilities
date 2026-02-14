@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-fluent-datamodel-generator
-description: Generate Fluent DataModels for FOSMVVM server-side persistence. Use when creating new database-backed entities, adding tables, or when the user mentions adding Models like Users, Ideas, Documents, etc. Uses fosmvvm-fields-generator for the Fields layer, then generates Fluent DataModel, migrations, and tests.
+description: Generate Fluent DataModels for FOSMVVM server-side persistence. Scaffolds models, migrations, and tests for database-backed entities.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🗄️", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM Fluent DataModel Generator
@@ -40,7 +42,7 @@ If Fluent isn't present, inform the user: *"This skill generates Fluent DataMode
 
 In FOSMVVM, the **Model** is the center - the source of truth that reads and writes flow through.
 
-See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) for full context.
+See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md) for full context.
 
 ### DataModel in the Architecture
 

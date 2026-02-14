@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-swiftui-view-generator
-description: Generate SwiftUI ViewModelViews following FOSMVVM patterns. Use when creating UI that renders ViewModels in SwiftUI applications.
+description: Generate SwiftUI views that render FOSMVVM ViewModels. Scaffolds ViewModelView pattern with binding, loading states, and previews.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "📱", "os": ["darwin"]}}
 ---
 
 # FOSMVVM SwiftUI View Generator
@@ -9,7 +11,7 @@ Generate SwiftUI views that render FOSMVVM ViewModels.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 In FOSMVVM, **Views are thin rendering layers** that display ViewModels:
 

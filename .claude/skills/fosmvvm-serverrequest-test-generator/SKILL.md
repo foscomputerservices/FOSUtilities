@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-serverrequest-test-generator
-description: Generate comprehensive ServerRequest tests using VaporTesting infrastructure. Use when testing any ServerRequest type (ShowRequest, ViewModelRequest, CreateRequest, UpdateRequest, DeleteRequest) against a Vapor server.
+description: Generate ServerRequest tests using VaporTesting. Covers typed request/response validation for Show, Create, Update, and Delete operations.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "🧪", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM ServerRequest Test Generator
@@ -9,7 +11,7 @@ Generate test files for ServerRequest types using VaporTesting infrastructure.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 ServerRequest testing uses **VaporTesting** infrastructure to send typed requests through the full server stack:
 

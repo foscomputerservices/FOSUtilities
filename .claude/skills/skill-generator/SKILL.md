@@ -1,6 +1,8 @@
 ---
 name: skill-generator
-description: Generate new Claude Code skills following the context-aware pattern. Use when creating skills for code generation, testing, or other development workflows.
+description: Generate new Claude Code skills following the context-aware pattern. Scaffolds SKILL.md, reference docs, and frontmatter.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "⚙️", "os": ["darwin", "linux"]}}
 ---
 
 # Skill Generator
@@ -711,7 +713,7 @@ This skill generates ViewModels for MVVM architecture.
 
 - [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) - Example of context-aware skill
 - [fosmvvm-react-view-generator](../fosmvvm-react-view-generator/SKILL.md) - Another example
-- [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Architecture context
+- [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md) - Architecture context
 
 ---
 

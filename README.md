@@ -137,6 +137,13 @@ This repository includes [Claude Code](https://claude.ai/code) skills for genera
 | `fosmvvm-serverrequest-generator` | Generate ServerRequest types for client-server communication |
 | `fosmvvm-fluent-datamodel-generator` | Generate Fluent DataModels for server-side persistence |
 | `fosmvvm-leaf-view-generator` | Generate Leaf templates for WebApps |
+| `fosmvvm-swiftui-view-generator` | Generate SwiftUI views that render ViewModels |
+| `fosmvvm-react-view-generator` | Generate React components that render ViewModels |
+| `fosmvvm-serverrequest-test-generator` | Generate ServerRequest tests using VaporTesting |
+| `fosmvvm-viewmodel-test-generator` | Generate ViewModel tests with multi-locale verification |
+| `fosmvvm-ui-tests-generator` | Generate UI tests for ViewModelViews |
+| `fosmvvm-swiftui-app-setup` | Set up the main App struct for SwiftUI applications |
+| `skill-generator` | Generate new Claude Code skills |
 
 ### Installation
 
@@ -170,6 +177,46 @@ Add to your project's `.claude/settings.json`:
 ### Architecture Documentation
 
 For detailed FOSMVVM architecture concepts, see [FOSMVVMArchitecture.md](.claude/docs/FOSMVVMArchitecture.md).
+
+## OpenClaw Integration
+
+The FOSMVVM skills are also available for [OpenClaw](https://openclaw.ai) agents via [ClawHub](https://clawhub.com).
+
+### Install from ClawHub
+
+```bash
+clawhub install fosmvvm-viewmodel-generator
+clawhub install fosmvvm-fields-generator
+clawhub install fosmvvm-serverrequest-generator
+clawhub install fosmvvm-fluent-datamodel-generator
+clawhub install fosmvvm-leaf-view-generator
+clawhub install fosmvvm-swiftui-view-generator
+clawhub install fosmvvm-react-view-generator
+clawhub install fosmvvm-serverrequest-test-generator
+clawhub install fosmvvm-viewmodel-test-generator
+clawhub install fosmvvm-ui-tests-generator
+clawhub install fosmvvm-swiftui-app-setup
+```
+
+### Install from Repository
+
+Alternatively, point OpenClaw at this repository's skills directory. Add to `~/.openclaw/openclaw.json`:
+
+```json
+{
+  "skills": {
+    "load": {
+      "extraDirs": ["/path/to/FOSUtilities/.claude/skills"]
+    }
+  }
+}
+```
+
+Or symlink individual skills into your OpenClaw workspace:
+
+```bash
+ln -s /path/to/FOSUtilities/.claude/skills/fosmvvm-viewmodel-generator ~/.openclaw/workspace/skills/
+```
 
 ## FOSTesting
 

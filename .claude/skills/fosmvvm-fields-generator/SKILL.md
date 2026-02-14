@@ -1,6 +1,8 @@
 ---
 name: fosmvvm-fields-generator
-description: Generate FOSMVVM Form Specifications (Fields protocols) with validation and localization. Use when defining user input contracts for forms, request bodies, or any ValidatableModel.
+description: Generate FOSMVVM Fields protocols with validation rules, FormField definitions, and localized messages. Define form contracts once, validate everywhere.
+homepage: https://github.com/foscomputerservices/FOSUtilities
+metadata: {"clawdbot": {"emoji": "📋", "os": ["darwin", "linux"]}}
 ---
 
 # FOSMVVM Fields Generator
@@ -9,7 +11,7 @@ Generate Form Specifications following FOSMVVM patterns.
 
 ## Conceptual Foundation
 
-> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md)
+> For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
 A **Form Specification** (implemented as a `{Name}Fields` protocol) is the **single source of truth** for user input. It answers:
 
