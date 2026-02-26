@@ -41,7 +41,8 @@ import Foundation
 /// ## ViewModelView Form Coordination Example
 ///
 /// A common pattern is using `SyncOperationBus` to coordinate data collection between a parent
-/// `ViewModelView` and multiple child `ViewModelView`s in a complex form:
+/// `ViewModelView` and multiple child `ViewModelView`s in a complex form. The bus is passed to
+/// child views via the SwiftUI Environment for clean dependency injection:
 ///
 /// ```swift
 /// // Shared mutable data structure
@@ -51,15 +52,27 @@ import Foundation
 ///     var preferences: Preferences?
 /// }
 ///
+/// // Environment key for the operation bus
+/// private struct FormSaveBusKey: EnvironmentKey {
+///     static let defaultValue = SyncOperationBus<FormData>()
+/// }
+///
+/// extension EnvironmentValues {
+///     var formSaveBus: SyncOperationBus<FormData> {
+///         get { self[FormSaveBusKey.self] }
+///         set { self[FormSaveBusKey.self] = newValue }
+///     }
+/// }
+///
 /// // Parent ViewModelView
 /// struct ParentFormView: View {
 ///     @State private var saveBus = SyncOperationBus<FormData>()
 ///
 ///     var body: some View {
 ///         VStack {
-///             PersonalInfoView(saveBus: saveBus)
-///             AddressView(saveBus: saveBus)
-///             PreferencesView(saveBus: saveBus)
+///             PersonalInfoView()
+///             AddressView()
+///             PreferencesView()
 ///
 ///             Button("Save") {
 ///                 var formData = FormData()
@@ -67,12 +80,13 @@ import Foundation
 ///                 submitForm(formData)
 ///             }
 ///         }
+///         .environment(\.formSaveBus, saveBus)
 ///     }
 /// }
 ///
 /// // Child ViewModelView
 /// struct PersonalInfoView: View {
-///     let saveBus: SyncOperationBus<FormData>
+///     @Environment(\.formSaveBus) private var saveBus
 ///     @State private var name: String = ""
 ///     @State private var email: String = ""
 ///
@@ -212,7 +226,8 @@ public final class SyncOperationBus<A> {
 /// ## ViewModelView Form Coordination Example
 ///
 /// A common pattern is using `AsyncOperationBus` to coordinate asynchronous data validation and
-/// submission between a parent `ViewModelView` and multiple child `ViewModelView`s in a complex form:
+/// submission between a parent `ViewModelView` and multiple child `ViewModelView`s in a complex form.
+/// The bus is passed to child views via the SwiftUI Environment for clean dependency injection:
 ///
 /// ```swift
 /// // Shared mutable data structure (must be Sendable)
@@ -222,15 +237,27 @@ public final class SyncOperationBus<A> {
 ///     let preferences = Mutex<Preferences?>(nil)
 /// }
 ///
+/// // Environment key for the async operation bus
+/// private struct FormSaveBusKey: EnvironmentKey {
+///     static let defaultValue = AsyncOperationBus<FormData>()
+/// }
+///
+/// extension EnvironmentValues {
+///     var formSaveBus: AsyncOperationBus<FormData> {
+///         get { self[FormSaveBusKey.self] }
+///         set { self[FormSaveBusKey.self] = newValue }
+///     }
+/// }
+///
 /// // Parent ViewModelView
 /// struct ParentFormView: View {
 ///     @State private var saveBus = AsyncOperationBus<FormData>()
 ///
 ///     var body: some View {
 ///         VStack {
-///             PersonalInfoView(saveBus: saveBus)
-///             AddressView(saveBus: saveBus)
-///             PreferencesView(saveBus: saveBus)
+///             PersonalInfoView()
+///             AddressView()
+///             PreferencesView()
 ///
 ///             Button("Save") {
 ///                 Task {
@@ -240,12 +267,13 @@ public final class SyncOperationBus<A> {
 ///                 }
 ///             }
 ///         }
+///         .environment(\.formSaveBus, saveBus)
 ///     }
 /// }
 ///
 /// // Child ViewModelView
 /// struct PersonalInfoView: View {
-///     let saveBus: AsyncOperationBus<FormData>
+///     @Environment(\.formSaveBus) private var saveBus
 ///     @State private var name: String = ""
 ///     @State private var email: String = ""
 ///
