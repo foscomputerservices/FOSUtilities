@@ -84,6 +84,12 @@ public extension LocalizableCompoundValue {
         }
     }
 
+    var localizedArray: [String] {
+        get throws {
+            try pieces.localizedArray
+        }
+    }
+
     // MARK: Codable Protocol
 
     init(from decoder: any Decoder) throws {

@@ -58,6 +58,28 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(try constant.localizedString == constStr)
     }
 
+    // MARK: localizedArray (default implementation)
+
+    @Test func localizedArray_empty() throws {
+        let empty = LocalizableString.empty
+        #expect(try empty.localizedArray == [""])
+    }
+
+    @Test func localizedArray_constant() throws {
+        let constant = LocalizableString.constant("Hello")
+        let array = try constant.localizedArray
+        #expect(array.count == 1)
+        #expect(array.first == "Hello")
+    }
+
+    @Test func localizedArray_localized() throws {
+        let localized = LocalizableString.localized(key: "test")
+        let decoded: LocalizableString = try localized.toJSON(encoder: encoder()).fromJSON()
+        let array = try decoded.localizedArray
+        #expect(array.count == 1)
+        #expect(array.first == "Test")
+    }
+
     @Test func localizable_Localized() throws {
         let localized = LocalizableString.localized(key: "test")
         #expect(localized.localizationStatus == .localizationPending)

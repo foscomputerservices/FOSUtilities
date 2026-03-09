@@ -52,11 +52,24 @@ public protocol Localizable: Codable, Hashable, Identifiable, Sendable, Stubbabl
 
     /// - Returns: A localized **String** version of the localizable type
     var localizedString: String { get throws }
+
+    /// For compound types (e.g. ``LocalizableCompoundValue``), this returns
+    /// each piece separately without joining. For simple types, returns a
+    /// single-element array containing ``localizedString``.
+    ///
+    /// - Returns: An array of individually localized **String** segments
+    var localizedArray: [String] { get throws }
 }
 
 extension Localizable {
     func defaultedLocalizedString(defaultValue: String? = nil) -> String {
         (try? localizedString) ?? defaultValue ?? "<missing>"
+    }
+}
+
+public extension Localizable {
+    var localizedArray: [String] {
+        get throws { [try localizedString] }
     }
 }
 

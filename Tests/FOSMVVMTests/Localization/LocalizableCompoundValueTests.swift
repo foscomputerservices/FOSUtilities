@@ -115,6 +115,49 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(try compVal.localizedString == "foo.bar")
     }
 
+    // MARK: localizedArray
+
+    @Test func localizedArray_constant_single() throws {
+        let str = LocalizableString.constant("foo")
+        let compVal = LocalizableCompoundValue(pieces: [str])
+
+        let array = try compVal.localizedArray
+        #expect(array.count == 1)
+        #expect(array.first == "foo")
+    }
+
+    @Test func localizedArray_constant_compound() throws {
+        let str1 = LocalizableString.constant("foo")
+        let str2 = LocalizableString.constant("bar")
+        let sep = LocalizableString.constant(".")
+        let compVal = LocalizableCompoundValue(pieces: [str1, str2], separator: sep)
+
+        // localizedArray returns individual pieces, ignoring separator
+        let array = try compVal.localizedArray
+        #expect(array.count == 2)
+        #expect(array == ["foo", "bar"])
+    }
+
+    @Test func localizedArray_localized() throws {
+        let str1 = LocalizableString.localized(key: "test")
+        let str2 = LocalizableString.localized(key: "carHood")
+        let sep = LocalizableString.localized(key: "separator")
+        let compVal = LocalizableCompoundValue(pieces: [str1, str2], separator: sep)
+
+        let decoded: LocalizableCompoundValue<LocalizableString> =
+            try compVal
+                .toJSON(encoder: encoder(locale: enGB))
+                .fromJSON()
+
+        // localizedArray returns pieces without joining
+        let array = try decoded.localizedArray
+        #expect(array.count == 2)
+        #expect(array == ["Test", "Bonnet"])
+
+        // localizedString joins them with separator
+        #expect(try decoded.localizedString == "Test.Bonnet")
+    }
+
     @Test func localizable_localizedString_pending() throws {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
