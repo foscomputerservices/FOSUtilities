@@ -165,6 +165,7 @@ public extension RetrievablePropertyNames {
     // NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedString = _LocalizedProperty<Self, LocalizableString>
     typealias LocalizedInt = _LocalizedProperty<Self, LocalizableInt>
+    typealias LocalizedDouble = _LocalizedProperty<Self, LocalizableDouble>
     typealias LocalizedCompoundString = _LocalizedProperty<Self, LocalizableCompoundValue<LocalizableString>>
     typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
@@ -303,6 +304,40 @@ public extension RetrievablePropertyNames {
             value: value ?? 0,
             showGroupingSeparator: showGroupingSeparator,
             groupingSize: groupingSize
+        )
+        self.bindWrappedValue = nil
+        self.vFirst = vFirst ?? .vInitial
+        self.vLast = vLast
+    }
+
+    /// Initializes the ``LocalizedDouble`` property wrapper
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @ViewModel struct MyViewModel {
+    ///     @LocalizedDouble(value: 3.14159, maximumFractionDigits: 5) var pi
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - value: If provided, a default value for the property (default: 0.0)
+    ///   - showGroupingSeparator: When the value is displayed, whether to display digits
+    ///      separated with the grouping separator (default: true)
+    ///   - groupingSize: The number of digits in the group, if showing a grouping
+    ///      separator (default: 3)
+    ///   - minimumFractionDigits: The minimum number of digits after the decimal point (default: 0)
+    ///   - maximumFractionDigits: The maximum number of digits after the decimal point (default: 2)
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
+    public init(value: Double? = nil, showGroupingSeparator: Bool = true, groupingSize: Int = 3, minimumFractionDigits: Int = 0, maximumFractionDigits: Int = 2, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableDouble {
+        self.localizationId = .random(length: 10)
+        self.wrappedValue = .init(
+            value: value ?? 0.0,
+            showGroupingSeparator: showGroupingSeparator,
+            groupingSize: groupingSize,
+            minimumFractionDigits: minimumFractionDigits,
+            maximumFractionDigits: maximumFractionDigits
         )
         self.bindWrappedValue = nil
         self.vFirst = vFirst ?? .vInitial
