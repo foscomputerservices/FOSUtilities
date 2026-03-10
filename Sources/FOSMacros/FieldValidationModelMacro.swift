@@ -50,6 +50,7 @@ public struct FieldValidationModelMacro: ExtensionMacro, MemberMacro {
         // _LocalizedProperty
         "LocalizedString",
         "LocalizedInt",
+        "LocalizedDouble",
         "LocalizedCompoundString",
         "LocalizedSubs",
 

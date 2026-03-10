@@ -43,6 +43,12 @@ extension LocalizableInt: LeafDataRepresentable {
     }
 }
 
+extension LocalizableDouble: LeafDataRepresentable {
+    public var leafData: LeafData {
+        .string((try? localizedString) ?? "")
+    }
+}
+
 extension LocalizableArray: LeafDataRepresentable {
     public var leafData: LeafData {
         .string((try? localizedString) ?? "")

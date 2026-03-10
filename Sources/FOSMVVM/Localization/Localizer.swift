@@ -53,9 +53,9 @@ extension Locale {
             return try localize(subs, localizationStore: localizationStore)
         } else if let int = localizable as? LocalizableInt {
             return localize(int)
-        } /* else if let double = localizable as? LocalizableDouble {
-         return try localize(double)
-         } */ else if let date = localizable as? LocalizableDate {
+        } else if let double = localizable as? LocalizableDouble {
+            return localize(double)
+        } else if let date = localizable as? LocalizableDate {
             return localize(date)
         } else {
             throw LocalizerError.unknownLocalizationType(
@@ -158,25 +158,16 @@ private extension Locale {
         return intFormatter.string(from: NSNumber(value: locInt.value))
     }
 
-    #if later
     private func localize(_ locDouble: LocalizableDouble) -> String? {
         let numFmt = doubleFormatter(
+            showGroupingSeparator: locDouble.showGroupingSeparator,
+            groupingSize: locDouble.groupingSize,
             minimumFractionDigits: locDouble.minimumFractionDigits,
             maximumFractionDigits: locDouble.maximumFractionDigits
         )
 
         return numFmt.string(from: NSNumber(value: locDouble.value))
     }
-
-    private func localize(_ locCurrency: LocalizableCurrency) -> String? {
-        let numFmt = currencyFormatter(
-            minimumFractionDigits: locCurrency.minimumFractionDigits,
-            maximumFractionDigits: locCurrency.maximumFractionDigits
-        )
-
-        return numFmt.string(from: NSNumber(value: locCurrency.value))
-    }
-    #endif
 
     private func localize(_ locDate: LocalizableDate) -> String? {
         let dateFmt = dateFormatter(
@@ -204,17 +195,12 @@ private extension Locale {
     func doubleFormatter(showGroupingSeparator: Bool, groupingSize: Int, minimumFractionDigits: Int, maximumFractionDigits: Int) -> NumberFormatter {
         let numFmt = NumberFormatter()
         numFmt.allowsFloats = true
-        numFmt.alwaysShowsDecimalSeparator = minimumFractionDigits > 0
+        numFmt.alwaysShowsDecimalSeparator = false
         if let groupingSeparator {
             numFmt.groupingSeparator = groupingSeparator
         }
-
-        #if os(macOS) || os(Linux)
-        numFmt.hasThousandSeparators = true
-        if let decimalSeparator {
-            numFmt.thousandSeparator = decimalSeparator
-        }
-        #endif
+        numFmt.usesGroupingSeparator = showGroupingSeparator
+        numFmt.groupingSize = groupingSize
         numFmt.minimumFractionDigits = minimumFractionDigits
         numFmt.maximumFractionDigits = maximumFractionDigits
 
