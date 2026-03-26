@@ -22,7 +22,6 @@ import Foundation
 import Testing
 import Vapor
 
-@Suite("JSON Encoder Error Vapor Tests")
 struct JSONEncoderVaporTests: LocalizableTestCase {
     // MARK: Vapor Tests
 

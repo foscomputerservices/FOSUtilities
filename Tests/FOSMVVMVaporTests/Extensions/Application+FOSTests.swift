@@ -22,7 +22,6 @@ import Foundation
 import Testing
 import Vapor
 
-@Suite("FOS Vapor Application Additions Tests")
 struct ApplicationFOSAdditionTests: LocalizableTestCase {
     @Test func localizationStore() async throws {
         let app = try await vaporApplication()

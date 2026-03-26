@@ -126,7 +126,7 @@ public extension Collection<FormFieldBase> {
 ///     )}
 /// }
 /// ```
-public struct FormField<Value>: FormFieldBase, Sendable where Value: Codable & Hashable {
+public struct FormField<Value: Codable & Hashable>: FormFieldBase, Sendable {
     // MARK: FormFieldBase Protocol
 
     public let fieldId: FormFieldIdentifier
@@ -241,8 +241,7 @@ private extension FormField {
            }) == 0 {
             options.append(FormInputOption<Value>.size(value: inputType == .date
                     ? FormInputOption<Value>.defaultDateSize
-                    : FormInputOption<Value>.defaultDateTimeSize
-            ))
+                    : FormInputOption<Value>.defaultDateTimeSize))
         }
 
         return options
@@ -253,7 +252,7 @@ private extension FormField {
 import UIKit
 
 public extension FormField {
-    // Maps the `FormInputType` to the `UITextConteType` for the field, if one is available
+    /// Maps the `FormInputType` to the `UITextConteType` for the field, if one is available
     var textContentType: UITextContentType? {
         switch type {
         case .text(let inputType): inputType.textContentType
@@ -268,7 +267,7 @@ public extension FormField {
 import WatchKit
 
 public extension FormField {
-    // Maps the `FormInputType` to the `WKTextContentType` for the field, if one is available
+    /// Maps the `FormInputType` to the `WKTextContentType` for the field, if one is available
     var textContentType: WKTextContentType? {
         switch type {
         case .text(let inputType): inputType.textContentType

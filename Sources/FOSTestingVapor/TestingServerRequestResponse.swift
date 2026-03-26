@@ -148,7 +148,7 @@ public extension Encodable {
 }
 
 public extension ByteBuffer {
-    func fromJSON<T>(decoder: JSONDecoder? = nil) throws -> T where T: Decodable {
+    func fromJSON<T: Decodable>(decoder: JSONDecoder? = nil) throws -> T {
         let data: Data = withUnsafeReadableBytes {
             Data(UnsafeRawBufferPointer($0))
         }

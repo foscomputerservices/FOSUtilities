@@ -88,7 +88,9 @@ public extension ServerRequest {
             .trimmingCharacters(in: .init(charactersIn: "_"))
     }
 
-    static var baseTypeName: String { "" }
+    static var baseTypeName: String {
+        ""
+    }
 }
 
 public extension URL {
@@ -116,15 +118,21 @@ public extension URL {
 }
 
 public extension ServerRequest where Query == EmptyQuery {
-    var query: EmptyQuery? { .init() }
+    var query: EmptyQuery? {
+        .init()
+    }
 }
 
 public extension ServerRequest where Fragment == EmptyFragment {
-    var fragment: EmptyFragment? { .init() }
+    var fragment: EmptyFragment? {
+        .init()
+    }
 }
 
 public extension ServerRequest where RequestBody == EmptyBody {
-    var requestBody: EmptyBody? { .init() }
+    var requestBody: EmptyBody? {
+        .init()
+    }
 }
 
 public extension ServerRequest where ResponseBody == EmptyBody {
@@ -202,12 +210,29 @@ public enum ServerRequestAction: String, Codable, CaseIterable, Hashable, Sendab
     /// - Note: Creates a **PUT** HTTP Request
     case replace
 
-    public static var GET: Self { .show }
-    public static var POST: Self { .create }
-    public static var PUT: Self { .replace }
-    public static var PATCH: Self { .update }
-    public static var DELETE: Self { .delete }
-    public static var DESTROY: Self { .destroy }
+    public static var GET: Self {
+        .show
+    }
+
+    public static var POST: Self {
+        .create
+    }
+
+    public static var PUT: Self {
+        .replace
+    }
+
+    public static var PATCH: Self {
+        .update
+    }
+
+    public static var DELETE: Self {
+        .delete
+    }
+
+    public static var DESTROY: Self {
+        .destroy
+    }
 }
 
 /// Data that will be encoded into the HTTP Query
@@ -273,7 +298,9 @@ public extension ServerRequestBody {
         Self.bodyPath(for: Self.self)
     }
 
-    static var maxBodySize: ServerRequestBodySize? { nil }
+    static var maxBodySize: ServerRequestBodySize? {
+        nil
+    }
 
     static func bodyPath<Model: ServerRequestBody>(for model: Model.Type) -> String {
         let path = String(describing: Model.self)
@@ -304,7 +331,9 @@ public extension ServerRequestBody {
 public struct EmptyBody: ServerRequestBody {
     public init() {}
 
-    public static var bodyPath: String { "" }
+    public static var bodyPath: String {
+        ""
+    }
 }
 
 /// Represents a byte size for request body collection limits

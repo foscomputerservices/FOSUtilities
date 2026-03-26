@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("JSON Encoder Error Tests")
 struct JSONEncoderTests: LocalizableTestCase {
     // NOTE: These methods are internal methods to the JSONEncoder implementation.
     //   The tests here validate that the internal implementation is working as expected.
@@ -28,7 +27,7 @@ struct JSONEncoderTests: LocalizableTestCase {
 
     // MARK: Simple Tests
 
-    @Test func localizeString() async throws {
+    @Test func localizeString() throws {
         let encoder = JSONEncoder.localizingEncoder(locale: Self.en, localizationStore: locStore)
         let localizableString = LocalizableString.localized(.value(key: "test"))
         let string: LocalizableString = try localizableString.toJSON(encoder: encoder).fromJSON()
@@ -36,7 +35,7 @@ struct JSONEncoderTests: LocalizableTestCase {
         #expect(try string.localizedString == "Test")
     }
 
-    @Test func localizeArray() async throws {
+    @Test func localizeArray() throws {
         let encoder = JSONEncoder.localizingEncoder(locale: Self.en, localizationStore: locStore)
         let localizableArray = LocalizableArray<LocalizableString>.localized(.value(key: "stringArray"))
         let array: LocalizableArray<LocalizableString> = try localizableArray.toJSON(encoder: encoder).fromJSON()
@@ -47,7 +46,7 @@ struct JSONEncoderTests: LocalizableTestCase {
 
     // MARK: Error Tests
 
-    @Test func localizeStringLocaleMissing() async throws {
+    @Test func localizeStringLocaleMissing() throws {
         let string = LocalizableString.localized(.value(key: "missing"))
 
         #expect(throws: LocalizerError.self) {
@@ -55,7 +54,7 @@ struct JSONEncoderTests: LocalizableTestCase {
         }
     }
 
-    @Test func localizeArrayLocaleMissing() async throws {
+    @Test func localizeArrayLocaleMissing() throws {
         let array = LocalizableArray<LocalizableString>.localized(.value(key: "missing"))
 
         #expect(throws: LocalizerError.self) {

@@ -16,6 +16,13 @@
 
 import Foundation
 
+/// Thread-safe box for passing results across concurrency boundaries.
+/// Safety is ensured by the `DispatchSemaphore` in `Task.synchronous` —
+/// the write completes and signals before the read occurs after `wait()`.
+private final class ResultBox<T>: @unchecked Sendable {
+    var value: T?
+}
+
 public extension Task where Failure == Error {
     /// Performs an async task in a synchronous context
     ///
@@ -27,11 +34,11 @@ public extension Task where Failure == Error {
     /// ## Example
     ///
     /// ```swift
-    /// func asyncFuncCall() async {}
+    /// func asyncFuncCall() async throws {}
     ///
-    /// func syncFunc() {
-    ///     Task.synchronous {
-    ///         await asyncFuncCall()
+    /// func syncFunc() throws {
+    ///     try Task.synchronous {
+    ///         try await asyncFuncCall()
     ///     }
     ///
     ///     // continue ...
@@ -40,15 +47,21 @@ public extension Task where Failure == Error {
     static func synchronous(
         priority: TaskPriority? = nil,
         operation: @escaping @Sendable () async throws -> Success
-    ) {
+    ) throws {
         let semaphore = DispatchSemaphore(value: 0)
+        let box = ResultBox<Error>()
 
-        Task(priority: priority) {
-            defer { semaphore.signal() }
-            return try await operation()
+        Task<Void, Never>.detached(priority: priority) {
+            do {
+                _ = try await operation()
+            } catch {
+                box.value = error
+            }
+            semaphore.signal()
         }
 
         semaphore.wait()
+        if let error = box.value { throw error }
     }
 }
 
@@ -63,11 +76,11 @@ public extension Task where Failure == Error, Success == Void {
     /// ## Example
     ///
     /// ```swift
-    /// func asyncFuncCall() async -> Int {}
+    /// func asyncFuncCall() async throws -> Int { 42 }
     ///
-    /// func syncFunc() {
-    ///     let value = Task.synchronous {
-    ///         await asyncFuncCall()
+    /// func syncFunc() throws {
+    ///     let value = try Task.synchronous {
+    ///         try await asyncFuncCall()
     ///     }
     ///
     ///     // continue ...
@@ -76,17 +89,21 @@ public extension Task where Failure == Error, Success == Void {
     static func synchronous<R: Sendable>(
         priority: TaskPriority? = nil,
         operation: @escaping @Sendable () async throws -> R
-    ) -> R {
+    ) throws -> R {
         let semaphore = DispatchSemaphore(value: 0)
+        let box = ResultBox<Result<R, Error>>()
 
-        var result: R!
-
-        Task(priority: priority) {
-            defer { semaphore.signal() }
-            result = try await operation()
+        Task<Void, Never>.detached(priority: priority) {
+            do {
+                let value = try await operation()
+                box.value = .success(value)
+            } catch {
+                box.value = .failure(error)
+            }
+            semaphore.signal()
         }
 
         semaphore.wait()
-        return result
+        return try box.value!.get()
     }
 }

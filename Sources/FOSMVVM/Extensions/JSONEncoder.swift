@@ -265,7 +265,7 @@ private extension Encodable {
     }
 }
 
-// Restating from JSONEncoder
+/// Restating from JSONEncoder
 extension LocalizingEncoder: @unchecked Sendable {}
 
 private extension Encoder {
@@ -297,7 +297,9 @@ extension Encoder {
         return registry.model(for: type, at: codingPath)
     }
 
-    var propertyNameBindings: [LocalizableId: String]? { userInfo[.propertyNamesKey] as? [LocalizableId: String] }
+    var propertyNameBindings: [LocalizableId: String]? {
+        userInfo[.propertyNamesKey] as? [LocalizableId: String]
+    }
 }
 
 extension JSONEncoder {
@@ -392,5 +394,7 @@ private extension CodingUserInfoKey {
 }
 
 private struct ___Model: RetrievablePropertyNames {
-    func propertyNames() -> [LocalizableId: String] { [:] }
+    func propertyNames() -> [LocalizableId: String] {
+        [:]
+    }
 }

@@ -23,7 +23,11 @@ import FOSFoundation
 public protocol DeleteRequest: ServerRequest, Stubbable {}
 
 public extension DeleteRequest {
-    static var baseTypeName: String { "DeleteRequest" }
+    static var baseTypeName: String {
+        "DeleteRequest"
+    }
 
-    var action: ServerRequestAction { .delete }
+    var action: ServerRequestAction {
+        .delete
+    }
 }

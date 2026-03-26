@@ -70,7 +70,7 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - viewModel: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    func expectTranslations<Model>(_ viewModelType: Model.Type, locales: Set<Locale>? = nil) throws where Model: RetrievablePropertyNames & Stubbable {
+    func expectTranslations<Model: RetrievablePropertyNames & Stubbable>(_ viewModelType: Model.Type, locales: Set<Locale>? = nil) throws {
         for locale in locales ?? self.locales {
             let encoder = encoder(locale: locale)
             let model: Model = try viewModelType.stub()
@@ -100,7 +100,7 @@ public extension LocalizableTestCase {
         }
     }
 
-    func expectTranslations<L>(_ localizable: L, locales: Set<Locale>? = nil) throws where L: Localizable {
+    func expectTranslations<L: Localizable>(_ localizable: L, locales: Set<Locale>? = nil) throws {
         for locale in locales ?? self.locales {
             let encoder = encoder(locale: locale)
             let localized: L = try localizable

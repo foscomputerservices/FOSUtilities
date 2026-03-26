@@ -46,7 +46,7 @@ public protocol ViewModelFactory where Self: ViewModel {
     static func model(context: Context) async throws -> Self
 }
 
-public struct ClientHostedModelFactoryContext<Request: ViewModelRequest, AppState>: ViewModelFactoryContext where AppState: Sendable {
+public struct ClientHostedModelFactoryContext<Request: ViewModelRequest, AppState: Sendable>: ViewModelFactoryContext {
     public let locale: Locale
     public let localizationStore: LocalizationStore
     public let vmRequest: Request
@@ -110,7 +110,7 @@ public extension ClientHostedViewModelFactory where Self == Request.ResponseBody
         context: ClientHostedModelFactoryContext<Request, AppState>,
         vmRequest: Request
     ) throws -> Self where AppState: Sendable {
-        let model: Self = Task.synchronous {
+        let model: Self = try Task.synchronous {
             try await Self.model(context: context)
         }
 

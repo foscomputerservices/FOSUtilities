@@ -73,7 +73,7 @@ public extension Collection<Bundle> {
     }
 }
 
-package struct YamlStoreConfig: Sendable { // Internal for testing
+package struct YamlStoreConfig { // Internal for testing
     let searchPaths: [URL]
 
     fileprivate func localizationStore() throws -> LocalizationStore {

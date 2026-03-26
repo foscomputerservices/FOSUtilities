@@ -19,7 +19,6 @@ import FOSMVVM
 import Foundation
 import Testing
 
-@Suite("LocalizableRef Tests")
 struct LocalizableRefTests {
     // MARK: Initialization Methods
 

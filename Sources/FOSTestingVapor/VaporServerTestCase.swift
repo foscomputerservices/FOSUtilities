@@ -21,7 +21,7 @@ import FOSFoundation
 import Foundation
 import Vapor
 
-public final class VaporServerRequestTest<Request>: AnyObject, Sendable where Request: ServerRequest, Request.ResponseBody: VaporViewModelFactory {
+public final class VaporServerRequestTest<Request: ServerRequest>: AnyObject, Sendable where Request.ResponseBody: VaporViewModelFactory {
     private let vaporApp: Vapor.Application
 
     public init(for request: Request.Type, bundle: Bundle, resourceDirectoryName: String = "Resources") async throws {

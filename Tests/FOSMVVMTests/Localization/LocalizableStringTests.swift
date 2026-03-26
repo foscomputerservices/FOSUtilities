@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Sting Tests")
 struct LocalizableStringTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
@@ -172,7 +171,7 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     // MARK: Hashable Protocol
 
-    @Test func hashable_empty() throws {
+    @Test func hashable_empty() {
         let empty = LocalizableString.empty
         let const = LocalizableString.constant("42")
 
@@ -183,7 +182,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(dict[empty] == 42)
     }
 
-    @Test func hashable_constant() throws {
+    @Test func hashable_constant() {
         let empty = LocalizableString.empty
         let const = LocalizableString.constant("42")
 
@@ -194,7 +193,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         #expect(dict[const] == 43)
     }
 
-    @Test func hashable_localized() throws {
+    @Test func hashable_localized() {
         let localized = LocalizableString.localized(key: "test")
         let const = LocalizableString.constant("42")
 

@@ -1,6 +1,6 @@
 // ModelRegistryTests.swift
 //
-// Copyright 2025 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import Testing
 /// The ModelRegistry tracks ViewModel instances by their path in the object graph,
 /// enabling correct model lookup during nested encoding when multiple instances
 /// of the same ViewModel type exist.
-@Suite("Model Registry Path Resolution Tests")
 struct ModelRegistryTests: LocalizableTestCase {
     // MARK: - Direct Property Lookup Tests
 
@@ -168,15 +167,19 @@ struct ModelRegistryTests: LocalizableTestCase {
 private struct SingleSubsViewModel: ViewModel {
     @LocalizedSubs(substitutions: \.subs) var label
 
-    var subs: [String: any Localizable] { [
-        "value": LocalizableInt(value: value)
-    ] }
+    var subs: [String: any Localizable] {
+        [
+            "value": LocalizableInt(value: value)
+        ]
+    }
 
     var vmId: ViewModelId
 
     private let value: Int
 
-    static func stub() -> Self { stub(value: 42) }
+    static func stub() -> Self {
+        stub(value: 42)
+    }
 
     static func stub(value: Int) -> Self {
         .init(vmId: .init(type: Self.self), value: value)
@@ -190,7 +193,9 @@ private struct ArrayContainerViewModel: ViewModel {
 
     var vmId: ViewModelId
 
-    static func stub() -> Self { stub(values: [1, 2, 3]) }
+    static func stub() -> Self {
+        stub(values: [1, 2, 3])
+    }
 
     static func stub(values: [Int]) -> Self {
         .init(
@@ -224,7 +229,9 @@ private struct TwoLevelNestingViewModel: ViewModel {
 
     var vmId: ViewModelId
 
-    static func stub() -> Self { stub(innerValue: 42) }
+    static func stub() -> Self {
+        stub(innerValue: 42)
+    }
 
     static func stub(innerValue: Int) -> Self {
         .init(child: .stub(value: innerValue), vmId: .init())
@@ -235,15 +242,19 @@ private struct TwoLevelNestingViewModel: ViewModel {
 private struct Level3ViewModel: ViewModel {
     @LocalizedSubs(substitutions: \.subs) var label
 
-    var subs: [String: any Localizable] { [
-        "value": LocalizableInt(value: value)
-    ] }
+    var subs: [String: any Localizable] {
+        [
+            "value": LocalizableInt(value: value)
+        ]
+    }
 
     var vmId: ViewModelId
 
     private let value: Int
 
-    static func stub() -> Self { stub(value: 42) }
+    static func stub() -> Self {
+        stub(value: 42)
+    }
 
     static func stub(value: Int) -> Self {
         .init(vmId: .init(type: Self.self), value: value)
@@ -257,7 +268,9 @@ private struct Level2ViewModel: ViewModel {
 
     var vmId: ViewModelId
 
-    static func stub() -> Self { stub(deepValue: 42) }
+    static func stub() -> Self {
+        stub(deepValue: 42)
+    }
 
     static func stub(deepValue: Int) -> Self {
         .init(level3: .stub(value: deepValue), vmId: .init())
@@ -271,7 +284,9 @@ private struct ThreeLevelNestingViewModel: ViewModel {
 
     var vmId: ViewModelId
 
-    static func stub() -> Self { stub(deepValue: 42) }
+    static func stub() -> Self {
+        stub(deepValue: 42)
+    }
 
     static func stub(deepValue: Int) -> Self {
         .init(level2: .stub(deepValue: deepValue), vmId: .init())

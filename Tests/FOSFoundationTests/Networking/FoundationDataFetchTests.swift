@@ -23,14 +23,15 @@ import Testing
 import FoundationNetworking
 #endif
 
-@Suite("Foundation Data Fetch Test", .tags(.networking, .json))
+@Suite(.tags(.networking, .json))
 struct FoundationDataFetchTests {
     // MARK: Fetch
 
     @Test func fetchLive() async throws {
         let dataFetch = DataFetch<URLSession>.default
-        let result: String = try #require(await dataFetch.fetch(
-            URL(string: "https://google.com")!,
+        let url = try #require(URL(string: "https://google.com"))
+        let result: String = try #require(try await dataFetch.fetch(
+            url,
             headers: [("Accept", "text/html")]
         ))
 

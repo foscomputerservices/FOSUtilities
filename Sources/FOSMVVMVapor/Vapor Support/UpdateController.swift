@@ -21,7 +21,7 @@ import Vapor
 public protocol ServerRequestController: AnyObject, ControllerRouting, RouteCollection {
     associatedtype TRequest: ServerRequest
 
-    typealias ActionProcessor = (
+    typealias ActionProcessor = @Sendable (
         Vapor.Request,
         TRequest,
         TRequest.RequestBody
@@ -33,7 +33,9 @@ public protocol ServerRequestController: AnyObject, ControllerRouting, RouteColl
 // MARK: Default Implementation
 
 public extension ServerRequestController {
-    static var baseURL: String { TRequest.path }
+    static var baseURL: String {
+        TRequest.path
+    }
 
     func boot(routes: RoutesBuilder) throws {
         let groupName = Self.baseURL == "/"
@@ -46,18 +48,20 @@ public extension ServerRequestController {
         let bodyStrategy = TRequest.RequestBody.maxBodySize.bodyStreamStrategy
 
         for pair in actions {
+            let value = pair.value
+
             switch pair.key {
             case .create:
                 routeGroup.on(.POST, body: bodyStrategy) { req in
-                    try await Self.run(req, processor: pair.value)
+                    try await runServerRequest(req, processor: value)
                 }
             case .replace:
                 routeGroup.on(.PUT, body: bodyStrategy) { req in
-                    try await Self.run(req, processor: pair.value)
+                    try await runServerRequest(req, processor: value)
                 }
             case .update:
                 routeGroup.on(.PATCH, body: bodyStrategy) { req in
-                    try await Self.run(req, processor: pair.value)
+                    try await runServerRequest(req, processor: value)
                 }
             default:
                 throw ServerRequestControllerError.invalidAction(pair.key)
@@ -82,23 +86,24 @@ public enum ServerRequestControllerError: Error, CustomDebugStringConvertible {
 
 // MARK: Private Methods
 
-private extension ServerRequestController {
-    static func run(_ req: Vapor.Request, processor: ActionProcessor) async throws -> Vapor.Response {
-        let requestBody: TRequest.RequestBody = if TRequest.RequestBody.self == EmptyBody.self {
-            // swiftlint:disable:next force_cast
-            (EmptyBody() as! TRequest.RequestBody)
-        } else {
-            try req.content.decode(TRequest.RequestBody.self)
-        }
-
-        let serverRequest = TRequest(
-            query: nil,
-            fragment: nil,
-            requestBody: requestBody,
-            responseBody: nil
-        )
-
-        return try await processor(req, serverRequest, requestBody)
-            .buildResponse(req)
+private func runServerRequest<TRequest: ServerRequest>(
+    _ req: Vapor.Request,
+    processor: @Sendable (Vapor.Request, TRequest, TRequest.RequestBody) async throws -> TRequest.ResponseBody
+) async throws -> Vapor.Response {
+    let requestBody: TRequest.RequestBody = if TRequest.RequestBody.self == EmptyBody.self {
+        // swiftlint:disable:next force_cast
+        (EmptyBody() as! TRequest.RequestBody)
+    } else {
+        try req.content.decode(TRequest.RequestBody.self)
     }
+
+    let serverRequest = TRequest(
+        query: nil,
+        fragment: nil,
+        requestBody: requestBody,
+        responseBody: nil
+    )
+
+    return try await processor(req, serverRequest, requestBody)
+        .buildResponse(req)
 }

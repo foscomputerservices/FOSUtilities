@@ -33,7 +33,7 @@ import Testing
 //       is absolutely required for the tests to function
 //       correctly.
 
-@Suite("SystemVersion Tests", .serialized)
+@Suite(.serialized)
 struct SystemVersionTests {
     @Test func versionStr() {
         let sv = SystemVersion.current
@@ -65,7 +65,7 @@ struct SystemVersionTests {
     }
 
     @Test func uRLRequestVersioningHeader() throws {
-        let url = URL(string: "http://foo.com")!
+        let url = try #require(URL(string: "http://foo.com"))
         var urlRequest = URLRequest(url: url)
         let sv = SystemVersion.current
         urlRequest.addSystemVersioningHeader(systemVersion: sv)
@@ -75,11 +75,11 @@ struct SystemVersionTests {
     }
 
     @Test func hTTPURLResponseVersioningHeader() throws {
-        let url = URL(string: "http://foo.com")!
+        let url = try #require(URL(string: "http://foo.com"))
         let sv = SystemVersion.current
-        let urlResponse = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
+        let urlResponse = try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: [
             SystemVersion.httpHeader: sv.versionString
-        ])!
+        ]))
 
         #expect(try urlResponse.systemVersion.isSameVersion(as: sv))
     }

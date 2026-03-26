@@ -29,13 +29,15 @@ public enum LocalizedArrayPropertyError: Error, CustomDebugStringConvertible {
 }
 
 public extension RetrievablePropertyNames {
-    // NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
+    /// NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
     typealias LocalizedStrings = _LocalizedArrayProperty<Self, LocalizableString>
 }
 
-@propertyWrapper public struct _LocalizedArrayProperty<Model, Value>: Codable, Hashable, Sendable, Stubbable where Model: RetrievablePropertyNames, Value: Localizable {
+@propertyWrapper public struct _LocalizedArrayProperty<Model: RetrievablePropertyNames, Value: Localizable>: Codable, Hashable, Sendable, Stubbable {
     public var wrappedValue: LocalizableArray<Value>
-    public var projectedValue: LocalizableArray<Value> { wrappedValue }
+    public var projectedValue: LocalizableArray<Value> {
+        wrappedValue
+    }
 
     private typealias WrappedValueBinder = @Sendable (String) -> LocalizableArray<Value>
 

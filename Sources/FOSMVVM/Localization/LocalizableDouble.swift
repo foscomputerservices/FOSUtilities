@@ -1,6 +1,6 @@
 // LocalizableDouble.swift
 //
-// Copyright 2025 FOS Computer Services, LLC
+// Copyright 2024 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,9 @@ public struct LocalizableDouble: Codable, Hashable, Comparable, LocalizableValue
 public extension LocalizableDouble {
     // MARK: Localizable Protocol
 
-    var isEmpty: Bool { false }
+    var isEmpty: Bool {
+        false
+    }
 
     var localizationStatus: LocalizableStatus {
         _localizedString == nil ? .localizationPending : .localized
@@ -95,7 +97,9 @@ public extension LocalizableDouble {
 
     // MARK: Identifiable Protocol
 
-    var id: String { "\(value)" }
+    var id: String {
+        "\(value)"
+    }
 
     // MARK: Hashable Protocol
 

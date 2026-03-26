@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Array Tests")
 struct LocalizableArrayTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
@@ -158,7 +157,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
 
     // MARK: Hashable Protocol
 
-    @Test func hashable_empty() throws {
+    @Test func hashable_empty() {
         let empty = LocalizableArray<LocalizableString>.empty
         let const = LocalizableArray<LocalizableString>.constant([.constant("42")])
 
@@ -169,7 +168,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
         #expect(dict[empty] == 42)
     }
 
-    @Test func hashable_constant() throws {
+    @Test func hashable_constant() {
         let empty = LocalizableArray<LocalizableString>.empty
         let const = LocalizableArray<LocalizableString>.constant([.constant("42")])
 
@@ -180,7 +179,7 @@ struct LocalizableArrayTests: LocalizableTestCase {
         #expect(dict[const] == 43)
     }
 
-    @Test func hashable_localized() throws {
+    @Test func hashable_localized() {
         let localized = LocalizableArray<LocalizableString>.localized(key: "stringArray")
         let const = LocalizableArray<LocalizableString>.constant([.constant("42")])
 

@@ -40,15 +40,19 @@ struct TestViewModel: RequestableViewModel {
 
     @LocalizedSubs(substitutions: \.multiTypedSubs) var aLocalizedMultiTypedSubstitution
 
-    private var multiTypedSubs: [String: any Localizable] { [
-        "string": LocalizableString.constant("a constant string"),
-        "int": LocalizableInt(value: 42),
-        "date": LocalizableDate(value: .now)
-    ] }
+    private var multiTypedSubs: [String: any Localizable] {
+        [
+            "string": LocalizableString.constant("a constant string"),
+            "int": LocalizableInt(value: 42),
+            "date": LocalizableDate(value: .now)
+        ]
+    }
 
     var vmId = ViewModelId()
 
-    var displayName: LocalizableString { .constant("TestVM") }
+    var displayName: LocalizableString {
+        .constant("TestVM")
+    }
 
     init() {
         self.substitutions = [
@@ -79,7 +83,9 @@ extension TestViewModel: ViewModelFactory, ViewModelFactoryContext, Sendable {
 
     // MARK: ViewModelFactory Protocol
 
-    var appVersion: SystemVersion { .init(major: 1, minor: 0) }
+    var appVersion: SystemVersion {
+        .init(major: 1, minor: 0)
+    }
 
     static func model(context: Context) async throws -> Self {
         .init()

@@ -27,7 +27,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("String Crypto Tests", .tags(.extensions, .string))
+@Suite(.tags(.extensions, .string))
 struct StringCryptoTests {
     @Test func sha256() {
         #expect("foo".sha256() == "foo".sha256())

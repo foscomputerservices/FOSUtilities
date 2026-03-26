@@ -20,5 +20,7 @@ import FOSTesting
 import Foundation
 
 extension LocalizableTestCase {
-    var locales: Set<Locale> { [Self.en, Self.es] }
+    var locales: Set<Locale> {
+        [Self.en, Self.es]
+    }
 }

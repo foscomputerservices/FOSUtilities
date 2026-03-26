@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("Array extension tests", .tags(.extensions))
+@Suite(.tags(.extensions))
 struct ArrayTests {
     @Test(arguments: [
         (lhs: [0, 1], rhs: [2, 3], expected: [0, 1, 2, 3]),

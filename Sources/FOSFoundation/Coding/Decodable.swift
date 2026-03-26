@@ -34,7 +34,7 @@ public extension String {
     ///      (default: **JSONDecoder.defaultDecoder**)
     ///
     /// - Throws: ``JSONError/noData`` if **String** is empty
-    func fromJSON<T>(decoder: JSONDecoder? = nil) throws -> T where T: Decodable {
+    func fromJSON<T: Decodable>(decoder: JSONDecoder? = nil) throws -> T {
         guard !isEmpty else {
             throw JSONError.noData
         }
@@ -61,7 +61,7 @@ public extension Data {
     /// - Parameter decoder: A customized **JSONDecoder** (default: **JSONDecoder.defaultDecoder**)
     ///
     /// - Throws: ``JSONError/noData`` if **String** is empty
-    func fromJSON<T>(decoder: JSONDecoder? = nil) throws -> T where T: Decodable {
+    func fromJSON<T: Decodable>(decoder: JSONDecoder? = nil) throws -> T {
         guard !isEmpty else {
             throw JSONError.noData
         }

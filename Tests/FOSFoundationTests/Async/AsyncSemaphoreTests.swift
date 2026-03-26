@@ -20,9 +20,9 @@ import Testing
 
 private nonisolated(unsafe) var maxCount = 0
 
-@Suite("AsyncSemaphore Tests", .tags(.async), .serialized)
+@Suite(.tags(.async), .serialized)
 final class AsyncSemaphoreTests {
-    @Test func singleExecution() async throws {
+    @Test func singleExecution() async {
         let semaphore = AsyncSemaphore(maxConcurrentTasks: 1)
         maxCount = 0
 
@@ -41,7 +41,7 @@ final class AsyncSemaphoreTests {
         #expect(maxCount == 0)
     }
 
-    @Test func multipleExecution() async throws {
+    @Test func multipleExecution() async {
         let semaphore = AsyncSemaphore(maxConcurrentTasks: 3)
         maxCount = 0
 

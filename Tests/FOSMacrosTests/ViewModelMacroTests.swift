@@ -27,7 +27,7 @@ final class ViewModelMacroTests: XCTestCase {
         "ViewModel": ViewModelMacro.self
     ]
 
-    func testBlankExpansion() throws {
+    func testBlankExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel struct TestViewModel {
@@ -62,7 +62,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testSimpleLocalizedStringExpansion() throws {
+    func testSimpleLocalizedStringExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel struct TestViewModel {
@@ -97,7 +97,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testSkipViewModelExpansion() throws {
+    func testSkipViewModelExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel struct TestViewModel: ViewModel {
@@ -129,7 +129,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testComplexLocalizableStringExpansion() throws {
+    func testComplexLocalizableStringExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel
@@ -216,7 +216,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testComplexExpansion() throws {
+    func testComplexExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel
@@ -323,7 +323,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testSimpleClientFactoryConformanceExpansion() throws {
+    func testSimpleClientFactoryConformanceExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel(options: [.clientHostedFactory]) struct TestViewModel {
@@ -408,7 +408,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testVMSpecifiedSpecifiedClientFactoryConformanceExpansion() throws {
+    func testVMSpecifiedSpecifiedClientFactoryConformanceExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel(options: [.clientHostedFactory]) struct TestViewModel: ViewModel {
@@ -490,7 +490,7 @@ final class ViewModelMacroTests: XCTestCase {
         )
     }
 
-    func testRequestableSpecifiedClientFactoryConformanceExpansion() throws {
+    func testRequestableSpecifiedClientFactoryConformanceExpansion() {
         assertMacroExpansion(
             #"""
             @ViewModel(options: [.clientHostedFactory]) struct TestViewModel: RequestableViewModel {

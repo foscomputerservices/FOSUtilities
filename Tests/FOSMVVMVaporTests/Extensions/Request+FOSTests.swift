@@ -25,7 +25,6 @@ import Vapor
 import FoundationNetworking
 #endif
 
-@Suite("FOS Vapor Request Additions Tests")
 struct RequestFOSAdditionTests: LocalizableTestCase {
     // MARK: Vapor Tests
 

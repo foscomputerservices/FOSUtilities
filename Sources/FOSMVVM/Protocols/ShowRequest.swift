@@ -24,11 +24,19 @@ import FOSFoundation
 public protocol ShowRequest: ServerRequest /* , Stubbable */ {}
 
 public extension ShowRequest {
-    static var baseTypeName: String { "ShowRequest" }
+    static var baseTypeName: String {
+        "ShowRequest"
+    }
 
-    var action: ServerRequestAction { .show }
+    var action: ServerRequestAction {
+        .show
+    }
 
-    var fragment: EmptyFragment? { nil }
+    var fragment: EmptyFragment? {
+        nil
+    }
 
-    var requestBody: EmptyBody? { nil }
+    var requestBody: EmptyBody? {
+        nil
+    }
 }

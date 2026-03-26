@@ -170,11 +170,9 @@ private extension LocalizableRef {
             typePath += "\(separator)\(Self.multiLevelKey(keys: parentKeys))"
         }
 
-        let key = String(
+        return String(
             "\(typePath)\(separator)\(propertyName)"
         )
-
-        return key
     }
 
     static func typeName(for type: Any.Type) -> String {

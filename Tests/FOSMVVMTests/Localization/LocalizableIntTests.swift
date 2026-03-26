@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Int Tests")
 struct LocalizableIntTests: LocalizableTestCase {
     // MARK: Initialization Methods
 

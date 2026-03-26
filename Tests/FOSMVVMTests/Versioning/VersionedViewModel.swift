@@ -18,10 +18,21 @@ import FOSFoundation
 import FOSMVVM
 
 extension SystemVersion {
-    static var v1_0_0: Self { .vInitial }
-    static var v2_0_0: Self { .init(major: 2) }
-    static var v2_1_0: Self { .init(major: 2, minor: 1) }
-    static var v3_0_0: Self { .init(major: 3) }
+    static var v1_0_0: Self {
+        .vInitial
+    }
+
+    static var v2_0_0: Self {
+        .init(major: 2)
+    }
+
+    static var v2_1_0: Self {
+        .init(major: 2, minor: 1)
+    }
+
+    static var v3_0_0: Self {
+        .init(major: 3)
+    }
 }
 
 @ViewModel
@@ -36,7 +47,7 @@ struct TestVersionedViewModel: RequestableViewModel {
 
     let vmId: FOSMVVM.ViewModelId
 
-    // Latest (v3.0.0) initializer
+    /// Latest (v3.0.0) initializer
     init() {
         self.vmId = .init()
         self.p2 = p2
@@ -49,25 +60,25 @@ struct TestVersionedViewModel: RequestableViewModel {
 }
 
 extension TestVersionedViewModel {
-    // v1.0.0 Initializer
+    /// v1.0.0 Initializer
     init(p1: P1) {
         self.vmId = .init()
         self.p1 = p1
     }
 
-    // v2.0.0 Initializer
+    /// v2.0.0 Initializer
     init(p2: P2) {
         self.vmId = .init()
         self.p1 = p1
     }
 
-    // v2.1.0 Initializer
+    /// v2.1.0 Initializer
     init(p2: P2, p3: P3) {
         self.vmId = .init()
         self.p1 = p1
     }
 
-    // v3.0.0 Initializer
+    /// v3.0.0 Initializer
     init(p4: P4) {
         self.vmId = .init()
         self.p4 = p4

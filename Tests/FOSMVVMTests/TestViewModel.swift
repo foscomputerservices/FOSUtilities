@@ -36,15 +36,19 @@ struct TestViewModel: RequestableViewModel, Hashable {
     @LocalizedCompoundString(pieces: \._pieces, separator: \Self._separator) var aLocalizedCompoundSep
 
     @LocalizedSubs(substitutions: \.substitutions) var aLocalizedSubstitution
-    private var substitutions: [String: any Localizable] { [
-        "aSub": LocalizableInt(value: subInt)
-    ] }
+    private var substitutions: [String: any Localizable] {
+        [
+            "aSub": LocalizableInt(value: subInt)
+        ]
+    }
 
     private let subInt: Int
 
     var vmId = ViewModelId()
 
-    var displayName: LocalizableString { .constant("TestVM") }
+    var displayName: LocalizableString {
+        .constant("TestVM")
+    }
 
     init() {
         self.subInt = 42
@@ -84,7 +88,9 @@ extension TestViewModel: ViewModelFactory, ViewModelFactoryContext {
 
     // MARK: ViewModelFactory Protocol
 
-    var appVersion: SystemVersion { .init(major: 1, minor: 0) }
+    var appVersion: SystemVersion {
+        .init(major: 1, minor: 0)
+    }
 
     static func model(context: Context) async throws -> Self {
         .init()

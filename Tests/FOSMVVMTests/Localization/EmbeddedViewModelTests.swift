@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Embedded View Model Tests")
 struct EmbeddedViewModelTests: LocalizableTestCase {
     @Test func embeddedLocalization() throws {
         try expectFullViewModelTests(MainViewModel.self)
@@ -183,9 +182,11 @@ private struct InnerViewModel: ViewModel {
     @LocalizedString var innerString
     @LocalizedSubs(substitutions: \.subs) var innerSubs
 
-    var subs: [String: any Localizable] { [
-        "subInt": LocalizableInt(value: subInt)
-    ] }
+    var subs: [String: any Localizable] {
+        [
+            "subInt": LocalizableInt(value: subInt)
+        ]
+    }
 
     var vmId: FOSMVVM.ViewModelId
 
@@ -203,7 +204,7 @@ private struct InnerViewModel: ViewModel {
     }
 }
 
-private struct NonRetrievablePropertyNamesParent: Codable, Sendable {
+private struct NonRetrievablePropertyNamesParent: Codable {
     let innerViewModel: InnerViewModel
 
     static func stub() -> Self {
@@ -236,7 +237,9 @@ private struct OptionalInnerViewModel: ViewModel {
 
     var vmId: FOSMVVM.ViewModelId
 
-    static func stub() -> Self { stub(inner: .stub()) }
+    static func stub() -> Self {
+        stub(inner: .stub())
+    }
 
     static func stub(inner: InnerViewModel?) -> Self {
         .init(inner: inner, vmId: .init())
@@ -249,7 +252,9 @@ private struct ArrayOfOptionalsViewModel: ViewModel {
 
     var vmId: FOSMVVM.ViewModelId
 
-    static func stub() -> Self { stub(items: [.stub()]) }
+    static func stub() -> Self {
+        stub(items: [.stub()])
+    }
 
     static func stub(items: [InnerViewModel?]) -> Self {
         .init(items: items, vmId: .init())
@@ -262,7 +267,9 @@ private struct OptionalArrayViewModel: ViewModel {
 
     var vmId: FOSMVVM.ViewModelId
 
-    static func stub() -> Self { stub(items: [.stub()]) }
+    static func stub() -> Self {
+        stub(items: [.stub()])
+    }
 
     static func stub(items: [InnerViewModel]?) -> Self {
         .init(items: items, vmId: .init())
@@ -277,7 +284,9 @@ private struct DeepLevel1ViewModel: ViewModel {
 
     var vmId: FOSMVVM.ViewModelId
 
-    static func stub() -> Self { stub(deepValue: 42) }
+    static func stub() -> Self {
+        stub(deepValue: 42)
+    }
 
     static func stub(deepValue: Int) -> Self {
         .init(level2: .stub(deepValue: deepValue), vmId: .init())
@@ -290,7 +299,9 @@ private struct DeepLevel2ViewModel: ViewModel {
 
     var vmId: FOSMVVM.ViewModelId
 
-    static func stub() -> Self { stub(deepValue: 42) }
+    static func stub() -> Self {
+        stub(deepValue: 42)
+    }
 
     static func stub(deepValue: Int) -> Self {
         .init(inner: .stub(subInt: deepValue), vmId: .init())
@@ -322,7 +333,9 @@ private struct MiddleViewModel: ViewModel {
 
     var vmId: FOSMVVM.ViewModelId
 
-    static func stub() -> Self { stub(innerValues: [42]) }
+    static func stub() -> Self {
+        stub(innerValues: [42])
+    }
 
     static func stub(innerValues: [Int]) -> Self {
         .init(

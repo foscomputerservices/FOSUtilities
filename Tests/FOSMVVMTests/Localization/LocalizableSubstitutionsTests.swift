@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Substitutions Tests")
 struct LocalizableSubstitutionsTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
@@ -163,6 +162,7 @@ struct LocalizableSubstitutionsTests: LocalizableTestCase {
     }
 
     // MARK: - Edge Case Tests
+
     //
     // Note: When using constant base strings, substitution happens via localizedString
     // directly without encoding/decoding. Encoding only applies substitutions when
