@@ -23,6 +23,11 @@ public protocol Versionable: Codable, Sendable {
 }
 
 public extension Versionable {
-    var vFirst: SystemVersion { .vInitial }
-    var vLast: SystemVersion? { nil }
+    var vFirst: SystemVersion {
+        .vInitial
+    }
+
+    var vLast: SystemVersion? {
+        nil
+    }
 }

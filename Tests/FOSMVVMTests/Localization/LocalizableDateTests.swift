@@ -20,9 +20,8 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Date Tests")
 struct LocalizableDateTests: LocalizableTestCase {
-    // Fixed date for consistent testing: 2024-07-15 14:30:00 UTC
+    /// Fixed date for consistent testing: 2024-07-15 14:30:00 UTC
     let testDate = Date(timeIntervalSince1970: 1721054400)
 
     // MARK: - Default Style Tests
@@ -197,7 +196,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     // MARK: - Localization Status Tests
 
-    @Test func localizationStatus_pendingBeforeEncode() throws {
+    @Test func localizationStatus_pendingBeforeEncode() {
         let locDate = LocalizableDate(value: testDate)
         #expect(locDate.localizationStatus == .localizationPending)
     }
@@ -220,7 +219,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     // MARK: - Comparable Tests
 
-    @Test func comparable_earlierDateIsLess() throws {
+    @Test func comparable_earlierDateIsLess() {
         let earlier = LocalizableDate(value: Date(timeIntervalSince1970: 1000))
         let later = LocalizableDate(value: Date(timeIntervalSince1970: 2000))
 
@@ -228,7 +227,7 @@ struct LocalizableDateTests: LocalizableTestCase {
         #expect(!(later < earlier))
     }
 
-    @Test func comparable_equalDates() throws {
+    @Test func comparable_equalDates() {
         let date1 = LocalizableDate(value: testDate)
         let date2 = LocalizableDate(value: testDate)
 
@@ -239,14 +238,14 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     // MARK: - Hashable Tests
 
-    @Test func hashable_sameDatesSameHash() throws {
+    @Test func hashable_sameDatesSameHash() {
         let date1 = LocalizableDate(value: testDate)
         let date2 = LocalizableDate(value: testDate)
 
         #expect(date1.hashValue == date2.hashValue)
     }
 
-    @Test func hashable_canBeUsedInSet() throws {
+    @Test func hashable_canBeUsedInSet() {
         let date1 = LocalizableDate(value: testDate)
         let date2 = LocalizableDate(value: testDate)
         let date3 = LocalizableDate(value: Date(timeIntervalSince1970: 0))
@@ -261,7 +260,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     // MARK: - isEmpty Tests
 
-    @Test func isEmpty_alwaysFalse() throws {
+    @Test func isEmpty_alwaysFalse() {
         let locDate = LocalizableDate(value: testDate)
         #expect(!locDate.isEmpty)
 
@@ -271,7 +270,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     // MARK: - Stubbable Tests
 
-    @Test func stubbable_createsValidStub() throws {
+    @Test func stubbable_createsValidStub() {
         let stub = LocalizableDate.stub()
 
         // Stub should be localized already (has localizedString)
@@ -279,7 +278,7 @@ struct LocalizableDateTests: LocalizableTestCase {
         #expect(!stub.isEmpty)
     }
 
-    @Test func stubbable_withValue() throws {
+    @Test func stubbable_withValue() {
         let specificDate = Date(timeIntervalSince1970: 12345)
         let stub = LocalizableDate.stub(value: specificDate)
 

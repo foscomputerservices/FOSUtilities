@@ -18,12 +18,13 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("URL Data Fetch Tests", .tags(.networking, .json))
+@Suite(.tags(.networking, .json))
 struct URLDataFetchTests {
     // MARK: Fetch
 
     @Test func fetchLive() async throws {
-        let result: String = try #require(await URL(string: "https://google.com")!.fetch(
+        let url = try #require(URL(string: "https://google.com"))
+        let result: String = try #require(try await url.fetch(
             headers: [("Accept", "text/html")]
         ))
 

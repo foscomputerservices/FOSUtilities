@@ -46,14 +46,19 @@ import Observation
 /// }
 /// ```
 @propertyWrapper @Observable
-public final class FormFieldModel<Value>: Codable, ResettableModel, @unchecked Sendable where Value: Codable & Hashable {
+public final class FormFieldModel<Value: Codable & Hashable>: Codable, ResettableModel, @unchecked Sendable {
     public private(set) var vmId: ViewModelId = .init()
 
     public var formField: FormField<Value>
-    public var projectedValue: FormFieldModel { self }
+    public var projectedValue: FormFieldModel {
+        self
+    }
+
     public let saveButtonTitle: LocalizableString
     public let cancelButtonTitle: LocalizableString
-    public var hasValue: Bool { _value != nil }
+    public var hasValue: Bool {
+        _value != nil
+    }
 
     private var _initialValue: Value?
     private var _value: Value?

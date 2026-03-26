@@ -53,7 +53,9 @@ public struct LocalizableDate: Codable, Hashable, Comparable, LocalizableValue, 
 public extension LocalizableDate {
     // MARK: Localizable Protocol
 
-    var isEmpty: Bool { false }
+    var isEmpty: Bool {
+        false
+    }
 
     var localizationStatus: LocalizableStatus {
         _localizedString == nil ? .localizationPending : .localized
@@ -107,7 +109,9 @@ public extension LocalizableDate {
 
     // MARK: Identifiable Protocol
 
-    var id: String { "\(value)" }
+    var id: String {
+        "\(value)"
+    }
 
     // MARK: Hashable Protocol
 

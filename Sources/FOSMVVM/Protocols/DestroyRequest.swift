@@ -23,7 +23,11 @@ import FOSFoundation
 public protocol DestroyRequest: ServerRequest, Stubbable {}
 
 public extension DestroyRequest {
-    static var baseTypeName: String { "DestroyRequest" }
+    static var baseTypeName: String {
+        "DestroyRequest"
+    }
 
-    var action: ServerRequestAction { .destroy }
+    var action: ServerRequestAction {
+        .destroy
+    }
 }

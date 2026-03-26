@@ -42,7 +42,7 @@ import SwiftUI
 ///     }
 /// }
 /// ```
-public struct FormFieldView<Value>: View where Value: Codable & Hashable {
+public struct FormFieldView<Value: Codable & Hashable>: View {
     private let fieldModel: FormFieldModel<Value>
     private let focusField: FocusState<FormFieldIdentifier?>.Binding
     @State private var hasChanged = false

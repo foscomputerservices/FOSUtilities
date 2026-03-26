@@ -69,7 +69,7 @@ extension Localizable {
 
 public extension Localizable {
     var localizedArray: [String] {
-        get throws { [try localizedString] }
+        get throws { try [localizedString] }
     }
 }
 

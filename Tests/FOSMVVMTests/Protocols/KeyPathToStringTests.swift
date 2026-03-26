@@ -18,9 +18,8 @@ import FOSFoundation
 @testable import FOSMVVM
 import Testing
 
-@Suite("KeyPath to String Tests")
 struct KeyPathToStringTests {
-    @Test func simple() throws {
+    @Test func simple() {
         let model = Model()
         let map = model.propertyNames()
         #expect(map[model._propertyLocalizationId] == "property")
@@ -40,5 +39,7 @@ private struct Model {
         self.vmId = .init()
     }
 
-    static func stub() -> Model { .init() }
+    static func stub() -> Model {
+        .init()
+    }
 }

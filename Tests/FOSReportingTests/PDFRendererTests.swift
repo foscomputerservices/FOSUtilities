@@ -20,7 +20,6 @@ import SwiftUI
 import Testing
 
 @MainActor
-@Suite("PDF Renderer Tests")
 struct PDFRendererTests {
     @Test func simpleTest() throws {
         let pdfData = try PDFRenderer.render(

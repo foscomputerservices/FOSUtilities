@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("JSON Decoding Tests", .tags(.json))
+@Suite(.tags(.json))
 struct JSONDecodingTests {
     @Test(arguments: [
         (format: DTTest.jsonDateStr, dateComps: nil), // yyyy-MM-dd'T'HH:mm:ssZZZZZ

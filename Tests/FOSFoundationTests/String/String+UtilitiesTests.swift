@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("String Utilities Tests", .tags(.extensions, .string))
+@Suite(.tags(.extensions, .string))
 struct StringUtilitiesTests {
     @Test(arguments: [
         (in: "aabaacaadaa", find: "aa", count: 4),
@@ -45,7 +45,7 @@ struct StringUtilitiesTests {
         (input: "0xbadf00ddea", output: 802605293034),
         (input: "unacceptable", output: nil),
         (input: "", output: nil)
-    ]) func intFromHex(tuple: (input: String, output: UInt64?)) throws {
+    ]) func intFromHex(tuple: (input: String, output: UInt64?)) {
         #expect(tuple.input.intFromHex == tuple.output)
     }
 

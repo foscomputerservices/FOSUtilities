@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Property Tests")
 struct LocalizablePropertyTests: LocalizableTestCase {
     @Test func localizedString_basic() throws {
         let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
@@ -79,7 +78,7 @@ struct LocalizablePropertyTests: LocalizableTestCase {
         #expect(try vm.aLocalizedCompoundSep.localizedString == "Piece #1*Piece #2")
     }
 
-    @Test func localizedPropertyWrapperKeyMissing() async throws {
+    @Test func localizedPropertyWrapperKeyMissing() throws {
         // Unable to retrieve the current ViewModel for property name lookup
         let wrapper = _LocalizedProperty<TestViewModel, LocalizableString>(
             parentKey: "missing"
@@ -173,15 +172,19 @@ extension String {
 private struct ErrorPathTestViewModel: ViewModel {
     @LocalizedSubs(substitutions: \.subs) var label
 
-    var subs: [String: any Localizable] { [
-        "value": LocalizableInt(value: value)
-    ] }
+    var subs: [String: any Localizable] {
+        [
+            "value": LocalizableInt(value: value)
+        ]
+    }
 
     var vmId: ViewModelId
 
     private let value: Int
 
-    static func stub() -> Self { stub(value: 42) }
+    static func stub() -> Self {
+        stub(value: 42)
+    }
 
     static func stub(value: Int) -> Self {
         .init(vmId: .init(type: Self.self), value: value)

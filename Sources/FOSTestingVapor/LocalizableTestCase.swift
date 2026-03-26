@@ -23,7 +23,9 @@ import Vapor
 
 public extension LocalizableTestCase {
     /// The port that the test server runs on
-    var testServerPort: Int { 8888 }
+    var testServerPort: Int {
+        8888
+    }
 
     /// Returns a localized *Vapor.Application* to use with tests
     ///

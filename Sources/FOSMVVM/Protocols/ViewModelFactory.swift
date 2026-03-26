@@ -46,7 +46,7 @@ public protocol ViewModelFactory where Self: ViewModel {
     static func model(context: Context) async throws -> Self
 }
 
-public struct ClientHostedModelFactoryContext<Request: ViewModelRequest, AppState>: ViewModelFactoryContext where AppState: Sendable {
+public struct ClientHostedModelFactoryContext<Request: ViewModelRequest, AppState: Sendable>: ViewModelFactoryContext {
     public let locale: Locale
     public let localizationStore: LocalizationStore
     public let vmRequest: Request

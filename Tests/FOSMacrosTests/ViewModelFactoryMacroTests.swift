@@ -28,7 +28,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
         "Version": ViewModelFactoryMethodMacro.self
     ]
 
-    func testViewModelFactoryMethodMacro() throws {
+    func testViewModelFactoryMethodMacro() {
         assertMacroExpansion(
             #"""
             @ViewModel struct TestViewModel {
@@ -90,7 +90,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
         )
     }
 
-    func testVaporViewModelFactoryMethodMacro() throws {
+    func testVaporViewModelFactoryMethodMacro() {
         assertMacroExpansion(
             #"""
             struct TestViewModel: ViewModel {

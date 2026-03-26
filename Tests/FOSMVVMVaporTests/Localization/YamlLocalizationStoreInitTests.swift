@@ -20,9 +20,8 @@ import Foundation
 import Testing
 import Vapor
 
-@Suite("YamlLocalizationStore Initialization Tests")
 struct YamlLocalizationStoreInitTests {
-    @Test func yamlStoreConfig() throws {
+    @Test func yamlStoreConfig() {
         let paths = paths
         let config = YamlStoreConfig(searchPaths: paths)
         #expect(config.searchPaths.count == paths.count)

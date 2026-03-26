@@ -40,9 +40,11 @@ public extension SystemVersion {
     /// let url: URL
     /// try await url.fetch(headers: SystemVersion.current.versioningHeaders)
     /// ```
-    var versioningHeaders: [(field: String, value: String)] { [
-        (field: SystemVersion.httpHeader, value: jsonVersionString)
-    ] }
+    var versioningHeaders: [(field: String, value: String)] {
+        [
+            (field: SystemVersion.httpHeader, value: jsonVersionString)
+        ]
+    }
 }
 
 public extension HTTPURLResponse {

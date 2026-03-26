@@ -27,7 +27,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
         "FieldValidationModel": FieldValidationModelMacro.self
     ]
 
-    func testBlankExpansion() throws {
+    func testBlankExpansion() {
         assertMacroExpansion(
             #"""
             @FieldValidationModel struct TestFieldValidationModel {
@@ -54,7 +54,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
         )
     }
 
-    func testSimpleLocalizedStringExpansion() throws {
+    func testSimpleLocalizedStringExpansion() {
         assertMacroExpansion(
             #"""
             @FieldValidationModel struct TestFieldValidationModel {
@@ -81,7 +81,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
         )
     }
 
-    func testSkipFieldValidationModelExpansion() throws {
+    func testSkipFieldValidationModelExpansion() {
         assertMacroExpansion(
             #"""
             @FieldValidationModel struct TestFieldValidationModel: FieldValidationModel {
@@ -105,7 +105,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
         )
     }
 
-    func testComplexLocalizableStringExpansion() throws {
+    func testComplexLocalizableStringExpansion() {
         assertMacroExpansion(
             #"""
             @FieldValidationModel
@@ -169,7 +169,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
         )
     }
 
-    func testComplexExpansion() throws {
+    func testComplexExpansion() {
         assertMacroExpansion(
             #"""
             @FieldValidationModel

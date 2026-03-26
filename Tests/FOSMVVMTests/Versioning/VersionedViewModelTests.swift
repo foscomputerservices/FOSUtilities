@@ -20,14 +20,16 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Versioned ViewModel Tests")
 struct VersionedViewModelTests: LocalizableTestCase {
     @Test func simple() throws {
         try expectVersionedViewModel(TestVersionedViewModel.self, encoder: encoder)
     }
 
     let locStore: LocalizationStore
-    var locales: Set<Locale> { [Self.en, Self.es] }
+    var locales: Set<Locale> {
+        [Self.en, Self.es]
+    }
+
     var encoder: JSONEncoder {
         .localizingEncoder(locale: Self.en, localizationStore: locStore)
     }

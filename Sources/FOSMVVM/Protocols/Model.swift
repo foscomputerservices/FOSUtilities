@@ -48,9 +48,13 @@ public extension Model {
         lhs.id == rhs.id
     }
 
-    @inlinable static var modelType: String { String(describing: Self.self) }
+    @inlinable static var modelType: String {
+        String(describing: Self.self)
+    }
 
-    @inlinable var modelType: String { Self.modelType }
+    @inlinable var modelType: String {
+        Self.modelType
+    }
 
     func requireId() throws -> ModelIdType {
         guard let id else {

@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("Collection extension tests", .tags(.extensions))
+@Suite(.tags(.extensions))
 struct CollectionTests {
     @Test func groupedBy() {
         let numbers = [1, 2, 3, 4, 5, 6]

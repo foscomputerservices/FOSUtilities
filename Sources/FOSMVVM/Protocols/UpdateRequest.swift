@@ -21,9 +21,13 @@ public protocol UpdateRequest: ServerRequest, Stubbable
     where RequestBody: ValidatableModel, ResponseBody: UpdateResponseBody {}
 
 public extension UpdateRequest {
-    static var baseTypeName: String { "UpdateRequest" }
+    static var baseTypeName: String {
+        "UpdateRequest"
+    }
 
-    var action: ServerRequestAction { .update }
+    var action: ServerRequestAction {
+        .update
+    }
 }
 
 public protocol UpdateResponseBody: ServerRequestBody {}

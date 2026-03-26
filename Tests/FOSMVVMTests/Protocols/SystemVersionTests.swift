@@ -34,7 +34,7 @@ import Testing
 //       is absolutely required for the tests to function
 //       correctly.
 
-@Suite("SystemVersion Tests", .serialized)
+@Suite(.serialized)
 struct SystemVersionTests {
     // MARK: HTTPURLResponse Tests
 
@@ -65,7 +65,8 @@ struct SystemVersionTests {
     }
 
     @Test func missingResponseVersionHeader() throws {
-        let response = HTTPURLResponse(url: URL(string: "https://www.github.com")!, statusCode: 0, httpVersion: nil, headerFields: nil)!
+        let url = try #require(URL(string: "https://www.github.com"))
+        let response = try #require(HTTPURLResponse(url: url, statusCode: 0, httpVersion: nil, headerFields: nil))
         #expect(throws: SystemVersionError.self) {
             try response.systemVersion
         }
@@ -97,7 +98,7 @@ struct SystemVersionTests {
             b: SystemVersion.second,
             aIsLess: false
         )
-    ]) func comparable(tuple: (a: SystemVersion, b: SystemVersion, aIsLess: Bool)) throws {
+    ]) func comparable(tuple: (a: SystemVersion, b: SystemVersion, aIsLess: Bool)) {
         #expect((tuple.a < tuple.b) == tuple.aIsLess)
         #expect((tuple.a > tuple.b) == !tuple.aIsLess)
     }
@@ -119,7 +120,7 @@ struct SystemVersionTests {
             random: [SystemVersion.fifth, .third, .second],
             expected: [SystemVersion.second, .third, .fifth]
         )
-    ]) func testSorted(tuple: (random: [SystemVersion], expected: [SystemVersion])) throws {
+    ]) func testSorted(tuple: (random: [SystemVersion], expected: [SystemVersion])) {
         #expect(tuple.random.sorted() == tuple.expected)
     }
 }
@@ -137,9 +138,23 @@ private extension HTTPURLResponse {
 }
 
 private extension SystemVersion {
-    static var first: SystemVersion { .init(major: 1, minor: 0) }
-    static var second: SystemVersion { .init(major: 1, minor: 1) }
-    static var third: SystemVersion { .init(major: 1, minor: 1, patch: 3) }
-    static var forth: SystemVersion { .init(major: 2, minor: 0, patch: 0) }
-    static var fifth: SystemVersion { .init(major: 3, minor: 3, patch: 1) }
+    static var first: SystemVersion {
+        .init(major: 1, minor: 0)
+    }
+
+    static var second: SystemVersion {
+        .init(major: 1, minor: 1)
+    }
+
+    static var third: SystemVersion {
+        .init(major: 1, minor: 1, patch: 3)
+    }
+
+    static var forth: SystemVersion {
+        .init(major: 2, minor: 0, patch: 0)
+    }
+
+    static var fifth: SystemVersion {
+        .init(major: 3, minor: 3, patch: 1)
+    }
 }

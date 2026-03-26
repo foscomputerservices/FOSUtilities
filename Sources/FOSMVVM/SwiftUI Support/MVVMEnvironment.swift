@@ -145,14 +145,13 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// > The result of this function is **uncached** as opposed to ``clientLocalizationStore``
     public func resolveClientLocalizationStore() throws -> LocalizationStore {
-        let locStore: LocalizationStore = if let localizationStore {
+        if let localizationStore {
             localizationStore
         } else {
             try resourceBundles.yamlLocalization(
                 resourceDirectoryName: resourceDirectoryName ?? ""
             )
         }
-        return locStore
     }
 
     @ObservationIgnored

@@ -30,7 +30,7 @@ import Foundation
 /// - Parameter message: An optional message that will be added to any error messages
 /// - Parameter encoder: An optional *JSONEncoder* to use to encode the data (default: **JSONEncoder()**)
 /// - Parameter decoder: n optional *JSONDecoder* to use to decode the data (default: **JSONDecoder()**)
-public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "") throws where C: Codable, C: Stubbable {
+public func expectCodable<C: Codable & Stubbable>(_ codableType: C.Type, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "") throws {
     let instance = codableType.stub()
     let message = message() + ": "
 
@@ -72,7 +72,7 @@ public func expectCodable<C>(_ codableType: C.Type, encoder: JSONEncoder? = nil,
 ///     - fixedTestFilePath: An optional fully qualified path of a directory in which to store the versioned json files (default: .VersionedTestJSON)
 ///     - file: The optional file path of the source file calling this method
 ///     - line: The optional line number of the test function calling this method
-public func expectVersionedViewModel<VM>(_ viewModelType: VM.Type, version: SystemVersion = .current, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "", fixedTestFilePath: URL? = nil, file: String = #filePath, line: Int = #line) throws where VM: ViewModel {
+public func expectVersionedViewModel<VM: ViewModel>(_ viewModelType: VM.Type, version: SystemVersion = .current, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "", fixedTestFilePath: URL? = nil, file: String = #filePath, line: Int = #line) throws {
     let fileMgr = FileManager.default
 
     let message = message() + ": "

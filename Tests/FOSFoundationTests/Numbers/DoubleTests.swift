@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("Double Extension Tests", .tags(.extensions))
+@Suite(.tags(.extensions))
 struct DoubleTests {
     @Test(arguments: [
         (input: 1.1234567, places: 0, output: 1.0),

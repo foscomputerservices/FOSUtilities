@@ -112,7 +112,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder @MainActor static func bind(
+    @MainActor static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil
     ) -> some View where
@@ -162,7 +162,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder @MainActor static func bind(
+    @MainActor static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil
     ) -> some View where
@@ -230,7 +230,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder @MainActor static func bind(
+    @MainActor static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil,
         appState: VM.AppState
@@ -276,7 +276,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder @MainActor static func bind() -> some View where
+    @MainActor static func bind() -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
@@ -317,7 +317,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder @MainActor static func bind() -> some View where
+    @MainActor static func bind() -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
@@ -379,7 +379,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment/loadingView``
-    @ViewBuilder @MainActor static func bind(appState: VM.AppState) -> some View where
+    @MainActor static func bind(appState: VM.AppState) -> some View where
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
         VM.Request.Fragment == EmptyFragment,
@@ -394,11 +394,9 @@ public extension ViewModelView where VM: RequestableViewModel {
     }
 }
 
-private struct VMServerResolverView<VM, VMV>: View where
-    VM: RequestableViewModel,
+private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView>: View where
     VM.Request.RequestBody == EmptyBody,
     VM == VM.Request.ResponseBody,
-    VMV: ViewModelView,
     VMV.VM == VM {
     @Environment(MVVMEnvironment.self) private var mvvmEnv
     @Environment(\.locale) private var locale

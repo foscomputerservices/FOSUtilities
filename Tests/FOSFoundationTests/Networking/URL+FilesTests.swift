@@ -18,9 +18,8 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("URL File Extension Tests")
 struct URLFilesTests {
-    @Test func findFiles() throws {
+    @Test func findFiles() {
         let currentPath = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
         let files = currentPath.findFiles(withExtension: "swift")

@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Substitutions Tests")
 struct LocalizableSubstitutionsTests: LocalizableTestCase {
     // MARK: Initialization Methods
 

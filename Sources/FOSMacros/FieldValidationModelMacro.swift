@@ -16,8 +16,8 @@
 
 #if os(macOS) || os(Linux) || os(Windows)
 public import SwiftSyntax
-import SwiftSyntaxBuilder
 public import SwiftSyntaxMacros
+import SwiftSyntaxBuilder
 
 public enum FieldValidationModelMacroError: Error, CustomDebugStringConvertible {
     case onlyStructs

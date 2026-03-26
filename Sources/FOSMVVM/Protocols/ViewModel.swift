@@ -113,7 +113,9 @@ public protocol ViewModel: ServerRequestBody, RetrievablePropertyNames, Identifi
 }
 
 public extension ViewModel {
-    var id: ViewModelId { vmId }
+    var id: ViewModelId {
+        vmId
+    }
 
     func encode(to encoder: Encoder, configuration: ViewModelConfiguration) throws {
         try (self as Encodable).encode(to: encoder)

@@ -1,6 +1,6 @@
 // OperationBusTests.swift
 //
-// Copyright 2025 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import Testing
 
 // MARK: - SyncOperationBus Tests
 
-@Suite("SyncOperationBus Tests")
 struct SyncOperationBusTests {
     // MARK: Basic Functionality Tests
 
@@ -178,7 +177,6 @@ struct SyncOperationBusTests {
 
 // MARK: - AsyncOperationBus Tests
 
-@Suite("AsyncOperationBus Tests")
 struct AsyncOperationBusTests {
     // MARK: Basic Functionality Tests
 
@@ -191,16 +189,16 @@ struct AsyncOperationBusTests {
     @Test func singleAsyncOperation() async {
         actor ValueHolder {
             var value: String?
-            
+
             func setValue(_ newValue: String) {
                 value = newValue
             }
-            
+
             func getValue() -> String? {
                 value
             }
         }
-        
+
         let bus = AsyncOperationBus<String>()
         let holder = ValueHolder()
 
@@ -448,11 +446,11 @@ struct AsyncOperationBusTests {
 
         actor ValueHolder {
             var value: String?
-            
+
             func setValue(_ newValue: String) {
                 value = newValue
             }
-            
+
             func getValue() -> String? {
                 value
             }

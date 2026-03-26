@@ -17,7 +17,7 @@
 import FOSFoundation
 import Testing
 
-@Suite("Decoding Tests", .tags(.json, .string))
+@Suite(.tags(.json, .string))
 struct DecodableTests {
     @Test(arguments: [
         ""

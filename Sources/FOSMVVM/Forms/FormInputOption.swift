@@ -16,16 +16,20 @@
 
 import Foundation
 
-public enum FormInputOption<Value>: Codable, Sendable where Value: Codable & Hashable {
+public enum FormInputOption<Value: Codable & Hashable>: Codable, Sendable {
     /// The default field size, in characters, for a date field
     ///
     /// > This value is used if no ``size(value:)`` is specified for a date field
-    public static var defaultDateSize: Int { 25 }
+    public static var defaultDateSize: Int {
+        25
+    }
 
     /// The default field size, in characters, for date-time field
     ///
     /// > This value is used if no ``size(value:)`` is specified for a date-time field
-    public static var defaultDateTimeSize: Int { 30 }
+    public static var defaultDateTimeSize: Int {
+        30
+    }
 
     /// The availability of the field
     case disabled(value: Bool)
@@ -61,10 +65,12 @@ public enum FormInputOption<Value>: Codable, Sendable where Value: Codable & Has
     /// the given range
     ///
     /// - Parameter range: The lower and upper bounds of the length
-    public static func rangeLength(_ range: ClosedRange<Int>) -> [Self] { [
-        .minLength(value: range.lowerBound),
-        .maxLength(value: range.upperBound)
-    ] }
+    public static func rangeLength(_ range: ClosedRange<Int>) -> [Self] {
+        [
+            .minLength(value: range.lowerBound),
+            .maxLength(value: range.upperBound)
+        ]
+    }
 
     /// The minimum value for a date field
     case minDate(date: Date)

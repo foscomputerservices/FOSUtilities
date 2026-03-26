@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("String Obfuscation Tests", .tags(.string, .extensions))
+@Suite(.tags(.string, .extensions))
 struct StringObfuscationTests {
     @Test func obfuscate() {
         #expect("I am a string".obfuscate == "eCAyPiAyIERFQzo/OA==")

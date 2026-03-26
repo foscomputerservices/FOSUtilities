@@ -1,6 +1,6 @@
 // LocalizableDoubleTests.swift
 //
-// Copyright 2025 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Double Tests")
 struct LocalizableDoubleTests: LocalizableTestCase {
     // MARK: Initialization Methods
 

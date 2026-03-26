@@ -20,7 +20,6 @@ import FOSTesting
 import Foundation
 import Testing
 
-@Suite("Localizable Compound Value Tests")
 struct LocalizableCompoundValueTests: LocalizableTestCase {
     // MARK: Initialization Methods
 
@@ -83,7 +82,7 @@ struct LocalizableCompoundValueTests: LocalizableTestCase {
         #expect(!decodedLoc.isEmpty)
     }
 
-    @Test func localizable_status_pending() throws {
+    @Test func localizable_status_pending() {
         let str = LocalizableString.localized(key: "test")
         let compVal = LocalizableCompoundValue(pieces: [str])
 

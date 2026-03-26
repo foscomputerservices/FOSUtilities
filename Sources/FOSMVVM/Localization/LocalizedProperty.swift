@@ -32,134 +32,134 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
     }
 }
 
-/// # View-Model Property Binding
-///
-/// ``LocalizableRef`` has direct support for binding between a View-Model's property and its localized value
-///
-/// To use this mechanism, the top key under the Locale key must correspond exactly to the Swift type of the View-Model.
-///
-/// For the following examples, we will use the following YAML:
-///
-/// ```yaml
-/// en:
-///   MyViewModel:
-///     property: "This is the localized string!"
-/// ```
-///
-/// Each of the following examples accomplishes the same task, just with different supported mechanisms.
-///
-/// # Preferred Example: ViewModel and Property Wrapper
-///
-/// ```swift
-/// @ViewModel struct MyViewModel {
-///    @LocalizedString("property") var property
-///
-///    init() { }
-/// }
-/// ```
-///
-/// ## Alternative Example: Manual Binding
-///
-/// ``` swift
-/// struct MyViewModel: ViewModel {
-///    let property: LocalizableString
-///
-///    init() {
-///      self.property = .localized(.init(for: Self.self, propertyName: "property"))
-///    }
-/// }
-/// ```
-///
-/// ## Alternative Example: Property Field Wrapper
-///
-/// ```swift
-/// struct MyViewModel: ViewModel {
-///    @LocalizedPropertyField<MyType, LocalizableString>("property") var property: LocalizableString
-///
-///    init() { }
-/// }
-/// ```
-///
-/// - NOTE: If the View-Model is a generic type, the final type will be stripped of its
-///          generic substitution and only the base type name will
-///          be used as the key name.  (i.e., `MyGenericViewModel<T>` will become `MyGenericViewModel`).
-///          Please note that this means that localization using @LocalizedString **cannot** be bound based
-///          on the Generic type substitution ('T').  If that is required, one of the other mechanisms must
-///          be used.
-///
-/// ## Nested Type Support
-///
-/// In some situations View-Models contain nested types that need their properties bound.  The *parentType* parameter
-/// provides support for these situations.  Consider the following View-Model:
-///
-/// ```swift
-/// struct ParentViewModel: ViewModel {
-///   enum NestedEnum: String {
-///      case option1
-///      case option2
-///
-///      var display: LocalizableString {
-///          .localized(.init(for: Self.self, parentType: ParentViewModel.self, propertyName: rawValue))
-///      }
-///   }
-/// }
-/// ```
-///
-/// ```yaml
-///   en:
-///     ParentViewModel:
-///       NestedEnum:
-///         option1: "Option #1"
-///         option2: "Option #2"
-/// ```
-///
-/// ## Multiple Value support
-///
-/// At times there are situations where having multiple values associated with a property can be handy.  For these cases,
-/// there are two ways to identify such values: **Key Discriminator**s and **Index Discriminator**s.
-///
-/// ### Key Discriminator
-///
-/// A key discriminator expects a dictionary under the property name key in the YAML.
-///
-/// #### Example
-///
-/// ```swift
-/// @ViewModel struct UserViewModel {
-///      @LocalizedString(parentKeys: "property") var shortTitle
-///      @LocalizedString(parentKeys: "property") var longTitle
-/// }
-/// ```
-///
-/// ```yaml
-///   en:
-///     UserViewModel:
-///       property:
-///         shortTitle: "Short"
-///         longTitle: "A Very Long Title"
-/// ```
-///
-/// ### Index Discriminator
-///
-/// An index discriminator expects an array under the property name key in the YAML.
-///
-/// #### Example
-///
-/// ```swift
-/// @ViewModel struct UserViewModel {
-///      @LocalizedString(propertyName: "titles", index: 0) var firstTitle
-///      @LocalizedString(propertyName: "titles", index: 1) var secondTitle
-/// }
-/// ```
-///
-/// ```yaml
-///   en:
-///     UserViewModel:
-///       titles:
-///         - "First Title"
-///         - "Second Title"
-/// ```
-///
+// # View-Model Property Binding
+//
+// ``LocalizableRef`` has direct support for binding between a View-Model's property and its localized value
+//
+// To use this mechanism, the top key under the Locale key must correspond exactly to the Swift type of the View-Model.
+//
+// For the following examples, we will use the following YAML:
+//
+// ```yaml
+// en:
+//   MyViewModel:
+//     property: "This is the localized string!"
+// ```
+//
+// Each of the following examples accomplishes the same task, just with different supported mechanisms.
+//
+// # Preferred Example: ViewModel and Property Wrapper
+//
+// ```swift
+// @ViewModel struct MyViewModel {
+//    @LocalizedString("property") var property
+//
+//    init() { }
+// }
+// ```
+//
+// ## Alternative Example: Manual Binding
+//
+// ``` swift
+// struct MyViewModel: ViewModel {
+//    let property: LocalizableString
+//
+//    init() {
+//      self.property = .localized(.init(for: Self.self, propertyName: "property"))
+//    }
+// }
+// ```
+//
+// ## Alternative Example: Property Field Wrapper
+//
+// ```swift
+// struct MyViewModel: ViewModel {
+//    @LocalizedPropertyField<MyType, LocalizableString>("property") var property: LocalizableString
+//
+//    init() { }
+// }
+// ```
+//
+// - NOTE: If the View-Model is a generic type, the final type will be stripped of its
+//          generic substitution and only the base type name will
+//          be used as the key name.  (i.e., `MyGenericViewModel<T>` will become `MyGenericViewModel`).
+//          Please note that this means that localization using @LocalizedString **cannot** be bound based
+//          on the Generic type substitution ('T').  If that is required, one of the other mechanisms must
+//          be used.
+//
+// ## Nested Type Support
+//
+// In some situations View-Models contain nested types that need their properties bound.  The *parentType* parameter
+// provides support for these situations.  Consider the following View-Model:
+//
+// ```swift
+// struct ParentViewModel: ViewModel {
+//   enum NestedEnum: String {
+//      case option1
+//      case option2
+//
+//      var display: LocalizableString {
+//          .localized(.init(for: Self.self, parentType: ParentViewModel.self, propertyName: rawValue))
+//      }
+//   }
+// }
+// ```
+//
+// ```yaml
+//   en:
+//     ParentViewModel:
+//       NestedEnum:
+//         option1: "Option #1"
+//         option2: "Option #2"
+// ```
+//
+// ## Multiple Value support
+//
+// At times there are situations where having multiple values associated with a property can be handy.  For these cases,
+// there are two ways to identify such values: **Key Discriminator**s and **Index Discriminator**s.
+//
+// ### Key Discriminator
+//
+// A key discriminator expects a dictionary under the property name key in the YAML.
+//
+// #### Example
+//
+// ```swift
+// @ViewModel struct UserViewModel {
+//      @LocalizedString(parentKeys: "property") var shortTitle
+//      @LocalizedString(parentKeys: "property") var longTitle
+// }
+// ```
+//
+// ```yaml
+//   en:
+//     UserViewModel:
+//       property:
+//         shortTitle: "Short"
+//         longTitle: "A Very Long Title"
+// ```
+//
+// ### Index Discriminator
+//
+// An index discriminator expects an array under the property name key in the YAML.
+//
+// #### Example
+//
+// ```swift
+// @ViewModel struct UserViewModel {
+//      @LocalizedString(propertyName: "titles", index: 0) var firstTitle
+//      @LocalizedString(propertyName: "titles", index: 1) var secondTitle
+// }
+// ```
+//
+// ```yaml
+//   en:
+//     UserViewModel:
+//       titles:
+//         - "First Title"
+//         - "Second Title"
+// ```
+//
 
 public extension RetrievablePropertyNames {
     // NOTE: If something new is added here, ViewModelMacro.knownLocalizedPropertyNames must be updated
@@ -170,11 +170,13 @@ public extension RetrievablePropertyNames {
     typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
 
-@propertyWrapper public struct _LocalizedProperty<Model, Value>: Codable, Hashable, Sendable, Stubbable, Versionable where Model: RetrievablePropertyNames, Value: Localizable {
+@propertyWrapper public struct _LocalizedProperty<Model: RetrievablePropertyNames, Value: Localizable>: Codable, Hashable, Sendable, Stubbable, Versionable {
     private typealias WrappedValueBinder = @Sendable (Model?, String, Encoder) throws -> Value
 
     public var wrappedValue: Value
-    public var projectedValue: Value { wrappedValue }
+    public var projectedValue: Value {
+        wrappedValue
+    }
 
     // MARK: Versionable Protocol
 

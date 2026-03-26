@@ -91,7 +91,9 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
     /// # Set a custom deployment
     /// export FOS-DEPLOYMENT=my_custom_deployment
     /// ```
-    public static var envKey: String { "FOS-DEPLOYMENT" }
+    public static var envKey: String {
+        "FOS-DEPLOYMENT"
+    }
 
     /// The current deployment
     ///
@@ -201,8 +203,13 @@ public enum Deployment: Codable, Identifiable, Hashable, Sendable, CustomStringC
 
     // MARK: CustomDebugStringConvertible, CustomDebugStringConvertible
 
-    public var description: String { id }
-    public var debugDescription: String { id }
+    public var description: String {
+        id
+    }
+
+    public var debugDescription: String {
+        id
+    }
 
     fileprivate init(string: String) {
         switch string {

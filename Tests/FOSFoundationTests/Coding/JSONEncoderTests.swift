@@ -18,7 +18,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("JSON Decoding Tests", .tags(.json))
+@Suite(.tags(.json))
 struct JSONEncodingTests {
     @Test func dateTimeEncoding() throws {
         let dtTest = DTTest()

@@ -21,9 +21,11 @@ public extension ViewModel {
     typealias Versioned<VM: ViewModel> = _VersionedProperty<Self, VM>
 }
 
-@propertyWrapper public struct _VersionedProperty<Model, Value>: Codable, Sendable, Stubbable, Versionable where Model: ViewModel, Value: Stubbable & Codable & Sendable {
+@propertyWrapper public struct _VersionedProperty<Model: ViewModel, Value: Stubbable & Codable & Sendable>: Codable, Sendable, Stubbable, Versionable {
     public var wrappedValue: Value
-    public var projectedValue: Value { wrappedValue }
+    public var projectedValue: Value {
+        wrappedValue
+    }
 
     // MARK: Versionable Protocol
 

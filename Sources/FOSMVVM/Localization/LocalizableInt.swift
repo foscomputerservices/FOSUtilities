@@ -42,7 +42,9 @@ public struct LocalizableInt: Codable, Hashable, Comparable, LocalizableValue, S
 public extension LocalizableInt {
     // MARK: Localizable Protocol
 
-    var isEmpty: Bool { false }
+    var isEmpty: Bool {
+        false
+    }
 
     var localizationStatus: LocalizableStatus {
         _localizedString == nil ? .localizationPending : .localized
@@ -87,7 +89,9 @@ public extension LocalizableInt {
 
     // MARK: Identifiable Protocol
 
-    var id: String { "\(value)" }
+    var id: String {
+        "\(value)"
+    }
 
     // MARK: Hashable Protocol
 

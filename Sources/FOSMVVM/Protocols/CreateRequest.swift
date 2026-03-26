@@ -21,9 +21,13 @@ public protocol CreateRequest: ServerRequest, Stubbable
     where RequestBody: ValidatableModel, ResponseBody: CreateResponseBody {}
 
 public extension CreateRequest {
-    static var baseTypeName: String { "CreateRequest" }
+    static var baseTypeName: String {
+        "CreateRequest"
+    }
 
-    var action: ServerRequestAction { .create }
+    var action: ServerRequestAction {
+        .create
+    }
 }
 
 public protocol CreateResponseBody: ServerRequestBody {}

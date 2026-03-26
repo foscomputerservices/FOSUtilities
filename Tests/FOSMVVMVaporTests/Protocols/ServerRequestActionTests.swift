@@ -22,7 +22,6 @@ import Foundation
 import Testing
 import Vapor
 
-@Suite("ServerRequestAction Tests")
 struct ServerRequestActionTests: LocalizableTestCase {
     @Test(arguments: [
         (httpMethod: HTTPMethod.GET, uri: nil as String?, expectedAction: ServerRequestAction.show),
@@ -31,11 +30,11 @@ struct ServerRequestActionTests: LocalizableTestCase {
         (httpMethod: .PATCH, uri: nil as String?, expectedAction: .update),
         (httpMethod: .DELETE, uri: nil as String?, expectedAction: .delete),
         (httpMethod: .DELETE, uri: "http://example.com/destroy", expectedAction: .destroy)
-    ]) func initHTTPMethod(tuple: (httpMethod: HTTPMethod, uri: String?, expectedAction: ServerRequestAction)) async throws {
+    ]) func initHTTPMethod(tuple: (httpMethod: HTTPMethod, uri: String?, expectedAction: ServerRequestAction)) throws {
         let httpMethod = tuple.httpMethod
-        let uri: URI = tuple.uri == nil
+        let uri: URI = try tuple.uri == nil
             ? .init(string: "https://example.com")
-            : .init(string: tuple.uri!)
+            : .init(string: #require(tuple.uri))
         let expectedAction = tuple.expectedAction
 
         let action = try ServerRequestAction(

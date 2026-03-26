@@ -18,12 +18,12 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite("Task Extension Tests", .tags(.async, .extensions))
+@Suite(.tags(.async, .extensions))
 struct TaskTests {
-    @Test func syncTask() {
+    @Test func syncTask() throws {
         let startTime = Date()
 
-        Task.synchronous {
+        try Task.synchronous {
             try await Self.asyncFunc()
         }
 
@@ -31,8 +31,32 @@ struct TaskTests {
         #expect(endTime.timeIntervalSince(startTime) > 1)
     }
 
+    @Test func syncTaskPropagatesError() {
+        #expect(throws: TestError.self) {
+            try Task.synchronous {
+                throw TestError.expected
+            }
+        }
+    }
+
+    @Test func syncTaskReturnsValue() throws {
+        let value: Int = try Task.synchronous {
+            try await Self.asyncValueFunc()
+        }
+
+        #expect(value == 42)
+    }
+
     private static func asyncFunc() async throws {
         // 1.5 seconds
         try await Task.sleep(nanoseconds: UInt64(1500000000))
+    }
+
+    private static func asyncValueFunc() async throws -> Int {
+        42
+    }
+
+    private enum TestError: Error {
+        case expected
     }
 }

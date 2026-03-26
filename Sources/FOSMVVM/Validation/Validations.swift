@@ -44,7 +44,8 @@ import Observation
                 val.messages.map(
                     \.fieldIds
                 )
-            }.flatMap(\.self))
+            }.flatMap(\.self)
+        )
         let trimmedValidations = validations.compactMap { validation in
             var validation = validation
             for removeFieldId in replacingFieldIds {
