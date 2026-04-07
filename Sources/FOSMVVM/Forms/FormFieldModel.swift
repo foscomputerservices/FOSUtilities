@@ -96,7 +96,7 @@ public final class FormFieldModel<Value: Codable & Hashable>: Codable, Resettabl
 
     // MARK: ResettableModel
 
-    public func resetModel() {
+    public func resetFields() {
         _value = nil
     }
 
@@ -124,7 +124,7 @@ public final class FormFieldModel<Value: Codable & Hashable>: Codable, Resettabl
         get { _initialValue }
         set {
             _initialValue = newValue
-            resetModel()
+            resetFields()
         }
     }
 

@@ -14,12 +14,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import FOSFoundation
 @testable import FOSMVVM
 import Foundation
 import Testing
 
+// MARK: - Test Helper
+
+private struct TestBusViewModel: ViewModel {
+    var vmId: ViewModelId
+
+    init(id: String) {
+        self.vmId = ViewModelId(id: id)
+    }
+
+    func propertyNames() -> [LocalizableId: String] {
+        [:]
+    }
+
+    static func stub() -> Self {
+        .init(id: "stub")
+    }
+}
+
 // MARK: - SyncOperationBus Tests
 
+@MainActor
 struct SyncOperationBusTests {
     // MARK: Basic Functionality Tests
 
@@ -34,7 +54,7 @@ struct SyncOperationBusTests {
         let bus = SyncOperationBus<String>()
         var receivedValue: String?
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op1")) { value in
             receivedValue = value
         }
 
@@ -47,36 +67,60 @@ struct SyncOperationBusTests {
         let bus = SyncOperationBus<Int>()
         var receivedValues: [Int] = []
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op1")) { value in
             receivedValues.append(value * 2)
         }
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op2")) { value in
             receivedValues.append(value * 3)
         }
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op3")) { value in
             receivedValues.append(value * 4)
         }
 
         var testValue = 5
         bus.invoke(&testValue)
-        #expect(receivedValues == [10, 15, 20])
+        #expect(receivedValues.sorted() == [10, 15, 20])
     }
 
-    @Test func operationsExecuteInOrder() {
-        let bus = SyncOperationBus<Int>()
-        var executionOrder: [Int] = []
+    // MARK: Dedup Tests
 
-        for i in 1...5 {
-            bus.addOperation { _ in
-                executionOrder.append(i)
-            }
+    @Test func duplicateRegistrationReplacesOperation() {
+        let bus = SyncOperationBus<Int>()
+        var callCount = 0
+        let vmId = TestBusViewModel(id: "shared")
+
+        bus.addOperation(for: vmId) { _ in
+            callCount += 1
+        }
+
+        bus.addOperation(for: vmId) { _ in
+            callCount += 10
         }
 
         var testValue = 0
         bus.invoke(&testValue)
-        #expect(executionOrder == [1, 2, 3, 4, 5])
+
+        // Should have been called once (replaced), not twice (appended)
+        #expect(callCount == 10)
+    }
+
+    @Test func distinctVmIdsKeepSeparateOperations() {
+        let bus = SyncOperationBus<Int>()
+        var total = 0
+
+        bus.addOperation(for: TestBusViewModel(id: "a")) { value in
+            total += value
+        }
+
+        bus.addOperation(for: TestBusViewModel(id: "b")) { value in
+            total += value * 2
+        }
+
+        var testValue = 5
+        bus.invoke(&testValue)
+        #expect(total == 15) // 5 + 10
     }
 
     // MARK: Mutable Data Tests
@@ -90,15 +134,15 @@ struct SyncOperationBusTests {
 
         let bus = SyncOperationBus<FormData>()
 
-        bus.addOperation { formData in
+        bus.addOperation(for: TestBusViewModel(id: "name")) { formData in
             formData.name = "Alice"
         }
 
-        bus.addOperation { formData in
+        bus.addOperation(for: TestBusViewModel(id: "age")) { formData in
             formData.age = 30
         }
 
-        bus.addOperation { formData in
+        bus.addOperation(for: TestBusViewModel(id: "email")) { formData in
             formData.email = "alice@example.com"
         }
 
@@ -114,7 +158,7 @@ struct SyncOperationBusTests {
         let bus = SyncOperationBus<Int>()
         var counter = 0
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "counter")) { value in
             counter += value
         }
 
@@ -142,7 +186,7 @@ struct SyncOperationBusTests {
         let bus = SyncOperationBus<ComplexData>()
         var receivedData: ComplexData?
 
-        bus.addOperation { data in
+        bus.addOperation(for: TestBusViewModel(id: "complex")) { data in
             receivedData = data
         }
 
@@ -161,7 +205,7 @@ struct SyncOperationBusTests {
         let bus = SyncOperationBus<String>()
         var externalCounter = 0
 
-        bus.addOperation { message in
+        bus.addOperation(for: TestBusViewModel(id: "counter")) { message in
             externalCounter += message.count
         }
 
@@ -177,6 +221,7 @@ struct SyncOperationBusTests {
 
 // MARK: - AsyncOperationBus Tests
 
+@MainActor
 struct AsyncOperationBusTests {
     // MARK: Basic Functionality Tests
 
@@ -202,7 +247,7 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<String>()
         let holder = ValueHolder()
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op1")) { value in
             await holder.setValue(value)
         }
 
@@ -226,15 +271,15 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<Int>()
         let collector = ValueCollector()
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op1")) { value in
             await collector.append(value * 2)
         }
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op2")) { value in
             await collector.append(value * 3)
         }
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "op3")) { value in
             await collector.append(value * 4)
         }
 
@@ -271,13 +316,13 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<Void>()
         let tracker = ExecutionTracker()
 
-        bus.addOperation { _ in
+        bus.addOperation(for: TestBusViewModel(id: "op1")) { _ in
             await tracker.recordStart(1)
             try? await Task.sleep(for: .milliseconds(50))
             await tracker.recordEnd(1)
         }
 
-        bus.addOperation { _ in
+        bus.addOperation(for: TestBusViewModel(id: "op2")) { _ in
             await tracker.recordStart(2)
             try? await Task.sleep(for: .milliseconds(50))
             await tracker.recordEnd(2)
@@ -287,6 +332,39 @@ struct AsyncOperationBusTests {
 
         let isConcurrent = await tracker.checkConcurrency()
         #expect(isConcurrent)
+    }
+
+    // MARK: Dedup Tests
+
+    @Test func duplicateAsyncRegistrationReplacesOperation() async {
+        actor CallTracker {
+            var callCount = 0
+
+            func record(_ amount: Int) {
+                callCount += amount
+            }
+
+            func getCount() -> Int {
+                callCount
+            }
+        }
+
+        let bus = AsyncOperationBus<Void>()
+        let tracker = CallTracker()
+        let vmId = TestBusViewModel(id: "shared")
+
+        bus.addOperation(for: vmId) { _ in
+            await tracker.record(1)
+        }
+
+        bus.addOperation(for: vmId) { _ in
+            await tracker.record(10)
+        }
+
+        await bus.invoke(())
+
+        // Should have been called once (replaced), not twice (appended)
+        #expect(await tracker.getCount() == 10)
     }
 
     // MARK: Mutable Data Tests (Thread-Safe)
@@ -322,15 +400,15 @@ struct AsyncOperationBusTests {
 
         let bus = AsyncOperationBus<FormData>()
 
-        bus.addOperation { formData in
+        bus.addOperation(for: TestBusViewModel(id: "name")) { formData in
             formData.name.withLock { $0 = "Bob" }
         }
 
-        bus.addOperation { formData in
+        bus.addOperation(for: TestBusViewModel(id: "age")) { formData in
             formData.age.withLock { $0 = 25 }
         }
 
-        bus.addOperation { formData in
+        bus.addOperation(for: TestBusViewModel(id: "email")) { formData in
             formData.email.withLock { $0 = "bob@example.com" }
         }
 
@@ -358,7 +436,7 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<Int>()
         let counter = Counter()
 
-        bus.addOperation { value in
+        bus.addOperation(for: TestBusViewModel(id: "counter")) { value in
             await counter.add(value)
         }
 
@@ -395,7 +473,7 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<ComplexData>()
         let collector = DataCollector()
 
-        bus.addOperation { data in
+        bus.addOperation(for: TestBusViewModel(id: "collector")) { data in
             await collector.store(data)
         }
 
@@ -427,7 +505,7 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<Void>()
         let tracker = TimeTracker()
 
-        bus.addOperation { _ in
+        bus.addOperation(for: TestBusViewModel(id: "delayed")) { _ in
             try? await Task.sleep(for: .milliseconds(100))
             await tracker.markComplete()
         }
@@ -459,7 +537,7 @@ struct AsyncOperationBusTests {
         let bus = AsyncOperationBus<SendableData>()
         let holder = ValueHolder()
 
-        bus.addOperation { data in
+        bus.addOperation(for: TestBusViewModel(id: "sendable")) { data in
             await holder.setValue(data.value)
         }
 
