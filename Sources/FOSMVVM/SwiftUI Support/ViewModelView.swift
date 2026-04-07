@@ -506,6 +506,9 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
         let vm = resolveClientHostedRequest()
         VMV(viewModel: vm)
             .id(vm.vmId)
+            // invalidatable() does only 1 thing; creates a reference to redraw so that SwiftUI will redraw
+            // when it's modified.
+            .invalidatable(redraw)
             .onChange(of: query, initial: false) {
                 redraw.toggle()
             }
@@ -583,6 +586,9 @@ private struct VMClientResolverView<VM, VMV>: View where
         let vm = resolveClientHostedRequest()
         VMV(viewModel: vm)
             .id(vm.vmId)
+            // invalidatable() does only 1 thing; makes a reference to redraw so that SwiftUI will redraw
+            // when it's modified.
+            .invalidatable(redraw)
             .onChange(of: query, initial: false) {
                 redraw.toggle()
             }
@@ -633,6 +639,13 @@ private struct VMClientResolverView<VM, VMV>: View where
             // encountered an error.
             return .stub()
         }
+    }
+}
+
+private extension View {
+    @inline(never)
+    func invalidatable(_ trigger: Bool) -> some View {
+        self
     }
 }
 
