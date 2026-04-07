@@ -44,6 +44,59 @@ UI testing in FOSMVVM follows a specific pattern that leverages:
 └─────────────────────────────────────────────────────────────┘
 ```
 
+## Element Matching Rules
+
+UI tests must follow a strict hierarchy for finding and matching elements. **Never use hardcoded display strings.**
+
+### Tier 1: Accessibility Identifiers (Preferred)
+
+Use `.uiTestingIdentifier()` on the view and match via `XCUIApplication` extension accessors:
+
+```swift
+// View
+Text(viewModel.title)
+    .uiTestingIdentifier("dashboardTitle")
+
+// Test — accessor uses identifier
+private extension XCUIApplication {
+    var dashboardTitle: XCUIElement {
+        staticTexts.element(matching: .staticText, identifier: "dashboardTitle")
+    }
+}
+
+// Test — usage
+XCTAssertTrue(app.dashboardTitle.exists)
+```
+
+### Tier 2: Localized ViewModel Text (When Identifiers Are Insufficient)
+
+When you must match by display text (e.g., verifying a label's content, or an element that can't carry a unique identifier), use `localizedViewModel()` to resolve the text from the same source of truth as the UI:
+
+```swift
+let viewModel: PrimaryParametersViewModel = try localizedViewModel()
+let app = try presentView(viewModel: viewModel)
+
+// Match against ViewModel's resolved localized text — never a hardcoded string
+XCTAssertTrue(try app.staticTexts[viewModel.amplitudeLabel.localizedString].exists)
+XCTAssertEqual(app.stepperValueText.label, try viewModel.value.localizedString)
+```
+
+This keeps tests locale-correct and refactor-safe — if the YAML translation changes, the test still passes because it reads from the same source of truth.
+
+### Never Allowed: Hardcoded Display Strings
+
+```swift
+// ❌ WRONG — breaks on locale change, copy change, or duplicate text
+XCTAssertTrue(app.staticTexts["Settings"].exists)
+XCTAssertEqual(app.label.text, "Welcome back!")
+
+// ✅ RIGHT — Tier 1: identifier
+XCTAssertTrue(app.settingsLabel.exists)
+
+// ✅ RIGHT — Tier 2: localized ViewModel
+XCTAssertTrue(try app.staticTexts[viewModel.settingsLabel.localizedString].exists)
+```
+
 ## Core Components
 
 ### 1. Base Test Case Class
@@ -549,10 +602,11 @@ func testFormInput() async throws {
 
 ```swift
 func testErrorDisplay() async throws {
-    let app = try presentView(viewModel: .stub(hasError: true))
+    let viewModel: MyViewModel = try localizedViewModel(.stub(hasError: true))
+    let app = try presentView(viewModel: viewModel)
 
     XCTAssertTrue(app.errorAlert.exists)
-    XCTAssertEqual(app.errorMessage.text, "An error occurred")
+    XCTAssertEqual(app.errorMessage.text, try viewModel.errorMessage.localizedString)
 }
 ```
 
@@ -585,3 +639,4 @@ See [reference.md](reference.md) for complete file templates.
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for UI tests |
 | 1.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 1.2 | 2026-03-30 | Add Element Matching Rules section (identifier > localizedViewModel > never hardcoded strings). Fix hardcoded string in error state example. |
