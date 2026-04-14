@@ -28,15 +28,15 @@ import Foundation
 ///
 /// - Parameter codableType: A `System.Type` of a type that conforms to **Codable** and **Stubbable**
 /// - Parameter message: An optional message that will be added to any error messages
-/// - Parameter encoder: An optional *JSONEncoder* to use to encode the data (default: **JSONEncoder()**)
-/// - Parameter decoder: n optional *JSONDecoder* to use to decode the data (default: **JSONDecoder()**)
+/// - Parameter encoder: An optional *JSONEncoder* to use to encode the data (default: **JSONEncoder.defaultEncoder**)
+/// - Parameter decoder: n optional *JSONDecoder* to use to decode the data (default: **JSONDecoder.defaultDecoder**)
 public func expectCodable<C: Codable & Stubbable>(_ codableType: C.Type, encoder: JSONEncoder? = nil, decoder: JSONDecoder? = nil, _ message: @autoclosure () -> String = "") throws {
     let instance = codableType.stub()
     let message = message() + ": "
 
     let encodedData: Data
     do {
-        let encoder = encoder ?? JSONEncoder()
+        let encoder = encoder ?? JSONEncoder.defaultEncoder
         encodedData = try encoder.encode(instance)
 
         if encodedData.count == 0 {
@@ -47,7 +47,7 @@ public func expectCodable<C: Codable & Stubbable>(_ codableType: C.Type, encoder
     }
 
     do {
-        let decoder = decoder ?? JSONDecoder()
+        let decoder = decoder ?? JSONDecoder.defaultDecoder
         _ = try decoder.decode(codableType, from: encodedData)
     } catch let e {
         // swiftlint:disable:next optional_data_string_conversion
@@ -66,8 +66,8 @@ public func expectCodable<C: Codable & Stubbable>(_ codableType: C.Type, encoder
 /// - Parameters:
 ///     - viewModelType: A *System.Type* of a type that conforms to **ViewModel**
 ///     - version: The version of *viewModelType* (default: *SystemVersion.current*)
-///     - encoder: An optional *JSONEncoder* to use to encode the data (default: **JSONEncoder()**)
-///     - decoder: n optional *JSONDecoder* to use to decode the data (default: **JSONDecoder()**)
+///     - encoder: An optional *JSONEncoder* to use to encode the data (default: **JSONEncoder.defaultEncoder**)
+///     - decoder: n optional *JSONDecoder* to use to decode the data (default: **JSONDecoder.defaultDecoder**)
 ///     - message: An optional message that will be added to any error messages
 ///     - fixedTestFilePath: An optional fully qualified path of a directory in which to store the versioned json files (default: .VersionedTestJSON)
 ///     - file: The optional file path of the source file calling this method
@@ -87,7 +87,7 @@ public func expectVersionedViewModel<VM: ViewModel>(_ viewModelType: VM.Type, ve
     if !fileMgr.fileExists(atPath: testFilePath.path),
        !(viewModelType is (any ClientHostedViewModelFactory.Type)) {
         let instance = viewModelType.stub()
-        let encoder = encoder ?? JSONEncoder()
+        let encoder = encoder ?? JSONEncoder.defaultEncoder
         let encodedData = try encoder.encode(instance)
 
         guard encodedData.count > 0 else {
@@ -100,7 +100,7 @@ public func expectVersionedViewModel<VM: ViewModel>(_ viewModelType: VM.Type, ve
 
     // Test that every version can be loaded
     for testFile in try fileMgr.testFiles(for: viewModelType, testFileDirectory: testFileDirectory) {
-        let decoder = decoder ?? JSONDecoder()
+        let decoder = decoder ?? JSONDecoder.defaultDecoder
 
         do {
             let data = try Data(contentsOf: testFile)
