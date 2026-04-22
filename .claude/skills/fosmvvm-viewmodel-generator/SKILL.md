@@ -310,6 +310,267 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
 
 ---
 
+## Third Decision: Interactive vs Display-Only
+
+**This is a per-ViewModel decision, independent of hosting mode.**
+
+**The key question: Does the user initiate actions through this ViewModel's view?**
+
+| View behavior | ViewModel kind | Operations file generated? |
+|---------------|----------------|----------------------------|
+| Renders data only — no user actions | **Display-only** | No |
+| Has buttons, forms, toggles, menus, drag-and-drop | **Interactive** | Yes |
+
+Interactive ViewModels have a companion **Operations** file (`{Name}ViewModelOperations.swift`), co-located with the ViewModel. Display-only ViewModels have no Operations at all — do not invent an empty protocol to satisfy a generic parameter. The test base class for display-only views is ``ViewModelDisplayTestCase<VM>``, which takes no Operations type.
+
+### Decision Examples
+
+| VM | Interactive? | Rationale |
+|----|--------------|-----------|
+| `UserCardViewModel` | No | Renders user data |
+| `UserRowViewModel` | No | Renders list row |
+| `DashboardViewModel` | No | Renders a grid of children |
+| `UserFormViewModel` | Yes | Save/Cancel buttons |
+| `SettingsViewModel` | Yes | Toggles and pickers |
+| `DeviceConnectionViewModel` | Yes | Connect/Disconnect actions |
+
+### What "Operations" Is
+
+Operations is the dispatch seam for user-initiated actions. Every interactive ViewModel has:
+
+- **Protocol** (`{Name}ViewModelOperations: ViewModelOperations`) — declares the actions the View can dispatch.
+- **Live implementation** (`{Name}Ops`, struct) — does the real work: calls a server via `ServerRequest`, mutates `@Observable` storage, talks to a device, etc.
+- **Stub implementation** (`{Name}StubOps`, `final class`, `@unchecked Sendable`) — records which methods were called and with what arguments, for UI tests.
+- **Wiring on the VM** — a private `isStub: Bool` flag plus a `public var operations: any {Name}ViewModelOperations` computed property that returns Ops in production and StubOps in `stub()`.
+
+The protocol + both implementations live together in `{Name}ViewModelOperations.swift`, next to `{Name}ViewModel.swift`.
+
+### Operations Conventions: Client-Hosted vs Server-Backed
+
+Operations split along the same hosting axis as the ViewModel. The canonical rules live in [Architecture Patterns → Ops Conventions](../shared/architecture-patterns.md). The short summary:
+
+**Client-hosted ops.** Mutate one or more `@Observable` storage objects the View holds in `@Environment`. Each mutating method takes scalar inputs first and the write target **last**, labeled `output`:
+
+```swift
+func setTheme(_ theme: Theme, output storage: UserSettings)
+```
+
+The View reads storage from `@Environment(UserSettings.self)` and hands it to the op at the call site:
+
+```swift
+Button("Dark") {
+    viewModel.operations.setTheme(.dark, output: settings)
+}
+```
+
+**Server-backed ops.** The server owns storage (database, via Vapor request context). Ops dispatch a `ServerRequest` and never take an `output:` parameter:
+
+```swift
+func disconnect(deviceId: String) async throws
+```
+
+**Two rules that apply to both:**
+
+- **`async` only when the body awaits.** Do not mark ops `async` speculatively. An `async` call site becomes `Task { try await op(...) }`; for a body that just mutates state, that introduces arbitrary Task completion ordering — rapid user taps can land out of order and the last write isn't always the last tap. Mark `async` only for genuine I/O (network, device, disk).
+- **Never fail silently.** No `try?`, no empty `catch {}`. Surface errors to observable state or a logger. See [Architecture Patterns → Never Fail Silently](../shared/architecture-patterns.md) for the full rationale.
+
+Full reasoning — the asymmetry between client and server storage, why `in storage:` is wrong, projection-edge mechanics — lives in [Architecture Patterns → Ops Conventions](../shared/architecture-patterns.md).
+
+### Full Server-Hosted Interactive Example
+
+**ViewModel file** — `{ViewModelsTarget}/Info/InfoViewModel.swift`:
+
+```swift
+@ViewModel
+public struct InfoViewModel: RequestableViewModel {
+    // MARK: ViewModel Properties
+
+    @LocalizedString public var connectionTitle
+    @LocalizedString public var disconnectTitle
+
+    public let deviceId: String
+
+    // MARK: RequestableViewModel Protocol
+
+    public typealias Request = InfoRequest
+    public let vmId: ViewModelId
+
+    // MARK: Operations Access
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any InfoViewModelOperations {
+        isStub ? InfoStubOps() : InfoOps()
+    }
+    #endif
+
+    // MARK: Initialization
+
+    public init(deviceId: String) {
+        self.init(isStub: false, deviceId: deviceId)
+    }
+
+    private init(isStub: Bool, deviceId: String) {
+        self.isStub = isStub
+        self.deviceId = deviceId
+        self.vmId = .init(type: Self.self)
+    }
+
+    public static func stub() -> Self {
+        .init(isStub: true, deviceId: "test-device")
+    }
+}
+```
+
+**Operations file** — `{ViewModelsTarget}/Info/InfoViewModelOperations.swift`:
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+// MARK: - Protocol
+
+public protocol InfoViewModelOperations: ViewModelOperations {
+    func disconnect(deviceId: String) async throws
+}
+
+// MARK: - Live Implementation (Server-Backed)
+
+public struct InfoOps: InfoViewModelOperations {
+    public init() {}
+
+    public func disconnect(deviceId: String) async throws {
+        // Dispatches a ServerRequest. The server owns storage;
+        // no `output:` parameter. `async throws` matches the network call.
+    }
+}
+
+// MARK: - Stub Implementation
+
+#if canImport(SwiftUI)
+public final class InfoStubOps: InfoViewModelOperations, @unchecked Sendable {
+    public var disconnectCalled: Bool { disconnectCalledWith != nil }
+    public private(set) var disconnectCalledWith: String?
+
+    public init() {}
+
+    public func disconnect(deviceId: String) async throws {
+        disconnectCalledWith = deviceId
+    }
+}
+#endif
+```
+
+No `output storage:` on any method — the server owns storage. The `async throws` is genuine (network I/O). The stub exposes two assertion points: `disconnectCalled` (did the op fire at all?) and `disconnectCalledWith` (was the right data passed?).
+
+### Full Client-Hosted Interactive Example
+
+**ViewModel file** — `{ViewModelsTarget}/Preferences/PreferencesViewModel.swift`:
+
+```swift
+@ViewModel(options: [.clientHostedFactory])
+public struct PreferencesViewModel {
+    // MARK: ViewModel Properties
+
+    @LocalizedString public var pageTitle
+    @LocalizedString public var darkModeLabel
+
+    // Scalar projections from @Observable storage (see architecture-patterns.md)
+    public let notificationsEnabled: Bool
+    public let theme: Theme
+
+    // MARK: Operations Access
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any PreferencesViewModelOperations {
+        isStub ? PreferencesStubOps() : PreferencesOps()
+    }
+    #endif
+
+    public var vmId = ViewModelId()
+
+    // MARK: Initialization
+
+    // Public init parameters become AppState properties (macro-generated).
+    // Do NOT include isStub here — it's an implementation detail, not AppState.
+    public init(notificationsEnabled: Bool, theme: Theme) {
+        self.init(isStub: false, notificationsEnabled: notificationsEnabled, theme: theme)
+    }
+
+    private init(isStub: Bool, notificationsEnabled: Bool, theme: Theme) {
+        self.isStub = isStub
+        self.notificationsEnabled = notificationsEnabled
+        self.theme = theme
+    }
+
+    public static func stub() -> Self {
+        .init(isStub: true, notificationsEnabled: false, theme: .system)
+    }
+}
+```
+
+**Operations file** — `{ViewModelsTarget}/Preferences/PreferencesViewModelOperations.swift`:
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+// MARK: - Protocol
+
+public protocol PreferencesViewModelOperations: ViewModelOperations {
+    func setTheme(_ theme: Theme, output storage: UserSettings)
+    func setNotificationsEnabled(_ enabled: Bool, output storage: UserSettings)
+}
+
+// MARK: - Live Implementation (Client-Hosted)
+
+public struct PreferencesOps: PreferencesViewModelOperations {
+    public init() {}
+
+    public func setTheme(_ theme: Theme, output storage: UserSettings) {
+        storage.theme = theme
+    }
+
+    public func setNotificationsEnabled(_ enabled: Bool, output storage: UserSettings) {
+        storage.notificationsEnabled = enabled
+    }
+}
+
+// MARK: - Stub Implementation
+
+#if canImport(SwiftUI)
+public final class PreferencesStubOps: PreferencesViewModelOperations, @unchecked Sendable {
+    public private(set) var setThemeCalled: Bool = false
+    public private(set) var setNotificationsEnabledCalled: Bool = false
+
+    public init() {}
+
+    public func setTheme(_ theme: Theme, output storage: UserSettings) {
+        setThemeCalled = true
+        storage.theme = theme
+    }
+
+    public func setNotificationsEnabled(_ enabled: Bool, output storage: UserSettings) {
+        setNotificationsEnabledCalled = true
+        storage.notificationsEnabled = enabled
+    }
+}
+#endif
+```
+
+Every mutating method takes `output storage: UserSettings` as its **last** parameter. Ops are **synchronous** — bodies do no awaiting. The client-hosted stub records that the op fired (`Called: Bool = false`) **and** performs the same mutation the live implementation would — so `@Observable` fires, the resolver re-projects, and the View updates under test. Tests assert "was it called?" with `stubOps.setThemeCalled` and "with what value?" by reading `storage.theme` directly; the storage itself holds the `CalledWith` equivalent, so no separate accessor is needed.
+
+This asymmetry with server-backed stubs (which expose `Called` + `CalledWith` accessors and never mutate) is intentional: server-backed tests have no local storage to observe, so the stub must expose both accessors; client-hosted tests have storage right there, so the stub uses it to keep the projection loop intact.
+
+**Note on the AppState/scalar split.** The ViewModel holds scalars (`notificationsEnabled: Bool`, `theme: Theme`), **not** a reference to `UserSettings`. At the call site the View holds `@Environment(UserSettings.self)` and hands the reference directly to the op — the reference never passes through the VM. See [Architecture Patterns → VMs Hold Scalars](../shared/architecture-patterns.md) for why.
+
+---
+
 ## When to Use This Skill
 
 - Creating a new page or screen
@@ -319,23 +580,29 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
 
 ## What This Skill Generates
 
-### Server-Hosted: Top-Level ViewModel (4 files)
+**Interactive ViewModels** (those that dispatch user-initiated actions) get an additional `{Name}ViewModelOperations.swift` file co-located with the ViewModel. Display-only ViewModels do **not** get this file — no empty protocols, no operation scaffolding. See **Third Decision: Interactive vs Display-Only** above.
 
-| File | Location | Purpose |
-|------|----------|---------|
-| `{Name}ViewModel.swift` | `{ViewModelsTarget}/` | The ViewModel struct |
-| `{Name}Request.swift` | `{ViewModelsTarget}/` | The ViewModelRequest type |
-| `{Name}ViewModel.yml` | `{ResourcesPath}/` | Localization strings |
-| `{Name}ViewModel+Factory.swift` | `{WebServerTarget}/` | Factory that builds from DB |
+### Server-Hosted: Top-Level ViewModel
 
-### Client-Hosted: Top-Level ViewModel (2 files)
+| File | Location | Purpose | Interactive only? |
+|------|----------|---------|-------------------|
+| `{Name}ViewModel.swift` | `{ViewModelsTarget}/` | The ViewModel struct | No |
+| `{Name}Request.swift` | `{ViewModelsTarget}/` | The ViewModelRequest type | No |
+| `{Name}ViewModel.yml` | `{ResourcesPath}/` | Localization strings | No |
+| `{Name}ViewModel+Factory.swift` | `{WebServerTarget}/` | Factory that builds from DB | No |
+| `{Name}ViewModelOperations.swift` | `{ViewModelsTarget}/` | Ops protocol + live + stub | **Yes** |
 
-| File | Location | Purpose |
-|------|----------|---------|
-| `{Name}ViewModel.swift` | `{ViewModelsTarget}/` | ViewModel with `clientHostedFactory` option |
-| `{Name}ViewModel.yml` | `{ResourcesPath}/` | Localization strings (bundled in app) |
+Display-only: 4 files. Interactive: 5 files.
 
-*No Request or Factory files needed - macro generates them!*
+### Client-Hosted: Top-Level ViewModel
+
+| File | Location | Purpose | Interactive only? |
+|------|----------|---------|-------------------|
+| `{Name}ViewModel.swift` | `{ViewModelsTarget}/` | ViewModel with `clientHostedFactory` option | No |
+| `{Name}ViewModel.yml` | `{ResourcesPath}/` | Localization strings (bundled in app) | No |
+| `{Name}ViewModelOperations.swift` | `{ViewModelsTarget}/` | Ops protocol + live + stub | **Yes** |
+
+Display-only: 2 files. Interactive: 3 files. *No Request or Factory files needed — macro generates them.*
 
 ### Child ViewModels (1-2 files, either mode)
 
@@ -343,6 +610,8 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
 |------|----------|---------|
 | `{Name}ViewModel.swift` | `{ViewModelsTarget}/` | The ViewModel struct |
 | `{Name}ViewModel.yml` | `{ResourcesPath}/` | Localization (if has `@LocalizedString`) |
+
+Child ViewModels don't own Operations — if a child's rendering has actions, those dispatch through the top-level VM's Operations, or the child is promoted to a top-level ViewModel with its own Operations file.
 
 **Note:** If child is only used by one parent and represents a summary/reference (not a full ViewModel), nest it inside the parent file instead. See **Nested Child Types Pattern** under Key Patterns.
 
@@ -453,6 +722,8 @@ public struct SettingsViewModel {
 // - class ClientHostedRequest: ViewModelRequest { ... }
 // - static func model(context:) async throws -> Self { ... }
 ```
+
+**Interactive variants.** Both examples above are **display-only**. Interactive ViewModels add an `isStub: Bool` flag, a `public var operations: any ...` computed property, and a private `init(isStub:, ...)` that the public init and `stub()` both delegate to. Full shape (both server-hosted and client-hosted): see **Third Decision: Interactive vs Display-Only** above.
 
 ### Stubbable Pattern
 
@@ -759,3 +1030,4 @@ See [reference.md](reference.md) for complete file templates.
 | 2.5 | 2026-01-19 | Added Enum Localization Pattern section. Clarified @LocalizedString is for static text only; stored LocalizableString for dynamic enum values. |
 | 2.6 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 2.7 | 2026-01-25 | Added Nested Child Types Pattern section with two-tier Stubbable pattern, placement rules, conformances, and decision criteria for when to nest vs keep top-level. |
+| 2.8 | 2026-04-22 | Added Third Decision (Interactive vs Display-Only) — Operations trio generation for interactive VMs. Full server-hosted and client-hosted interactive examples with `isStub` flag, `operations` property, private init. Documented client-hosted `output storage:` convention and server-backed no-output convention. Added Templates 10 and 11 to reference.md (interactive VM + Operations file pairs). |

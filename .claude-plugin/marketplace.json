@@ -3,7 +3,10 @@
   "owner": {
     "name": "FOS Computer Services"
   },
-  "description": "Claude Code plugins for FOSMVVM architecture development",
+  "metadata": {
+    "description": "Claude Code plugins for FOSMVVM architecture development",
+    "version": "2.1.0"
+  },
   "plugins": [
     {
       "name": "fosmvvm-generators",

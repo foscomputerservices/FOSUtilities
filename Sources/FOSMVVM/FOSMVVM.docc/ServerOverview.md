@@ -81,3 +81,18 @@ The *resourceDirectoryName* should be set to the same name as specified in the a
 
 > This example shows that all localization (YAML) files can be found under Sources/MyApp/Localization.
 
+## Interactive ViewModels
+
+When a ``ViewModel`` the server publishes backs an interactive View (buttons, forms,
+toggles that dispatch user actions), its client-side companion is a
+``ViewModelOperations`` implementation that dispatches a ``ServerRequest`` back to the
+server. Server-backed operations take **no** `output:` parameter — the server owns storage
+through the Vapor request context — and are typically `async throws` because the body
+awaits network I/O. See <doc:Operations> for the complete server-backed Operations shape,
+contrasted with the client-hosted shape.
+
+## Topics
+
+- <doc:Operations>
+- <doc:ViewModelandViewModelRequest>
+

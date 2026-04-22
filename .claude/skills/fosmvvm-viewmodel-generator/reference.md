@@ -629,6 +629,220 @@ struct SettingsView: View {
 
 ---
 
+## Template 10: Interactive Server-Hosted ViewModel (with Operations)
+
+**For interactive top-level ViewModels whose actions dispatch to a server.** This template covers both files the generator emits for an interactive server-hosted VM. See **Third Decision: Interactive vs Display-Only** in `SKILL.md` for when to use this vs a display-only VM.
+
+### {Name}ViewModel.swift
+
+**Location:** `{ViewModelsTarget}/{Feature}/{Name}ViewModel.swift`
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+@ViewModel
+public struct {Name}ViewModel: RequestableViewModel {
+    // MARK: ViewModel Properties
+
+    @LocalizedString public var {titleProperty}
+    // ... additional @LocalizedString properties and scalar fields
+
+    // MARK: RequestableViewModel Protocol
+
+    public typealias Request = {Name}Request
+    public let vmId: ViewModelId
+
+    // MARK: Operations Access
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any {Name}ViewModelOperations {
+        isStub ? {Name}StubOps() : {Name}Ops()
+    }
+    #endif
+
+    // MARK: Initialization
+
+    public init({initParams}) {
+        self.init(isStub: false, {initParamNames})
+    }
+
+    private init(isStub: Bool, {initParams}) {
+        self.isStub = isStub
+        // ... assign all stored properties from init params
+        self.vmId = .init(type: Self.self)
+    }
+
+    public static func stub() -> Self {
+        .init(isStub: true, {stubParamValues})
+    }
+}
+```
+
+### {Name}ViewModelOperations.swift
+
+**Location:** `{ViewModelsTarget}/{Feature}/{Name}ViewModelOperations.swift` (co-located with the ViewModel)
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+// MARK: - Protocol
+
+public protocol {Name}ViewModelOperations: ViewModelOperations {
+    // Server-backed ops: no `output:` parameter (server owns storage).
+    // `async throws` matches the network call body.
+    func {action}({scalarInputs}) async throws
+}
+
+// MARK: - Live Implementation (Server-Backed)
+
+public struct {Name}Ops: {Name}ViewModelOperations {
+    public init() {}
+
+    public func {action}({scalarInputs}) async throws {
+        // Dispatches a ServerRequest. The server owns storage.
+    }
+}
+
+// MARK: - Stub Implementation
+
+#if canImport(SwiftUI)
+public final class {Name}StubOps: {Name}ViewModelOperations, @unchecked Sendable {
+    public var {action}Called: Bool { {action}CalledWith != nil }
+    public private(set) var {action}CalledWith: {InputType}?
+
+    public init() {}
+
+    public func {action}({scalarInputs}) async throws {
+        {action}CalledWith = {input}
+    }
+}
+#endif
+```
+
+**Rules that must hold:**
+
+- No `output storage:` parameter on any method — server owns storage.
+- `async throws` only when the body genuinely awaits I/O or throws. A method that stores a scalar should not be `async`.
+- The stub exposes two accessors per operation: `{action}Called` (did the op fire at all?) and `{action}CalledWith` (what data was passed?). UI tests typically assert on both. The stub does not mutate downstream state — server-backed ops can't because there is no server in the test environment.
+
+---
+
+## Template 11: Interactive Client-Hosted ViewModel (with Operations)
+
+**For interactive top-level ViewModels whose actions mutate local `@Observable` storage.** This template covers both files the generator emits for an interactive client-hosted VM.
+
+### {Name}ViewModel.swift
+
+**Location:** `{ViewModelsTarget}/{Feature}/{Name}ViewModel.swift`
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+@ViewModel(options: [.clientHostedFactory])
+public struct {Name}ViewModel {
+    // MARK: ViewModel Properties
+
+    @LocalizedString public var {titleProperty}
+
+    // Scalar projections from @Observable storage — no @Observable references here.
+    public let {scalarField1}: {Type1}
+    public let {scalarField2}: {Type2}
+
+    // MARK: Operations Access
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any {Name}ViewModelOperations {
+        isStub ? {Name}StubOps() : {Name}Ops()
+    }
+    #endif
+
+    public var vmId = ViewModelId()
+
+    // MARK: Initialization
+
+    // Public init parameters become AppState properties (macro-generated).
+    // Do NOT include isStub in the public init — it's an implementation detail.
+    public init({scalarField1}: {Type1}, {scalarField2}: {Type2}) {
+        self.init(isStub: false, {scalarField1}: {scalarField1}, {scalarField2}: {scalarField2})
+    }
+
+    private init(isStub: Bool, {scalarField1}: {Type1}, {scalarField2}: {Type2}) {
+        self.isStub = isStub
+        self.{scalarField1} = {scalarField1}
+        self.{scalarField2} = {scalarField2}
+    }
+
+    public static func stub() -> Self {
+        .init(isStub: true, {scalarField1}: {stubValue1}, {scalarField2}: {stubValue2})
+    }
+}
+```
+
+### {Name}ViewModelOperations.swift
+
+**Location:** `{ViewModelsTarget}/{Feature}/{Name}ViewModelOperations.swift` (co-located with the ViewModel)
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+// MARK: - Protocol
+
+public protocol {Name}ViewModelOperations: ViewModelOperations {
+    // Client-hosted ops: scalar inputs first, write target last, labeled `output`.
+    // Sync by default — no async unless the body genuinely awaits.
+    func {action}(_ {input}: {InputType}, output storage: {StorageType})
+}
+
+// MARK: - Live Implementation (Client-Hosted)
+
+public struct {Name}Ops: {Name}ViewModelOperations {
+    public init() {}
+
+    public func {action}(_ {input}: {InputType}, output storage: {StorageType}) {
+        storage.{property} = {input}
+    }
+}
+
+// MARK: - Stub Implementation
+
+#if canImport(SwiftUI)
+public final class {Name}StubOps: {Name}ViewModelOperations, @unchecked Sendable {
+    public private(set) var {action}Called: Bool = false
+
+    public init() {}
+
+    public func {action}(_ {input}: {InputType}, output storage: {StorageType}) {
+        {action}Called = true
+        storage.{property} = {input}
+    }
+}
+#endif
+```
+
+**Rules that must hold:**
+
+- Scalar inputs first, `output storage: {StorageType}` **last** on every mutating method. `in storage:` is the wrong label — reads like an input, writes like an output.
+- Ops are synchronous unless the body awaits. Gratuitous `async` on a synchronous mutation introduces out-of-order Task completion for rapid user interactions (stepper taps can land out of order).
+- Ops must not read `storage.foo` for branch decisions. Branches switch on scalar inputs. If you want to read `storage.foo`, promote it to a scalar input.
+- Never fail silently. No `try?`, no empty `catch {}`. Surface errors to observable state.
+- **Client-hosted stubs mirror the live mutation.** The stub records that the op fired (`{action}Called: Bool = false` → set to `true`) **and** performs the same write the live implementation would (`storage.{property} = {input}`). This keeps the projection loop intact under test: tap → stub mutates storage → `@Observable` fires → re-projection → View updates. UI tests assert "was it called?" with `stubOps.{action}Called`; "with what value?" is read directly from `storage.{property}` — the storage itself holds the `CalledWith` equivalent, so no separate accessor is needed. This asymmetry with server-backed stubs (which expose `Called` + `CalledWith` and never mutate) is intentional: server-backed tests have no local storage to observe.
+
+See [Architecture Patterns → Ops Conventions](../shared/architecture-patterns.md) for the full rationale.
+
+---
+
 # Server-Hosted Complete Example
 
 ## Complete Example: Dashboard with Cards

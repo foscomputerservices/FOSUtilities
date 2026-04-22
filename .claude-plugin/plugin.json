@@ -1,10 +1,12 @@
 {
   "name": "fosmvvm-generators",
   "description": "FOSMVVM architecture generators for ViewModels, Fields, DataModels, ServerRequests, Leaf Views, and ViewModel Tests",
-  "version": "2.0.6",
+  "version": "2.1.0",
   "author": {
     "name": "FOS Computer Services"
   },
+  "homepage": "https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosmvvm",
+  "repository": "https://github.com/foscomputerservices/FOSUtilities",
   "license": "Apache-2.0",
   "keywords": [
     "fosmvvm",
