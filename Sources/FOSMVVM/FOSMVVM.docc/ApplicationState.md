@@ -188,10 +188,12 @@ struct MyView: View {
 ```
 
 When testing the view, the application state can now be provided via the
-stub:
+stub. Because **DeviceViewModel** is display-only — the View only renders `deviceId`
+and has no user-initiated actions — the test subclasses `ViewModelDisplayTestCase<VM>`
+rather than `ViewModelViewTestCase<VM, VMO>`. No ``ViewModelOperations`` type is needed:
 
 ```swift
-final class MyViewUITests: MyViewModelViewTestCase<DeviceViewModel, DeviceViewModelStubOperations>, @unchecked Sendable {
+final class MyViewUITests: MyViewModelDisplayTestCase<DeviceViewModel>, @unchecked Sendable {
     func testShowDeviceId() async throws {
         let testId = "test-abc-1234"
         let app = try await presentView(viewModel: .stub(deviceId: testId))
@@ -201,3 +203,21 @@ final class MyViewUITests: MyViewModelViewTestCase<DeviceViewModel, DeviceViewMo
     }
 }
 ```
+
+## Adding Interactivity
+
+The example above is display-only. When the View needs to mutate the app state — toggle
+a setting, submit a form, change the theme — the ``ViewModel`` becomes *interactive*
+and gains a companion ``ViewModelOperations`` implementation. For client-hosted views
+that mutate `@Observable` storage, operations take the storage as a trailing
+`output storage:` parameter, and the View injects the `@Observable` from its
+`@Environment` at the call site.
+
+See <doc:Operations> for the full client-hosted Operations pattern, including how the
+``ViewModel`` holds only scalars while the View holds the `@Observable` reference.
+
+## Topics
+
+- <doc:Operations>
+- <doc:ClientOverview>
+- <doc:ViewModelandViewModelRequest>

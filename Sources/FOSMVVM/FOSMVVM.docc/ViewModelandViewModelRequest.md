@@ -141,3 +141,19 @@ func routes(_ app: Application) throws {
     try app.routes.register(model: LandingPageViewModel.self)
 }
 ```
+
+## Display-Only vs Interactive ViewModels
+
+The **LandingPageViewModel** above is *display-only* — the View renders data, but the user
+performs no actions on it. Display-only ViewModels require no companion file.
+
+When the View the ``ViewModel`` backs has user-initiated actions (buttons, forms, toggles,
+menus), the ``ViewModel`` becomes *interactive* and needs a companion
+``ViewModelOperations`` implementation that dispatches those actions. Server-backed and
+client-hosted interactive ViewModels follow parallel but distinct conventions — see
+<doc:Operations> for the protocol + live + stub pattern and full examples in both modes.
+
+## Topics
+
+- <doc:Operations>
+- <doc:ApplicationState>

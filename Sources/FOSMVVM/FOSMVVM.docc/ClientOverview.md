@@ -145,11 +145,19 @@ struct MyApp: App {
 That is all that needs to be done to allow a client application to retrieve ``ViewModel``s
 from a server application!
 
+### Interactive Views
+
+If a View the client presents has user-initiated actions — buttons, forms, toggles — its
+``ViewModel`` needs a companion ``ViewModelOperations`` implementation. See
+<doc:Operations> for the protocol + live + stub pattern, the `output storage:` convention
+for client-hosted mutations, and complete examples.
+
 ## Topics
 
 - <doc:ApplicationState>
 - <doc:ServerOverview>
 - <doc:ViewModelandViewModelRequest>
+- <doc:Operations>
 - <doc:Forms>
 - ``ViewModel``
 - ``ViewModelRequest``

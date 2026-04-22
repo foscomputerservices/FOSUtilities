@@ -195,6 +195,122 @@ private extension {ViewName}View {
 
 ---
 
+# Template 2a: Client-Hosted Interactive View (with `@Environment` Storage)
+
+**For client-hosted interactive views** — toggles, pickers, or buttons that mutate an `@Observable` storage class held in `@Environment`. Pair with an Operations file whose methods take a trailing `output storage: {StorageType}` parameter (see [fosmvvm-viewmodel-generator → Template 11](../fosmvvm-viewmodel-generator/reference.md)).
+
+The `@Observable` reference lives on the **View** via `@Environment`, never on the ViewModel. The ViewModel exposes only scalar projections (`Bool`, enum values, etc.) produced by the parent's `.bind(appState: ...)` call. Mutations pass the `@Environment` reference explicitly to the operation as `output storage:`.
+
+**Location:** `Sources/{ViewsTarget}/{Feature}/{ViewName}View.swift`
+
+```swift
+// {ViewName}View.swift
+//
+// Copyright (c) 2026 Your Organization. All rights reserved.
+// License: Your License
+
+import FOSMVVM
+import Foundation
+import SwiftUI
+import {ViewModelsTarget}
+
+/// Client-hosted interactive view for {description}.
+public struct {ViewName}View: ViewModelView {
+    // The reference to the @Observable lives on the View, not the ViewModel.
+    @Environment({StorageType}.self) private var storage
+
+    #if DEBUG
+    @State private var repaintToggle = false
+    #endif
+
+    private let viewModel: {ViewModel}
+    private let operations: any {Operations}
+
+    public var body: some View {
+        VStack {
+            Toggle(
+                viewModel.{toggleLabel},
+                isOn: Binding(
+                    get: { viewModel.{booleanScalar} },
+                    set: { set{BooleanProperty}($0) }
+                )
+            )
+
+            Picker(viewModel.{pickerLabel}, selection: Binding(
+                get: { viewModel.{enumScalar} },
+                set: { set{EnumProperty}($0) }
+            )) {
+                ForEach({EnumType}.allCases, id: \.self) { option in
+                    Text(option.localizedLabel).tag(option)
+                }
+            }
+        }
+        .padding()
+        #if DEBUG
+        .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
+        #endif
+    }
+
+    public init(viewModel: {ViewModel}) {
+        self.viewModel = viewModel
+        self.operations = viewModel.operations
+    }
+}
+
+private extension {ViewName}View {
+    // The mutation closure reads storage from @Environment and hands it to the op.
+    // The reference never crosses the ViewModel boundary.
+    func set{BooleanProperty}(_ newValue: Bool) {
+        operations.set{BooleanProperty}(newValue, output: storage)
+        toggleRepaint()
+    }
+
+    func set{EnumProperty}(_ newValue: {EnumType}) {
+        operations.set{EnumProperty}(newValue, output: storage)
+        toggleRepaint()
+    }
+
+    func toggleRepaint() {
+        #if DEBUG
+        repaintToggle.toggle()
+        #endif
+    }
+}
+
+#if DEBUG
+#Preview {
+    {ViewName}View.previewHost(
+        bundle: MyAppResourceAccess.localizationBundle
+    )
+    .environment({StorageType}())
+}
+#endif
+```
+
+**Critical differences from Template 2 (server-backed):**
+
+| | Template 2 (server-backed / no storage) | Template 2a (client-hosted with storage) |
+| :-- | :-- | :-- |
+| Storage reference | None — server owns storage | `@Environment({StorageType}.self)` on the View |
+| Mutation call site | `operations.performAction()` | `operations.set{Property}(newValue, output: storage)` |
+| Preview `.environment()` | Not needed | Must inject `{StorageType}()` into the preview |
+| ViewModel properties | Data to display (usually localized strings) | Scalar projections from storage (`Bool`, `Int`, enum values) |
+| Ops async-ness | Typically `async throws` (network I/O) | Typically synchronous (direct mutation) |
+
+**Common mistakes to avoid:**
+
+| Anti-pattern | Why it's wrong |
+| :-- | :-- |
+| `@State private var storage = {StorageType}()` on the View | View should read storage from `@Environment`, not own it |
+| `viewModel.storage = ...` | ViewModels never hold `@Observable` references — rule 4 of Forward Projection |
+| `operations.set{Property}(newValue)` (no `output:`) | Mutation has no target — the op can't write anywhere |
+| `operations.set{Property}(newValue, in: storage)` | `in` reads like input; `output` is the correct label — conflation anti-pattern |
+| Reading `storage.{property}` in the View body for display | Display reads belong on the VM scalar; env reads break projection |
+
+See [Architecture Patterns → Ops Conventions](../shared/architecture-patterns.md) and [Architecture Patterns → The Four Rules of Forward Projection](../shared/architecture-patterns.md) for the full reasoning behind these rules.
+
+---
+
 # Template 3: Form View with Validation
 
 **For views with validated form inputs** - Uses FormFieldView and Validations.

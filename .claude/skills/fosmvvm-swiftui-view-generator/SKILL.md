@@ -135,6 +135,89 @@ public struct MyView: ViewModelView {
 - Add `.testDataTransporter(viewModelOps:repaintToggle:)` modifier (DEBUG only)
 - Call `toggleRepaint()` after every operation invocation
 
+The example above shows a **server-backed** op — `operations.performAction()` dispatches a `ServerRequest`. For **client-hosted** ops (those that mutate local `@Observable` storage), the call site shape is different — the View must inject storage from the environment and hand it to the op explicitly. See below.
+
+### 2a. Client-Hosted Operations: `@Environment` Injection and `output:` at the Call Site
+
+**Applies when the ViewModel is client-hosted and its operations mutate one or more `@Observable` storage objects** (e.g., `UserSettings`, `DeviceState`). Server-backed operations use the plain pattern shown in section 2.
+
+Client-hosted ops take their write target as a trailing `output storage:` parameter. The ViewModel does **not** hold a reference to storage (see [Architecture Patterns → VMs Hold Scalars](../shared/architecture-patterns.md)); the View reads storage from `@Environment` and hands the reference to the op at the call site:
+
+```swift
+public struct PreferencesView: ViewModelView {
+    // The reference to the @Observable lives on the View, not the ViewModel.
+    @Environment(UserSettings.self) private var settings
+
+    private let viewModel: PreferencesViewModel
+    private let operations: any PreferencesViewModelOperations
+
+    #if DEBUG
+    @State private var repaintToggle = false
+    #endif
+
+    public var body: some View {
+        VStack {
+            Toggle(
+                viewModel.notificationsLabel,
+                isOn: Binding(
+                    get: { viewModel.notificationsEnabled },
+                    set: { setNotifications($0) }
+                )
+            )
+            Picker(viewModel.themeLabel, selection: Binding(
+                get: { viewModel.theme },
+                set: { setTheme($0) }
+            )) {
+                // ... options
+            }
+        }
+        #if DEBUG
+        .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
+        #endif
+    }
+
+    public init(viewModel: PreferencesViewModel) {
+        self.viewModel = viewModel
+        self.operations = viewModel.operations
+    }
+
+    private func setNotifications(_ enabled: Bool) {
+        // Hand the reference from @Environment to the op at the call site.
+        operations.setNotificationsEnabled(enabled, output: settings)
+        toggleRepaint()
+    }
+
+    private func setTheme(_ theme: Theme) {
+        operations.setTheme(theme, output: settings)
+        toggleRepaint()
+    }
+
+    private func toggleRepaint() {
+        #if DEBUG
+        repaintToggle.toggle()
+        #endif
+    }
+}
+```
+
+**The mental model:**
+
+- `@Environment(UserSettings.self)` puts the reference on the View.
+- The VM has **scalars only** (`viewModel.notificationsEnabled: Bool`, `viewModel.theme: Theme`), projected from `settings` by the parent's `.bind(appState: .init(...))` call. The VM never holds the `UserSettings` reference.
+- The mutation closure reads `settings` from its own `@Environment` and passes it to the op as `output: settings`. The reference never crosses the VM boundary.
+
+**Common mistakes to avoid:**
+
+| Anti-pattern | Why it's wrong |
+|--------------|----------------|
+| `@State private var settings = UserSettings()` on the view | View should read storage from `@Environment`, not own it |
+| `viewModel.settings = ...` | VMs never hold `@Observable` references (rule 4 of Forward Projection) |
+| `operations.setTheme(.dark)` (no `output:`) | Mutation has no target — the op can't write anywhere |
+| `operations.setTheme(.dark, in: settings)` | `in` reads like input; `output` is the correct label (conflation anti-pattern) |
+| Reading `settings.theme` in this View's body for display | Display reads belong on the VM scalar (`viewModel.theme`); env reads break projection |
+
+Full rationale — why the VM holds scalars, why the reference flows through the call site rather than the VM, what breaks otherwise — lives in [Architecture Patterns → Ops Conventions](../shared/architecture-patterns.md) and [Architecture Patterns → The Four Rules of Forward Projection](../shared/architecture-patterns.md).
+
 ### 3. Child View Binding
 
 Parent views bind child views using `.bind(appState:)`:

@@ -20,19 +20,15 @@ import FOSMVVM
 import Foundation
 import XCTest
 
-/// A specialization of **XCTestCase** that can be used to proxy *ViewModel*s and *ViewModelOperations*
-/// over the *XCTest* proxy
+/// A specialization of **XCTestCase** that proxies a *ViewModel* to a *ViewModelView* under test.
 ///
-/// ``ViewModelViewTestCase`` provides for the ability to test each *ViewModelView* independently of all
-/// other *ViewModelView* implementations.  Communication is handled automatically given a few pieces of configuration.
-///
-/// ## Application Configuration
-///
-/// ... Formal Specification TBD ...
+/// Use this base class when the view under test is **display-only** — no user-initiated actions,
+/// no *ViewModelOperations* to verify. For interactive views that dispatch to operations,
+/// use ``ViewModelViewTestCase`` instead.
 ///
 /// ## Test Configuration
 ///
-/// It is suggested to make a single subclass of ``ViewModelViewTestCase`` as follows:
+/// Create a project-level subclass that pins `setUp` for your application bundle:
 ///
 /// ```swift
 /// import FOSFoundation
@@ -41,47 +37,35 @@ import XCTest
 /// import Foundation
 /// import XCTest
 ///
-/// class MyViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: ViewModelViewTestCase<VM, VMO>, @unchecked Sendable {
+/// class MyViewModelDisplayTestCase<VM: ViewModel>: ViewModelDisplayTestCase<VM>, @unchecked Sendable {
 ///
 ///     override func setUp() async throws {
 ///         try await super.setUp(
 ///             bundle: Bundle.main,
-///             resourceDirectoryName: ""
+///             resourceDirectoryName: "",
+///             appBundleIdentifier: "com.mycompany.myapp"
 ///         )
 ///
-///         continueAfterFailure = false // Stop the test and move on
+///         continueAfterFailure = false
 ///     }
 /// }
 /// ```
 ///
-/// All other UI test implementations should then inherit from this class:
+/// All display-only UI test implementations then inherit from this class:
 ///
 /// ```swift
-/// import MyViewModels
-/// import FOSFoundation
-/// import FOSMVVM
-/// import FOSTesting
-/// import Foundation
-/// import XCTest
+/// final class MyDisplayViewUITests: MyViewModelDisplayTestCase<MyDisplayViewModel>, @unchecked Sendable {
+///     func testShowsTitle() async throws {
+///         let app = try presentView(viewModel: .stub(title: "Hello"))
 ///
-/// final class MyViewUITests: MyViewModelViewTestCase<MyViewModel, MyViewModelStubOperations>, @unchecked Sendable {
-///     func testSomething() async throws {
-///         let app = try await presentView()
-///
-///         app.aField.tap()
-///         app.aField.typeText("some text")
-///
-///         app.saveButton.tap()
-///
-///         let stubOps = try viewModelOperations()
-///
-///         XCTAssertTrue(stubOps.dataSaved)
-///         XCTAssertEqual(stubOps.data, "some text")
+///         XCTAssertTrue(app.staticTexts["titleLabel"].exists)
 ///     }
 /// }
 /// ```
-@MainActor open class ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: XCTestCase, @unchecked Sendable {
-    private var app: XCUIApplication?
+///
+/// No *ViewModelOperations* type is required — display-only views don't dispatch actions.
+@MainActor open class ViewModelDisplayTestCase<VM: ViewModel>: XCTestCase, @unchecked Sendable {
+    fileprivate var app: XCUIApplication?
 
     private var locStore: LocalizationStore?
 
@@ -185,27 +169,6 @@ import XCTest
         return app
     }
 
-    /// Retrieves the *ViewModelOperations* that were sent using **TestDataTransporter**
-    @MainActor public func viewModelOperations() throws -> VMO {
-        guard let app else {
-            throw RunError.didntStart
-        }
-
-        // It is possible that there are multiple TestsDataTransporter instances available.
-        // This occurs when child views are testable, which can happen a lot.
-        let _vmoDataItems = app.staticTexts
-            .matching(.staticText, identifier: TestDataTransporter.accessibilityIdentifier)
-        for i in 0..<_vmoDataItems.count {
-            let _vmoData = _vmoDataItems.element(boundBy: i)
-            if let vmoData = (_vmoData.value as? String)?.reveal,
-               let vmoResult = try? vmoData.fromJSON() as VMO {
-                return vmoResult
-            }
-        }
-
-        throw RunError.cannotRetrieveOperationsData
-    }
-
     /// Sets up the application for each test pass
     ///
     /// This method should be called from the subclass's setup() method.
@@ -214,7 +177,7 @@ import XCTest
     ///
     /// ```
     /// @MainActor
-    /// class MyViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: ViewModelViewTestCase<VM, VMO> {
+    /// class MyViewModelDisplayTestCase<VM: ViewModel>: ViewModelDisplayTestCase<VM> {
     ///
     ///     override func setUp() async throws {
     ///         try await super.setUp(
@@ -301,6 +264,86 @@ import XCTest
             locale: locale ?? en,
             localizationStore: locStore
         )
+    }
+}
+
+/// A specialization of ``ViewModelDisplayTestCase`` that also verifies *ViewModelOperations* dispatch.
+///
+/// Use this class when the view under test is **interactive** — it has buttons, forms,
+/// toggles, or other user-initiated actions that dispatch to a *ViewModelOperations*
+/// protocol. For display-only views, use ``ViewModelDisplayTestCase`` directly (no stub
+/// operations type required).
+///
+/// ## Test Configuration
+///
+/// Create a project-level subclass that pins `setUp` for your application bundle:
+///
+/// ```swift
+/// import FOSFoundation
+/// import FOSMVVM
+/// import FOSTesting
+/// import Foundation
+/// import XCTest
+///
+/// class MyViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: ViewModelViewTestCase<VM, VMO>, @unchecked Sendable {
+///
+///     override func setUp() async throws {
+///         try await super.setUp(
+///             bundle: Bundle.main,
+///             resourceDirectoryName: ""
+///         )
+///
+///         continueAfterFailure = false
+///     }
+/// }
+/// ```
+///
+/// All interactive UI test implementations then inherit from this class:
+///
+/// ```swift
+/// import MyViewModels
+/// import FOSFoundation
+/// import FOSMVVM
+/// import FOSTesting
+/// import Foundation
+/// import XCTest
+///
+/// final class MyViewUITests: MyViewModelViewTestCase<MyViewModel, MyViewModelStubOps>, @unchecked Sendable {
+///     func testSomething() async throws {
+///         let app = try await presentView()
+///
+///         app.aField.tap()
+///         app.aField.typeText("some text")
+///
+///         app.saveButton.tap()
+///
+///         let stubOps = try viewModelOperations()
+///
+///         XCTAssertTrue(stubOps.dataSaved)
+///         XCTAssertEqual(stubOps.data, "some text")
+///     }
+/// }
+/// ```
+@MainActor open class ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>: ViewModelDisplayTestCase<VM>, @unchecked Sendable {
+    /// Retrieves the *ViewModelOperations* that were sent using **TestDataTransporter**
+    @MainActor public func viewModelOperations() throws -> VMO {
+        guard let app else {
+            throw RunError.didntStart
+        }
+
+        // It is possible that there are multiple TestsDataTransporter instances available.
+        // This occurs when child views are testable, which can happen a lot.
+        let _vmoDataItems = app.staticTexts
+            .matching(.staticText, identifier: TestDataTransporter.accessibilityIdentifier)
+        for i in 0..<_vmoDataItems.count {
+            let _vmoData = _vmoDataItems.element(boundBy: i)
+            if let vmoData = (_vmoData.value as? String)?.reveal,
+               let vmoResult = try? vmoData.fromJSON() as VMO {
+                return vmoResult
+            }
+        }
+
+        throw RunError.cannotRetrieveOperationsData
     }
 }
 
