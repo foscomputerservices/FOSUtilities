@@ -202,6 +202,18 @@ Areas with elevated findings — candidates for generator skill updates:
 
 The "Generator skill signals" section is the feedback-loop hook: it makes "where should we invest in generator skills?" visible at every review.
 
+## CI Integration
+
+The skill is expected to run in CI as well as interactively. Required affordances:
+
+- **Exit code policy.** Exit `1` if any finding meets or exceeds the configured threshold; exit `0` otherwise. `--fail-on=blocker|warning|nit` configures the threshold; default is `blocker`.
+- **Machine-readable output.** `--format=md|json` flag. Markdown is the default (interactive use). JSON mirrors the report structure: array of findings with `severity`, `area`, `file`, `line`, `check`, `message`, `prevention`, plus a top-level summary object.
+- **Configurable base branch.** `--base <ref>` flag controls the diff base; defaults to `main`. CI on PRs targeting `develop` or release branches sets this to the merge target.
+- **Output destination.** `--output <path>` flag writes the report to a file for CI artifact upload; default is stdout.
+- **Headless-friendly.** No interactive prompts at any point in the skill flow. The skill is already report-only with no auto-fix prompts; the planner must preserve this.
+
+**Recommended CI cadence.** Per-PR runs use the default branch-diff scope (fast, cheap, focused on what's about to land). `--all` is reserved for periodic sweeps — daily/weekly cron runs and PRs targeting `main`/`master`.
+
 ## Edge Cases
 
 - **Empty diff** (branch matches main): print "No changes to review" and exit.
@@ -210,6 +222,7 @@ The "Generator skill signals" section is the feedback-loop hook: it makes "where
 - **Stub check files**: subagent reports "no checks defined for this area; positive pattern lives in `{generator-skill}`." Not a failure.
 - **Glob ambiguity** (file matches multiple areas): file appears in each matched subagent's scope; same finding may be reported by multiple subagents. Acceptable — different lenses.
 - **Subagent failure** (timeout, error): aggregate report notes the area as `ERROR`; other areas continue.
+- **Determinism caveat.** Subagent dispatch is not perfectly deterministic — finding counts may flap slightly between runs on identical input. CI consumers should not assume bit-exact reproducibility; the exit-code threshold (`--fail-on`) is the stable signal.
 
 ## Initial Check Content
 
