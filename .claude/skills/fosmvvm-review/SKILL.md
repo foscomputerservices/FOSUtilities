@@ -83,12 +83,13 @@ The "right way" lives in the `{generator_skill}` skill. Treat its SKILL.md as th
 ## Instructions
 1. For each file in scope, evaluate every check against every relevant code construct in the file.
 2. For each finding, report: file:line, severity, check name, the offending code snippet, and a one-sentence explanation citing the generator skill.
-3. Apply Reviewer Guidance: do NOT recommend the listed anti-patterns even if they "look like" simplifications.
-4. If no findings, say "No findings."
-5. Do NOT fix anything. Report only.
+3. **Use the file path exactly as provided in "Files in scope"** — repo-relative (e.g., `Sources/FOSMVVM/SwiftUI Support/Text.swift:81`). Do not shorten to the basename. IDEs and CI consumers rely on the path for navigation.
+4. Apply Reviewer Guidance: do NOT recommend the listed anti-patterns even if they "look like" simplifications.
+5. If no findings, say "No findings."
+6. Do NOT fix anything. Report only.
 
 Format each finding as:
-- **{severity}** [{check-name}] {file}:{line}
+- **{severity}** [{check-name}] {repo-relative-path}:{line}
   Code: `{snippet}`
   Why: {explanation}
   Prevention: {generator-skill}
