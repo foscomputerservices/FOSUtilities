@@ -33,8 +33,9 @@ Parse the `args` string for these flags. Order does not matter; unknown args pro
 
 ## Workflow
 
-### Step 1: Resolve Scope
+### Step 1: Resolve Scope and Load Project Config
 
+**Scope:**
 - If `<path>` given: `find <path> -name '*.swift' -type f`.
 - If `--all`: `find Sources Tests -name '*.swift' -type f` from repo root.
 - Else (default): `git diff --name-only <base>...HEAD -- '*.swift'` where `<base>` is `--base` value or `main`.
@@ -44,9 +45,23 @@ If the resulting file list is empty:
 - Path with no `.swift` files: print "No files in scope at `<path>`." Exit 0.
 - `--all` with no files: print "No Swift files found." Exit 0.
 
+**Project config:**
+Look for `.fosmvvm-review.yml` at the repo root. If present, parse:
+- `disabled_checks:` — list of check names to skip globally.
+- `severity_overrides:` — map of `check-name: severity` (blocker | warning | nit).
+- `excluded_paths:` — list of glob patterns; matching files are removed from scope.
+
+If the file is missing or any key is absent, use defaults. If the file is malformed (invalid YAML, unknown top-level keys), print a warning and continue with defaults.
+
+Apply `excluded_paths` immediately to filter the scoped file list before triage.
+
 ### Step 2: Load Check Files
 
 Read all `checks/*.md` from this skill's base directory. Parse YAML frontmatter (`area`, `generator-skill`, `where`).
+
+Apply project config:
+- Drop any `## Check: <name>` section whose name appears in `disabled_checks`.
+- Override `**Severity:**` lines for checks listed in `severity_overrides`.
 
 ### Step 3: Triage — Match Files to Areas
 
@@ -117,6 +132,7 @@ If a subagent returned an error or timeout, record the area as `ERROR` with the 
 
 **Scope:** {scope description} ({N} files)
 **Areas triaged:** {comma-separated areas}
+**Configuration applied:** (omit line if no config) disabled checks: {names}; severity overrides: {name=severity, ...}; excluded paths: {N}
 
 ## Findings by area
 - {area}: {N} ({Bb / Ww / Nn})
@@ -146,6 +162,11 @@ Areas with elevated findings — candidates for generator skill updates:
 {
   "scope": { "description": "...", "file_count": 12 },
   "areas_triaged": ["viewmodel", "swiftui-view", "cross-cutting"],
+  "config": {
+    "disabled_checks": ["..."],
+    "severity_overrides": { "<check>": "<severity>" },
+    "excluded_paths_count": 0
+  },
   "summary": {
     "by_area": { "viewmodel": { "blocker": 1, "warning": 2, "nit": 0 }, "...": {} },
     "total": { "blocker": 1, "warning": 2, "nit": 0 }
@@ -167,6 +188,32 @@ If `--output <path>` given, write to file; else stdout.
 Determine the highest severity in findings: `blocker > warning > nit`.
 
 Exit `1` if highest severity meets or exceeds `--fail-on` threshold (default `blocker`); else exit `0`.
+
+## Project Configuration
+
+Repos may provide an optional `.fosmvvm-review.yml` at the repo root to customize the skill's behavior.
+
+```yaml
+# Globally silence checks (no findings emitted, even without inline directives)
+disabled_checks:
+  - ops-not-async-unless-needed
+
+# Override default severity per check
+severity_overrides:
+  ops-output-param-last: nit         # default warning
+  no-silent-failure: warning         # default blocker
+
+# Skip files entirely (applied AFTER glob matching, before subagent dispatch)
+excluded_paths:
+  - "Sources/Generated/**"
+  - "Tests/Fixtures/**"
+```
+
+All keys are optional. Missing or malformed file → defaults are used and a warning is printed.
+
+**Precedence:** inline `// fosmvvm-review:disable:*` directives > `.fosmvvm-review.yml` > defaults from check files.
+
+The "Configuration applied" line in the report makes any active overrides visible at every run.
 
 ## Suppression
 

@@ -214,6 +214,46 @@ The skill is expected to run in CI as well as interactively. Required affordance
 
 **Recommended CI cadence.** Per-PR runs use the default branch-diff scope (fast, cheap, focused on what's about to land). `--all` is reserved for periodic sweeps — daily/weekly cron runs and PRs targeting `main`/`master`.
 
+## Project Configuration (`.fosmvvm-review.yml`)
+
+Repos consuming the skill may provide an optional `.fosmvvm-review.yml` at the repo root. Mirrors `.swiftlint.yml` convention — CI consumers find it without flags.
+
+### Schema
+
+```yaml
+# Globally silence checks (no findings emitted, even without inline directives)
+disabled_checks:
+  - <check-name>
+
+# Override default severity per check (blocker | warning | nit)
+severity_overrides:
+  <check-name>: <severity>
+
+# Skip files entirely (applied AFTER glob matching, before subagent dispatch)
+excluded_paths:
+  - "<glob>"
+```
+
+All three keys are optional. Missing file → use defaults from check files.
+
+### Precedence
+
+Inline directives take precedence over config; config takes precedence over defaults:
+
+1. **Inline `// fosmvvm-review:disable:*`** — strongest, scoped to a line/block.
+2. **`.fosmvvm-review.yml`** — repo-wide globals.
+3. **Default severities and enablements** from check files.
+
+### Final Report Disclosure
+
+The final report includes a "Configuration applied" line listing globally disabled checks and severity overrides, so suppressions are visible at every review run.
+
+### Out of Scope (v1)
+
+- Per-area sub-configs (e.g., `per_area: { ui-tests: { disabled_checks: [...] } }`). Add when global form proves too coarse.
+- Custom check files in consuming repos. Canonical check files only.
+- Threshold tuning ("only flag if N occurrences").
+
 ## Suppression
 
 Some findings are intentional. The skill supports SwiftLint-compatible suppression directives in source comments:

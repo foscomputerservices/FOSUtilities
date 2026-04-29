@@ -66,12 +66,14 @@ private struct LocalizableResolverView<L: Localizable>: View {
         } else {
             Text("")
                 .onAppear {
+                    // fosmvvm-review:disable:begin no-silent-failure -- Error handling is TBD
                     if let store = try? mvvmEnv.clientLocalizationStore {
                         resolve(locale: locale, store: store)
                     } else {
                         // TODO: Error handling
                         fatalError("Why no store???")
                     }
+                    // fosmvvm-review:disable:end no-silent-failure
                 }
         }
     }

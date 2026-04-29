@@ -463,7 +463,7 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
             try await request.processRequest(mvvmEnv: mvvmEnv)
 
             return request.viewModel
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
             // Probably want to handle errors out-of-band.
@@ -553,7 +553,7 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
             )
 
             return try VM.model(context: context, vmRequest: request)
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
             // Probably want to handle errors out-of-band.
@@ -628,7 +628,7 @@ private struct VMClientResolverView<VM, VMV>: View where
             )
 
             return try VM.model(context: context, vmRequest: request)
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
             // Probably want to handle errors out-of-band.
