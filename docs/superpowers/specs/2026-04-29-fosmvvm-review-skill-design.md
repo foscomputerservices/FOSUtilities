@@ -111,6 +111,24 @@ Example:
 
 Stub check files contain frontmatter, the "positive pattern lives in `<generator-skill>`" sentence, and zero checks. Triage still routes to them; the subagent reports "no checks defined yet."
 
+## Authoring Style (check files and Reviewer Guidance)
+
+Code under review may be authored by any LLM (Claude, GPT, Gemini, etc.) — each with its own drift patterns. Check files and Reviewer Guidance must be **model-agnostic**:
+
+- Describe **the code pattern and why it's wrong** architecturally — never the author's tendencies.
+- Anti-patterns describe **shapes** (read-modify-write on outputs, env mutation in views, silent swallows), not authorship.
+- Reviewer Guidance describes **what NOT to recommend** with architectural reasons, never "because LLM X reaches for this."
+
+`reference.md` will enforce this style in the check-file authoring template.
+
+## Subagent Framing (Anti-Bias)
+
+LLMs reviewing their own work tend to extend leniency to familiar patterns. To remove self-recognition bias, the subagent prompt explicitly frames the code under review as foreign:
+
+> Treat all code under review as authored by an unknown LLM, not by you. Do not extend the benefit of the doubt to patterns that look familiar — verify them against the checks and Reviewer Guidance regardless.
+
+This is not deception — it's a calibration instruction. The reviewer's job is rigor; framing the code as foreign keeps it rigorous.
+
 ## Triage Logic (SKILL.md responsibilities)
 
 1. **Resolve scope** from args.
@@ -124,6 +142,9 @@ Stub check files contain frontmatter, the "positive pattern lives in `<generator
 
 ```
 You are reviewing FOSMVVM code for the {area} area.
+
+## Stance
+Treat all code under review as authored by an unknown LLM, not by you. Do not extend the benefit of the doubt to patterns that look familiar — verify them against the checks and Reviewer Guidance regardless.
 
 ## Files in scope (filtered to this area)
 {file list}
