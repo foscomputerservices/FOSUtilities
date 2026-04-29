@@ -220,6 +220,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.session = session
         self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
 
+        // fosmvvm-review:disable:next no-silent-failure -- This behavior is intentional
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
         Self.ensureVersionsCompatible(currentVersion: currentVersion, appBundle: appBundle)
         SystemVersion.setCurrentVersion(currentVersion)
@@ -342,6 +343,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
 
         #if canImport(SwiftUI)
         self.loadingView = { AnyView(DefaultLoadingView()) }
+        // fosmvvm-review:disable:next no-silent-failure -- This behavior is intentional
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
         SystemVersion.setCurrentVersion(currentVersion)
         #else

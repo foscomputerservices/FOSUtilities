@@ -431,6 +431,8 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                     }
                     .onChange(of: viewModelRefreshed.wrappedValue, initial: false) {
                         let refreshedVMStr = viewModelRefreshed.wrappedValue
+
+                        // fosmvvm-review:disable:next no-silent-failure -- TODO: Add error logging
                         guard
                             let refreshedVM: VM = try? refreshedVMStr.fromJSON()
                         else {
@@ -479,10 +481,14 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
 
 private extension ViewModel {
     func isEqual(to other: Self) -> Bool {
-        let this = try? toJSON()
-        let other = try? other.toJSON()
+        do {
+            let this = try toJSON()
+            let other = try other.toJSON()
 
-        return this == other
+            return this == other
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- TODO: Add error logging
+            return false
+        }
     }
 }
 

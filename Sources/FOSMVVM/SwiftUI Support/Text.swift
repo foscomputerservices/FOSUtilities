@@ -80,6 +80,7 @@ private struct LocalizableResolverView<L: Localizable>: View {
 
     private var localizedString: String? {
         if localizable.localizationStatus == .localized {
+            // fosmvvm-review:disable:next no-silent-failure -- Error handling is TBD
             return try? localizable.localizedString
         }
 
@@ -95,7 +96,9 @@ private struct LocalizableResolverView<L: Localizable>: View {
         if let resolved: L = try? localizable
             .toJSON(encoder: encoder)
             .fromJSON() {
-            value = (try? resolved.localizedString) ?? "Missing"
+            // TODO: Add error logging in the future
+            // fosmvvm-review:disable:next no-silent-failure -- "<Missing>" is the failure handler
+            value = (try? resolved.localizedString) ?? "<Missing>"
         }
     }
 }
