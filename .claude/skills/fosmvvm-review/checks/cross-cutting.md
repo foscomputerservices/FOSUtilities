@@ -13,6 +13,13 @@ Concerns that span multiple FOSMVVM areas. This check file always triggers when 
 ## Reviewer Guidance
 
 - Silent failure is never acceptable. Every error path must either propagate, log structurally, or surface to the user. "We'll handle it later" is the path to production bugs.
+- Honor inline suppression directives (`// fosmvvm-review:disable:next <check> — <reason>` and the `:this` / block forms documented in `SKILL.md`). When a candidate finding's line is covered by a suppression for that check WITH a justification, omit the finding. When the directive is present but missing a justification, emit `suppression-without-justification` instead.
+
+## Check: suppression-without-justification
+**Severity:** warning
+**What:** Every `fosmvvm-review:disable*` directive must include a justification — text after the check name explaining why the rule is silenced.
+**Anti-pattern:** `// fosmvvm-review:disable:next no-silent-failure` (no reason given). Suppressions without reasons are invisible tech debt; the reader cannot tell if the silenced rule was a deliberate exception or a forgotten cleanup.
+**Detection:** Find every `fosmvvm-review:disable:next`, `fosmvvm-review:disable:this`, and `fosmvvm-review:disable` directive in scoped files. For each, confirm the line includes text after the check name (typically separated by `—`, `-`, `:`, or whitespace). Flag any directive whose only content is the keyword + check name.
 
 ## Check: no-silent-failure
 **Severity:** blocker

@@ -214,6 +214,18 @@ The skill is expected to run in CI as well as interactively. Required affordance
 
 **Recommended CI cadence.** Per-PR runs use the default branch-diff scope (fast, cheap, focused on what's about to land). `--all` is reserved for periodic sweeps — daily/weekly cron runs and PRs targeting `main`/`master`.
 
+## Suppression
+
+Some findings are intentional. The skill supports SwiftLint-compatible suppression directives in source comments:
+
+- `// fosmvvm-review:disable:next <check-name> — <justification>` — suppresses the named check on the line below.
+- `// fosmvvm-review:disable:this <check-name> — <justification>` — suppresses the named check on the same line (anywhere on that line).
+- `// fosmvvm-review:disable <check-name>` ... `// fosmvvm-review:enable <check-name>` — block scope.
+
+**Justification is required.** A suppression without text after the rule name is itself a finding (`suppression-without-justification`, severity `warning`, defined in `cross-cutting.md`). Suppressions without reasons become invisible tech debt; the requirement forces explicit documentation.
+
+Subagents evaluate suppressions per check: when a candidate finding's line is covered by a suppression directive for that check (with justification), the finding is omitted from the report.
+
 ## Edge Cases
 
 - **Empty diff** (branch matches main): print "No changes to review" and exit.

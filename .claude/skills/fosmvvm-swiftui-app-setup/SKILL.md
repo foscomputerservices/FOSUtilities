@@ -375,6 +375,35 @@ Runtime Detection:
 - Edit Scheme → Run → Arguments → Environment Variables
 - Add: `FOS-DEPLOYMENT = staging`
 
+## Code Signing for SPMLibraries Umbrella Frameworks
+
+**Required when** the project uses an `SPMLibraries.framework` umbrella target that links FOSFoundation/FOSMVVM (or any other SwiftPM products) and the app is built for **macOS** with `ENABLE_HARDENED_RUNTIME = YES` (the default for new macOS / multiplatform apps).
+
+**Symptom at launch / first test run:**
+```
+dyld[...]: Library not loaded: @rpath/FOSFoundation.framework/...
+Reason: ... code signature in '...PackageFrameworks/FOSFoundation.framework' not valid
+        for use in process: mapping process and mapped file (non-platform) have different Team IDs
+```
+
+**Why it happens:** SwiftPM builds dynamic package frameworks into `Build/Products/<config>/PackageFrameworks/` and **always ad-hoc-signs them** (`TeamIdentifier=not set`), regardless of the consuming project's `DEVELOPMENT_TEAM`. The app binary is signed with the developer's team, so under hardened-runtime library validation dyld refuses to load the ad-hoc-signed framework. This does **not** affect iOS Simulator builds (library validation isn't enforced there), so iOS-only projects never see it.
+
+**Fix — add to the app's `.entitlements` file:**
+```xml
+<key>com.apple.security.cs.disable-library-validation</key>
+<true/>
+```
+
+This is Apple's documented escape hatch for apps that load dylibs not signed by their team. It only relaxes library validation; the rest of hardened runtime stays in effect.
+
+**Verify** with:
+```
+codesign -dvv <DerivedData>/Build/Products/Debug/PackageFrameworks/FOSFoundation.framework
+```
+Expect `Signature=adhoc`, `TeamIdentifier=not set` — that is the trigger condition.
+
+**Apply the same entitlement to** any additional bundles that load `SPMLibraries.framework` out-of-process: standalone test bundles, app extensions, helper tools. (Tests hosted by the app inherit the host app's entitlements and need no change.)
+
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models and patterns
@@ -388,3 +417,4 @@ Runtime Detection:
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for SwiftUI app setup |
 | 1.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 1.2 | 2026-04-27 | Add "Code Signing for SPMLibraries Umbrella Frameworks" section documenting the macOS hardened-runtime + ad-hoc-signed PackageFrameworks Team ID mismatch and the `com.apple.security.cs.disable-library-validation` entitlement fix. |

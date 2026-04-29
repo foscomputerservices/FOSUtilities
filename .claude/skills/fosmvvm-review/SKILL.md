@@ -84,9 +84,14 @@ The "right way" lives in the `{generator_skill}` skill. Treat its SKILL.md as th
 1. For each file in scope, evaluate every check against every relevant code construct in the file.
 2. For each finding, report: file:line, severity, check name, the offending code snippet, and a one-sentence explanation citing the generator skill.
 3. **Use the file path exactly as provided in "Files in scope"** — repo-relative (e.g., `Sources/FOSMVVM/SwiftUI Support/Text.swift:81`). Do not shorten to the basename. IDEs and CI consumers rely on the path for navigation.
-4. Apply Reviewer Guidance: do NOT recommend the listed anti-patterns even if they "look like" simplifications.
-5. If no findings, say "No findings."
-6. Do NOT fix anything. Report only.
+4. **Honor suppression directives.** Before reporting any finding, check for these comment forms:
+   - `// fosmvvm-review:disable:next <check-name> — <justification>` on the line directly above the candidate.
+   - `// fosmvvm-review:disable:this <check-name> — <justification>` anywhere on the candidate's line.
+   - `// fosmvvm-review:disable <check-name>` / `// fosmvvm-review:enable <check-name>` block markers wrapping the candidate.
+   If the matching check is suppressed, omit the finding. If a directive matches but has no justification text after the rule name, instead emit a `suppression-without-justification` finding (defined in `cross-cutting.md`).
+5. Apply Reviewer Guidance: do NOT recommend the listed anti-patterns even if they "look like" simplifications.
+6. If no findings, say "No findings."
+7. Do NOT fix anything. Report only.
 
 Format each finding as:
 - **{severity}** [{check-name}] {repo-relative-path}:{line}
@@ -162,6 +167,27 @@ If `--output <path>` given, write to file; else stdout.
 Determine the highest severity in findings: `blocker > warning > nit`.
 
 Exit `1` if highest severity meets or exceeds `--fail-on` threshold (default `blocker`); else exit `0`.
+
+## Suppression
+
+Findings can be suppressed inline when intentional. SwiftLint-compatible syntax:
+
+```swift
+// fosmvvm-review:disable:next no-silent-failure — preview-only fallback, no production path
+let value = (try? something()) ?? "default"
+
+let other = (try? bar()) ?? "" // fosmvvm-review:disable:this no-silent-failure — closure binding intentionally swallows
+```
+
+Block scope:
+
+```swift
+// fosmvvm-review:disable no-silent-failure
+... multiple lines ...
+// fosmvvm-review:enable no-silent-failure
+```
+
+**Justification is required.** A suppression without text after the check name produces a `suppression-without-justification` finding (warning). This forces explicit documentation of every silenced check.
 
 ## Notes
 
