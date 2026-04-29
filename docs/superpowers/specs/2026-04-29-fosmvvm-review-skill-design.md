@@ -206,7 +206,14 @@ The "Generator skill signals" section is the feedback-loop hook: it makes "where
 
 The skill is expected to run in CI as well as interactively. Required affordances:
 
-- **Exit code policy.** Exit `1` if any finding meets or exceeds the configured threshold; exit `0` otherwise. `--fail-on=blocker|warning|nit` configures the threshold; default is `blocker`.
+- **Exit code policy (out-of-process).** The skill itself runs inside Claude Code and cannot directly control the shell's exit code. CI consumers translate findings to exit codes by parsing the JSON output. `--fail-on=blocker|warning|nit` configures the threshold the skill reports against (annotated in the JSON `config.fail_on` and report header); a thin wrapper around `claude -p` reads `summary.total.<severity>` from the JSON and exits accordingly. Reference wrapper sketch:
+
+  ```bash
+  claude -p "/fosmvvm-review --format=json --fail-on=blocker" > review.json
+  jq -e '.summary.total.blocker == 0' review.json > /dev/null || exit 1
+  ```
+
+  Each consuming repo provides its own wrapper to fit its CI runner. The skill does not ship one (library-distribution scope concerns).
 - **Machine-readable output.** `--format=md|json` flag. Markdown is the default (interactive use). JSON mirrors the report structure: array of findings with `severity`, `area`, `file`, `line`, `check`, `message`, `prevention`, plus a top-level summary object.
 - **Configurable base branch.** `--base <ref>` flag controls the diff base; defaults to `main`. CI on PRs targeting `develop` or release branches sets this to the merge target.
 - **Output destination.** `--output <path>` flag writes the report to a file for CI artifact upload; default is stdout.

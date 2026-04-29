@@ -132,6 +132,7 @@ If a subagent returned an error or timeout, record the area as `ERROR` with the 
 
 **Scope:** {scope description} ({N} files)
 **Areas triaged:** {comma-separated areas}
+**Fail-on threshold:** {threshold}
 **Configuration applied:** (omit line if no config) disabled checks: {names}; severity overrides: {name=severity, ...}; excluded paths: {N}
 
 ## Findings by area
@@ -163,6 +164,7 @@ Areas with elevated findings — candidates for generator skill updates:
   "scope": { "description": "...", "file_count": 12 },
   "areas_triaged": ["viewmodel", "swiftui-view", "cross-cutting"],
   "config": {
+    "fail_on": "blocker",
     "disabled_checks": ["..."],
     "severity_overrides": { "<check>": "<severity>" },
     "excluded_paths_count": 0
@@ -183,11 +185,21 @@ Areas with elevated findings — candidates for generator skill updates:
 
 If `--output <path>` given, write to file; else stdout.
 
-### Step 7: Exit Code
+### Step 7: Annotate Failure Threshold
 
-Determine the highest severity in findings: `blocker > warning > nit`.
+The skill runs inside Claude Code and cannot directly control the shell exit code. Instead, record the configured `--fail-on` threshold in the report so out-of-process wrappers can translate findings to exit codes:
 
-Exit `1` if highest severity meets or exceeds `--fail-on` threshold (default `blocker`); else exit `0`.
+- **Markdown report:** include a `**Fail-on threshold:** {threshold}` line in the header.
+- **JSON output:** include a top-level `"config": { "fail_on": "<threshold>", ... }` field (already present per the JSON schema in Step 6).
+
+CI consumers invoke the skill via `claude -p` and parse the JSON to decide whether to fail the build:
+
+```bash
+claude -p "/fosmvvm-review --format=json --fail-on=blocker" > review.json
+jq -e '.summary.total.blocker == 0' review.json > /dev/null || exit 1
+```
+
+The skill does not ship a wrapper script — each consuming repo writes its own to fit its CI runner.
 
 ## Project Configuration
 
