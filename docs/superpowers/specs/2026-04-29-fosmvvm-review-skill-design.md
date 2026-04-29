@@ -32,14 +32,7 @@ Hybrid:
 
 ## Dispatch Model
 
-Triage-then-dispatch:
-
-1. Resolve scope into a file list.
-2. Load all check files; parse `where:` globs from frontmatter.
-3. Match files to areas. A file may match multiple areas.
-4. Always include `cross-cutting.md` if scope is non-empty.
-5. Dispatch one subagent per matched area, max 4 in parallel.
-6. Skip areas with no matched files (except cross-cutting).
+Triage-then-dispatch: scoped files are matched to areas via per-file globs, then one subagent runs per matched area in parallel. See "Triage Logic" below for the step-by-step.
 
 ## Output Shape
 
@@ -191,6 +184,7 @@ The "Generator skill signals" section is the feedback-loop hook: it makes "where
 ## Edge Cases
 
 - **Empty diff** (branch matches main): print "No changes to review" and exit.
+- **Path arg doesn't exist or matches no `.swift` files**: print "No files in scope at `{path}`" and exit.
 - **No matched areas**: print "No FOSMVVM-area files in scope" and exit. Cross-cutting still runs if scope is non-empty.
 - **Stub check files**: subagent reports "no checks defined for this area; positive pattern lives in `{generator-skill}`." Not a failure.
 - **Glob ambiguity** (file matches multiple areas): file appears in each matched subagent's scope; same finding may be reported by multiple subagents. Acceptable — different lenses.
