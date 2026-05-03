@@ -91,12 +91,67 @@ public struct MyView: ViewModelView {
 
 ### 2. Operations (Optional)
 
+> **Display-only views skip this entire section.** A View whose ViewModel has no `operations` property is display-only by definition — no Operations files exist on either side of the seam, no `repaintToggle`, no `testDataTransporter`. Do not invent an empty Operations protocol for symmetry; absence of operations is the signal that the View is display-only. (See "View Categories" below for the full distinction.)
+
+#### Operations are an architectural seam
+
+An `Operations` protocol is the framework-side analog of `ServerRequest`: a contract the View calls into without knowing who satisfies it. Three files participate, on two sides of the seam:
+
+| File | Side | Purpose |
+|---|---|---|
+| `<Name>Operations.swift` | Framework (shared module) | The protocol — what actions the View can dispatch |
+| `<Name>StubOps.swift` | Framework (shared module) | Stub implementation — used in previews and `LocalizableTestCase`-driven tests |
+| `<Name>Ops.swift` | App target (implementation side) | Live implementation — orchestrates services, writes to storage, dispatches `ServerRequest`s |
+
+For a feature `LandingPage`, these live at:
+- `Sources/ViewModels/Operations/LandingPage/LandingPageOperations.swift`
+- `Sources/ViewModels/Operations/LandingPage/LandingPageStubOps.swift`
+- `Sources/{AppTarget}/Operations/LandingPage/LandingPageOps.swift`
+
+The View imports only the framework side and is unaware of which implementation runs. App Intents, lock-screen transport actions, and other non-View entry points dispatch through the **same** Operations protocol — the View is one entry point of several, not the owner of the action vocabulary.
+
+Two protocol layers to keep distinct:
+- **`FOSMVVM.ViewModelOperations`** — the framework's base protocol. Every per-feature operations protocol conforms to it.
+- **`<Name>ViewModelOperations`** (e.g., `LandingPageViewModelOperations`) — your project's per-feature protocol; conforms to `FOSMVVM.ViewModelOperations` and lists the actions the View dispatches.
+
+#### Generic over `any` at op method signatures
+
+Per the architecture rule (no existentials at architectural boundaries), Operations *method signatures* take Fields conformers as generic parameters, not `any`:
+
+```swift
+// ✅ GOOD — generic specialization preserves the concrete type for the live op.
+protocol ConversationOperations: ViewModelOperations {
+    func create<F: ConversationFields>(from fields: F) async throws
+}
+
+// ❌ BAD — `any` erases the concrete type and pulls existentials through the call graph.
+protocol ConversationOperations: ViewModelOperations {
+    func create(from fields: any ConversationFields) async throws
+}
+```
+
+**Storage is a separate decision from method signatures.** The View's `operations` property *is* typed as `any <Name>ViewModelOperations` — that's required, since Apple's API forces a concrete View struct shape and the View has to store the value somehow. This is the exception arch.md §1.5 explicitly carves out for "structural requirements that leave no alternative."
+
+Crucially, **`any` at storage does not infect the protocol's method signatures.** Swift 5.7+ opens the existential implicitly at each call site, so a generic method called on an `any P` value still specializes to a concrete type at the call site:
+
+```swift
+private let operations: any ConversationOperations          // ← `any` at storage is fine
+
+private func submit() async throws {
+    try await operations.create(from: fields)              // ← F inferred concretely
+}
+```
+
+The rule to internalize: **`any` is acceptable at single-value storage sites; generics are required at protocol method signatures.** The architecture's anti-existential pressure is about preventing erasure from compounding through the call graph — and a stored `any P` does not compound, because each method call re-specializes.
+
+#### Server-backed example
+
 Interactive views have operations:
 
 ```swift
 public struct MyView: ViewModelView {
     private let viewModel: MyViewModel
-    private let operations: MyViewModelOperations
+    private let operations: any MyViewModelOperations
 
     #if DEBUG
     @State private var repaintToggle = false
@@ -135,13 +190,17 @@ public struct MyView: ViewModelView {
 - Add `.testDataTransporter(viewModelOps:repaintToggle:)` modifier (DEBUG only)
 - Call `toggleRepaint()` after every operation invocation
 
+**Why `toggleRepaint()` exists.** Client-hosted ops mutate `@Observable` storage that test harnesses (and occasionally SwiftUI itself) don't always re-observe in time for the next assertion. Toggling a `@State` flag forces a deterministic re-render at the View boundary, so UI tests see the post-op state instead of the pre-op state. In production builds the toggle is compiled out — it costs nothing at runtime.
+
+**Async vs sync op shape.** Server-backed ops are typically async (`try await operations.performAction()`) and pair with `Button(errorBinding:asyncAction:)` / `.task(errorBinding:)` / `.onAsyncSubmit`. Client-hosted scalar-mutation ops are typically sync — the live op writes a property on `@Observable` storage and returns. Don't add `async` to an op method that doesn't need it; don't omit `async` on one that calls a `ServerRequest`.
+
 The example above shows a **server-backed** op — `operations.performAction()` dispatches a `ServerRequest`. For **client-hosted** ops (those that mutate local `@Observable` storage), the call site shape is different — the View must inject storage from the environment and hand it to the op explicitly. See below.
 
 ### 2a. Client-Hosted Operations: `@Environment` Injection and `output:` at the Call Site
 
 **Applies when the ViewModel is client-hosted and its operations mutate one or more `@Observable` storage objects** (e.g., `UserSettings`, `DeviceState`). Server-backed operations use the plain pattern shown in section 2.
 
-Client-hosted ops take their write target as a trailing `output storage:` parameter. The ViewModel does **not** hold a reference to storage (see [Architecture Patterns → VMs Hold Scalars](../shared/architecture-patterns.md)); the View reads storage from `@Environment` and hands the reference to the op at the call site:
+Client-hosted ops take their write target as a trailing `output storage:` parameter. The ViewModel does **not** hold a reference to storage (see [Architecture Patterns → VMs Hold Scalars](../shared/architecture-patterns.md)); the View reads storage from `@Environment` and hands the reference to the op at the call site.
 
 ```swift
 public struct PreferencesView: ViewModelView {
@@ -149,6 +208,9 @@ public struct PreferencesView: ViewModelView {
     @Environment(UserSettings.self) private var settings
 
     private let viewModel: PreferencesViewModel
+    // Stored as `any` — required at View storage, see §2 "Generic over `any`".
+    // The protocol's *method signatures* remain generic; existential opening
+    // re-specializes at each call site.
     private let operations: any PreferencesViewModelOperations
 
     #if DEBUG
@@ -259,7 +321,7 @@ public struct MyFormView: ViewModelView {
     @State private var error: Error?
 
     private let viewModel: MyFormViewModel
-    private let operations: MyFormViewModelOperations
+    private let operations: any MyFormViewModelOperations
 
     public var body: some View {
         Form {
@@ -320,6 +382,15 @@ Use `.previewHost()` for SwiftUI previews:
 
 ## View Categories
 
+The first decision when generating a View is **interactive vs. display-only** — and that decision is forced by the ViewModel, not chosen by the View author.
+
+| ViewModel has `operations` property? | View kind | Operations files |
+|---|---|---|
+| **No** | Display-only | None — do not create empty Operations protocol/Stub/Live files |
+| **Yes** | Interactive (server-backed or client-hosted) | `<Name>Operations.swift` + `<Name>StubOps.swift` (framework side) + `<Name>Ops.swift` (app side) |
+
+Absence of operations is a positive signal that the View originates no actions. Inventing an empty Operations protocol "for symmetry" is an anti-pattern (arch.md §3.4).
+
 ### Display-Only Views
 
 Views that just render data (no user interactions):
@@ -360,7 +431,7 @@ public struct ActionView: ViewModelView {
     @State private var error: Error?
 
     private let viewModel: ActionViewModel
-    private let operations: ActionViewModelOperations
+    private let operations: any ActionViewModelOperations
 
     #if DEBUG
     @State private var repaintToggle = false
@@ -427,7 +498,7 @@ Views that compose child views:
 public struct ContainerView: ViewModelView {
     @Environment(AppState.self) private var appState
     private let viewModel: ContainerViewModel
-    private let operations: ContainerViewModelOperations
+    private let operations: any ContainerViewModelOperations
 
     public var body: some View {
         VStack {
@@ -828,7 +899,7 @@ public var body: some View {
 }
 
 // ✅ GOOD - Store in init
-private let operations: MyOperations
+private let operations: any MyOperations
 
 public init(viewModel: MyViewModel) {
     self.viewModel = viewModel
@@ -985,3 +1056,4 @@ This skill is typically used after discussing requirements or reading specificat
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for SwiftUI view generation |
+| 1.1 | 2026-05-03 | Operations section rewrite to align with `ConversationPractice/docs/architecture.md`: surface the framework/app-side seam (`<Name>Operations.swift` / `<Name>StubOps.swift` / `<Name>Ops.swift` file convention), distinguish `FOSMVVM.ViewModelOperations` from per-feature protocols, note App Intents/transport actions share the same protocol, document `toggleRepaint()` motivation, clarify async vs sync op shape, promote display-only-no-Operations decision to a top-level rule. Clarify the storage-vs-method-signature distinction: `any` is acceptable at single-value View storage (Swift 5.7+ implicit existential opening preserves generic specialization at call sites); generics are required at protocol method signatures. All View examples updated to `private let operations: any <Name>ViewModelOperations`. |

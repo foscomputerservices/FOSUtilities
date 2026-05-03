@@ -468,6 +468,327 @@ private extension MyApp {
 
 ---
 
+# Template 6: Wholly Client-Hosted Xcode-Project App
+
+For an app with no project server — every ViewModel uses `@ViewModel(options: [.clientHostedFactory])`. Layout is an Xcode project (not SPM), so `ResourceAccess` uses `Bundle(for:)` and the `disable-library-validation` entitlement is **not** required.
+
+**Layout:**
+```
+{ProjectName}/
+├── {ProjectName}.xcodeproj
+├── Sources/
+│   ├── ViewModels/                              # framework target
+│   │   ├── ViewModelsResourceAccess.swift
+│   │   ├── Resources/ViewModels/*.yml
+│   │   └── Versioning/SystemVersion+App.swift
+│   └── {AppTarget}/
+│       ├── App/{AppName}App.swift               # this template
+│       ├── App/TestConfiguration.swift          # optional
+│       ├── Info.plist
+│       └── {AppName}.entitlements
+```
+
+**`Sources/ViewModels/ViewModelsResourceAccess.swift`:**
+```swift
+import Foundation
+
+public enum ViewModelsResourceAccess {
+    private final class ResourceAccessClass {}
+    public static var localizationBundle: Bundle {
+        Bundle(for: ResourceAccessClass.self)
+    }
+}
+```
+
+**`Sources/{AppTarget}/App/{AppName}App.swift`:**
+```swift
+// {AppName}App.swift
+//
+// Copyright (c) 2026 Your Organization. All rights reserved.
+
+import FOSFoundation
+import FOSMVVM
+import SwiftUI
+import ViewModels
+
+@main
+struct {AppName}App: App {
+    #if DEBUG
+    @State private var underTest = false
+    #endif
+
+    init() {
+        #if DEBUG
+        registerTestingViews()
+        #endif
+    }
+
+    private var mvvmEnv: MVVMEnvironment {
+        MVVMEnvironment(
+            appBundle: Bundle.main,
+            resourceBundles: [
+                ViewModelsResourceAccess.localizationBundle
+            ],
+            // Wholly client-hosted: no server. Empty is correct.
+            deploymentURLs: [Deployment: MVVMEnvironment.URLPackage]()
+        )
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ZStack {
+                RootView()
+            }
+            #if DEBUG
+            .testHost { testConfiguration, testView in
+                switch try? testConfiguration.fromJSON() as TestConfiguration {
+                // Add one case per scenario that needs container seeding.
+                // Each case ends with `.onAppear { underTest = true }`.
+
+                default:
+                    testView
+                        .onAppear {
+                            underTest = ProcessInfo.processInfo.arguments.count > 1
+                        }
+                }
+            }
+            #endif
+        }
+        .environment(mvvmEnv)
+    }
+}
+
+#if DEBUG
+private extension {AppName}App {
+    @MainActor func registerTestingViews() {
+        // Register every ViewModelView as it is added.
+        // mvvmEnv.registerTestView(LandingPageView.self)
+    }
+}
+#endif
+```
+
+**`Sources/{AppTarget}/{AppName}.entitlements`** — typical client-hosted contents (CloudKit + push for own-data sync only; **no** `disable-library-validation`):
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>aps-environment</key>
+    <string>development</string>
+    <key>com.apple.developer.icloud-services</key>
+    <array>
+        <string>CloudKit</string>
+    </array>
+</dict>
+</plist>
+```
+
+**Notes:**
+- No `Package.swift` at the top level — Xcode-managed framework target.
+- `ViewModels` framework signs with the app's Team ID, so the SPM `PackageFrameworks` ad-hoc-signing trap does not apply. Do **not** add `com.apple.security.cs.disable-library-validation` unless an `SPMLibraries.framework` umbrella is in use.
+- `deploymentURLs` is intentionally empty. Do not invent placeholder production/debug URLs for an app with no project server.
+- App-target imports stay minimal: `FOSFoundation`, `FOSMVVM`, `SwiftUI`, `ViewModels`.
+
+---
+
+# Template 7: project.yml (XcodeGen)
+
+A complete XcodeGen spec for a wholly client-hosted FOSMVVM Xcode-project app with three product targets (`ViewModels`, `Models`, `{AppName}`) plus an `SPMLibraries` umbrella and unit/UI test bundles. Modeled on a working FOSMVVM project (ConversationPractice).
+
+**Location:** `project.yml` at repo root.
+
+**Generate:** `xcodegen generate` (commit `project.yml`; treat `.xcodeproj` as derived).
+
+**Placeholders:**
+
+| Placeholder | Replace With | Example |
+|---|---|---|
+| `{ProjectName}` | Project + app name | `MyApp` |
+| `{AppName}` | App target name (often = ProjectName) | `MyApp` |
+| `{BundleIdRoot}` | Reverse-DNS bundle id root | `com.example.myapp` |
+| `{TeamId}` | Apple developer Team ID | `ABCDE12345` |
+| `{iOSDeployment}` | iOS deployment target | `17.0` |
+| `{macOSDeployment}` | macOS deployment target | `14.0` |
+| `{FOSUtilitiesVersion}` | Tag/branch of FOSUtilities | `from: "1.0.0"` or `branch: main` |
+
+```yaml
+name: {ProjectName}
+options:
+  deploymentTarget:
+    iOS: "{iOSDeployment}"
+    macOS: "{macOSDeployment}"
+  generateEmptyDirectories: true
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    BUILD_LIBRARIES_FOR_DISTRIBUTION: NO
+    DEVELOPMENT_TEAM: {TeamId}
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+
+packages:
+  FOSUtilities:
+    url: https://github.com/foscomputerservices/FOSUtilities.git
+    {FOSUtilitiesVersion}    # e.g. branch: main  OR  from: "1.0.0"
+
+targets:
+  # ───────────────────────────── Frameworks ─────────────────────────────
+
+  ViewModels:
+    type: framework
+    platform: [iOS, macOS]
+    sources:
+      - path: Sources/ViewModels
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {BundleIdRoot}.view-models
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: SPMLibraries
+        embed: false           # umbrella is embedded by the app target
+
+  Models:
+    type: framework
+    platform: [iOS, macOS]
+    sources:
+      - path: Sources/Models
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {BundleIdRoot}.models
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: ViewModels
+        embed: false
+      - target: SPMLibraries
+        embed: false
+
+  # SPMLibraries — the umbrella that holds all external SPM dependencies.
+  # The app target embeds-and-signs SPMLibraries; ViewModels/Models only link it.
+  SPMLibraries:
+    type: framework
+    platform: [iOS, macOS]
+    sources:
+      - path: Sources/SPMLibraries
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {BundleIdRoot}.spm-libraries
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - package: FOSUtilities
+        product: FOSFoundation
+      - package: FOSUtilities
+        product: FOSMVVM
+      # Add other external SPM dependencies here ONCE.
+
+  # ───────────────────────────── App ─────────────────────────────
+
+  {AppName}:
+    type: application
+    platform: [iOS, macOS]
+    sources:
+      - path: Sources/{AppName}
+        excludes:
+          - "Info.plist"
+          - "{AppName}.entitlements"
+      - path: Sources/{AppName}/Info.plist
+        buildPhase: none
+      - path: Sources/{AppName}/{AppName}.entitlements
+        buildPhase: none
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {BundleIdRoot}
+        PRODUCT_NAME: {AppName}
+        INFOPLIST_FILE: Sources/{AppName}/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/{AppName}/{AppName}.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: 1
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - target: ViewModels
+        embed: true
+        codeSign: true
+      - target: Models
+        embed: true
+        codeSign: true
+      - target: SPMLibraries
+        embed: true
+        codeSign: true
+
+  # ───────────────────────────── Tests ─────────────────────────────
+
+  {AppName}Tests:
+    type: bundle.unit-test
+    platform: [iOS, macOS]
+    sources:
+      - path: Tests/UnitTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {BundleIdRoot}.unit-tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: {AppName}
+      - target: ViewModels
+      - target: Models
+      - package: FOSUtilities
+        product: FOSTesting
+
+  {AppName}UITests:
+    type: bundle.ui-testing
+    platform: [iOS, macOS]
+    sources:
+      - path: Tests/UITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {BundleIdRoot}.ui-tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: {AppName}
+    dependencies:
+      - target: {AppName}
+      - package: FOSUtilities
+        product: FOSTestingUI
+
+schemes:
+  {AppName}:
+    build:
+      targets:
+        {AppName}: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - {AppName}Tests
+        - {AppName}UITests
+    archive:
+      config: Release
+```
+
+**Notes:**
+- **`embed: true` on the app target only.** Frameworks must be embedded-and-signed by exactly one consumer (the app); intermediate frameworks (`ViewModels` linking `SPMLibraries`, `Models` linking `ViewModels`) use `embed: false` to link without re-embedding.
+- **`SPMLibraries` is the only target that lists external `package:` dependencies.** Add a new SPM dep here once; downstream targets just `import` from `SPMLibraries`.
+- **`BUILD_LIBRARIES_FOR_DISTRIBUTION: NO`** is in `settings.base` so it applies to all targets — setting YES enables module stability you don't need for an in-tree app and breaks `@_spi`/`package` access modifiers.
+- **Hardened runtime + Team ID** flow from `settings.base` to all targets, so the SPM `PackageFrameworks` ad-hoc-signing trap (see SKILL.md) does not arise here. Do **not** add `com.apple.security.cs.disable-library-validation` to entitlements unless you specifically need it.
+- **Two-platform builds** (`platform: [iOS, macOS]`) generate one target per platform under the hood; XcodeGen handles the multiplexing. Drop `iOS` or `macOS` if you only ship one.
+
+**Regenerate after every edit:**
+```bash
+xcodegen generate
+```
+
+Add to `.gitignore` if you want to exclude the generated project (optional — many teams commit it for IDE-only contributors):
+```
+{ProjectName}.xcodeproj/
+```
+
+---
+
 # Quick Reference: Key Components
 
 ## MVVMEnvironment Parameters
