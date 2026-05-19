@@ -61,12 +61,23 @@ public extension Bundle {
 
 public extension Collection<Bundle> {
     func yamlLocalization(resourceDirectoryName: String) throws -> LocalizationStore {
-        let searchPaths = reduce(into: Set<URL>()) { result, next in
-            result.formUnion(next.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName))
+        // Collect every bundle's search paths, de-duplicating, then sort so that
+        // embedded Swift Package .bundle/ paths come first and main bundle paths
+        // come last. YamlStore.loadFlattenedYAML is last-write-wins on duplicate
+        // keys, so app-level YAMLs override package YAMLs deterministically.
+        var seenPaths = Set<URL>()
+        var collected = [URL]()
+
+        for bundle in self {
+            for path in bundle.yamlSearchPaths(resourceDirectoryName: resourceDirectoryName) {
+                if seenPaths.insert(path).inserted {
+                    collected.append(path)
+                }
+            }
         }
 
         let config = YamlStoreConfig(
-            searchPaths: searchPaths
+            searchPaths: collected.sortedByBundlePrecedence()
         )
 
         return try YamlStore(config: config)
@@ -100,7 +111,7 @@ package extension Bundle {
         return .init(searchPaths: searchPaths)
     }
 
-    func yamlSearchPaths(resourceDirectoryName: String) -> Set<URL> {
+    func yamlSearchPaths(resourceDirectoryName: String) -> [URL] {
         let resourceURLs = [
             /* Packages */ bundleURL
                 .appending(path: "Contents/Resources")
@@ -117,7 +128,25 @@ package extension Bundle {
             }
         }
 
-        return result
+        return Array(result).sortedByBundlePrecedence()
+    }
+}
+
+package extension Array<URL> {
+    /// Sort YAML search paths so that embedded Swift Package `.bundle/` paths
+    /// come first and main bundle paths come last, with alphabetical tie-break
+    /// for determinism. Combined with `YamlStore.loadFlattenedYAML`'s
+    /// last-write-wins semantics, this guarantees app-level YAMLs override
+    /// package YAMLs on duplicate keys.
+    func sortedByBundlePrecedence() -> [URL] {
+        sorted { a, b in
+            let aIsEmbedded = a.path.contains(".bundle/")
+            let bIsEmbedded = b.path.contains(".bundle/")
+            if aIsEmbedded != bIsEmbedded {
+                return aIsEmbedded
+            }
+            return a.path < b.path
+        }
     }
 }
 
