@@ -29,7 +29,7 @@ public macro FieldValidationModel() = #externalMacro(
 )
 
 @attached(extension, conformances: RetrievablePropertyNames, ViewModel, ClientHostedViewModelFactory, RequestableViewModel)
-@attached(member, names: named(propertyNames), named(Request), named(AppState), named(model), named(ClientHostedRequest))
+@attached(member, names: named(propertyNames), named(Request), named(AppState), named(model), named(modelSync), named(ClientHostedRequest))
 public macro ViewModel(options: Set<ViewModelOptions> = []) = #externalMacro(
     module: "FOSMacros",
     type: "ViewModelMacro"
