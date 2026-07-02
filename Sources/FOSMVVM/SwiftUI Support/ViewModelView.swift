@@ -431,6 +431,8 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                     }
                     .onChange(of: viewModelRefreshed.wrappedValue, initial: false) {
                         let refreshedVMStr = viewModelRefreshed.wrappedValue
+
+                        // fosmvvm-review:disable:next no-silent-failure -- TODO: Add error logging
                         guard
                             let refreshedVM: VM = try? refreshedVMStr.fromJSON()
                         else {
@@ -463,7 +465,7 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
             try await request.processRequest(mvvmEnv: mvvmEnv)
 
             return request.viewModel
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
             // Probably want to handle errors out-of-band.
@@ -479,10 +481,14 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
 
 private extension ViewModel {
     func isEqual(to other: Self) -> Bool {
-        let this = try? toJSON()
-        let other = try? other.toJSON()
+        do {
+            let this = try toJSON()
+            let other = try other.toJSON()
 
-        return this == other
+            return this == other
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- TODO: Add error logging
+            return false
+        }
     }
 }
 
@@ -553,7 +559,7 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
             )
 
             return try VM.model(context: context, vmRequest: request)
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
             // Probably want to handle errors out-of-band.
@@ -628,7 +634,7 @@ private struct VMClientResolverView<VM, VMV>: View where
             )
 
             return try VM.model(context: context, vmRequest: request)
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
             // Probably want to handle errors out-of-band.

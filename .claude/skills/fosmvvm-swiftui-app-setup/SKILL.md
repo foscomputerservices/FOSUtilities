@@ -343,6 +343,150 @@ You can add specific test configurations in `.testHost`:
 }
 ```
 
+## Project File Structure
+
+The App struct does not stand alone. It is one consumer of a shared module that holds ServerRequests, ViewModels, Fields, and SystemVersion (see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) §"The Shared Module Pattern"). The on-disk layout depends on the build system.
+
+### Build system: Xcode project vs. SPM
+
+| | Xcode project (`*.xcodeproj`) | Swift Package (`Package.swift`) |
+|---|---|---|
+| Targets | Xcode-managed framework targets | SPM library products |
+| Resource bundle | `Bundle(for: ResourceAccessClass.self)` | `Bundle.module` |
+| macOS signing | Frameworks sign with app's Team ID — no entitlement workaround needed | Hardened-runtime + ad-hoc-signed `PackageFrameworks` requires `com.apple.security.cs.disable-library-validation` (see "Code Signing for SPMLibraries Umbrella Frameworks" above) |
+| Info.plist / entitlements | App target `Sources/{AppTarget}/` or `Resources/` | App target's resource directory |
+| SPMLibraries umbrella | Optional `Sources/SPMLibraries/SPMLibraries.swift` umbrella to keep SPM dependency wiring out of the app target | N/A |
+
+Default to **Xcode project** for app projects unless there is a specific reason to use SPM at the top level. The Xcode layout sidesteps the PackageFrameworks signing trap and gives natural homes for `Info.plist`, `Assets.xcassets`, and `.entitlements`.
+
+### Sources/ tree (canonical app layout)
+
+```
+{ProjectName}/
+├── {ProjectName}.xcodeproj          # Xcode project (no Package.swift)
+│
+├── Sources/
+│   ├── ViewModels/                  # SHARED MODULE (framework target)
+│   │   ├── ViewModels/              # @ViewModel structs
+│   │   ├── Operations/              # Op protocols + StubOps (no live impls)
+│   │   ├── Fields/                  # Fields protocols + FieldsMessages
+│   │   ├── Errors/                  # ServerRequestError types
+│   │   ├── Versioning/
+│   │   │   └── SystemVersion+App.swift
+│   │   ├── Resources/ViewModels/    # *.yml localization
+│   │   └── ViewModelsResourceAccess.swift   # exposes localizationBundle
+│   │
+│   ├── Models/                      # OPTIONAL framework — @Model classes
+│   │
+│   ├── SPMLibraries/                # OPTIONAL umbrella — keeps SPM wiring
+│   │   └── SPMLibraries.swift       #   out of the app target (Xcode only)
+│   │
+│   └── {AppTarget}/                 # APP TARGET
+│       ├── App/
+│       │   ├── {AppName}App.swift   # @main — the file this skill generates
+│       │   ├── TestConfiguration.swift   # if .testHost uses typed configs
+│       │   └── Assets.xcassets
+│       ├── Views/
+│       ├── Operations/              # Live op implementations
+│       ├── AppState/                # @Observable session state
+│       ├── Info.plist
+│       └── {AppName}.entitlements
+│
+└── Tests/
+    ├── UnitTests/
+    │   └── TestYAML/                # FOSMVVM test fixtures
+    └── UITests/
+```
+
+### ResourceAccess.swift — the two forms
+
+Each module carrying YAML resources exposes a single `localizationBundle` accessor. The body differs by build system:
+
+**Xcode framework target** (`Bundle(for:)`):
+```swift
+public enum {Module}ResourceAccess {
+    private final class ResourceAccessClass {}
+    public static var localizationBundle: Bundle {
+        Bundle(for: ResourceAccessClass.self)
+    }
+}
+```
+
+**SPM library target** (`Bundle.module`):
+```swift
+public enum {Module}ResourceAccess {
+    public static var localizationBundle: Bundle { Bundle.module }
+}
+```
+
+Both are consumed identically from the App struct:
+```swift
+resourceBundles: [{Module}ResourceAccess.localizationBundle]
+```
+
+### Wholly client-hosted apps: empty deploymentURLs
+
+A FOSMVVM app may be entirely client-hosted (every ViewModel built via `@ViewModel(options: [.clientHostedFactory])`, no project server). For these apps, `deploymentURLs` is legitimately empty:
+
+```swift
+deploymentURLs: [Deployment: MVVMEnvironment.URLPackage]()
+```
+
+Do not invent placeholder URLs. An empty dictionary is the correct expression of "this app talks to no server."
+
+### Canonical app-target imports
+
+The App struct file's import set is small and stable:
+
+```swift
+import FOSFoundation
+import FOSMVVM
+import SwiftUI
+import {SharedModule}              // typically `ViewModels`
+// + any per-module ResourceAccess imports if the accessor's module differs
+```
+
+If the App struct references types from `Models` or other implementation-side targets at top level, that is a smell — App-level wiring should go through the shared module.
+
+## Generating the Xcode Project (XcodeGen)
+
+The Xcode-project layout has many easy-to-forget settings that must be set on **every** target: `SWIFT_VERSION = 6.0`, `BUILD_LIBRARIES_FOR_DISTRIBUTION = NO`, embed-and-sign vs. link-only on the app target, `SPMLibraries` umbrella wiring, signing identity, deployment targets, entitlements path, Info.plist path. Configuring these by hand is repetitive and drifts.
+
+**Recommendation:** declare the project in [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`project.yml`) and regenerate the `.xcodeproj` from it. Commit `project.yml`; treat the `.xcodeproj` as derived.
+
+### Why XcodeGen
+
+- **Diff-able** — `project.yml` is one file; `project.pbxproj` is a giant generated graph hostile to review.
+- **Reproducible** — every target gets the same Swift version, distribution flag, deployment target, signing — no per-target drift.
+- **Claude-editable** — adding a target, package, or build setting is a small YAML edit, not a click sequence.
+- **Single tool** — `brew install xcodegen` then `xcodegen generate`. No Tuist cache, no Bazel.
+
+### Workflow
+
+1. `brew install xcodegen` (one time per machine).
+2. Edit `project.yml` at the repo root.
+3. Run `xcodegen generate` — produces/updates `{ProjectName}.xcodeproj`.
+4. Open in Xcode normally. Re-run the command after every `project.yml` change.
+
+### The SPMLibraries umbrella, declaratively
+
+`SPMLibraries` exists to keep external SPM dependency wiring out of the app target — it's a thin framework that depends on FOSFoundation/FOSMVVM/etc. and re-vends them. In XcodeGen this is one stanza: `SPMLibraries` is a framework target whose dependencies list every external package product, and the app target depends on `SPMLibraries` (plus `ViewModels` and `Models`).
+
+### What `project.yml` settles in one place
+
+| Setting | Applied to | Why |
+|---|---|---|
+| `SWIFT_VERSION: 6.0` | All targets via `settings.base` | Must match across the project |
+| `BUILD_LIBRARIES_FOR_DISTRIBUTION: NO` | All targets | App is not a library; setting YES bloats build & breaks `@_spi` |
+| `ENABLE_HARDENED_RUNTIME: YES` | App + tests | macOS notarization |
+| `GENERATE_INFOPLIST_FILE: YES` | Frameworks + tests | Saves writing empty Info.plists |
+| `INFOPLIST_FILE: Sources/{App}/Info.plist` | App target only | Carries `FOS-DEPLOYMENT`, `NS*UsageDescription` |
+| `CODE_SIGN_ENTITLEMENTS: Sources/{App}/{App}.entitlements` | App target only | CloudKit, audio background, etc. |
+| `DEVELOPMENT_TEAM` | All targets via `settings.base` | Avoids the SPM ad-hoc-signing trap |
+| Package dependencies on `SPMLibraries` only | App imports just `import {AppModule}` shape | One place to add/remove SPM deps |
+
+See [reference.md](reference.md) Template 7 for the complete `project.yml`.
+
 ## File Templates
 
 See [reference.md](reference.md) for complete file templates.
@@ -375,6 +519,35 @@ Runtime Detection:
 - Edit Scheme → Run → Arguments → Environment Variables
 - Add: `FOS-DEPLOYMENT = staging`
 
+## Code Signing for SPMLibraries Umbrella Frameworks
+
+**Required when** the project uses an `SPMLibraries.framework` umbrella target that links FOSFoundation/FOSMVVM (or any other SwiftPM products) and the app is built for **macOS** with `ENABLE_HARDENED_RUNTIME = YES` (the default for new macOS / multiplatform apps).
+
+**Symptom at launch / first test run:**
+```
+dyld[...]: Library not loaded: @rpath/FOSFoundation.framework/...
+Reason: ... code signature in '...PackageFrameworks/FOSFoundation.framework' not valid
+        for use in process: mapping process and mapped file (non-platform) have different Team IDs
+```
+
+**Why it happens:** SwiftPM builds dynamic package frameworks into `Build/Products/<config>/PackageFrameworks/` and **always ad-hoc-signs them** (`TeamIdentifier=not set`), regardless of the consuming project's `DEVELOPMENT_TEAM`. The app binary is signed with the developer's team, so under hardened-runtime library validation dyld refuses to load the ad-hoc-signed framework. This does **not** affect iOS Simulator builds (library validation isn't enforced there), so iOS-only projects never see it.
+
+**Fix — add to the app's `.entitlements` file:**
+```xml
+<key>com.apple.security.cs.disable-library-validation</key>
+<true/>
+```
+
+This is Apple's documented escape hatch for apps that load dylibs not signed by their team. It only relaxes library validation; the rest of hardened runtime stays in effect.
+
+**Verify** with:
+```
+codesign -dvv <DerivedData>/Build/Products/Debug/PackageFrameworks/FOSFoundation.framework
+```
+Expect `Signature=adhoc`, `TeamIdentifier=not set` — that is the trigger condition.
+
+**Apply the same entitlement to** any additional bundles that load `SPMLibraries.framework` out-of-process: standalone test bundles, app extensions, helper tools. (Tests hosted by the app inherit the host app's entitlements and need no change.)
+
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models and patterns
@@ -388,3 +561,6 @@ Runtime Detection:
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for SwiftUI app setup |
 | 1.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 1.2 | 2026-04-27 | Add "Code Signing for SPMLibraries Umbrella Frameworks" section documenting the macOS hardened-runtime + ad-hoc-signed PackageFrameworks Team ID mismatch and the `com.apple.security.cs.disable-library-validation` entitlement fix. |
+| 1.3 | 2026-05-03 | Add "Project File Structure" section covering Xcode-project vs. SPM layout, the two `ResourceAccess` forms (`Bundle(for:)` vs. `Bundle.module`), wholly client-hosted apps with empty `deploymentURLs`, and canonical app-target imports. Add Template 6 to reference.md for a wholly client-hosted Xcode-project app. |
+| 1.4 | 2026-05-03 | Add "Generating the Xcode Project (XcodeGen)" section with declarative project setup (`SWIFT_VERSION`, `BUILD_LIBRARIES_FOR_DISTRIBUTION = NO`, signing, `SPMLibraries` umbrella wiring) so the `.xcodeproj` is regenerable from a committed `project.yml`. Add Template 7 to reference.md with a complete `project.yml`. |

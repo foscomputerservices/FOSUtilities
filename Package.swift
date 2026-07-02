@@ -64,7 +64,13 @@ let package = Package(
             .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
 
             // Third 🥳 frameworks
-            .package(url: "https://github.com/foscomputerservices/Yams.git", branch: "add-wasi-support"), // Local fork for WASM fixes
+            // NOTE: WASM/WASI support is present but dormant. The WASI URLSession code
+            // (Sources/FOSFoundation/Networking/WASI/*) is #if os(WASI)-guarded and inert on
+            // Apple/Linux, but building *for* WASI requires the DBL_DECIMAL_DIG fix in Yams
+            // PR jpsim/Yams#470. Until that merges and Yams cuts 6.2.3+, we depend on official
+            // Yams to avoid a package-identity collision with downstream consumers that also
+            // depend on jpsim/Yams (SwiftPM package deps cannot be platform-conditioned).
+            .package(url: "https://github.com/jpsim/Yams.git", .upToNextMajor(from: "6.2.2")),
             .package(url: "https://github.com/swiftwasm/JavaScriptKit", from: "0.19.0")
         ]
 

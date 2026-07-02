@@ -240,6 +240,8 @@ private extension FormFieldView where Value == Bool {
         switch fieldModel.formField.type {
         case .checkbox:
             Toggle(
+                // TODO: Add error logging
+                // fosmvvm-review:disable:next no-silent-failure -- Error handling is TBD
                 (try? fieldModel.formField.title.localizedString) ?? "",
                 isOn: wrappedValueBinding()
             )

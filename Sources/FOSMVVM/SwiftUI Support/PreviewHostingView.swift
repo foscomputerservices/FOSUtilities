@@ -172,7 +172,7 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
         )
         do {
             return try viewModel.toJSON(encoder: encoder).fromJSON()
-        } catch {
+        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("Unable to localize ViewModel.  Most data will likely be blank.  Error: \(error)")
             return viewModel
         }

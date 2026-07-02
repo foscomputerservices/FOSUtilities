@@ -126,6 +126,7 @@ private extension ProcessInfo {
             fatalError("Unknown testing view: \(vmTypeStr)")
         }
 
+        // fosmvvm-review:disable:next no-silent-failure -- TODO: Add error logging
         return try? factory(viewModelData)
     }
 }

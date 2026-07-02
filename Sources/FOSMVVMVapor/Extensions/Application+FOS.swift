@@ -131,7 +131,20 @@ private extension Application {
         // Access the FOSMVVMVapor module bundle
         let bundle = Bundle.module
 
-        let reactResourceURL = bundle.bundleURL.appending(path: "Contents/Resources")
+        // The resource-bundle layout differs by build system: SwiftPM (`swift build`/`swift test`)
+        // produces a shallow bundle with resources at the bundle root, while Xcode nests them
+        // under `Contents/Resources`. Probe both (mirroring `Bundle.yamlSearchPaths`) and serve
+        // from whichever root actually contains the `fosmvvm` resource directory.
+        let candidateRoots = [
+            bundle.bundleURL.appending(path: "Contents/Resources"),
+            bundle.bundleURL
+        ]
+        guard let reactResourceURL = candidateRoots.first(where: { root in
+            FileManager.default.fileExists(atPath: root.appending(path: "fosmvvm").path)
+        }) else {
+            logger.warning("FOSMVVM client resources not found in bundle \(bundle.bundleURL.path); /fosmvvm/react/* will not be served")
+            return
+        }
 
         logger.info("Serving FOSMVVM client resources from: \(reactResourceURL.path)")
 

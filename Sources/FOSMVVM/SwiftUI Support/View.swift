@@ -89,12 +89,14 @@ public extension View {
     ///     should be refreshed with the provided value.
     func refreshedViewModel<VM: ViewModel>(_ binding: Binding<VM>) -> some View {
         environment(\.viewModelRefreshed, .init(
+            // fosmvvm-review:disable:begin no-silent-failure -- TODO: Add error logging
             get: { (try? binding.wrappedValue.toJSON()) ?? "" },
             set: { newVMStr in
                 if let newVM: VM = try? newVMStr.fromJSON() {
                     binding.wrappedValue = newVM
                 }
             }
+            // fosmvvm-review:disable:end no-silent-failure
         ))
     }
 }
