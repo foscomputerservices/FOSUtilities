@@ -21,39 +21,53 @@ import FOSFoundation
 import Foundation
 import Vapor
 
-public final class VaporServerRequestTest<Request: ServerRequest>: AnyObject, Sendable where Request.ResponseBody: VaporViewModelFactory {
-    private let vaporApp: Vapor.Application
+public final class VaporServerRequestTest<Request: ServerRequest>: Sendable where Request.ResponseBody: VaporViewModelFactory {
+    // `Bundle` is an immutable resource handle; it is only ever read (never
+    // mutated) here, so treat it as safe to hold in this `Sendable` harness.
+    private nonisolated(unsafe) let bundle: Bundle
+    private let resourceDirectoryName: String
 
     public init(for request: Request.Type, bundle: Bundle, resourceDirectoryName: String = "Resources") async throws {
-        self.vaporApp = try await Application.make()
-        try vaporApp.initYamlLocalization(
-            bundle: bundle,
-            resourceDirectoryName: resourceDirectoryName
-        )
-        try vaporApp.routes.register(
-            collection: VaporServerRequestHost<Request>()
-        )
-        try await vaporApp.startup()
+        self.bundle = bundle
+        self.resourceDirectoryName = resourceDirectoryName
     }
 
+    /// Boots a fresh Vapor application, serves the `Request` through its real
+    /// route + localization pipeline, and tears the application back down.
+    ///
+    /// Each call owns a full application lifecycle so that shutdown is always the
+    /// async form Vapor requires. `Application.make()` registers the *async* serve
+    /// command, whose teardown only runs under `asyncShutdown()`; a synchronous
+    /// `shutdown()` (e.g. from a `deinit`) leaves that command un-shut and trips
+    /// `ServeCommand did not shutdown before deinit`. Booting with `asyncBoot()`
+    /// (rather than `startup()`) also skips Vapor's console command parser — which
+    /// is what previously choked on the test runner's `-NSTreatUnknownArgumentsAsOpen`
+    /// argument — while still running the lifecycle handlers that load the
+    /// localization YAML.
     public func test(request: Request, locale: Locale) async throws -> Request.ResponseBody {
-        guard let response: Request.ResponseBody = try await vaporApp.process(
-            request: request,
-            locale: locale
-        ) as? Request.ResponseBody
-        else {
-            throw FOSVaporServerError.error("Unable to process request ResponseBody")
-        }
-        return response
-    }
+        let app = try await Application.make()
+        do {
+            try app.initYamlLocalization(
+                bundle: bundle,
+                resourceDirectoryName: resourceDirectoryName
+            )
+            try app.routes.register(
+                collection: VaporServerRequestHost<Request>()
+            )
+            try await app.asyncBoot()
 
-    deinit {
-        vaporApp.shutdown()
+            let response = try await app.process(request: request, locale: locale)
+            try await app.asyncShutdown()
+            return response
+        } catch {
+            try? await app.asyncShutdown()
+            throw error
+        }
     }
 }
 
 private extension Application {
-    func process<Request: ServerRequest>(request: Request, locale: Locale) async throws -> Request.RequestBody? {
+    func process<Request: ServerRequest>(request: Request, locale: Locale) async throws -> Request.ResponseBody {
         let prefix = "http://localhost"
         guard let url = try URL(string: prefix)?.appending(serverRequest: request) else {
             throw FOSVaporServerError.error("Unable to derive URL")

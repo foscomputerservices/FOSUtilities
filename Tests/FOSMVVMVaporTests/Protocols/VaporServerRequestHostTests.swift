@@ -17,35 +17,28 @@
 import FOSFoundation
 import FOSMVVM
 import FOSTesting
+import FOSTestingVapor
 import Foundation
 import Testing
 import Vapor
 
-// TODO: Resolve odd NSTreatUnknownArgumentsAsOpen error
+@Suite("Vapor Server Request Host Tests")
+struct VaporServerRequestHostTests {
+    @Test func performBasicRequest() async throws {
+        let response = try await serverRequestTest.test(
+            request: .init(),
+            locale: Locale(identifier: "en")
+        )
 
-// As of Swift 6.0 beta, running this test yields: 🤷‍♂️
-//
-// Test performBasicRequest() recorded an issue at
-// VaporServerRequestHostTests.swift:28:6: Caught error:
-// Unknown command `-NSTreatUnknownArgumentsAsOpen`
+        #expect(try response.aLocalizedString.localizedString != "")
+    }
 
-// @Suite("Vapor Server Request Host Tests")
-// struct VaporServerRequestHostTests {
-//    @Test func performBasicRequest() async throws {
-//        let response = try await serverRequestTest.test(
-//            request: .init(),
-//            locale: Locale(identifier: "en")
-//        )
-//
-//        #expect(try response.aLocalizedString.localizedString != "")
-//    }
-//
-//    private let serverRequestTest: VaporServerRequestTest<TestViewModelRequest>
-//    init() async throws {
-//        self.serverRequestTest = try .init(
-//            for: TestViewModelRequest.self,
-//            bundle: Bundle.module,
-//            resourceDirectoryName: "TestYAML"
-//        )
-//    }
-// }
+    private let serverRequestTest: VaporServerRequestTest<TestViewModelRequest>
+    init() async throws {
+        self.serverRequestTest = try await .init(
+            for: TestViewModelRequest.self,
+            bundle: Bundle.module,
+            resourceDirectoryName: "TestYAML"
+        )
+    }
+}

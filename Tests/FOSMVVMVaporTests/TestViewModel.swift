@@ -16,8 +16,10 @@
 
 import FOSFoundation
 import FOSMVVM
+import FOSMVVMVapor
 import Foundation
 import Testing
+import Vapor
 
 @ViewModel
 struct TestViewModel: RequestableViewModel {
@@ -78,16 +80,10 @@ final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
     }
 }
 
-extension TestViewModel: ViewModelFactory, ViewModelFactoryContext, Sendable {
-    typealias Context = Self
+extension TestViewModel: VaporViewModelFactory {
+    // MARK: VaporViewModelFactory Protocol
 
-    // MARK: ViewModelFactory Protocol
-
-    var appVersion: SystemVersion {
-        .init(major: 1, minor: 0)
-    }
-
-    static func model(context: Context) async throws -> Self {
+    static func model(context: VaporModelFactoryContext<TestViewModelRequest>) async throws -> Self {
         .init()
     }
 }

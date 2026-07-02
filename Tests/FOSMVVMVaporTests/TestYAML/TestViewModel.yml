@@ -12,6 +12,7 @@ en:
       - "Piece #2"
     separator: "*"
     aLocalizedSubstitution: "First Sub: %{sub1}; Second Sub: %{sub2}"
+    aLocalizedMultiTypedSubstitution: "String: %{string}; Int: %{int}; Date: %{date}"
     substitutions:
       sub1: "Number 1"
       sub2: "Number 2"
