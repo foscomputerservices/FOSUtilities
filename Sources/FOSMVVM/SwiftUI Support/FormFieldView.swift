@@ -67,6 +67,9 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
             .focused(focusField, equals: fieldModel.formField.fieldId)
             .focused($isFocused)
             .withValidations(for: fieldModel)
+            .onReceive(coordinator.debouncedValue) { newValue in
+                onNewValue?(newValue)
+            }
             .onChange(of: isFocused) {
                 if !isFocused && hasChanged {
                     Self.validateIt(
@@ -122,7 +125,6 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
         }
 
         _coordinator = State(initialValue: FormFieldCoordinator(
-            onNewValue: onNewValue,
             newValueDelay: newValueDelay
         ))
     }
@@ -150,25 +152,29 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
         .init(
             get: { fieldModel.wrappedValue },
             set: { newValue in
-                let valueToStore: Value
-                if let str = newValue as? String {
-                    // swiftlint:disable:next force_cast
-                    valueToStore = str.trimmingCharacters(in: .whitespaces) as! Value
-                } else {
-                    valueToStore = newValue
-                }
-
-                guard fieldModel.wrappedValue != valueToStore else {
+                guard fieldModel.wrappedValue != newValue else {
                     return
                 }
 
-                fieldModel.wrappedValue = valueToStore
+                // Store the value *as typed* so the TextField's display keeps whatever the
+                // user entered (including in-progress trailing whitespace between words).
+                // Trimming here would strip a trailing space on every keystroke and revert
+                // the field, making multi-word entry (names, addresses) impossible.
+                fieldModel.wrappedValue = newValue
                 hasChanged = true
                 if validations?.validations.isEmpty == false {
                     validations?.removeAll(fieldIds: [fieldModel.formField.fieldId])
                 }
 
-                coordinator.subject.send(valueToStore)
+                // Only the value forwarded downstream (debounced onNewValue) is trimmed.
+                let valueToSend: Value
+                if let str = newValue as? String {
+                    // swiftlint:disable:next force_cast
+                    valueToSend = str.trimmingCharacters(in: .whitespaces) as! Value
+                } else {
+                    valueToSend = newValue
+                }
+                coordinator.subject.send(valueToSend)
             }
         )
     }
@@ -607,19 +613,20 @@ private extension FormFieldView where Value == Double {
 /// meaning stale debounce timers from previous instances can fire concurrently. Moving the
 /// pipeline into a stable `final class` held via `@State` guarantees exactly one subscription
 /// per logical field for the lifetime of the view.
+///
+/// The coordinator deliberately does *not* capture `onNewValue`.  It only exposes the
+/// debounced value stream; the view subscribes via `.onReceive`, which re-binds the *current*
+/// `onNewValue` closure on every render.  This avoids invoking a stale closure captured at
+/// first init (the coordinator is created once and never replaced).
 private final class FormFieldCoordinator<Value: Codable & Hashable> {
-    let subject: PassthroughSubject<Value, Never>
-    private let cancellable: AnyCancellable
+    let subject = PassthroughSubject<Value, Never>()
+    let debouncedValue: AnyPublisher<Value, Never>
 
-    init(onNewValue: ((Value) -> Void)?, newValueDelay: TimeInterval) {
-        let subject = PassthroughSubject<Value, Never>()
-        self.subject = subject
-        self.cancellable = subject
+    init(newValueDelay: TimeInterval) {
+        self.debouncedValue = subject
             .debounce(for: .seconds(newValueDelay), scheduler: RunLoop.main)
             .removeDuplicates()
-            .sink { newValue in
-                onNewValue?(newValue)
-            }
+            .eraseToAnyPublisher()
     }
 }
 
