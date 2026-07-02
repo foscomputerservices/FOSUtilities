@@ -1,5 +1,5 @@
 {
-  "originHash" : "33b6020ed212546556a5ee2439b6b01e228fbb4f4ac4593a3afd09041bb32e0c",
+  "originHash" : "1154c2ed1d682799e75c02d214d8a9448189e8a221a4746563c8510d4f78c0e7",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -328,10 +328,10 @@
     {
       "identity" : "yams",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/foscomputerservices/Yams.git",
+      "location" : "https://github.com/jpsim/Yams.git",
       "state" : {
-        "branch" : "add-wasi-support",
-        "revision" : "3e0ba90f31a6780294721d25b368dafaab5799f1"
+        "revision" : "a27b21e0c81c5bf42049b897a62aaf387e80f279",
+        "version" : "6.2.2"
       }
     }
   ],
