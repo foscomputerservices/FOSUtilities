@@ -46,22 +46,32 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
     private let fieldModel: FormFieldModel<Value>
     private let focusField: FocusState<FormFieldIdentifier?>.Binding
     @State private var hasChanged = false
+    /// Local focus tracking used only for validation-on-blur.
+    ///
+    /// We cannot read `focusField.wrappedValue` directly in a non-owning view's body — doing
+    /// so triggers "Accessing FocusState's value outside of the body of a View" and yields a
+    /// constant binding that never updates.  Instead we own a local `@FocusState` here (safe to
+    /// read in *this* view's body) and bind it alongside the shared `focusField` binding.
+    @FocusState private var isFocused: Bool
 
     let fieldValidator: (([FormFieldBase]?) -> [ValidationResult]?)?
     let validations: Validations?
     let onNewValue: ((Value) -> Void)?
     let onSubmit: ((Value) -> Void)?
 
-    private let newValueSubject: PassthroughSubject<Value, Never>
-    private let newValueCancelable: AnyCancellable?
+    @State private var coordinator: FormFieldCoordinator<Value>
 
     public var body: some View {
         fieldView
             .id("FormField.\(fieldModel.formField.fieldId.id)")
             .focused(focusField, equals: fieldModel.formField.fieldId)
+            .focused($isFocused)
             .withValidations(for: fieldModel)
-            .onChange(of: focusField.wrappedValue) {
-                if hasChanged {
+            .onReceive(coordinator.debouncedValue) { newValue in
+                onNewValue?(newValue)
+            }
+            .onChange(of: isFocused) {
+                if !isFocused && hasChanged {
                     Self.validateIt(
                         fieldModel: fieldModel,
                         fieldValidator: fieldValidator,
@@ -114,15 +124,9 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
             onSubmit?(newValue)
         }
 
-        // This allows onNewValue to be called after the user stops typing
-        self.newValueSubject = PassthroughSubject<Value, Never>()
-        self.newValueCancelable = newValueSubject
-            .debounce(for: .seconds(newValueDelay), scheduler: RunLoop.main)
-            .removeDuplicates()
-            .sink { newValue in
-                fieldModel.wrappedValue = newValue
-                onNewValue?(newValue)
-            }
+        _coordinator = State(initialValue: FormFieldCoordinator(
+            newValueDelay: newValueDelay
+        ))
     }
 
     @discardableResult private static func validateIt(
@@ -148,28 +152,29 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
         .init(
             get: { fieldModel.wrappedValue },
             set: { newValue in
-                if newValue is String,
-                   (newValue as? String) == nil,
-                   (newValue as? String)?.isEmpty == true {
-                    return
-                }
                 guard fieldModel.wrappedValue != newValue else {
                     return
                 }
 
+                // Store the value *as typed* so the TextField's display keeps whatever the
+                // user entered (including in-progress trailing whitespace between words).
+                // Trimming here would strip a trailing space on every keystroke and revert
+                // the field, making multi-word entry (names, addresses) impossible.
                 fieldModel.wrappedValue = newValue
                 hasChanged = true
                 if validations?.validations.isEmpty == false {
                     validations?.removeAll(fieldIds: [fieldModel.formField.fieldId])
                 }
 
+                // Only the value forwarded downstream (debounced onNewValue) is trimmed.
+                let valueToSend: Value
                 if let str = newValue as? String {
-                    newValueSubject
-                        // swiftlint:disable:next force_cast
-                        .send(str.trimmingCharacters(in: .whitespaces) as! Value)
+                    // swiftlint:disable:next force_cast
+                    valueToSend = str.trimmingCharacters(in: .whitespaces) as! Value
                 } else {
-                    newValueSubject.send(newValue)
+                    valueToSend = newValue
                 }
+                coordinator.subject.send(valueToSend)
             }
         )
     }
@@ -190,7 +195,7 @@ private extension FormFieldView where Value == String? {
                     validations?.removeAll(fieldIds: [fieldModel.formField.fieldId])
                 }
 
-                newValueSubject
+                coordinator.subject
                     .send(newValue.trimmingCharacters(in: .whitespaces))
             }
         )
@@ -598,6 +603,30 @@ private extension FormFieldView where Value == Double {
         #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
         .textContentType(fieldModel.formField.textContentType)
         #endif
+    }
+}
+
+/// Holds the Combine pipeline for ``FormFieldView``'s debounced `onNewValue` callback.
+///
+/// `FormFieldView` is a SwiftUI `struct`, so any Combine state stored as `let` properties is
+/// recreated on every re-render. iOS 18 keeps old struct instances alive during reconciliation,
+/// meaning stale debounce timers from previous instances can fire concurrently. Moving the
+/// pipeline into a stable `final class` held via `@State` guarantees exactly one subscription
+/// per logical field for the lifetime of the view.
+///
+/// The coordinator deliberately does *not* capture `onNewValue`.  It only exposes the
+/// debounced value stream; the view subscribes via `.onReceive`, which re-binds the *current*
+/// `onNewValue` closure on every render.  This avoids invoking a stale closure captured at
+/// first init (the coordinator is created once and never replaced).
+private final class FormFieldCoordinator<Value: Codable & Hashable> {
+    let subject = PassthroughSubject<Value, Never>()
+    let debouncedValue: AnyPublisher<Value, Never>
+
+    init(newValueDelay: TimeInterval) {
+        self.debouncedValue = subject
+            .debounce(for: .seconds(newValueDelay), scheduler: RunLoop.main)
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 }
 
