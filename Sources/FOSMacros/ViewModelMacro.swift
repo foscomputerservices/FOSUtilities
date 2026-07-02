@@ -257,6 +257,23 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             newDecls.append(DeclSyntax(modelDecl))
         }
 
+        // Synthesize the `Stubbable` witness `stub()` when the VM provides a
+        // fully-defaulted parameterized `stub(...)` but no zero-arg `stub()`.
+        // Swift does not let a defaulted parameter satisfy the no-arg requirement,
+        // so we forward each parameter with its default made *explicit* — the call
+        // then binds unambiguously to the parameterized overload rather than
+        // recursing back into this witness.
+        if let stubSource = structDecl.stubWitnessSource {
+            let stubDecl = try FunctionDeclSyntax(
+                """
+                public static func stub() -> Self {
+                    Self.stub(\(raw: stubSource.forwardingDefaultArguments))
+                }
+                """
+            )
+            newDecls.append(DeclSyntax(stubDecl))
+        }
+
         // Generate the propertyNames function
         var pairs = properties.map { "_\($0.id): \"\($0.name)\"" }.joined(separator: ", ")
         if pairs.isEmpty {
@@ -301,6 +318,29 @@ private extension StructDeclSyntax {
         } ?? false
     }
 
+    /// The parameterized `static func stub(...)` the synthesized `Stubbable`
+    /// witness should forward to, or `nil` when the macro should not synthesize one.
+    ///
+    /// Returns `nil` when a zero-parameter `static func stub()` already satisfies
+    /// the witness, or when no parameterized `stub(...)` has *all* parameters
+    /// defaulted (the macro cannot invent argument values, so it stays out of the
+    /// way and lets the normal `Stubbable` conformance error surface).
+    var stubWitnessSource: FunctionDeclSyntax? {
+        let stubFuncs = memberBlock.members
+            .compactMap { $0.decl.as(FunctionDeclSyntax.self) }
+            .filter { $0.name.text == "stub" && $0.isStatic }
+
+        // A zero-arg stub() already witnesses Stubbable — never overload it.
+        guard !stubFuncs.contains(where: \.signature.parameterClause.parameters.isEmpty)
+        else { return nil }
+
+        // Only a stub(...) with every parameter defaulted can be forwarded no-arg.
+        return stubFuncs.first { fn in
+            let params = fn.signature.parameterClause.parameters
+            return !params.isEmpty && params.allSatisfy { $0.defaultValue != nil }
+        }
+    }
+
     var initParams: [(name: String, type: String)] {
         let initializers = memberBlock.members.compactMap {
             $0.decl.as(InitializerDeclSyntax.self)
@@ -315,6 +355,25 @@ private extension StructDeclSyntax {
             }
             return (name: param.firstName.text, type: typeAnnotation)
         }
+    }
+}
+
+private extension FunctionDeclSyntax {
+    var isStatic: Bool {
+        modifiers.contains { $0.name.tokenKind == .keyword(.static) }
+    }
+
+    /// A call-argument list that passes every parameter its own default value
+    /// explicitly, e.g. `count: 8, name: "x"`. A parameter with an omitted
+    /// external label (`_`) is forwarded positionally.
+    var forwardingDefaultArguments: String {
+        signature.parameterClause.parameters.compactMap { param -> String? in
+            guard let defaultValue = param.defaultValue?.value.trimmed.description else {
+                return nil
+            }
+            let label = param.firstName.text
+            return label == "_" ? defaultValue : "\(label): \(defaultValue)"
+        }.joined(separator: ", ")
     }
 }
 #endif
