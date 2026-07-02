@@ -93,12 +93,12 @@ try await request.processRequest(mvvmEnv: mvvmEnv)
 let user = request.responseBody
 
 // ✅ RIGHT - Create operation
-let createRequest = CreateIdeaRequest(requestBody: .init(content: content))
+let createRequest = IdeaCreateRequest(requestBody: .init(content: content))
 try await createRequest.processRequest(mvvmEnv: mvvmEnv)
 let newId = createRequest.responseBody?.id
 
 // ✅ RIGHT - Update operation
-let updateRequest = MoveIdeaRequest(requestBody: .init(ideaId: id, newStatus: status))
+let updateRequest = IdeaMoveRequest(requestBody: .init(ideaId: id, newStatus: status))
 try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 ```
 
@@ -121,7 +121,7 @@ try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 
 | Concern | How ServerRequest Handles It |
 |---------|------------------------------|
-| URL Path | Derived from type name via `Self.path` (e.g., `MoveIdeaRequest` → `/move_idea`) |
+| URL Path | Derived from type name via `Self.path` (e.g., `IdeaMoveRequest` → `/idea_move`) |
 | HTTP Method | Determined by `action.httpMethod` (ShowRequest=GET, CreateRequest=POST, etc.) |
 | Request Body | `RequestBody` type, automatically JSON encoded via `requestBody?.toJSONData()` |
 | Response Body | `ResponseBody` type, automatically JSON decoded into `responseBody` |
@@ -145,6 +145,31 @@ Choose based on the operation:
 | Replace entity | (use `.replace` action) | PUT | Yes |
 | Soft delete | `DeleteRequest` | DELETE | No |
 | Hard delete | `DestroyRequest` | DELETE | No |
+
+> The left column is the **protocol** you conform to (`CreateRequest`, `UpdateRequest`, …).
+> That is NOT the name of your concrete type — see naming below.
+
+---
+
+## Naming the Concrete Request Type
+
+**Concrete write/action requests are noun-first: `<Noun><Verb>Request`.**
+
+| Operation | ✅ Concrete type | ❌ Not |
+|-----------|-----------------|--------|
+| Create a User | `UserCreateRequest` | `CreateUserRequest` |
+| Update a User | `UserUpdateRequest` | `UpdateUserRequest` |
+| Replace a User (PUT) | `UserReplaceRequest` | `ReplaceUserRequest` |
+| Delete a User | `UserDeleteRequest` | `DeleteUserRequest` |
+| Semantic action | `IdeaMoveRequest` | `MoveIdeaRequest` |
+| Raw-data read | `UserShowRequest` | — |
+
+Noun-first keeps an entity's whole request family cohesive and sortable
+(`UserCreateRequest`/`UserDeleteRequest`/`UserShowRequest`/`UserUpdateRequest` group
+together) — an **SRP** win, and it matches the already-noun-first `ShowRequest` form.
+ViewModel *read* requests drop the verb entirely (`DocksRequest`, not `DocksShowRequest`).
+
+**Full rules and rationale:** [Naming Dictionary](../shared/NAMES.md).
 
 ---
 
@@ -465,7 +490,7 @@ When processing a response:
 **ResponseError MUST be nested inside the request class**, just like RequestBody and ResponseBody:
 
 ```swift
-public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
+public final class IdeaCreateRequest: CreateRequest, @unchecked Sendable {
     public typealias Query = EmptyQuery
     public typealias Fragment = EmptyFragment
     // No typealias needed - ResponseError is nested
@@ -484,8 +509,8 @@ public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
 
 **Why nesting matters:**
 - Consistent with RequestBody/ResponseBody pattern
-- Avoids namespace pollution (no `CreateIdeaError`, `MoveIdeaError`, etc. at top level)
-- YAML localization keys are scoped: `CreateIdeaRequest.ResponseError.ErrorCode.quotaExceeded`
+- Avoids namespace pollution (no `IdeaCreateError`, `IdeaMoveError`, etc. at top level)
+- YAML localization keys are scoped: `IdeaCreateRequest.ResponseError.ErrorCode.quotaExceeded`
 - No need for unique type names like `GovernanceLessonCreateError` - nesting provides uniqueness
 
 ### Pattern 1: Errors with Associated Values
@@ -493,7 +518,7 @@ public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
 For errors that need dynamic data in their messages, use `LocalizableSubstitutions`:
 
 ```swift
-public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
+public final class IdeaCreateRequest: CreateRequest, @unchecked Sendable {
     // ... other typealiases and properties ...
 
     public struct ResponseError: ServerRequestError {
@@ -541,7 +566,7 @@ public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
 
 ```yaml
 en:
-  CreateIdeaRequest:
+  IdeaCreateRequest:
     ResponseError:
       ErrorCode:
         duplicateContent: "The requested content is a duplicate of an existing idea."
@@ -554,7 +579,7 @@ en:
 For simpler errors without associated values, use a `String` raw value enum:
 
 ```swift
-public final class MoveIdeaRequest: UpdateRequest, @unchecked Sendable {
+public final class IdeaMoveRequest: UpdateRequest, @unchecked Sendable {
     // ... other typealiases and properties ...
 
     public struct ResponseError: ServerRequestError {
@@ -580,7 +605,7 @@ public final class MoveIdeaRequest: UpdateRequest, @unchecked Sendable {
 
 ```yaml
 en:
-  MoveIdeaRequest:
+  IdeaMoveRequest:
     ResponseError:
       ErrorCode:
         ideaNotFound: "The idea was not found"
@@ -595,18 +620,18 @@ This isn't JavaScript. The type system tells you everything at compile time:
 
 ```swift
 // When you write this request...
-let request = MoveIdeaRequest(requestBody: body)
+let request = IdeaMoveRequest(requestBody: body)
 
 // ...you KNOW:
-// - MoveIdeaRequest.ResponseError exists (it's declared in the type)
+// - IdeaMoveRequest.ResponseError exists (it's declared in the type)
 // - It has exactly the cases you defined (ideaNotFound, invalidTransition)
 // - Each case has whatever properties you gave it
 
 // So when you catch, you catch THE SPECIFIC TYPE:
 do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
-} catch let error as MoveIdeaRequest.ResponseError {
-    // I KNOW this is MoveIdeaRequest.ResponseError
+} catch let error as IdeaMoveRequest.ResponseError {
+    // I KNOW this is IdeaMoveRequest.ResponseError
     // I KNOW it has .code
     // I KNOW .code is ErrorCode enum with ideaNotFound, invalidTransition
     // No mystery. No runtime discovery. No "what if?"
@@ -625,7 +650,7 @@ catch let error as ServerRequestError {
 **The pattern (Swift brain):**
 ```swift
 // ✅ RIGHT - you know the exact type
-catch let error as MoveIdeaRequest.ResponseError {
+catch let error as IdeaMoveRequest.ResponseError {
     switch error.code {
     case .ideaNotFound: // I know this exists
     case .invalidTransition: // I know this exists
@@ -642,7 +667,7 @@ The primary pattern is try/catch at the call site:
 ```swift
 do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
-} catch let error as CreateIdeaError {
+} catch let error as IdeaCreateError {
     switch error.code {
     case .duplicateContent:
         showDuplicateWarning(message: error.message)
@@ -668,7 +693,7 @@ if requestBody.email.isEmpty {
     validations.validations.append(.init(
         status: .error,
         fieldId: "email",
-        message: .localized(for: CreateUserRequest.self, propertyName: "emailRequired")
+        message: .localized(for: UserCreateRequest.self, propertyName: "emailRequired")
     ))
 }
 
@@ -703,7 +728,7 @@ See [fosmvvm-serverrequest-test-generator](../fosmvvm-serverrequest-test-generat
 
 ```swift
 // ✅ RIGHT - tests the actual client code path
-let request = Update{Entity}Request(
+let request = {Entity}UpdateRequest(
     query: .init(entityId: id),
     requestBody: .init(name: "New Name")
 )
@@ -718,6 +743,7 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 
 ## See Also
 
+- [Naming Dictionary](../shared/NAMES.md) - Canonical rules for naming requests (noun-first) and types
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models (errors are data, type safety, etc.)
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full architecture, especially "Core Principle: ServerRequest Is THE Way"
 - [fosmvvm-serverrequest-test-generator](../fosmvvm-serverrequest-test-generator/SKILL.md) - For testing ServerRequest types
@@ -743,3 +769,4 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.7 | 2026-01-20 | ResponseError MUST be nested inside request class (like RequestBody/ResponseBody). Updated patterns to show nesting with correct YAML key paths. |
 | 2.8 | 2026-01-20 | Added "Type Safety Means You Already Know" section - explicit mental model that Swift's type system means you catch concrete error types, not protocols. Prevents JavaScript-brain panic about runtime type discovery. |
 | 2.9 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.10 | 2026-07-02 | Concrete request types are noun-first (`<Noun><Verb>Request`); added "Naming the Concrete Request Type" section + [Naming Dictionary](../shared/NAMES.md) cross-ref; flipped all verb-first examples (`CreateIdeaRequest`→`IdeaCreateRequest`, `MoveIdeaRequest`→`IdeaMoveRequest`, etc.). (backlog A1) |

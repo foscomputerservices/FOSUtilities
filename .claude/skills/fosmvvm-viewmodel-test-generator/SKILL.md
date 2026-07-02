@@ -21,6 +21,20 @@ ViewModel testing in FOSMVVM verifies three critical aspects:
 
 The `LocalizableTestCase` protocol provides infrastructure that tests all three in a single call.
 
+> **The version baseline is a COMMITTED artifact (in a downstream app).** Versioning
+> stability works by comparing the ViewModel's current serialization against a stored
+> baseline JSON (`{Name}ViewModel_<version>.json`, written beside the test under
+> `Tests/.../.VersionedTestJSON/`). For an app that **ships a versioned wire contract to
+> real clients, commit that baseline to git** — it is the canary that catches an
+> accidental wire-shape change across builds. If it isn't committed, it regenerates fresh
+> every clean build and silently protects nothing. (**Different policy for FOSUtilities
+> itself:** its own baselines are *regenerable fixtures* with no shipped contract — the
+> version tags are arbitrary — so FOS deliberately git-ignores them except one intentional
+> serialization canary. Downstream apps are the opposite: commit real baselines.) The
+> primary `expectFullViewModelTests(_:)` now forwards `#filePath`/`#line`, so the baseline
+> lands beside **your** test (under `Tests/.../.VersionedTestJSON/`) automatically —
+> commit that file.
+
 ---
 
 ## When to Use This Skill
@@ -378,3 +392,4 @@ let vm = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
 | 1.0 | 2025-01-02 | Initial skill |
 | 1.1 | 2026-01-19 | Updated LocalizableTestCase example to use {ViewModelsTarget}.resourceAccess pattern. |
 | 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 1.3 | 2026-07-02 | Note the version baseline is a **committed artifact** for downstream apps (FOS's own baselines are regenerable/git-ignored fixtures — different policy); `expectFullViewModelTests(_:)` now forwards `#filePath`/`#line` so the baseline lands beside the caller's test. (backlog B7) |

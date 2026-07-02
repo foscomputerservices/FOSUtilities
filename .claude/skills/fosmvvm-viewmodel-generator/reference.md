@@ -58,7 +58,7 @@ public struct {Name}ViewModel: RequestableViewModel {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -172,7 +172,7 @@ public struct {Name}ViewModel: Codable, Sendable {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -474,7 +474,7 @@ public struct {Name}ViewModel {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -563,7 +563,7 @@ public struct SettingsViewModel {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -763,7 +763,7 @@ public struct {Name}ViewModel {
     }
     #endif
 
-    public var vmId = ViewModelId()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: Initialization
 
@@ -861,7 +861,7 @@ public struct DashboardViewModel: RequestableViewModel {
     public let cards: [CardViewModel]
     public let totalCount: LocalizableInt
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     public init(cards: [CardViewModel], totalCount: Int) {
         self.cards = cards

@@ -52,8 +52,16 @@ UI tests must follow a strict hierarchy for finding and matching elements. **Nev
 
 Use `.uiTestingIdentifier()` on the view and match via `XCUIApplication` extension accessors:
 
+> **`.uiTestingIdentifier(_:)` is a FOSMVVM `View` modifier — `import FOSMVVM`.** It ships
+> in FOSMVVM (`SwiftUI Support/View+Testing.swift`); you do **not** define it yourself and
+> you must **not** copy a private version into your app. It is **DEBUG-only** — in a
+> release build it compiles to a no-op (`self`), so tagging carries **no** test scaffolding
+> into shipping binaries. Because it self-gates, apply it **unconditionally** (do not wrap
+> it in `#if DEBUG` — only `.testDataTransporter` needs that guard). Pair each identifier
+> with an `XCUIApplication` accessor keyed on the **same** string.
+
 ```swift
-// View
+// View  (import FOSMVVM)
 Text(viewModel.title)
     .uiTestingIdentifier("dashboardTitle")
 
@@ -109,6 +117,15 @@ FOSTestingUI provides two parallel base classes that align with the two kinds of
 | **Interactive** | `ViewModelViewTestCase<VM, VMO>` | View dispatches to Operations — test verifies operation calls |
 
 Every project should have a **pair** of project-level base classes — one for each path — that pin `setUp` for the app bundle. Both paths are needed because most apps have both kinds of views.
+
+> **Version floor for `ViewModelDisplayTestCase<VM>`.** The single-generic display base
+> class ships in recent FOSTestingUI — the release where `ViewModelViewTestCase<VM, VMO>`
+> was refactored to **inherit from** `ViewModelDisplayTestCase<VM>`
+> (`Sources/FOSTestingUI/ViewModelViewTestCase.swift`). **If your FOS ref predates it**
+> (older refs expose only the two-generic `ViewModelViewTestCase<VM, VMO>`), the clean
+> display-only path doesn't exist yet — fall back to subclassing the two-generic base with
+> a file-scoped **no-op `ViewModelOperations`** for the `VMO` slot. On a current ref, use
+> `ViewModelDisplayTestCase<VM>` directly and do **not** invent the empty ops type.
 
 **Display-only base class:**
 
@@ -433,6 +450,28 @@ func testNavigationToDetailView() async throws {
 
 **Note:** Views without user interactions use an empty operations file with just the protocol and minimal stub.
 
+### UI-Test Target Wiring (Xcode project)
+
+For the Xcode-project layout the app-setup skill recommends, wire the **UI-test target**
+differently from the app-hosted unit tests — three points:
+
+1. **Link `FOSFoundation` / `FOSMVVM` / `FOSTestingUI` DIRECTLY — NOT via `SPMLibraries`.**
+   UI tests run in a **separate process** and drive the app over the XCUI proxy (JSON over
+   `launchEnvironment`, never live objects). So the `SPMLibraries` type-identity trap — which
+   *forces* the umbrella for app-hosted **unit** tests — **does not apply here**; the UI-test
+   bundle links the FOS products directly. Do **not** add them to `SPMLibraries` (that
+   framework is embedded in the shipping app, and a testing framework must not ride along).
+2. **Source-include the shared contract module.** Under Option A the app has no separate
+   ViewModels framework to import, so the UI-test target must **also source-include**
+   `Sources/{ViewModelsModule}` to get the ViewModel type + its `.stub()` in-process (the
+   test encodes the stub before handing it to the app).
+3. **Copy the server-side localization tree into the test bundle.**
+   `presentView` localizes the stub *before* handing it to the app (which decodes an
+   already-localized VM). Since release client apps don't bundle `*.yml`, the UI-test target
+   copies `Sources/Resources` in as a folder reference and `setUp` passes
+   `resourceDirectoryName:` accordingly (mirrors the SPM unit test's
+   `.copy("../../Sources/Resources")` + `resourceDirectoryName: "Resources"`).
+
 ## Project Structure Configuration
 
 | Placeholder | Description | Example |
@@ -584,7 +623,7 @@ override func setUp() async throws {
 - [ ] No `repaintToggle` needed
 - [ ] No `.testDataTransporter()` needed
 - [ ] No `operations` property needed
-- [ ] `operations` stored from `viewModel.operations` in init
+- [ ] Subclass `ViewModelDisplayTestCase<VM>` (not the two-generic interactive base)
 
 ## Common Test Patterns
 
@@ -662,3 +701,5 @@ See [reference.md](reference.md) for complete file templates.
 | 1.0 | 2026-01-23 | Initial skill for UI tests |
 | 1.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 1.2 | 2026-03-30 | Add Element Matching Rules section (identifier > localizedViewModel > never hardcoded strings). Fix hardcoded string in error state example. |
+| 1.3 | 2026-07-02 | Note that `.uiTestingIdentifier(_:)` is a FOSMVVM `View` modifier (`import FOSMVVM`, `SwiftUI Support/View+Testing.swift`), DEBUG-only (no-op in release), applied unconditionally; don't define/copy it yourself. (backlog D1) |
+| 1.4 | 2026-07-02 | Version-floor note for `ViewModelDisplayTestCase<VM>` (recent FOSTestingUI where `ViewModelViewTestCase` inherits it) + older-ref no-op-ops fallback (D2). Added "UI-Test Target Wiring (Xcode project)": link FOS directly NOT via `SPMLibraries` (separate process — trap doesn't apply), source-include the shared contract module, copy the localization tree + `resourceDirectoryName:` (D3). Fixed a copy-paste bug in the View Testing Checklist (display-only list wrongly required `operations` stored from `viewModel.operations`). |

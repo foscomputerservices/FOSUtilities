@@ -121,7 +121,7 @@ struct {AppName}App: App {
                 //
                 // default:
                 //     testView.onAppear {
-                //         underTest = ProcessInfo.processInfo.arguments.count > 1
+                //         underTest = ProcessInfo.processInfo.environment["__FOS_ViewModel"] != nil
                 //     }
                 // }
 
@@ -132,7 +132,7 @@ struct {AppName}App: App {
                             // Right now there's no other way to detect if the app is under test.
                             // This is only debug code, so we can
                             // proceed for now.
-                            underTest = ProcessInfo.processInfo.arguments.count > 1
+                            underTest = ProcessInfo.processInfo.environment["__FOS_ViewModel"] != nil
                         }
             }
             #endif
@@ -219,7 +219,7 @@ struct {AppName}App: App {
                 default:
                     testView
                         .onAppear {
-                            underTest = ProcessInfo.processInfo.arguments.count > 1
+                            underTest = ProcessInfo.processInfo.environment["__FOS_ViewModel"] != nil
                         }
             }
             #endif
@@ -384,7 +384,7 @@ struct MyApp: App {
                 default:
                     testView
                         .onAppear {
-                            underTest = ProcessInfo.processInfo.arguments.count > 1
+                            underTest = ProcessInfo.processInfo.environment["__FOS_ViewModel"] != nil
                         }
                 }
             }
@@ -548,7 +548,7 @@ struct {AppName}App: App {
                 default:
                     testView
                         .onAppear {
-                            underTest = ProcessInfo.processInfo.arguments.count > 1
+                            underTest = ProcessInfo.processInfo.environment["__FOS_ViewModel"] != nil
                         }
                 }
             }
@@ -626,7 +626,7 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
-    BUILD_LIBRARIES_FOR_DISTRIBUTION: NO
+    BUILD_LIBRARY_FOR_DISTRIBUTION: NO
     DEVELOPMENT_TEAM: {TeamId}
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
@@ -773,7 +773,7 @@ schemes:
 **Notes:**
 - **`embed: true` on the app target only.** Frameworks must be embedded-and-signed by exactly one consumer (the app); intermediate frameworks (`ViewModels` linking `SPMLibraries`, `Models` linking `ViewModels`) use `embed: false` to link without re-embedding.
 - **`SPMLibraries` is the only target that lists external `package:` dependencies.** Add a new SPM dep here once; downstream targets just `import` from `SPMLibraries`.
-- **`BUILD_LIBRARIES_FOR_DISTRIBUTION: NO`** is in `settings.base` so it applies to all targets — setting YES enables module stability you don't need for an in-tree app and breaks `@_spi`/`package` access modifiers.
+- **`BUILD_LIBRARY_FOR_DISTRIBUTION: NO`** is in `settings.base` so it applies to all targets — setting YES enables module stability you don't need for an in-tree app and breaks `@_spi`/`package` access modifiers.
 - **Hardened runtime + Team ID** flow from `settings.base` to all targets, so the SPM `PackageFrameworks` ad-hoc-signing trap (see SKILL.md) does not arise here. Do **not** add `com.apple.security.cs.disable-library-validation` to entitlements unless you specifically need it.
 - **Two-platform builds** (`platform: [iOS, macOS]`) generate one target per platform under the hood; XcodeGen handles the multiplexing. Drop `iOS` or `macOS` if you only ship one.
 
