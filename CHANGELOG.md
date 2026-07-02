@@ -44,6 +44,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Server-hosted ViewModels are now served localized.** `VaporViewModelFactory`
+  gained a default `AsyncResponseEncodable.encodeResponse(for:)` that encodes the
+  ViewModel through the request's `Accept-Language` locale (via the shared
+  `ServerRequestBody.buildResponse(_:)` / `localizingEncoder` path, which also
+  stamps the `SystemVersion` header). A conformer now supplies only
+  `model(context:)` — previously the required async `encodeResponse` conformance
+  was missing entirely, so no in-repo type could conform and the documented
+  pattern would not compile. The docc example is corrected to match.
+- **`VaporServerRequestTest` (FOSTestingVapor) boots and tears down correctly.**
+  It now runs a full application lifecycle per `test(...)` call — `Application.make()`
+  → `asyncBoot()` → dispatch → `asyncShutdown()`. Previously it called `startup()`
+  (which launched the `serve` command and left it un-shut, tripping
+  `ServeCommand did not shutdown before deinit`) and paired it with a synchronous
+  `deinit` shutdown that cannot satisfy the async serve command. Booting with
+  `asyncBoot()` also avoids Vapor's console argument parser, resolving the
+  long-standing `-NSTreatUnknownArgumentsAsOpen` failure that kept the end-to-end
+  serve test disabled. The response is now decoded as the request's `ResponseBody`
+  (it was mistakenly decoded as `RequestBody`).
 - **`FormFieldView`** now preserves typed whitespace and uses the current
   `onNewValue` closure, and resolves a debounce race and a `FocusState`
   field-clear bug observed on iOS 18.

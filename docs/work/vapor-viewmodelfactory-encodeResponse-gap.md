@@ -1,8 +1,33 @@
 # `VaporViewModelFactory` serving path is unexercised — missing localizing `encodeResponse`
 
-- **Status:** ⬜ open (not scheduled — do NOT fold into the current change set)
+- **Status:** ✅ done (2026-07-02). All acceptance criteria met; `swift test` green
+  (331 tests / 46 suites, 2 pre-existing known issues).
 - **Surfaced:** 2026-07-02, while investigating the "assert the server actually serves *localized* ViewModels" improvement item.
 - **Area:** `FOSMVVMVapor` (server-hosted ViewModel serving), `FOSTestingVapor`.
+
+## Resolution (2026-07-02)
+
+**Open question answered — localization-on-serve lives in `encodeResponse`, not the
+middleware.** `VaporServerRequestMiddleware` is request-binding only (parses the query
+into the `ServerRequest` storage, no response post-processing). The route returns the
+unlocalized ViewModel and Vapor's `AsyncResponseEncodable` builds the HTTP `Response`, so
+that is the single point where localization must occur.
+
+1. Added a default `encodeResponse(for:)` on `VaporViewModelFactory` that delegates to the
+   existing `ServerRequestBody.buildResponse(_:)` (encodes via `req.localizingEncoder` +
+   stamps the `SystemVersion` header). Conformers now supply only `model(context:)`.
+   **SRP/OCP** rationale documented inline.
+2. Modernized `TestViewModel` to `VaporViewModelFactory` (`Context == VaporModelFactoryContext<Request>`)
+   and re-enabled `performBasicRequest()`.
+3. Fixed `VaporServerRequestTest`: full lifecycle per call
+   (`make → asyncBoot → dispatch → asyncShutdown`). This killed the `ServeCommand did not
+   shutdown before deinit` crash **and** the `-NSTreatUnknownArgumentsAsOpen` ghost (the
+   latter came from `startup()` invoking the console arg parser; `asyncBoot()` skips it).
+   Also fixed a latent decode bug (response was decoded as `RequestBody`, now `ResponseBody`).
+4. Completed `TestViewModel.yml` (added `aLocalizedMultiTypedSubstitution`) so the served
+   ViewModel fully round-trips; fixed the docc example.
+
+Original analysis retained below for reference.
 
 ## Summary
 

@@ -42,4 +42,25 @@ public extension VaporViewModelFactory {
     static func model(_ req: Vapor.Request, vmRequest: Request) async throws -> Self {
         try await model(context: .init(req: req, vmRequest: vmRequest))
     }
+
+    /// Default `AsyncResponseEncodable` conformance that serves the ``ViewModel``
+    /// *localized to the request's* [Accept-Language](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language).
+    ///
+    /// The server route (``VaporServerRequestHost``) returns the *unlocalized*
+    /// ``ViewModel`` straight from the handler and relies on Vapor's
+    /// `AsyncResponseEncodable` to build the HTTP `Response`. That is the single
+    /// point where localization-on-serve must happen — the request-binding
+    /// `VaporServerRequestMiddleware` only parses the query into the `ServerRequest`
+    /// and does no response post-processing.
+    ///
+    /// **SRP:** encoding-with-localization has exactly one home — the shared
+    /// ``ServerRequestBody/buildResponse(_:)`` (which encodes through
+    /// `req.localizingEncoder` and stamps the `SystemVersion` header). This default
+    /// delegates there so no conformer re-implements it. **OCP:** a
+    /// ``VaporViewModelFactory`` therefore supplies only `model(context:)`; adding
+    /// per-type `encodeResponse` boilerplate would be a red flag that localization
+    /// leaked out of its single owner.
+    func encodeResponse(for request: Vapor.Request) async throws -> Vapor.Response {
+        try buildResponse(request)
+    }
 }

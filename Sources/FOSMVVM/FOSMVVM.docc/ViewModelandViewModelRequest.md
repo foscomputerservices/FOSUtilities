@@ -115,15 +115,13 @@ import Vapor
 import ViewModels
 
 extension LandingPageViewModel: VaporViewModelFactory {
-    public typealias VMRequest = LandingPageRequest
-
-    public static func model(_ req: Vapor.Request, vmRequest: VaporModelFactoryContext<VMRequest>)) async throws -> Self {
+    public static func model(context: VaporModelFactoryContext<LandingPageRequest>) async throws -> Self {
         .init()
     }
 }
 ```
 
-In this example there was no work to do to create an instance of **LandingPageViewModel**.  However, the ``ViewModelFactory/model(_:vmRequest:)`` implementation may contain any code that is necessary to initialize the instance.  The [Vapor Request](https://docs.vapor.codes/advanced/request/) is provided, so any Vapor service can be used including [Files](https://docs.vapor.codes/advanced/files/), [Fluent](https://docs.vapor.codes/advanced/queues/), [Redis](https://docs.vapor.codes/advanced/queues/), [Queues](https://docs.vapor.codes/advanced/queues/), etc., to configure a ``ViewModel`` instance.
+In this example there was no work to do to create an instance of **LandingPageViewModel**.  However, the ``ViewModelFactory/model(context:)`` implementation may contain any code that is necessary to initialize the instance.  The context's [Vapor Request](https://docs.vapor.codes/advanced/request/) (`context.req`) is provided, so any Vapor service can be used including [Files](https://docs.vapor.codes/advanced/files/), [Fluent](https://docs.vapor.codes/advanced/queues/), [Redis](https://docs.vapor.codes/advanced/queues/), [Queues](https://docs.vapor.codes/advanced/queues/), etc., to configure a ``ViewModel`` instance.
 
 Any ``Localizable`` properties in the ``ViewModel`` will automatically be localized to the [Locale](https://developer.apple.com/documentation/foundation/locale) of the client application.
 
