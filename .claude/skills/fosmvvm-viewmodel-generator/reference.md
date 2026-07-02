@@ -130,10 +130,8 @@ public struct {Name}ViewModel: Codable, Sendable {
 // MARK: - Stubbable
 
 public extension {Name}ViewModel {
-    static func stub() -> Self {
-        .stub(id: .init())
-    }
-
+    // Hand-write only the fully-defaulted parameterized stub.
+    // `@ViewModel` synthesizes the zero-arg `stub()` Stubbable witness from it.
     static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample Title",
@@ -194,7 +192,7 @@ public extension {Name}ViewModel {
 
 ## Template 4: ViewModel with Nested Child Types
 
-For ViewModels that contain child types used only by this parent. Shows proper placement, conformances, and two-tier Stubbable pattern.
+For ViewModels that contain child types used only by this parent. Shows proper placement, conformances, and the Stubbable pattern: the `@ViewModel` parent's zero-arg `stub()` is macro-synthesized from its parameterized stub, while nested non-`@ViewModel` types hand-write both stub tiers.
 
 **Reference:** `Sources/KairosModels/Governance/GovernancePrincipleCardViewModel.swift`
 
@@ -284,12 +282,8 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
 // MARK: - Parent Stubbable
 
 public extension {Name}ViewModel {
-    // Tier 1: Zero-arg (delegates to tier 2)
-    static func stub() -> Self {
-        .stub(id: .init())
-    }
-
-    // Tier 2: Parameterized with defaults
+    // Parent is `@ViewModel`: hand-write only this fully-defaulted parameterized
+    // stub. The macro synthesizes the zero-arg `stub()` witness from it.
     static func stub(
         id: ModelIdType = .init(),
         title: String = "A Title",
@@ -308,9 +302,11 @@ public extension {Name}ViewModel {
 }
 
 // MARK: - Nested Type Stubbable Extensions (fully qualified names)
+// Nested types are plain `Stubbable` (no `@ViewModel`), so nothing synthesizes
+// their witness — hand-write both tiers: zero-arg delegates to parameterized.
 
 public extension {Name}ViewModel.ChildSummary {
-    // Tier 1: Zero-arg (delegates to tier 2)
+    // Tier 1: Zero-arg witness (delegates to tier 2)
     static func stub() -> Self {
         .stub(id: .init())
     }
@@ -347,7 +343,8 @@ public extension {Name}ViewModel.RelatedItemReference {
 - Nested types placed BEFORE `vmId` and parent init
 - Each nested type conforms to: `Codable, Sendable, Identifiable, Stubbable`
 - Extensions use fully qualified names: `{Parent}.{NestedType}`
-- Two-tier Stubbable: zero-arg always delegates to parameterized
+- Parent (`@ViewModel`): hand-write only the fully-defaulted `stub(...)`; the macro synthesizes zero-arg `stub()`
+- Nested types (plain `Stubbable`, no `@ViewModel`): hand-write both tiers — zero-arg delegates to parameterized
 - Section markers: `// MARK: - Nested Types`
 
 ---
@@ -913,10 +910,8 @@ public struct CardViewModel: Codable, Sendable {
 }
 
 public extension CardViewModel {
-    static func stub() -> Self {
-        .stub(id: .init())
-    }
-
+    // `@ViewModel` synthesizes the zero-arg `stub()` witness from this
+    // fully-defaulted parameterized stub — do not hand-write `stub()`.
     static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample Card",

@@ -727,15 +727,21 @@ public struct SettingsViewModel {
 
 ### Stubbable Pattern
 
-All ViewModels must support `stub()` for testing and SwiftUI previews:
+All ViewModels must satisfy the `Stubbable` witness `stub()` for testing and SwiftUI previews. With `@ViewModel` you rarely hand-write the zero-arg `stub()`: write a **fully-defaulted parameterized** `stub(...)` and the macro synthesizes the zero-arg witness, forwarding the defaults.
 
 ```swift
 public extension MyViewModel {
-    static func stub() -> Self {
-        .init(/* default values */)
+    // @ViewModel synthesizes `stub()` from this fully-defaulted stub.
+    static func stub(
+        id: ModelIdType = .init(),
+        title: String = "Sample"
+    ) -> Self {
+        .init(id: id, title: title)
     }
 }
 ```
+
+Hand-write the zero-arg `stub()` yourself only when the macro has nothing to forward to: a no-argument `init()` (`stub() { .init() }`), an interactive VM whose stub routes through a private `init(isStub:)`, or a **nested type that is plain `Stubbable` without `@ViewModel`** (see Two-Tier Stubbable Pattern). A parameterized `stub(...)` with any non-defaulted parameter is also not forwardable — the macro leaves such types to surface the normal `Stubbable` conformance error.
 
 ### Identity: vmId
 
@@ -886,9 +892,9 @@ public struct GovernancePrincipleCardViewModel: Codable, Sendable, Identifiable 
 - `Identifiable` - for SwiftUI ForEach if used in arrays
 - `Stubbable` - for testing/previews
 
-**Two-Tier Stubbable Pattern:**
+**Two-Tier Stubbable Pattern (nested, non-`@ViewModel` types):**
 
-Nested types use fully qualified names in their extensions:
+Nested child types are plain `Stubbable` structs — they have **no `@ViewModel` macro**, so nothing synthesizes their `stub()`. Hand-write both tiers. (An `@ViewModel` parent, by contrast, hand-writes only the fully-defaulted parameterized `stub(...)`; its zero-arg `stub()` is macro-synthesized.) Nested types use fully qualified names in their extensions:
 
 ```swift
 public extension GovernancePrincipleCardViewModel.GovernancePrincipleVersionSummary {
@@ -1031,3 +1037,4 @@ See [reference.md](reference.md) for complete file templates.
 | 2.6 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 2.7 | 2026-01-25 | Added Nested Child Types Pattern section with two-tier Stubbable pattern, placement rules, conformances, and decision criteria for when to nest vs keep top-level. |
 | 2.8 | 2026-04-22 | Added Third Decision (Interactive vs Display-Only) — Operations trio generation for interactive VMs. Full server-hosted and client-hosted interactive examples with `isStub` flag, `operations` property, private init. Documented client-hosted `output storage:` convention and server-backed no-output convention. Added Templates 10 and 11 to reference.md (interactive VM + Operations file pairs). |
+| 2.9 | 2026-07-02 | Fold in `@ViewModel` synthesized `Stubbable` witness: `@ViewModel` types now scaffold only the fully-defaulted parameterized `stub(...)` (macro synthesizes zero-arg `stub()`). Nested non-`@ViewModel` types still hand-write both tiers. Updated Templates 2, 4, and the full example in reference.md plus the Stubbable/Two-Tier sections here. |
