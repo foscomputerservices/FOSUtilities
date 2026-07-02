@@ -60,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test file is nested. This keeps equally-named types in sibling test targets
   from colliding on a shared baseline file. Non–SwiftPM layouts fall back to the
   previous behavior.
+  - **⚠ Migration (downstream apps that commit baselines):** the baseline path
+    changed. If you committed version baselines at the old location, move them to
+    `Tests/<Target>/.VersionedTestJSON/`. A baseline left at the old path is not
+    found, silently **regenerated**, and the test **passes** — so cross-version
+    drift detection is quietly lost until the files are moved. (FOSUtilities' own
+    baselines are now git-ignored, so only downstream consumers are affected.)
 
 ## Prior releases
 

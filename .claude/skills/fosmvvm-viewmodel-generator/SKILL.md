@@ -817,12 +817,20 @@ public struct SettingsViewModel {
 
 ### Stubbable Pattern
 
-All ViewModels must satisfy the `Stubbable` witness `stub()` for testing and SwiftUI previews. With `@ViewModel` you rarely hand-write the zero-arg `stub()`: write a **fully-defaulted parameterized** `stub(...)` and the macro synthesizes the zero-arg witness, forwarding the defaults.
+All ViewModels must satisfy the `Stubbable` witness `stub()` for testing and SwiftUI previews. With `@ViewModel` you rarely hand-write the zero-arg `stub()`: write a **fully-defaulted parameterized** `stub(...)` **in the type's body** and the macro synthesizes the zero-arg witness, forwarding the defaults.
 
 ```swift
-public extension MyViewModel {
-    // @ViewModel synthesizes `stub()` from this fully-defaulted stub.
-    static func stub(
+@ViewModel
+public struct MyViewModel: RequestableViewModel {
+    public let id: ModelIdType
+    @LocalizedString public var title
+    public let vmId: ViewModelId
+
+    public init(id: ModelIdType, /* … */) { /* … */ }
+
+    // The fully-defaulted parameterized stub lives IN THE TYPE BODY so `@ViewModel`
+    // can see it and synthesize the zero-arg `stub()` Stubbable witness from it.
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample"
     ) -> Self {
@@ -830,6 +838,13 @@ public extension MyViewModel {
     }
 }
 ```
+
+> **The parameterized `stub(...)` must be in the type's body — NOT in an `extension`.**
+> `@ViewModel` is a member macro: Swift hands it only the struct declaration, so a
+> `stub(...)` sitting in `extension MyViewModel { … }` is invisible to it and **no witness
+> is synthesized** → `does not conform to 'Stubbable'`. (A hand-written zero-arg `stub()`
+> *may* live in an extension — it's a real witness — but a `stub(...)` you expect the macro
+> to forward to cannot.)
 
 Hand-write the zero-arg `stub()` yourself only when the macro has nothing to forward to: a no-argument `init()` (`stub() { .init() }`), an interactive VM whose stub routes through a private `init(isStub:)`, or a **nested type that is plain `Stubbable` without `@ViewModel`** (see Two-Tier Stubbable Pattern). A parameterized `stub(...)` with any non-defaulted parameter is also not forwardable — the macro leaves such types to surface the normal `Stubbable` conformance error.
 

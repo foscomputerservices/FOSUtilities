@@ -94,7 +94,7 @@ import Foundation
 /// This is a child ViewModel - built by its parent's Factory.
 /// Each instance represents a different data entity.
 @ViewModel
-public struct {Name}ViewModel: Codable, Sendable {
+public struct {Name}ViewModel {
     // MARK: - Data Identity
 
     /// The database entity ID - enables round-trip to server
@@ -111,7 +111,7 @@ public struct {Name}ViewModel: Codable, Sendable {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId
+    public let vmId: ViewModelId
 
     // MARK: - Initialization
 
@@ -125,14 +125,13 @@ public struct {Name}ViewModel: Codable, Sendable {
         self.createdAt = LocalizableDate(value: createdAt)
         self.vmId = .init(id: id)  // Instance identity from data ID
     }
-}
 
-// MARK: - Stubbable
+    // MARK: - Stubbable
 
-public extension {Name}ViewModel {
-    // Hand-write only the fully-defaulted parameterized stub.
-    // `@ViewModel` synthesizes the zero-arg `stub()` Stubbable witness from it.
-    static func stub(
+    // The fully-defaulted parameterized stub lives IN THE BODY so `@ViewModel`
+    // synthesizes the zero-arg `stub()` witness from it. A member macro cannot
+    // see a stub declared in an `extension`.
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample Title",
         createdAt: Date = .now
@@ -277,14 +276,12 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
         self.childSummaries = childSummaries
         self.relatedItems = relatedItems
     }
-}
 
-// MARK: - Parent Stubbable
-
-public extension {Name}ViewModel {
-    // Parent is `@ViewModel`: hand-write only this fully-defaulted parameterized
-    // stub. The macro synthesizes the zero-arg `stub()` witness from it.
-    static func stub(
+    // MARK: - Parent Stubbable
+    // Parent is `@ViewModel`: the fully-defaulted parameterized stub lives IN THE
+    // BODY so the macro synthesizes the zero-arg `stub()` witness from it (a member
+    // macro cannot see a stub declared in an extension).
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "A Title",
         description: String = "A Description",
@@ -887,13 +884,13 @@ import FOSMVVM
 import Foundation
 
 @ViewModel
-public struct CardViewModel: Codable, Sendable {
+public struct CardViewModel {
     public let id: ModelIdType
     public let title: String
     public let description: String
     public let createdAt: LocalizableDate
 
-    public var vmId: ViewModelId
+    public let vmId: ViewModelId
 
     public init(
         id: ModelIdType,
@@ -907,12 +904,11 @@ public struct CardViewModel: Codable, Sendable {
         self.createdAt = LocalizableDate(value: createdAt)
         self.vmId = .init(id: id)
     }
-}
 
-public extension CardViewModel {
-    // `@ViewModel` synthesizes the zero-arg `stub()` witness from this
-    // fully-defaulted parameterized stub — do not hand-write `stub()`.
-    static func stub(
+    // `@ViewModel` synthesizes the zero-arg `stub()` witness from this fully-defaulted
+    // parameterized stub — which must be IN THE BODY (a member macro can't see an
+    // extension). Do not hand-write `stub()`.
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample Card",
         description: String = "This is a sample card for previews.",
