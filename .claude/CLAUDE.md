@@ -22,6 +22,27 @@ swiftlint
 
 FOSUtilities is a Swift Package providing MVVM infrastructure for binding SwiftUI apps to Vapor web services, plus foundation utilities and testing support.
 
+### SOLID Is the Foundation
+
+FOSUtilities and every `fosmvvm-*` generator skill are built on the SOLID principles.
+**Deviations from SOLID cause catastrophic failures** — they surface far from their cause
+(runtime type-identity mismatches, leaked persistence types, SwiftUI identity churn), so
+treat a SOLID violation as a hard stop, not a style nit.
+
+- **Source-of-truth ordering when guidance conflicts:** SOLID → the architecture docs
+  (`.claude/docs/FOSMVVMArchitecture.md`) → code. If a request or an existing pattern
+  conflicts with SOLID, SOLID wins.
+- **Generator skills must remind their user of SOLID.** When authoring or editing a
+  `fosmvvm-*` skill, don't just show the API — state *which SOLID principle the pattern
+  protects and what breaks on deviation*, so a builder tempted to "simplify" sees the red
+  flag inline.
+- SOLID in FOSUtilities' terms: **SRP** (one file/type/responsibility; a ViewModel is a
+  *projection of* data, never the data); **OCP** (extend via protocols + macros, don't
+  patch the core); **LSP** (type identity must hold across target boundaries — the
+  `SPMLibraries` umbrella); **ISP** (the module *is* the namespace; small composable
+  protocols, not one fat contract); **DIP** (the ViewModel module never imports the
+  domain/wire module — the Factory adapts).
+
 ### Library Hierarchy
 
 ```

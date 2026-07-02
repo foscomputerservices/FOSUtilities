@@ -133,13 +133,15 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - viewModelType: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil) throws {
+    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, file: String = #filePath, line: Int = #line) throws {
         let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
         try expectCodable(viewModelType, encoder: vmEncoder)
         try expectVersionedViewModel(
             viewModelType,
-            encoder: vmEncoder
+            encoder: vmEncoder,
+            file: file,
+            line: line
         )
         try expectTranslations(viewModelType, locales: locales)
     }

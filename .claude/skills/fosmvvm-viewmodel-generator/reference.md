@@ -58,7 +58,7 @@ public struct {Name}ViewModel: RequestableViewModel {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -94,7 +94,7 @@ import Foundation
 /// This is a child ViewModel - built by its parent's Factory.
 /// Each instance represents a different data entity.
 @ViewModel
-public struct {Name}ViewModel: Codable, Sendable {
+public struct {Name}ViewModel {
     // MARK: - Data Identity
 
     /// The database entity ID - enables round-trip to server
@@ -111,7 +111,7 @@ public struct {Name}ViewModel: Codable, Sendable {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId
+    public let vmId: ViewModelId
 
     // MARK: - Initialization
 
@@ -125,16 +125,13 @@ public struct {Name}ViewModel: Codable, Sendable {
         self.createdAt = LocalizableDate(value: createdAt)
         self.vmId = .init(id: id)  // Instance identity from data ID
     }
-}
 
-// MARK: - Stubbable
+    // MARK: - Stubbable
 
-public extension {Name}ViewModel {
-    static func stub() -> Self {
-        .stub(id: .init())
-    }
-
-    static func stub(
+    // The fully-defaulted parameterized stub lives IN THE BODY so `@ViewModel`
+    // synthesizes the zero-arg `stub()` witness from it. A member macro cannot
+    // see a stub declared in an `extension`.
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample Title",
         createdAt: Date = .now
@@ -174,7 +171,7 @@ public struct {Name}ViewModel: Codable, Sendable {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -194,7 +191,7 @@ public extension {Name}ViewModel {
 
 ## Template 4: ViewModel with Nested Child Types
 
-For ViewModels that contain child types used only by this parent. Shows proper placement, conformances, and two-tier Stubbable pattern.
+For ViewModels that contain child types used only by this parent. Shows proper placement, conformances, and the Stubbable pattern: the `@ViewModel` parent's zero-arg `stub()` is macro-synthesized from its parameterized stub, while nested non-`@ViewModel` types hand-write both stub tiers.
 
 **Reference:** `Sources/KairosModels/Governance/GovernancePrincipleCardViewModel.swift`
 
@@ -279,18 +276,12 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
         self.childSummaries = childSummaries
         self.relatedItems = relatedItems
     }
-}
 
-// MARK: - Parent Stubbable
-
-public extension {Name}ViewModel {
-    // Tier 1: Zero-arg (delegates to tier 2)
-    static func stub() -> Self {
-        .stub(id: .init())
-    }
-
-    // Tier 2: Parameterized with defaults
-    static func stub(
+    // MARK: - Parent Stubbable
+    // Parent is `@ViewModel`: the fully-defaulted parameterized stub lives IN THE
+    // BODY so the macro synthesizes the zero-arg `stub()` witness from it (a member
+    // macro cannot see a stub declared in an extension).
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "A Title",
         description: String = "A Description",
@@ -308,9 +299,11 @@ public extension {Name}ViewModel {
 }
 
 // MARK: - Nested Type Stubbable Extensions (fully qualified names)
+// Nested types are plain `Stubbable` (no `@ViewModel`), so nothing synthesizes
+// their witness — hand-write both tiers: zero-arg delegates to parameterized.
 
 public extension {Name}ViewModel.ChildSummary {
-    // Tier 1: Zero-arg (delegates to tier 2)
+    // Tier 1: Zero-arg witness (delegates to tier 2)
     static func stub() -> Self {
         .stub(id: .init())
     }
@@ -347,7 +340,8 @@ public extension {Name}ViewModel.RelatedItemReference {
 - Nested types placed BEFORE `vmId` and parent init
 - Each nested type conforms to: `Codable, Sendable, Identifiable, Stubbable`
 - Extensions use fully qualified names: `{Parent}.{NestedType}`
-- Two-tier Stubbable: zero-arg always delegates to parameterized
+- Parent (`@ViewModel`): hand-write only the fully-defaulted `stub(...)`; the macro synthesizes zero-arg `stub()`
+- Nested types (plain `Stubbable`, no `@ViewModel`): hand-write both tiers — zero-arg delegates to parameterized
 - Section markers: `// MARK: - Nested Types`
 
 ---
@@ -477,7 +471,7 @@ public struct {Name}ViewModel {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -566,7 +560,7 @@ public struct SettingsViewModel {
 
     // MARK: - Identity
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: - Initialization
 
@@ -766,7 +760,7 @@ public struct {Name}ViewModel {
     }
     #endif
 
-    public var vmId = ViewModelId()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     // MARK: Initialization
 
@@ -864,7 +858,7 @@ public struct DashboardViewModel: RequestableViewModel {
     public let cards: [CardViewModel]
     public let totalCount: LocalizableInt
 
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     public init(cards: [CardViewModel], totalCount: Int) {
         self.cards = cards
@@ -890,13 +884,13 @@ import FOSMVVM
 import Foundation
 
 @ViewModel
-public struct CardViewModel: Codable, Sendable {
+public struct CardViewModel {
     public let id: ModelIdType
     public let title: String
     public let description: String
     public let createdAt: LocalizableDate
 
-    public var vmId: ViewModelId
+    public let vmId: ViewModelId
 
     public init(
         id: ModelIdType,
@@ -910,14 +904,11 @@ public struct CardViewModel: Codable, Sendable {
         self.createdAt = LocalizableDate(value: createdAt)
         self.vmId = .init(id: id)
     }
-}
 
-public extension CardViewModel {
-    static func stub() -> Self {
-        .stub(id: .init())
-    }
-
-    static func stub(
+    // `@ViewModel` synthesizes the zero-arg `stub()` witness from this fully-defaulted
+    // parameterized stub — which must be IN THE BODY (a member macro can't see an
+    // extension). Do not hand-write `stub()`.
+    public static func stub(
         id: ModelIdType = .init(),
         title: String = "Sample Card",
         description: String = "This is a sample card for previews.",

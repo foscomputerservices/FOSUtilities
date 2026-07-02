@@ -12,4 +12,9 @@ DerivedData/
 .derivedData
 *.tmp
 session-state-*.json
-Sources/.VersionedTestJSON
+
+# Versioned-ViewModel test baselines are regenerable test fixtures (no shipped
+# wire-format contract), so they are not committed. Intentional serialization
+# canaries are tracked explicitly via the negation below.
+Tests/**/.VersionedTestJSON/*
+!Tests/**/.VersionedTestJSON/TestVersionedViewModel_*.json

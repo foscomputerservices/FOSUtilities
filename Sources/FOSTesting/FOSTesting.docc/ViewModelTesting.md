@@ -31,6 +31,14 @@ that is needed to test each *ViewModel*.  This method will test the following:
 - That all supported back-versions are decodable by the latest code
 - That all @LocalizedString properties have translations
 
+> Important: The version baseline JSON (`<Name>ViewModel_<version>.json`, written under
+> `Tests/.../.VersionedTestJSON/` beside your test) is a **committed artifact** for any
+> app that ships a versioned wire contract — commit it so it can catch an accidental
+> wire-shape change across builds. `expectFullViewModelTests` forwards `#filePath`/`#line`
+> so the baseline lands next to the calling test. (FOSUtilities' *own* baselines are
+> regenerable fixtures with no shipped contract and are deliberately git-ignored — the
+> opposite policy from a downstream app.)
+
 ### Example
 
 ```swift

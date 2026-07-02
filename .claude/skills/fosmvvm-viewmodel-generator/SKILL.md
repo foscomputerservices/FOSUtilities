@@ -66,16 +66,16 @@ When data is local to the device:
 Error display is a classic client-hosted scenario. You already have the data from `ResponseError` - just wrap it in a **specific** ViewModel for that error:
 
 ```swift
-// Specific ViewModel for MoveIdeaRequest errors
+// Specific ViewModel for IdeaMoveRequest errors
 @ViewModel(options: [.clientHostedFactory])
-struct MoveIdeaErrorViewModel {
+struct IdeaMoveErrorViewModel {
     let message: LocalizableString
     let errorCode: String
 
-    public var vmId = ViewModelId()
+    public var vmId: ViewModelId = .init(type: Self.self)  // shown once — singleton
 
     // Takes the specific ResponseError
-    init(responseError: MoveIdeaRequest.ResponseError) {
+    init(responseError: IdeaMoveRequest.ResponseError) {
         self.message = responseError.message
         self.errorCode = responseError.code.rawValue
     }
@@ -84,14 +84,14 @@ struct MoveIdeaErrorViewModel {
 
 Usage:
 ```swift
-catch let error as MoveIdeaRequest.ResponseError {
-    let vm = MoveIdeaErrorViewModel(responseError: error)
+catch let error as IdeaMoveRequest.ResponseError {
+    let vm = IdeaMoveErrorViewModel(responseError: error)
     return try await req.view.render("Shared/ToastView", vm)
 }
 ```
 
 **Each error scenario gets its own ViewModel:**
-- `MoveIdeaErrorViewModel` for `MoveIdeaRequest.ResponseError`
+- `IdeaMoveErrorViewModel` for `IdeaMoveRequest.ResponseError`
 - `CreateIdeaErrorViewModel` for `CreateIdeaRequest.ResponseError`
 - `SettingsValidationErrorViewModel` for settings form errors
 
@@ -112,7 +112,7 @@ Many apps use both:
 ├───────────────────────────────────────────────┤
 │ SettingsViewModel           → Client-Hosted   │
 │ OnboardingViewModel         → Client-Hosted   │
-│ MoveIdeaErrorViewModel      → Client-Hosted   │  ← Error display
+│ IdeaMoveErrorViewModel      → Client-Hosted   │  ← Error display
 │ SignInViewModel             → Server-Hosted   │
 │ UserProfileViewModel        → Server-Hosted   │
 └───────────────────────────────────────────────┘
@@ -142,7 +142,16 @@ A ViewModel answers: **"What does the View need to display?"**
 | Formatted dates | `LocalizableDate` | `createdAt: LocalizableDate` |
 | Formatted numbers | `LocalizableInt` | `totalCount: LocalizableInt` |
 | Dynamic data | Plain properties | `content: String`, `count: Int` |
+| **Locale-independent value** (version, hostname, identity) | **Typed property — NOT localized** | `version: SystemVersion` (View renders via `.versionString`), `host: String` |
 | Nested components | Child ViewModels | `cards: [CardViewModel]` |
+
+> **A version or an identity/hostname is NOT localizable text — do not wrap it in
+> `LocalizableString`.** A contract/release version is a `SystemVersion` (the View renders
+> it with `.versionString`); a hostname or other machine identity is a plain `String`.
+> These values are the *same in every locale*, so localizing them is a category error —
+> it adds a translation key that can never legitimately differ, and (for a version) throws
+> away the typed comparison FOSMVVM relies on. The default reflex to "localize every
+> string-ish field" is wrong here: **localize human-facing text; type everything else.**
 
 ### What a ViewModel Does NOT Contain
 
@@ -150,6 +159,52 @@ A ViewModel answers: **"What does the View need to display?"**
 - Business logic or validation (that's in Fields protocols)
 - Raw database IDs exposed to templates (use typed properties)
 - Unlocalized strings that Views must look up
+- **Domain / wire types** (a `DataModel`/`Channel` type as a property or init param) — see below
+
+### The ViewModel Module Must NOT Depend on Domain Types (Dependency Inversion) — HARD RULE
+
+**The ViewModel module never imports the domain/wire module.** A ViewModel target
+(`{App}ViewModels`, client-facing) depends on **FOSMVVM + Foundation + simple or
+ViewModel-owned types only** — *not* on the DataModel/`Channel` module. A domain type as a
+ViewModel field is a **category error**, not merely an unwanted dependency: **a ViewModel
+is a _projection of_ the data, never the data itself.** A field like `guestOS: Platform`
+(where `Platform` is a `Channel` domain type) is wrong on its face — and once the domain
+import is correctly absent, it won't even compile.
+
+This is **Dependency Inversion**: the high-level projection (ViewModel) does not depend on
+the low-level wire detail (`Channel`). Get it wrong and FOSMVVM breaks in the ways the
+firm principles warn about — leaked persistence types, existential-shaped seams, and a
+client module that drags server/host-only code onto iOS.
+
+**How to model a domain value correctly:**
+
+1. **The ViewModel init takes simple types** (`String`, `Int`, a ViewModel-owned enum) —
+   never a domain type.
+2. **For a value the View switches on, define a ViewModel-owned display enum** (raw-less,
+   per the Enum Localization Pattern) — e.g. a `BerthLiveness` in the ViewModel module,
+   *distinct from* any same-named domain type (see [Naming Dictionary](../shared/NAMES.md)).
+3. **The `ViewModelFactory` performs the projection.** It is the **one** component that
+   imports *both* the domain module and the ViewModel module, and it maps
+   domain → display (`Channel.Platform → GuestPlatform`) when building the VM. Factories
+   are **server-side**; the ViewModel module stays domain-free.
+
+**SOLID ergonomic (optional).** The Factory's *own* library may add a `private`/`internal`
+**extension on the ViewModel with a domain-typed initializer** that maps domain → simple
+and calls the public simple `init`:
+
+```swift
+// In the SERVER/Factory module only — never in the ViewModel module:
+extension NodeViewModel {
+    init(_ node: Channel.Node) {                 // domain-typed convenience init
+        self.init(host: node.hostname,           // → public simple init
+                  guestOS: GuestPlatform(node.platform))
+    }
+}
+```
+
+The adaptation lives **with the adapter**; the ViewModel's public API stays domain-free.
+This is the dual of keeping wire types FOSMVVM-free — the boundary is clean in **both**
+directions.
 
 ### Anti-Pattern: Composition in Views
 
@@ -200,9 +255,20 @@ public struct DashboardViewModel: RequestableViewModel {
 
     @LocalizedString public var pageTitle
     public let cards: [CardViewModel]  // Children
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton — one per screen
 }
 ```
+
+> **One top-level VM per page/screen, composing children — never a mega-VM.** A
+> multi-section surface (dashboard, dock detail, settings) is a top-level
+> `RequestableViewModel` that **composes child VMs** (`cards: [CardViewModel]`), one child
+> per section. Do **not** flatten a many-section screen into a single giant ViewModel:
+> that fuses independent concerns into one type (an **SRP** violation) and makes every
+> section share one localization/versioning/identity surface.
+>
+> **Scaffold one file per VM type** — the top-level VM and every composed child each in
+> its own file, grouped in a container-named directory. Full rules:
+> [app-setup → File Organization Conventions](../fosmvvm-swiftui-app-setup/SKILL.md#file-organization-conventions).
 
 ### 2. Child (plain ViewModel)
 
@@ -210,13 +276,29 @@ Nested components built by their parent's factory. No Request type.
 
 ```swift
 @ViewModel
-public struct CardViewModel: Codable, Sendable {
+public struct CardViewModel {
     public let id: ModelIdType
     public let title: String
     public let createdAt: LocalizableDate
-    public var vmId: ViewModelId = .init()
+    public let vmId: ViewModelId       // instance (list row) — stable id from data
+
+    // Init takes PLAIN Swift types; the init wraps them + owns formatting.
+    public init(id: ModelIdType, title: String, createdAt: Date) {
+        self.id = id
+        self.title = title
+        self.createdAt = LocalizableDate(value: createdAt)
+        self.vmId = .init(id: id)      // per-row stable — NEVER .init() on a list row
+    }
 }
 ```
+
+> **Don't restate `Codable`/`Sendable` — the macro adds them.** `@ViewModel`
+> synthesizes `ViewModel` conformance, which *already* provides `Codable` **and**
+> `Sendable`. A child VM is just `@ViewModel public struct X { … }` — **no conformance
+> clause**. Only add a clause for a conformance the macro does *not* supply: a **top-level**
+> requestable VM adds `: RequestableViewModel`, a form VM adds its `Fields` protocol, and
+> a genuinely-needed extra like `: Identifiable` stays. Restating `Codable, Sendable` is
+> redundant noise (**DRY** — don't repeat what the macro guarantees).
 
 ---
 
@@ -240,7 +322,15 @@ public struct UserCardViewModel {
     public let name: String
     @LocalizedString public var roleDisplayName
     public let createdAt: LocalizableDate
-    public var vmId: ViewModelId = .init()
+    public let vmId: ViewModelId       // instance (list row) — stable id from data
+
+    public init(id: ModelIdType, name: String, createdAt: Date) {
+        self.id = id
+        self.name = name
+        self.createdAt = LocalizableDate(value: createdAt)  // init wraps the plain Date
+        self.vmId = .init(id: id)
+        // roleDisplayName is @LocalizedString — bound by the macro, not set here
+    }
 }
 ```
 
@@ -263,7 +353,7 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
     public var lastName: String
 
     public let userValidationMessages: UserFieldsMessages
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // one form per screen — singleton
 }
 ```
 
@@ -491,7 +581,7 @@ public struct PreferencesViewModel {
     }
     #endif
 
-    public var vmId = ViewModelId()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton page VM
 
     // MARK: Initialization
 
@@ -699,7 +789,7 @@ Always use the `@ViewModel` macro - it generates the `propertyNames()` method re
 public struct MyViewModel: RequestableViewModel {
     public typealias Request = MyRequest
     @LocalizedString public var title
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
     public init() {}
 }
 ```
@@ -709,7 +799,7 @@ public struct MyViewModel: RequestableViewModel {
 @ViewModel(options: [.clientHostedFactory])
 public struct SettingsViewModel {
     @LocalizedString public var pageTitle
-    public var vmId: ViewModelId = .init()
+    public var vmId: ViewModelId = .init(type: Self.self)  // singleton
 
     public init(theme: Theme, notifications: NotificationSettings) {
         // Init parameters become AppState properties
@@ -727,22 +817,84 @@ public struct SettingsViewModel {
 
 ### Stubbable Pattern
 
-All ViewModels must support `stub()` for testing and SwiftUI previews:
+All ViewModels must satisfy the `Stubbable` witness `stub()` for testing and SwiftUI previews. With `@ViewModel` you rarely hand-write the zero-arg `stub()`: write a **fully-defaulted parameterized** `stub(...)` **in the type's body** and the macro synthesizes the zero-arg witness, forwarding the defaults.
 
 ```swift
-public extension MyViewModel {
-    static func stub() -> Self {
-        .init(/* default values */)
+@ViewModel
+public struct MyViewModel: RequestableViewModel {
+    public let id: ModelIdType
+    @LocalizedString public var title
+    public let vmId: ViewModelId
+
+    public init(id: ModelIdType, /* … */) { /* … */ }
+
+    // The fully-defaulted parameterized stub lives IN THE TYPE BODY so `@ViewModel`
+    // can see it and synthesize the zero-arg `stub()` Stubbable witness from it.
+    public static func stub(
+        id: ModelIdType = .init(),
+        title: String = "Sample"
+    ) -> Self {
+        .init(id: id, title: title)
     }
 }
 ```
 
-### Identity: vmId
+> **The parameterized `stub(...)` must be in the type's body — NOT in an `extension`.**
+> `@ViewModel` is a member macro: Swift hands it only the struct declaration, so a
+> `stub(...)` sitting in `extension MyViewModel { … }` is invisible to it and **no witness
+> is synthesized** → `does not conform to 'Stubbable'`. (A hand-written zero-arg `stub()`
+> *may* live in an extension — it's a real witness — but a `stub(...)` you expect the macro
+> to forward to cannot.)
 
-Every ViewModel needs a `vmId` for SwiftUI's identity system:
+Hand-write the zero-arg `stub()` yourself only when the macro has nothing to forward to: a no-argument `init()` (`stub() { .init() }`), an interactive VM whose stub routes through a private `init(isStub:)`, or a **nested type that is plain `Stubbable` without `@ViewModel`** (see Two-Tier Stubbable Pattern). A parameterized `stub(...)` with any non-defaulted parameter is also not forwardable — the macro leaves such types to surface the normal `Stubbable` conformance error.
 
-**Singleton** (one per page): `vmId = .init(type: Self.self)`
-**Instance** (multiple per page): `vmId = .init(id: id)` where `id: ModelIdType`
+### Identity: vmId — stable data identity, never a throwaway
+
+`vmId` parameterizes SwiftUI's `.id()` on the view that renders the ViewModel, so it
+governs view stabilization (whether SwiftUI reuses or tears down the view on refresh). It
+must be **stable across re-fetches of the same logical thing** — never a fresh random
+value. A bare `ViewModelId()` / `.init()` is **random** (`isRandom`, `String.unique()`
+under the hood) and is correct *only* when identity genuinely doesn't matter.
+
+**Singleton — one instance per screen** (a top-level page VM, or a once-only child such as
+a header/summary panel). Constant per type = maximally stable:
+
+```swift
+public var vmId: ViewModelId = .init(type: Self.self)
+```
+
+A VM that already has an `init` may equivalently declare `public let vmId: ViewModelId`
+and assign `self.vmId = .init(type: Self.self)` **in the init**. Do **not** write
+`let vmId: ViewModelId = .init(type: Self.self)` as a property *default* — an immutable
+property with a default is excluded from `Codable` decoding (the compiler warns); use `var`
+with a default, or `let` assigned in `init`.
+
+**Instance — many per screen, ESPECIALLY `List`/`ForEach` rows.** The `vmId` MUST carry the
+row's **stable data identity**, assigned in `init`:
+
+```swift
+public let vmId: ViewModelId
+public init(id: SomeId, /* … */) {
+    // …
+    self.vmId = .init(id: id)   // id may be ModelIdType, String, Int, or UUID
+}
+```
+
+Use the data's own id when it has one (`user.id`, a `nodeId: String`, …). `ViewModelId`
+accepts a plain `String`/`Int`/`UUID`/`ModelIdType` — the id is **not** required to be a
+`ModelIdType`. When there is **no single natural id**, merge stable init args into one:
+
+```swift
+self.vmId = .init(id: "\(version.versionString)-\(host)")
+```
+
+> **Two failure modes on `List` rows — both churn identity / tear the view down on every
+> refresh:**
+> - a **bare `.init()`** → a new *random* id each fetch, so SwiftUI treats every row as new;
+> - a **constant `.init(type: Self.self)`** on a repeated row → every row shares one id and
+>   they collide.
+>
+> A row needs a **per-row stable** id: `.init(id: <the row's data id>)`.
 
 ### Localization
 
@@ -770,6 +922,25 @@ public let itemCount: LocalizableInt     // NOT String
 
 The client formats these according to user's locale and timezone.
 
+**The stored property is `Localizable*`; the init PARAMETER is the plain Swift type.** The
+initializer takes `Int`/`Date`/`String`, and the init **body wraps it** and **owns the
+formatting policy** — declared once, in the ViewModel:
+
+```swift
+public let totalBerths: LocalizableInt          // stored — self-localizes on encode
+public let lastSeen: LocalizableDate
+
+public init(totalBerths: Int, lastSeen: Date) {  // params are plain Swift types
+    self.totalBerths = .init(value: totalBerths, showGroupingSeparator: true)  // policy lives here
+    self.lastSeen = .init(value: lastSeen)
+}
+```
+
+Callers — the Factory, stubs, previews — pass **plain values** (`.stub(totalBerths: 12)`)
+and **never construct a `Localizable*` themselves**. This is **Single Responsibility**:
+formatting policy is the ViewModel's job, stated in one place, not smeared across every
+call site.
+
 ### Enum Localization Pattern
 
 For dynamic enum values (status, state, category), use a **stored `LocalizableString`** - NOT `@LocalizedString`.
@@ -777,12 +948,13 @@ For dynamic enum values (status, state, category), use a **stored `LocalizableSt
 `@LocalizedString` always looks up the same key (the property name). A stored `LocalizableString` carries the dynamic key from the enum case.
 
 ```swift
-// Enum provides localizableString
-public enum SessionState: String, CaseIterable, Codable, Sendable {
+// Enum provides localizableString.
+// NO `: String` raw backing — the case name IS the key (via String(describing:)).
+public enum SessionState: CaseIterable, Codable, Sendable {
     case pending, running, completed, failed
 
     public var localizableString: LocalizableString {
-        .localized(for: Self.self, propertyName: rawValue)
+        .localized(for: Self.self, propertyName: String(describing: self))
     }
 }
 
@@ -811,6 +983,16 @@ en:
 
 **Constraint:** `LocalizableString` only works in ViewModels encoded with `localizingEncoder()`. Do not use in Fluent JSONB fields or other persisted types.
 
+> **ViewModel enums carry no `String`/`Int` raw backing when avoidable.** Write
+> `enum BerthLiveness: Codable, Sendable, CaseIterable`, **not** `: String`. `Codable`
+> synthesizes for a raw-value-less enum (it encodes by case name), and the localization
+> key is the case name via `String(describing:)` — so a raw type buys nothing. A
+> `String`/`Int` raw backing actively invites mayhem: `init?(rawValue:)` from arbitrary
+> input, a `.rawValue` that tempts stringly-typed comparisons, and it silently couples the
+> wire format to the case spelling. **Model the vocabulary; don't back it with a
+> primitive.** (A View-switched discriminator enum — one the View renders per case, with
+> no localized text — is likewise raw-less and needs no `localizableString` at all.)
+
 ### Child ViewModels
 
 Top-level ViewModels contain their children:
@@ -831,7 +1013,7 @@ When a child type is **only used by one parent** and represents a summary or ref
 
 ```swift
 @ViewModel
-public struct GovernancePrincipleCardViewModel: Codable, Sendable, Identifiable {
+public struct GovernancePrincipleCardViewModel: Identifiable {  // macro adds Codable+Sendable; only Identifiable is extra
     // Properties come first
     public let versionHistory: [GovernancePrincipleVersionSummary]?
     public let referencingDecisions: [GovernanceDecisionReference]?
@@ -886,9 +1068,9 @@ public struct GovernancePrincipleCardViewModel: Codable, Sendable, Identifiable 
 - `Identifiable` - for SwiftUI ForEach if used in arrays
 - `Stubbable` - for testing/previews
 
-**Two-Tier Stubbable Pattern:**
+**Two-Tier Stubbable Pattern (nested, non-`@ViewModel` types):**
 
-Nested types use fully qualified names in their extensions:
+Nested child types are plain `Stubbable` structs — they have **no `@ViewModel` macro**, so nothing synthesizes their `stub()`. Hand-write both tiers. (An `@ViewModel` parent, by contrast, hand-writes only the fully-defaulted parameterized `stub(...)`; its zero-arg `stub()` is macro-synthesized.) Nested types use fully qualified names in their extensions:
 
 ```swift
 public extension GovernancePrincipleCardViewModel.GovernancePrincipleVersionSummary {
@@ -1004,12 +1186,28 @@ See [reference.md](reference.md) for complete file templates.
 | Concept | Convention | Example |
 |---------|------------|---------|
 | ViewModel struct | `{Name}ViewModel` | `DashboardViewModel` |
-| Request class | `{Name}Request` | `DashboardRequest` |
+| Request class (screen read) | `{Name}Request` — **no verb** | `DashboardRequest`, `DocksRequest` |
 | Factory extension | `{Name}ViewModel+Factory.swift` | `DashboardViewModel+Factory.swift` |
 | YAML file | `{Name}ViewModel.yml` | `DashboardViewModel.yml` |
 
+A screen/page ViewModel's read request drops the verb — the noun alone *is* the read
+(`DocksRequest`, not `DocksShowRequest`). Write/action requests are noun-first with a
+verb (`UserCreateRequest`). Full rules: [Naming Dictionary](../shared/NAMES.md).
+
+**Duplicate type names across modules are fine — the module *is* the namespace.** Don't
+contort a ViewModel display type's name to avoid colliding with a same-named domain type.
+`HarborChannel.Tier` (domain) and a ViewModel `Tier` (display projection) coexist as
+distinct types; the `ViewModelFactory` maps between them. The display type is a
+*projection of* the data, not the data — a same-named-but-distinct type is correct, not a
+smell. Name a display type for what it **means**, not to dodge a collision. (This is the
+naming corollary of Dependency Inversion — see "The ViewModel Module Must NOT Depend on
+Domain Types" above: the ViewModel module never imports the domain module, so the two
+same-named types can't actually clash in one file.) See
+[Naming Dictionary → Duplicate type names](../shared/NAMES.md).
+
 ## See Also
 
+- [Naming Dictionary](../shared/NAMES.md) - Canonical naming rules (read requests, duplicate type names across modules)
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models (errors are data, type safety, etc.)
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full FOSMVVM architecture
 - [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) - For form validation
@@ -1031,3 +1229,7 @@ See [reference.md](reference.md) for complete file templates.
 | 2.6 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 2.7 | 2026-01-25 | Added Nested Child Types Pattern section with two-tier Stubbable pattern, placement rules, conformances, and decision criteria for when to nest vs keep top-level. |
 | 2.8 | 2026-04-22 | Added Third Decision (Interactive vs Display-Only) — Operations trio generation for interactive VMs. Full server-hosted and client-hosted interactive examples with `isStub` flag, `operations` property, private init. Documented client-hosted `output storage:` convention and server-backed no-output convention. Added Templates 10 and 11 to reference.md (interactive VM + Operations file pairs). |
+| 2.9 | 2026-07-02 | Fold in `@ViewModel` synthesized `Stubbable` witness: `@ViewModel` types now scaffold only the fully-defaulted parameterized `stub(...)` (macro synthesizes zero-arg `stub()`). Nested non-`@ViewModel` types still hand-write both tiers. Updated Templates 2, 4, and the full example in reference.md plus the Stubbable/Two-Tier sections here. |
+| 2.10 | 2026-07-02 | Naming Conventions: screen read requests are verb-less (`DocksRequest`); added duplicate-type-names-across-modules guidance + [Naming Dictionary](../shared/NAMES.md) cross-ref. (backlog A2/A3) |
+| 2.11 | 2026-07-02 | Quick conventions: child VMs drop redundant `: Codable, Sendable` (macro adds them) — B9; ViewModel enums are raw-value-less (`String(describing:)` key, not `: String rawValue`) — B6; added `SystemVersion`/locale-independent field-type row + anti-pattern (version/hostname are typed, never `LocalizableString`) — B8. |
+| 2.12 | 2026-07-02 | Conceptual set: one top-level VM per screen composing children, never a mega-VM + one-file-per-VM pointer to app-setup — B1/B2; `Localizable*` init takes the plain Swift type and wraps it (formatting policy owned by init) — B3; **rewrote Identity: vmId** — stable data identity, singleton `.init(type: Self.self)` vs list-row `.init(id:)` (String/Int/UUID/merged), List-churn warning; reconciled all `.init()` throwaways in SKILL.md + reference.md (verified against `ViewModelId`) — B4; added **"ViewModel Module Must NOT Depend on Domain Types (Dependency Inversion)"** hard-rule section with Factory-adapter ergonomic — B5. |

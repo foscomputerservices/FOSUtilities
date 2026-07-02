@@ -114,7 +114,21 @@ public func expectVersionedViewModel<VM: ViewModel>(_ viewModelType: VM.Type, ve
 
 private extension FileManager {
     func testFileDirectory(basePath: String) -> URL {
-        URL(fileURLWithPath: basePath)
+        let components = URL(fileURLWithPath: basePath).pathComponents
+
+        // Anchor on the SwiftPM test-target root: `Tests/<Target>/.VersionedTestJSON`.
+        // This is independent of how deeply the calling test file is nested, and
+        // keeps each target's baselines in their own directory (so equally-named
+        // types in sibling targets — e.g. two `TestViewModel`s — never collide).
+        if let testsIndex = components.lastIndex(of: "Tests"), testsIndex + 1 < components.count {
+            let targetRoot = components[...(testsIndex + 1)].reduce(URL(fileURLWithPath: "/")) { url, component in
+                component == "/" ? url : url.appendingPathComponent(component)
+            }
+            return targetRoot.appendingPathComponent(".VersionedTestJSON")
+        }
+
+        // Fallback for non-SwiftPM layouts with no `Tests` directory in the path.
+        return URL(fileURLWithPath: basePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .appendingPathComponent(".VersionedTestJSON")
