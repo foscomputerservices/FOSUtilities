@@ -74,9 +74,17 @@ struct ApplicationFOSAdditionTests: LocalizableTestCase {
 
         try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
 
-        Task { try await app.execute() }
-
-        sleep(1)
+        // Boot synchronously so the async lifecycle handler
+        // (YamlLocalizationInitializer.willBootAsync → configureFOSMVVMReactResources)
+        // registers the FileMiddleware *before* any request is issued. `app.test(...)`
+        // only runs the synchronous `boot()`, which never fires `willBootAsync`, so the
+        // middleware would otherwise never be registered on the in-memory tester.
+        //
+        // The previous `Task { try await app.execute() }` + `sleep(1)` raced a background
+        // boot against a fixed 1s delay; under heavier parallel-suite load on Linux CI the
+        // boot lost the race and every file 404'd. `asyncBoot()` is idempotent (guarded by
+        // `isBooted`), so the sync `boot()` inside `app.test(...)` simply no-ops.
+        try await app.asyncBoot()
 
         // Test that React resources are accessible at /fosmvvm/react/
         let testFiles = ["fosmvvmWasmRuntime.js", "viewModelComponent.js", "fosmvvm.css", "README.md"]
