@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-03
+
 ### Added
 
 - **WebAssembly (WASM) platform support**, including a WASI `URLSession`
@@ -92,4 +94,5 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.3.7...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.4.0...HEAD
+[0.4.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.3.7...0.4.0
