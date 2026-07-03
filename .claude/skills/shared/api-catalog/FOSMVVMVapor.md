@@ -6,8 +6,8 @@ localization store into the application lifecycle, extracting typed
 ServerRequest pieces from Vapor requests, and binding Fluent models to the
 MVVM roles. Before hand-writing a route, query parser, version check, or error
 response — check here first. The through-line: localization *is* encoding, so
-ViewModels are localized while the response is built — every serving path here
-funnels through the request's localizing encoder.
+ViewModels are localized while the response is built — every JSON serving path
+here funnels through the request's localizing encoder.
 
 ## Extensions
 
@@ -138,7 +138,9 @@ Localizable value type (LocalizableString, LocalizableDate, LocalizableInt,
 LocalizableDouble, LocalizableArray, LocalizableCompoundValue,
 LocalizableSubstitutions — all catalogued in FOSMVVM) renders as its localized
 string. Values that were never localized render as an empty string — localize
-the ViewModel before handing it to the template.
+the ViewModel before handing it to the template by round-tripping it through
+the request's localizing encoder (FOSMVVM's `localizingEncoder()` entry shows
+the round-trip).
 
 ```swift
 // In the Leaf template — renders the localized string, not a debug dump:
