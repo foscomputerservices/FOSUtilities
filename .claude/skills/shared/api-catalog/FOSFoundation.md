@@ -107,7 +107,8 @@ let user = User.stub()
 
 ## Collections
 
-Extensions on Collection for grouping and rate-limited iteration.
+Extensions on Collection for grouping and rate-limited iteration, plus a shared
+key/value string store.
 
 ### Group elements into a dictionary — `grouped()`
 Reach for this when: bucketing a sequence by a computed key. Element order
@@ -125,6 +126,7 @@ Don't hand-roll sleep loops around `TaskGroup` — this batches and paces the
 calls for you.
 
 ```swift
+// 20 calls per 2 seconds (`per` is a TimeInterval in seconds)
 let results = try await urls.throttleExecute(rate: (quantity: 20, per: 2)) { url in
     try await url.fetch() as MyData
 }
@@ -132,7 +134,7 @@ let results = try await urls.throttleExecute(rate: (quantity: 20, per: 2)) { url
 
 ### Thread-safe global key/value strings — `GlobalStringStore`
 Reach for this when: a few global string values must be shared across
-concurrency domains (feature flags, tokens) without inventing a singleton.
+concurrency domains (feature flags, tokens) without hand-rolling a locked global.
 
 ```swift
 await GlobalStringStore.default.setValue(key: "authToken", value: token)
@@ -181,8 +183,9 @@ assert(bundleVersion.isSameVersion(as: .current))
 
 ## Networking
 
-Typed, Codable-based REST and WebSocket communication. The URL extension methods
-are the front door; `DataFetch` sits beneath them when you need more control.
+Typed, Codable-based REST and WebSocket communication, plus file discovery on
+directory URLs. The URL extension methods are the front door; `DataFetch` sits
+beneath them when you need more control.
 
 ### Typed REST calls on URL — `fetch()` / `send()` / `delete()`
 Reach for this when: making a JSON GET/POST/DELETE and decoding the response
@@ -227,14 +230,6 @@ Don't make real network calls in tests.
 let dataFetch = DataFetch(urlSession: MockURLSession.session(config: .default))
 ```
 
-### Find files by extension — `findFiles()`
-Reach for this when: collecting every file below a directory URL with a given
-extension (resource discovery, fixture loading).
-
-```swift
-let yamlFiles = resourceDir.findFiles(withExtension: "yml")
-```
-
 ### Send Codable over a WebSocket — `send()` / `WebSocketError`
 Reach for this when: pushing an Encodable value through a URLSessionWebSocketTask
 — it's encoded with the library's standard JSON strategy and send-state errors
@@ -242,6 +237,14 @@ surface as `WebSocketError`.
 
 ```swift
 try await webSocketTask.send(statusUpdate)
+```
+
+### Find files by extension — `findFiles()`
+Reach for this when: collecting every file below a directory URL with a given
+extension (resource discovery, fixture loading).
+
+```swift
+let yamlFiles = resourceDir.findFiles(withExtension: "yml")
 ```
 
 ## Numbers
@@ -347,7 +350,8 @@ let rows = csvString.loadCSVData() // [[String]]: rows of columns
 ### Reversible string obfuscation — `obfuscate` / `reveal` / `rot13()` / `rot47()`
 Reach for this when: a string shouldn't be human-readable in transit or storage
 (query strings, casual logs) but doesn't warrant real encryption; `obfuscate`
-output is safe to embed in URL queries, and `reveal` restores the original.
+output is safe to embed in URL queries, and `reveal` restores the original
+(nil when the string was not previously obfuscated).
 Don't use these for secrets — obfuscation is trivially reversible; hash or
 encrypt anything security-sensitive.
 
