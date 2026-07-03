@@ -157,7 +157,8 @@ func loadSurfaces(from dir: URL) throws -> [String: ModuleSurface] {
         // "FOSFoundation.symbols.json" or "FOSFoundation@Swift.symbols.json"
         let stem = file.lastPathComponent.replacingOccurrences(of: ".symbols.json", with: "")
         let parts = stem.split(separator: "@", maxSplits: 1)
-        let module = String(parts[0])
+        guard let first = parts.first else { continue }
+        let module = String(first)
         let isExtensionGraph = parts.count == 2
         guard moduleToCatalog[module] != nil else { continue }
 
@@ -209,7 +210,7 @@ func catalogTitleNames(in text: String) -> Set<String> {
             rest = rest[rest.index(after: close)...]
             for token in span.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") }) {
                 let name = baseIdentifier(String(token))
-                if !name.isEmpty, name.first!.isLetter || name.first! == "_" {
+                if let first = name.first, first.isLetter || first == "_" {
                     names.insert(name)
                 }
             }
@@ -231,7 +232,10 @@ func loadCatalog() throws -> [String: Set<String>] {
 }
 
 func loadIgnoreList() -> Set<String> {
-    guard let text = try? String(contentsOfFile: ignoreFile, encoding: .utf8) else { return [] }
+    guard let text = try? String(contentsOfFile: ignoreFile, encoding: .utf8) else {
+        print("info: no ignore file at \(ignoreFile)")
+        return []
+    }
     return Set(text.split(separator: "\n")
         .map { $0.trimmingCharacters(in: .whitespaces) }
         .filter { !$0.isEmpty && !$0.hasPrefix("#") })
@@ -257,9 +261,12 @@ do {
         }
     }
 
-    // Stale entries: title symbols not found anywhere in the loaded API surface.
-    // Only checked for catalog files whose covered modules are ALL present
-    // (on Linux, FOSReporting has no symbol graph — its file is skipped).
+    // Stale entries: title symbols not found in the API surface of the file's
+    // OWN mapped modules — a title symbol that lives in a different module's
+    // catalog file still reports stale (remediation: move the entry to the
+    // right file, or add the name to the ignore list). Only checked for
+    // catalog files whose covered modules are ALL present (on Linux,
+    // FOSReporting has no symbol graph — its file is skipped).
     var stale: [(file: String, name: String)] = []
     for (file, names) in catalog.sorted(by: { $0.key < $1.key }) {
         let covered = moduleToCatalog.filter { $0.value == file }.map(\.key)
