@@ -72,7 +72,10 @@ Rules for entries:
 
 - **Title is task-framed** ("Codable JSON round-trip"), not symbol-framed — the reader is
   matching a task, not a name.
-- **Symbols appear in backticks** — this is the mechanical hook the audit script matches on.
+- **The entry's own symbols appear in backticks in the `###` title line** — that title line
+  is the *only* place the audit script matches for freshness. Backticks in prose and
+  examples (which will routinely name stdlib/Foundation types like `JSONDecoder`) are
+  ignored by the audit.
 - **"Reach for this when:" is mandatory**; an optional "Don't:" line names the reinvention
   it replaces.
 - **Example is 2–4 lines**, idiomatic, complete enough to copy.
@@ -106,7 +109,10 @@ Rules for entries:
   pointing at `.claude/skills/shared/api-catalog/` and the discovery skill. Always in
   context; discovery without an invocation decision.
 - **Consumer projects:** `fosmvvm-swiftui-app-setup` (the consumer onboarding skill) adds
-  the same index block to the consumer's CLAUDE.md as part of setup.
+  a consumer variant of the index block to the consumer's CLAUDE.md as part of setup. The
+  consumer variant references the discovery skill **by name** (`fosutilities-api-catalog`)
+  — never a repo-relative path, since `shared/api-catalog/` lives inside the installed
+  plugin, not the consumer's `.claude/skills/`.
 
 ## Component 4 — Audit script (freshness + DocC worklist)
 
@@ -125,7 +131,10 @@ Pipeline:
      entry-level, not per-symbol);
    - compiler- and macro-synthesized symbols are filtered out (exact mechanism is an
      implementation decision; symbol-graph metadata distinguishes synthesized origins).
-3. Collect all backticked symbol names from the catalog files.
+3. Collect catalog symbol names from backticks in `###` entry-title lines **only** (prose
+   and example backticks are ignored — they legitimately name stdlib types). Matching is
+   by **base identifier, arity-insensitive** (`fromJSON()` matches any `fromJSON`
+   overload in the symbol graph).
 4. Report three lists:
    - **Catalog gaps** — audit-surface symbols not mentioned in any catalog file;
    - **Stale entries** — catalog symbols no longer present in the API;
@@ -155,7 +164,8 @@ Workflow it drives:
 
 ## Component 6 — CI check
 
-A CI step runs the audit script on every PR:
+A CI step runs the audit script on every PR (in the existing `macos-latest` job, after the
+build — `dump-symbol-graph` reuses that job's build products):
 
 - **Fails** on stale entries (exit code from Component 4).
 - **Warns** (annotation/log, not failure) on catalog gaps and DocC-worklist regressions.
@@ -168,8 +178,9 @@ remediation path.
 One curated pass over all five surfaces, category by category, using the audit script's
 gap report as the checklist. This is the bulk of the effort and is where the "reach for
 this when" framing gets written from design intent (the author's), not reverse-engineered
-from code. Population order: FOSFoundation first (most-missed), then FOSMVVM,
-FOSTesting.md, FOSMVVMVapor, FOSReporting.
+from code. Population order: FOSFoundation first (most-missed), then FOSMVVM, FOSTesting,
+FOSMVVMVapor, FOSReporting. Expect this component to dominate the implementation plan;
+treat it as its own phase with a checkpoint per catalog file.
 
 ## Verification
 
