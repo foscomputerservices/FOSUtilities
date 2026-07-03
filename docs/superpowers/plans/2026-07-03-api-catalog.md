@@ -13,7 +13,7 @@
 ## Decisions reconciled against reality (deviations from spec letter)
 
 1. **CI job placement.** Spec said "the existing `macos-latest` job." Reality: that job uses xcodebuild *because `swift build` hangs on macOS runners* (comment in `ci.yml`), and `dump-symbol-graph` is a SwiftPM build. The audit therefore runs in the existing **ubuntu** `run_tests` job (reusing its `.build` from `swift test`). Consequence: FOSReporting (Apple-only) has no symbol graph on Linux — the script **skips stale-checking any catalog file whose covered modules aren't all present** and prints an info line. Full-surface auditing happens locally on macOS via the update skill.
-2. **Plain `swift` instead of swift-sh.** The script needs only Foundation, so it runs via `swift Scripts/api-catalog-audit.swift` with no swift-sh install requirement in CI (no shebang needed). If third-party deps ever become necessary, convert to swift-sh (with the `"\u{23}!"` shebang workaround).
+2. **Plain `swift` instead of swift-sh.** The script needs only Foundation, so it runs via `swift scripts/api-catalog-audit.swift` with no swift-sh install requirement in CI (no shebang needed). If third-party deps ever become necessary, convert to swift-sh (with the `"\u{23}!"` shebang workaround).
 3. **No unit-test target for the script.** Per spec Verification: deterministic script, fixture tests optional; the **planted round-trip check** (Task 1) is the required verification, repeated before CI enablement (Task 10).
 4. **One format checkpoint, not one per file.** Spec Component 7 says "a checkpoint per catalog file"; this plan uses one hard review checkpoint after the first file (Task 2, where format/voice is settled) — Tasks 3–6 then follow the approved format, and David reviews the full catalog at the Task 11 verification. Rationale: the risk is format drift, and that is decided in file one.
 
@@ -24,8 +24,8 @@ The working tree contains unrelated in-progress modifications (`.claude/skills/*
 ## File structure
 
 ```
-Scripts/api-catalog-audit.swift                          create  (audit script)
-Scripts/api-catalog-ignore.txt                           create  (deliberate exclusions)
+scripts/api-catalog-audit.swift                          create  (audit script)
+scripts/api-catalog-ignore.txt                           create  (deliberate exclusions)
 .claude/skills/shared/api-catalog/FOSFoundation.md       create  (Task 2)
 .claude/skills/shared/api-catalog/FOSMVVM.md             create  (Task 3)
 .claude/skills/shared/api-catalog/FOSTesting.md          create  (Task 4; covers FOSTesting, FOSTestingUI, FOSTestingVapor)
@@ -45,8 +45,8 @@ Scripts/api-catalog-ignore.txt                           create  (deliberate exc
 ### Task 1: Audit script
 
 **Files:**
-- Create: `Scripts/api-catalog-audit.swift`
-- Create: `Scripts/api-catalog-ignore.txt`
+- Create: `scripts/api-catalog-audit.swift`
+- Create: `scripts/api-catalog-ignore.txt`
 
 - [ ] **Step 1: Write the script**
 
@@ -57,7 +57,7 @@ Scripts/api-catalog-ignore.txt                           create  (deliberate exc
 // against the curated catalog in .claude/skills/shared/api-catalog/.
 //
 // Usage (from the package root):
-//   swift Scripts/api-catalog-audit.swift [--symbolgraph-dir <dir>]
+//   swift scripts/api-catalog-audit.swift [--symbolgraph-dir <dir>]
 //
 // Reports:
 //   - Catalog gaps  (warning): public API not mentioned in any catalog entry title
@@ -77,7 +77,7 @@ import Foundation
 // MARK: - Configuration
 
 let catalogDir = ".claude/skills/shared/api-catalog"
-let ignoreFile = "Scripts/api-catalog-ignore.txt"
+let ignoreFile = "scripts/api-catalog-ignore.txt"
 
 let moduleToCatalog: [String: String] = [
     "FOSFoundation": "FOSFoundation.md",
@@ -326,7 +326,7 @@ do {
 
 - [ ] **Step 2: Create the ignore file**
 
-`Scripts/api-catalog-ignore.txt`:
+`scripts/api-catalog-ignore.txt`:
 
 ```
 # api-catalog-audit ignore list — one base identifier per line.
@@ -338,7 +338,7 @@ do {
 
 ```bash
 swift package dump-symbol-graph --skip-synthesized-members   # note the "Files written to <dir>" path
-swift Scripts/api-catalog-audit.swift --symbolgraph-dir <dir>
+swift scripts/api-catalog-audit.swift --symbolgraph-dir <dir>
 ```
 
 Expected: no crash; catalog dir doesn't exist yet, so **every** audit-surface symbol reports as a gap (spot-check that known symbols appear, e.g. `AsyncSemaphore`, `DataFetch`, `SystemVersion`, and extension members like `fromJSON`); 0 stale; DocC worklist populated; exit code 0 (`echo $?`).
@@ -349,7 +349,7 @@ Expected: no crash; catalog dir doesn't exist yet, so **every** audit-surface sy
 mkdir -p .claude/skills/shared/api-catalog
 printf '## Coding\n\n### Frobnication — `frobnicate()`\nReach for this when: never.\n' \
   > .claude/skills/shared/api-catalog/FOSFoundation.md
-swift Scripts/api-catalog-audit.swift --symbolgraph-dir <dir>; echo "exit: $?"
+swift scripts/api-catalog-audit.swift --symbolgraph-dir <dir>; echo "exit: $?"
 ```
 
 Expected: `FOSFoundation.md: \`frobnicate\`` under stale entries; `exit: 1`. Also verify a real symbol used as a title (`### Semaphore — \`AsyncSemaphore\``) makes `AsyncSemaphore` disappear from gaps and does NOT report stale. Then delete the test file:
@@ -361,7 +361,7 @@ rm .claude/skills/shared/api-catalog/FOSFoundation.md
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Scripts/api-catalog-audit.swift Scripts/api-catalog-ignore.txt
+git add scripts/api-catalog-audit.swift scripts/api-catalog-ignore.txt
 git commit -m "feat(scripts): add api-catalog-audit symbol-graph audit script"
 ```
 
@@ -396,13 +396,13 @@ let json = try user.toJSON()
 ````
 
 - [ ] **Step 1: Generate the checklist** — run the audit (Task 1 Step 3 command); collect the FOSFoundation gap list.
-- [ ] **Step 2: Write the file, category by category.** For each gap symbol: read its source under `Sources/FOSFoundation/<Category>/`, understand intent (read the DocC if present, but expect it missing — write from the code's evident purpose and idiomatic call site), write the entry per the rules above. Group families. If a symbol shouldn't be catalogued (deprecated, internal-ish), add it to `Scripts/api-catalog-ignore.txt` with a `#` reason comment instead.
+- [ ] **Step 2: Write the file, category by category.** For each gap symbol: read its source under `Sources/FOSFoundation/<Category>/`, understand intent (read the DocC if present, but expect it missing — write from the code's evident purpose and idiomatic call site), write the entry per the rules above. Group families. If a symbol shouldn't be catalogued (deprecated, internal-ish), add it to `scripts/api-catalog-ignore.txt` with a `#` reason comment instead.
 - [ ] **Step 3: Re-run the audit.** Expected: FOSFoundation gaps → 0 (or every remainder deliberately in the ignore file); 0 stale; exit 0.
 - [ ] **Step 4: Self-review** each entry against rules 2/3/5 (title task-framed? reach-for line present? no representation leaks?).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add .claude/skills/shared/api-catalog/FOSFoundation.md Scripts/api-catalog-ignore.txt
+git add .claude/skills/shared/api-catalog/FOSFoundation.md scripts/api-catalog-ignore.txt
 git commit -m "docs(api-catalog): populate FOSFoundation catalog"
 ```
 
@@ -419,7 +419,7 @@ Same steps as Task 2 (checklist → write → audit-clean → self-review → co
 - Where an entry documents a pattern the generator skills scaffold, keep the entry to the API contract and reach-for framing; do not duplicate generator-skill content (DRY — one line "scaffolded by `fosmvvm-viewmodel-generator`" is enough).
 
 ```bash
-git add .claude/skills/shared/api-catalog/FOSMVVM.md Scripts/api-catalog-ignore.txt
+git add .claude/skills/shared/api-catalog/FOSMVVM.md scripts/api-catalog-ignore.txt
 git commit -m "docs(api-catalog): populate FOSMVVM catalog"
 ```
 
@@ -432,7 +432,7 @@ git commit -m "docs(api-catalog): populate FOSMVVM catalog"
 Same steps. Covers three modules — use `##` top-level sections per module (FOSTesting, FOSTestingUI, FOSTestingVapor), categories nested as needed. Reach-for framing matters most here ("mocking URLSession", "testing a ServerRequest", "UI-test identifiers").
 
 ```bash
-git add .claude/skills/shared/api-catalog/FOSTesting.md Scripts/api-catalog-ignore.txt
+git add .claude/skills/shared/api-catalog/FOSTesting.md scripts/api-catalog-ignore.txt
 git commit -m "docs(api-catalog): populate FOSTesting catalog"
 ```
 
@@ -445,7 +445,7 @@ git commit -m "docs(api-catalog): populate FOSTesting catalog"
 Same steps. Frame reaches from the Vapor implementor's POV ("registering ViewModel routes", "serving localized ViewModels", "Fluent model ↔ ViewModel factory").
 
 ```bash
-git add .claude/skills/shared/api-catalog/FOSMVVMVapor.md Scripts/api-catalog-ignore.txt
+git add .claude/skills/shared/api-catalog/FOSMVVMVapor.md scripts/api-catalog-ignore.txt
 git commit -m "docs(api-catalog): populate FOSMVVMVapor catalog"
 ```
 
@@ -458,7 +458,7 @@ git commit -m "docs(api-catalog): populate FOSMVVMVapor catalog"
 Same steps (smallest surface). Note: on Linux this file is skipped by the stale check; audit it on macOS.
 
 ```bash
-git add .claude/skills/shared/api-catalog/FOSReporting.md Scripts/api-catalog-ignore.txt
+git add .claude/skills/shared/api-catalog/FOSReporting.md scripts/api-catalog-ignore.txt
 git commit -m "docs(api-catalog): populate FOSReporting catalog"
 ```
 
@@ -548,13 +548,13 @@ Keeps `.claude/skills/shared/api-catalog/` truthful and complete. Run on macOS
 
 ## Audit-driven workflow
 
-1. Run: `swift Scripts/api-catalog-audit.swift` (from the package root; builds
+1. Run: `swift scripts/api-catalog-audit.swift` (from the package root; builds
    the package, then reports gaps / stale entries / DocC worklist).
 2. **Stale entries first** (these fail CI): the API changed — fix the entry's
    title symbols to the renamed API, or remove the entry if the API is gone.
 3. **For each catalog gap**: read the source, then write a curated entry per the
    format rules below. If the symbol shouldn't be catalogued (deprecated,
-   compatibility shim), add it to `Scripts/api-catalog-ignore.txt` with a `#`
+   compatibility shim), add it to `scripts/api-catalog-ignore.txt` with a `#`
    reason comment instead — never leave a silent gap.
 4. If a new entry serves a reach not yet in the discovery skill's reach-for
    index (`fosutilities-api-catalog/SKILL.md`), add the index line — keyed by
@@ -583,7 +583,7 @@ surface would freeze internals forever (see CLAUDE.md, Encapsulation). Titles
 are the audit's freshness anchor; prose backticks are ignored by design.
 ```
 
-- [ ] **Step 2: Verify the referenced paths exist** (`Scripts/api-catalog-audit.swift`, discovery skill, ignore file) and the rules block is the complete Task 2 list.
+- [ ] **Step 2: Verify the referenced paths exist** (`scripts/api-catalog-audit.swift`, discovery skill, ignore file) and the rules block is the complete Task 2 list.
 - [ ] **Step 3: Commit**
 
 ```bash
@@ -639,13 +639,13 @@ If a generator skill's file already has uncommitted unrelated edits, still commi
 ```yaml
       - name: API Catalog Audit
         if: matrix.os == 'ubuntu-latest'
-        run: swift Scripts/api-catalog-audit.swift
+        run: swift scripts/api-catalog-audit.swift
         shell: bash
 ```
 
 (`dump-symbol-graph` reuses the job's `.build` from `swift test`. Stale entries → exit 1 → job fails; gaps/DocC worklist print as log warnings. FOSReporting is auto-skipped on Linux by the script.)
 
-- [ ] **Step 3: Verify locally what CI will do**: `swift Scripts/api-catalog-audit.swift; echo $?` → exit 0, 0 stale.
+- [ ] **Step 3: Verify locally what CI will do**: `swift scripts/api-catalog-audit.swift; echo $?` → exit 0, 0 stale.
 - [ ] **Step 4: Commit**
 
 ```bash
@@ -661,9 +661,9 @@ git commit -m "ci: run api-catalog audit in ubuntu test job"
 
 - [ ] **Step 1: Bump version** `2.6.0` → `2.7.0` (if the working tree/main already moved past 2.6.0, bump minor from whatever is current).
 - [ ] **Step 2: End-to-end verification**
-  - `swift Scripts/api-catalog-audit.swift; echo $?` → `0`, summary shows all 7 modules audited, 0 stale, 0 non-ignored gaps.
+  - `swift scripts/api-catalog-audit.swift; echo $?` → `0`, summary shows all 7 modules audited, 0 stale, 0 non-ignored gaps.
   - Every file under `.claude/skills/shared/api-catalog/` is reachable from the discovery skill's reach-for index; spot-check 3 index lines resolve to real `file § section`.
-  - `Scripts/api-catalog-ignore.txt`: every line has a reason comment.
+  - `scripts/api-catalog-ignore.txt`: every line has a reason comment.
   - Plugin packaging: `plugin.json` `skills` already points at `./.claude/skills/` — confirm the two new skill dirs and `shared/api-catalog/` sit under it.
 - [ ] **Step 3: Commit**
 
@@ -672,7 +672,7 @@ git add .claude-plugin/plugin.json
 git commit -m "chore(plugin): bump to 2.7.0 for API catalog skills"
 ```
 
-- [ ] **Step 4: Run the CI pipeline's exact command once more from a clean `.build`** (optional but cheap insurance): `rm -rf .build && swift test && swift Scripts/api-catalog-audit.swift` — confirms the Ubuntu-job sequence works from scratch (run on macOS; expect FOSReporting present here, absent in CI — the script handles both).
+- [ ] **Step 4: Run the CI pipeline's exact command once more from a clean `.build`** (optional but cheap insurance): `rm -rf .build && swift test && swift scripts/api-catalog-audit.swift` — confirms the Ubuntu-job sequence works from scratch (run on macOS; expect FOSReporting present here, absent in CI — the script handles both).
 
 ---
 
