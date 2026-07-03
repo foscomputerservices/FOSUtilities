@@ -147,9 +147,11 @@ Pipeline:
    - compiler- and macro-synthesized symbols are filtered out (exact mechanism is an
      implementation decision; symbol-graph metadata distinguishes synthesized origins).
 3. Collect catalog symbol names from backticks in `###` entry-title lines **only** (prose
-   and example backticks are ignored — they legitimately name stdlib types). Matching is
-   by **base identifier, arity-insensitive** (`fromJSON()` matches any `fromJSON`
-   overload in the symbol graph).
+   and example backticks are ignored — they legitimately name stdlib types). The audit's
+   input is **only the files under `shared/api-catalog/`** — never `SKILL.md` bodies or
+   CLAUDE.md indexes (whose reach-for lines legitimately backtick platform types).
+   Matching is by **base identifier, arity-insensitive** (`fromJSON()` matches any
+   `fromJSON` overload in the symbol graph).
 4. Report three lists:
    - **Catalog gaps** — audit-surface symbols not mentioned in any catalog file;
    - **Stale entries** — catalog symbols no longer present in the API;
@@ -177,6 +179,11 @@ Workflow it drives:
 4. Surface the **DocC worklist** count as a report line (no action in this workflow).
 5. **Bump the plugin version** in `.claude-plugin/plugin.json` whenever catalog or skill
    files change (established practice — consumers only receive updates on version bump).
+
+The skill also supports a **non-audit path**: adding or adjusting reach-for index lines
+(Component 2/3) for already-catalogued capabilities. When renaming a category section or
+splitting a catalog file, sweep the reach-for indexes for dangling pointers — index
+pointers are not audited.
 
 ## Component 6 — CI check
 
