@@ -16,9 +16,10 @@ Reach for this when: generating a PDF (reports, receipts, printable documents)
 whose pages are ordinary SwiftUI views. The page-content closure receives the
 0-based page index and is called once per page; the result is the finished
 document as `Data`. Synchronous and `@MainActor` — call it from the main actor
-and get the data back without awaiting. On iOS/iPadOS an optional `format:`
-parameter carries `UIGraphicsPDFRendererFormat` document metadata (title,
-author); the macOS overload has no format parameter. Content is sized to the
+and get the data back without awaiting. On UIKit platforms (iOS/iPadOS,
+visionOS, watchOS) an optional `format:` parameter carries
+`UIGraphicsPDFRendererFormat` document metadata (title, author); only the
+macOS (AppKit) overload has no format parameter. Content is sized to the
 page — anything that overflows the page bounds is clipped, and pagination is
 yours: one closure call renders exactly one page.
 Don't hand-roll `CGContext`/`UIGraphicsPDFRenderer` plumbing — this handles the
@@ -29,12 +30,7 @@ let pdfData = try PDFRenderer.render(
     pageSize: .usLetter(),
     pageCount: 3
 ) { pageIndex in
-    VStack {
-        Text("Page \(pageIndex + 1) of 3").font(.title)
-        Divider()
-        Text("Content for page \(pageIndex + 1)")
-    }
-    .padding()
+    Text("Page \(pageIndex + 1) of 3").font(.title)
 }
 try pdfData.write(to: outputUrl)
 ```
