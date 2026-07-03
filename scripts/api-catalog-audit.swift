@@ -290,16 +290,25 @@ do {
     for g in gaps {
         print("  \(g.module): \(g.name)  [\(g.sourceFile)]")
     }
+    if gaps.isEmpty { print("  (none)") }
     print("\n== Stale catalog entries (ERROR): title symbols not in the API ==")
     for s in stale {
         print("  \(s.file): `\(s.name)`")
     }
+    if stale.isEmpty { print("  (none)") }
     print("\n== DocC worklist (warning): audit-surface symbols with no doc comment ==")
     for d in docWorklist {
         print("  \(d.module): \(d.name)  [\(d.sourceFile)]")
     }
+    if docWorklist.isEmpty { print("  (none)") }
     print("\nSummary: \(gaps.count) gap(s), \(stale.count) stale, \(docWorklist.count) undocumented; " +
         "modules audited: \(presentModules.sorted().joined(separator: ", "))")
+
+    if !stale.isEmpty {
+        print("\nFix: update the entry's title symbols in \(catalogDir)/<file> " +
+            "(see the fosutilities-api-catalog-update skill), or add the symbol to " +
+            "\(ignoreFile) with a reason comment.")
+    }
 
     exit(stale.isEmpty ? 0 : 1)
 } catch {
