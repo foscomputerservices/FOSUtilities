@@ -39,6 +39,9 @@ in the catalog files themselves, which serve the customer audience only.)
    swift scripts/api-catalog-audit.swift | awk '/== Catalog gaps/,/== Stale/'
    ```
 
+   Note that piping through `awk` masks the audit's exit code — always check
+   exit status on an unpiped run.
+
 2. **Fix stale entries FIRST** — they fail CI. A stale entry means the API
    changed out from under the catalog: a symbol named in an entry's `###` title
    no longer exists in that file's modules. Read the source to find what
@@ -56,7 +59,9 @@ in the catalog files themselves, which serve the customer audience only.)
    name alone. If the symbol is **not customer-reachable** (deprecated,
    compatibility shim, macro plumbing), add its base identifier to
    `scripts/api-catalog-ignore.txt` with a `#` comment stating the reason —
-   never leave a silent gap.
+   never leave a silent gap. The comment goes on its own line **above** the
+   identifier: the script only strips full-line comments, so an inline
+   `name  # reason` would fail to match the symbol.
 
 4. **Update the reach-for index** when a new entry serves a reach that the
    discovery skill (`.claude/skills/fosutilities-api-catalog/SKILL.md`) doesn't
@@ -69,11 +74,16 @@ in the catalog files themselves, which serve the customer audience only.)
    surface it in your report so the trend is visible.
 
 6. **Re-run the audit** and repeat until: 0 stale entries, 0 non-ignored gaps,
-   exit code 0.
+   exit code 0 (checked on an unpiped run — see step 1). Catalog-only edits
+   don't invalidate the symbol graphs, so re-runs can skip the package rebuild
+   by passing `--symbolgraph-dir <dir>` with the symbol-graph directory the
+   first run produced (under `.build/`).
 
 7. **Bump the plugin version** in `.claude-plugin/plugin.json`. Consumers only
    receive catalog and skill updates on a version bump — an unbumped update
-   ships to no one.
+   ships to no one. Catalog and skill content changes take a **minor** bump
+   (consumers should receive them; this repo's practice is minor bumps for
+   skill-doc updates); reserve patch bumps for typo-level fixes.
 
 ## Non-audit path: index and structure maintenance
 
@@ -98,7 +108,11 @@ a public plugin surface.
    for `Sources/FOSFoundation/Coding/`). Each category opens with 1–2
    orientation sentences that cover **everything** in the section — including
    naming internal files as internal when relevant, so a reader doesn't go
-   hunting for API that isn't public.
+   hunting for API that isn't public. Exception: multi-module catalog files
+   (like `FOSTesting.md`, covering FOSTesting/FOSTestingUI/FOSTestingVapor)
+   use one `##` per module in library-hierarchy order, with categories nested
+   beneath as needed — do not restructure them to per-folder `##` headers, or
+   the discovery skill's `§` pointers break.
 
 2. **`###` titles are task-framed with the entry's own symbols in backticks in
    the title line.** The title line is the audit's **only** freshness anchor —
