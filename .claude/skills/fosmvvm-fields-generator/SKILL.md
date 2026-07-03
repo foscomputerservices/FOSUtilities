@@ -13,6 +13,8 @@ Generate Form Specifications following FOSMVVM patterns.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § Forms, § Validation before hand-writing helpers.
+
 A **Form Specification** (implemented as a `{Name}Fields` protocol) is the **single source of truth** for user input. It answers:
 
 1. **What data** can the user provide? (properties)

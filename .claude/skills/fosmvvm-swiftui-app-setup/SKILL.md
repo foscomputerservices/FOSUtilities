@@ -13,6 +13,8 @@ Generate the main App struct for a SwiftUI application using FOSMVVM architectur
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § SwiftUI Support, § Versioning before hand-writing helpers.
+
 The **App struct** is the entry point of a SwiftUI application. In FOSMVVM, it has three core responsibilities:
 
 ```
@@ -222,6 +224,20 @@ predictably over time — break one wall and it's the small hole in the dam that
   State the *contract* (opaque; round-trips; stable within a major version), not the shape.
 - **Test the contract, not the representation** (equality, determinism, "old data still
   decodes"), never an incidental encoded byte layout.
+```
+
+Also seed an **"API Discovery"** entry so future sessions on the app check the FOSUtilities
+catalog before reinventing shipped API. Reference the discovery skill **by name only — never
+by a filesystem path** (the catalog files live inside the installed plugin, not in the app
+repo's `.claude/skills/`). Drop-in:
+
+```markdown
+## API Discovery
+
+Before writing helpers for JSON/Codable, dates, networking/URLSession, strings,
+collections, async bridging, versioning, model identifiers, or testing, invoke the
+`fosutilities-api-catalog` skill — FOSUtilities likely already provides the API.
+Prefer the catalogued API over hand-rolled code.
 ```
 
 ## Project Structure Configuration
@@ -823,3 +839,4 @@ Expect `Signature=adhoc`, `TeamIdentifier=not set` — that is the trigger condi
 | 1.6 | 2026-07-02 | **BLOCKERS.** Add "Server-Hosted ViewModel Contract Wiring (Both Sides)": type-derived globally-unique paths (no `.grouped("string")`), middleware≠path, clean-host base URLs, resources server-only in sibling `Sources/Resources/`, native app in root `.xcodeproj`, Tests mirror Sources; anti-drift callout; grounded in FOSShowcase `routes.swift`/`FOSShowcaseApp.swift` (C1). Add the SPMLibraries **type-identity** rationale (`TypeA != TypeA` across targets; FOS relies on type comparison) + "do not link per-target" callout; retitled umbrella REQUIRED (was "Optional") (C2). |
 | 1.7 | 2026-07-02 | Fold in the build-verified [`fosmvvm-app-project-template.md`](../../docs/work/fosmvvm-app-project-template.md) (copied into this repo): Option-A source inclusion, singular `BUILD_LIBRARY_FOR_DISTRIBUTION` (fixed the plural no-op typo throughout), `{Base}UnitTests`/`{Base}UITests` naming, `TEST_HOST` pin, app-hosted tests, `supportedDestinations`, `.xctestplan` caveat (C3). `.testHost()` no-arg baseline + `underTest` detection via `launchEnvironment` (`__FOS_ViewModel`) not `arguments.count` — verified against `ViewModelViewTestCase.presentView` (C4). "Lifecycle: scaffolds not maintains" — synchronized folders, commit the `.xcodeproj`, keep strict-concurrency (C5). Reinforced `SystemVersion+<App>.swift` naming (C6). |
 | 1.8 | 2026-07-02 | Add "Seed the App's `CLAUDE.md`": recommend the scaffolded app repo adopt a "SOLID Is the Foundation" project-conventions entry (drop-in template) so downstream apps inherit FOSMVVM's SOLID discipline and point future sessions at the `fosmvvm-*` skills. |
+| 1.9 | 2026-07-03 | Wire in the FOSUtilities API catalog: pointer to `../shared/api-catalog/FOSMVVM.md` (§ SwiftUI Support, § Versioning) near the top, and an "API Discovery" drop-in for the seeded app `CLAUDE.md` referencing the `fosutilities-api-catalog` skill by name only (never a filesystem path — the catalog lives in the installed plugin). |

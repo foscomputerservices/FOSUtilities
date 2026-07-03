@@ -13,6 +13,8 @@ Generate ViewModels following FOSMVVM architecture patterns.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § Protocols, § Localization, § Macros and [`../shared/api-catalog/FOSFoundation.md`](../shared/api-catalog/FOSFoundation.md) § Coding (`Stubbable`) before hand-writing helpers.
+
 A **ViewModel** is the bridge in the Model-View-ViewModel architecture:
 
 ```

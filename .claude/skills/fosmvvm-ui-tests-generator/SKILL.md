@@ -13,6 +13,8 @@ Generate comprehensive UI tests for ViewModelViews in FOSMVVM applications.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSTesting.md`](../shared/api-catalog/FOSTesting.md) § FOSTestingUI before hand-writing helpers.
+
 UI testing in FOSMVVM follows a specific pattern that leverages:
 - **FOSTestingUI** framework for test infrastructure
 - **ViewModelOperations** for verifying business logic was invoked

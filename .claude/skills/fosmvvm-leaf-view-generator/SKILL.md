@@ -11,6 +11,8 @@ Generate Leaf templates that render ViewModels for web clients.
 
 > **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVMVapor.md`](../shared/api-catalog/FOSMVVMVapor.md) § Extensions (Leaf rendering) before hand-writing helpers.
+
 ---
 
 ## The View Layer for WebApps

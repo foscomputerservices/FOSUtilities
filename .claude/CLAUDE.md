@@ -99,6 +99,27 @@ call site grounds you in the customer's frame; writing docs *after* implementing
 implementer's frame (where notes-to-self leak into the customer's docs). See the
 `fosmvvm-planning` skill, which sequences design → customer-DocC → tests.
 
+### API Catalog
+
+Before hand-writing a helper, check whether it already exists — the catalog in
+`.claude/skills/shared/api-catalog/` indexes the public API by what you're reaching for:
+
+- JSON/`Codable` glue, wire-format dates, `Stubbable` test instances → `FOSFoundation.md § Coding`
+- `URLSession` fetch/post, WebSockets, mocking network calls in tests → `FOSFoundation.md § Networking`
+- Grouping collections, throttled (rate-limited) iteration → `FOSFoundation.md § Collections`
+- String casing/hashing/obfuscation, CSV parsing, hex/rounded formatting → `FOSFoundation.md § String`, `§ Numbers`
+- Async-from-sync bridging, semaphores in async code → `FOSFoundation.md § Async`
+- Semantic version comparison/parsing → `FOSFoundation.md § Versioning`
+- Typed model identifiers (never a raw `UUID`/`String` field) → `FOSFoundation.md § Data`
+- Declaring/localizing/encoding ViewModels, factories, requests → `FOSMVVM.md § Macros`, `§ Localization`, `§ Protocols`
+- Form fields and input validation → `FOSMVVM.md § Forms`, `§ Validation`
+- SwiftUI binding/app setup, property versioning, deployment URLs → `FOSMVVM.md § SwiftUI Support`, `§ Versioning`
+- Vapor boot/Leaf, routes, Fluent factories, versioned middleware → `FOSMVVMVapor.md § Extensions`, `§ Vapor Support`, `§ Protocols`, `§ Middleware`
+- Testing ViewModels / UI / ServerRequests → `FOSTesting.md § FOSTesting`, `§ FOSTestingUI`, `§ FOSTestingVapor`
+- PDF generation from SwiftUI views → `FOSReporting.md § PDF Rendering`
+
+Skills: `fosutilities-api-catalog` (discover — full reach-for index), `fosutilities-api-catalog-update` (maintain after public API changes).
+
 ### Library Hierarchy
 
 ```

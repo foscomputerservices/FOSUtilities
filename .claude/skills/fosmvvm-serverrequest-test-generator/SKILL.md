@@ -13,6 +13,8 @@ Generate test files for ServerRequest types using VaporTesting infrastructure.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSTesting.md`](../shared/api-catalog/FOSTesting.md) § FOSTestingVapor before hand-writing helpers.
+
 ServerRequest testing uses **VaporTesting** infrastructure to send typed requests through the full server stack:
 
 ```

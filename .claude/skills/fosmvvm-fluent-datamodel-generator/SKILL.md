@@ -11,6 +11,8 @@ Generate Fluent DataModels for server-side persistence following FOSMVVM archite
 
 > **Dependency:** This skill uses [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) for the Fields layer (protocol, messages, YAML). Run that skill first for form-backed models.
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVMVapor.md`](../shared/api-catalog/FOSMVVMVapor.md) § Protocols, § Extensions and [`../shared/api-catalog/FOSFoundation.md`](../shared/api-catalog/FOSFoundation.md) § Data before hand-writing helpers.
+
 ## Scope Guard
 
 This skill is specifically for **Fluent** persistence layer (typically in Vapor server apps).

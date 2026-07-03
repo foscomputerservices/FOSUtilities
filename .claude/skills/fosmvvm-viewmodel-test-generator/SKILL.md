@@ -13,6 +13,8 @@ Generate test files for ViewModels following FOSMVVM testing patterns.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md#testing-support) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSTesting.md`](../shared/api-catalog/FOSTesting.md) § FOSTesting before hand-writing helpers.
+
 ViewModel testing in FOSMVVM verifies three critical aspects:
 
 1. **Codable round-trip** - ViewModel encodes and decodes without data loss
