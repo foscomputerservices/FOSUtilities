@@ -28,6 +28,11 @@ jobs:
             swift test
           fi
         shell: bash
+
+      - name: API Catalog Audit
+        if: matrix.os == 'ubuntu-latest'
+        run: swift scripts/api-catalog-audit.swift
+        shell: bash
  
   # Ensure that compilation succeeds via xcodebuild
   run_xcodebuild_tests:
