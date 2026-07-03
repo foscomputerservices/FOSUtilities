@@ -13,7 +13,7 @@ Generate React components that render FOSMVVM ViewModels.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
-> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) before hand-writing helpers.
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § Protocols for the ViewModel/request wire contracts before shaping TypeScript types.
 
 In FOSMVVM, **React components are thin rendering layers** that display ViewModels:
 
