@@ -1,6 +1,6 @@
 ---
 name: fosutilities-api-catalog
-description: Discover FOSUtilities APIs before writing helper code. Use when reaching for JSON/Codable encoding-decoding, wire-format date formatting, URLSession/HTTP fetching, WebSockets, network mocking in tests, collection grouping or throttled iteration, string casing/hashing/obfuscation/CSV parsing, hex or rounded-number formatting, semantic version comparison, semaphores or async-from-sync bridging, typed model identifiers, ViewModel declaration and localization, form fields and validation, ServerRequests/CRUD, SwiftUI ViewModel binding, Vapor boot wiring/routes/Fluent/Leaf/middleware, ViewModel or ServerRequest or UI testing, or PDF generation — in any project that imports FOSFoundation, FOSMVVM, FOSMVVMVapor, FOSTesting, or FOSReporting.
+description: Discover FOSUtilities APIs before writing helper code. Use when reaching for JSON/Codable encoding-decoding, wire-format date formatting, URLSession/HTTP fetching, WebSockets, network mocking in tests, collection grouping or throttled iteration, string casing/hashing/obfuscation/CSV parsing, hex or rounded-number formatting, semantic version comparison, semaphores or async-from-sync bridging, typed model identifiers, runtime environment/bundle-version checks (simulator/TestFlight detection), ViewModel declaration and localization, form fields and validation, ServerRequests/CRUD, SwiftUI ViewModel binding, Vapor boot wiring/routes/Fluent/Leaf/middleware, ViewModel or ServerRequest or UI testing, or PDF generation — in any project that imports FOSFoundation, FOSMVVM, FOSMVVMVapor, FOSTesting, or FOSReporting.
 homepage: https://github.com/foscomputerservices/FOSUtilities
 metadata: {"clawdbot": {"emoji": "🗂️", "os": ["darwin", "linux"]}}
 ---
@@ -8,7 +8,7 @@ metadata: {"clawdbot": {"emoji": "🗂️", "os": ["darwin", "linux"]}}
 # FOSUtilities API Catalog
 
 Before hand-writing a helper in a project that imports these libraries, check
-whether it already exists. Fifteen years of accumulated API lives here; the most
+whether it already exists. Fifteen-plus years of accumulated API lives here; the most
 common failure is reinventing it.
 
 ## How to use this skill
@@ -46,7 +46,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Encoding a ViewModel with its localizations resolved → `FOSMVVM.md § Extensions`
 - Describing form fields — control type, keyboard, input constraints, value binding → `FOSMVVM.md § Forms`
 - Validating user input, reporting and aggregating validation outcomes → `FOSMVVM.md § Validation`
-- Fetching server data for a screen — ViewModel requests, CRUD writes, factories → `FOSMVVM.md § Protocols`
+- Binding a screen to server data — ViewModel requests, CRUD writes, factories → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`
 - Booting a Vapor server for MVVM — YAML localization store, environment, locale, Leaf rendering → `FOSMVVMVapor.md § Extensions`
