@@ -4,8 +4,8 @@ Curated map of the testing modules' public API, organized by task — three
 modules in one file: **FOSTesting** (platform-neutral helpers for Swift Testing
 suites), **FOSTestingUI** (XCTest base classes that drive ViewModelViews through
 XCUITest; Apple platforms only), and **FOSTestingVapor** (in-process
-ServerRequest testing against a real Vapor application; macOS/Linux, DEBUG
-builds). Before hand-rolling a codable round-trip, a translation sweep, a mock
+ServerRequest testing against a real Vapor application; macOS/Linux only).
+Before hand-rolling a codable round-trip, a translation sweep, a mock
 network session, or a test HTTP request — check here first.
 
 ## FOSTesting
@@ -48,8 +48,12 @@ try expectTranslations(UserViewModel.self, locales: [en])
 
 ### The whole ViewModel contract in one call — `expectFullViewModelTests()` / `expectFullFieldValidationModelTests()` / `expectFullFormFieldTests()`
 Reach for this when: writing the standard test for a ViewModel, a
-`@FieldValidationModel` messages type, or a FormField — one call runs the
-codable round-trip, version-stability, and translation checks below. This is
+`@FieldValidationModel` messages type, or a FormField. Coverage differs per
+call: `expectFullViewModelTests()` runs the codable round-trip,
+version-stability, and translation checks below;
+`expectFullFieldValidationModelTests()` runs the codable round-trip and
+translation checks (no version-stability); `expectFullFormFieldTests()` runs
+only the translation check, on the field's title and placeholder. This is
 what the `fosmvvm-viewmodel-test-generator` skill scaffolds; prefer it over
 calling the pieces individually.
 
@@ -179,7 +183,7 @@ catch RunError.cannotRetrieveOperationsData { /* transporter missing or stale */
 ## FOSTestingVapor
 
 In-process, full-pipeline testing of ServerRequests against a Vapor application
-(macOS/Linux, DEBUG builds): the typed `test()` extension on VaporTesting's
+(macOS/Linux only): the typed `test()` extension on VaporTesting's
 application tester with its `TestingServerRequestResponse`, a one-shot harness
 that boots a fresh application per request, `LocalizableTestCase` fixtures for
 localized Vapor Application/Request instances, Codable⇄ByteBuffer JSON bridges,
@@ -212,7 +216,7 @@ application configuration — each `test(request:locale:)` boots a fresh Vapor
 application, loads your YAML localization, hosts the request's route, serves it
 through the real route + localization pipeline, and shuts the application back
 down, returning the typed response body. The request's ResponseBody must be a
-VaporViewModelFactory (FOSMVVMVapor).
+VaporViewModelFactory (FOSMVVMVapor). DEBUG builds only.
 
 ```swift
 let harness = try await VaporServerRequestTest(
@@ -225,7 +229,7 @@ Reach for this when: a unit test needs a Vapor Application carrying the suite's
 LocalizationStore, or a Request bound to a locale (testing `localizingEncoder`,
 factories that read the request's locale) — without registering routes.
 Available on `LocalizableTestCase` suites; the store defaults to the suite's
-`locStore`, and the application listens on `testServerPort`.
+`locStore`, and the application is configured for `testServerPort`.
 
 ```swift
 let app = try await vaporApplication()
