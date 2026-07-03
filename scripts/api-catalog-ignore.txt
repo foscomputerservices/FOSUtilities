@@ -1,3 +1,8 @@
 # api-catalog-audit ignore list — one base identifier per line.
 # Symbols listed here are deliberately excluded from catalog-gap, stale-entry,
 # and DocC-worklist reporting (e.g., deprecated API kept for compatibility).
+
+# String+Polyfill compatibility shim (String.replacing(pattern:with:)) — fills in
+# regex replacement on toolchains without the native API; customers should reach
+# for Swift's built-in replacing/Regex APIs, not this shim.
+replacing
