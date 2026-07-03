@@ -1,10 +1,9 @@
 # FOSReporting API Catalog
 
 Curated map of FOSReporting's public API, organized by task — PDF generation
-from SwiftUI views. Apple platforms only (iOS, macOS, visionOS, watchOS): on
-Linux this module produces no symbol graph, so the audit skips this file's
-stale check there — it runs fully on macOS. Before hand-rolling a
-Core Graphics PDF context or a UIGraphicsPDFRenderer — check here first.
+from SwiftUI views. Apple platforms only (iOS, macOS, visionOS, watchOS).
+Before hand-rolling a Core Graphics PDF context or a UIGraphicsPDFRenderer —
+check here first.
 
 ## PDF Rendering
 
