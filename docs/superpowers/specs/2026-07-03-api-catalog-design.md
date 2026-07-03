@@ -94,10 +94,24 @@ Rules for entries:
   comparison, stubbing/test data, async coordination (semaphores, task helpers), plus the
   FOSMVVM/Vapor/Testing surfaces. Explicit instruction: invoke **before writing helper
   code** in any project that imports these libraries.
-- **Body:** a compact per-library index (library → its categories, one line each) and the
-  loading rule: read **only** the catalog file(s) relevant to the task, from
+- **Body:** a **reach-for index** — organized from the client implementor's point of view,
+  keyed by the platform type or task they are about to use, *not* by our library layout.
+  One line per reach, mapping to the catalog file + section that covers it, e.g.:
+
+  ```markdown
+  - Reaching for `JSONEncoder`/`JSONDecoder`, writing Codable glue → FOSFoundation.md § Coding
+  - Reaching for `URLSession`/`URLRequest`, fetching or posting data → FOSFoundation.md § Networking
+  - Reaching for `URLSessionWebSocketTask` → FOSFoundation.md § Networking
+  - Mocking network calls in tests → FOSFoundation.md § Networking, FOSTesting.md
+  - Reaching for string casing/hashing/obfuscation → FOSFoundation.md § String
+  - Writing a Vapor route/controller that serves ViewModels → FOSMVVMVapor.md
+  ```
+
+  Plus the loading rule: read **only** the catalog file(s) the matched lines point to, from
   `shared/api-catalog/`. The skill body itself stays small; the catalog files carry the
-  content.
+  content. If a reach isn't obvious from the index, the implementor's frame wins — add the
+  missing index line (via the update skill) rather than expecting readers to learn our
+  category layout.
 
 ## Component 3 — Wiring and always-on index
 
@@ -105,9 +119,10 @@ Rules for entries:
   catalog sections it touches (e.g., viewmodel-generator → FOSMVVM ViewModel surface +
   FOSFoundation `Stubbable`; serverrequest-test-generator → FOSTesting.md). One line, not
   duplicated content.
-- **This repo's CLAUDE.md:** a ~10-line index — one line per library naming its categories,
-  pointing at `.claude/skills/shared/api-catalog/` and the discovery skill. Always in
-  context; discovery without an invocation decision.
+- **This repo's CLAUDE.md:** a ~10-line index in the same reach-for framing — one line per
+  common reach (`JSON/Codable`, `URL/URLSession`, `WebSocket`, `String utilities`,
+  `Vapor serving`, `test stubbing`, …) pointing at `.claude/skills/shared/api-catalog/`
+  and the discovery skill. Always in context; discovery without an invocation decision.
 - **Consumer projects:** `fosmvvm-swiftui-app-setup` (the consumer onboarding skill) adds
   a consumer variant of the index block to the consumer's CLAUDE.md as part of setup. The
   consumer variant references the discovery skill **by name** (`fosutilities-api-catalog`)
@@ -157,7 +172,8 @@ Workflow it drives:
 2. For each **stale entry**: fix or remove it first.
 3. For each **catalog gap**: read the source, then write a curated entry following the
    Component 1 rules — customer framing first ("how do they call it, why do they care"),
-   same DocC-first discipline as `fosmvvm-planning`.
+   same DocC-first discipline as `fosmvvm-planning`. If the new entry serves a reach not
+   yet in the discovery skill's reach-for index, add the index line too.
 4. Surface the **DocC worklist** count as a report line (no action in this workflow).
 5. **Bump the plugin version** in `.claude-plugin/plugin.json` whenever catalog or skill
    files change (established practice — consumers only receive updates on version bump).
@@ -203,4 +219,6 @@ treat it as its own phase with a checkpoint per catalog file.
   surfaces (Vapor targets are macOS/Linux; Reporting is Apple-only). Linux-only drift is
   not a realistic concern for API *surface*.
 - **Catalog size vs. context:** per-library files + load-only-what's-relevant keeps any
-  single load bounded; if FOSFoundation.md grows past ~500 lines, split per category.
+  single load bounded; if FOSFoundation.md grows past ~500 lines, split per category. Any
+  split is invisible to readers: the reach-for index is the entry point and its pointers
+  update with the split — implementors never navigate our file layout directly.
