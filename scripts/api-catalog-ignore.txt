@@ -1,0 +1,3 @@
+# api-catalog-audit ignore list — one base identifier per line.
+# Symbols listed here are deliberately excluded from catalog-gap, stale-entry,
+# and DocC-worklist reporting (e.g., deprecated API kept for compatibility).
