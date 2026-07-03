@@ -18,3 +18,4 @@ session-state-*.json
 # canaries are tracked explicitly via the negation below.
 Tests/**/.VersionedTestJSON/*
 !Tests/**/.VersionedTestJSON/TestVersionedViewModel_*.json
+.worktrees/
