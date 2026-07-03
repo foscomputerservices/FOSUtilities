@@ -355,6 +355,7 @@ private struct TestUser: UserFields {
 ## See Also
 
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full FOSMVVM architecture
+- [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md) — **encapsulation is the precondition SOLID assumes, not a SOLID checkbox** (SOLID degrades silently without it; review it separately). Especially load-bearing for persistence: `ModelIdType` (UUID) belongs only in `@ID()` (raw UUID fields in other columns bypass type safety — the stringly-typing break); use junction tables and typed relations, never a raw string/UUID reference. And a persisted type's encoded/column shape is a *library-internal* invariant — pin it with an internal comment + a forward-compat test, never by publishing it. Repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.
 - [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) - For form validation (Fields protocols)
 - [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) - For ViewModels that project from DataModels
 - [reference.md](reference.md) - Complete file templates

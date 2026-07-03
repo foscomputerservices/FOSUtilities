@@ -43,6 +43,62 @@ treat a SOLID violation as a hard stop, not a style nit.
   protocols, not one fat contract); **DIP** (the ViewModel module never imports the
   domain/wire module — the Factory adapts).
 
+#### Encapsulation Is the Precondition SOLID Assumes
+
+Encapsulation is **not** one of the SOLID principles and **not** something a "SOLID-clean"
+verdict certifies — it is the **precondition** the principles rely on. SOLID governs *structure
+and dependency direction*; encapsulation governs *state visibility*. The dependency runs one way:
+SOLID's benefits **degrade silently** without perfect encapsulation, but SOLID neither defines nor
+enforces it. SRP is satisfied by a type whose fields are all `public var`; OCP is "followed" the
+moment you modify nothing — even while an extension reaches around an abstraction into hidden state,
+at which point the safe-extension benefit quietly evaporates. **So review encapsulation as its own
+axis; a SOLID pass never implies the internals are safe.**
+
+- **Why it's non-negotiable.** Scalable, extensible, maintainable, testable systems *require*
+  perfect encapsulation to exist and run predictably over long periods. Break one encapsulation
+  wall and it's the small hole in the dam — the coupling leaks, spreads, and cascades into failure
+  far from the crack.
+- **Stringly-typing *is* the encapsulation break** (why we despise it). A `String` — or any raw,
+  publicly-constructable value used as an identity/route/key/token — has **no wall**: anyone can
+  mint it, parse it, or route on it. So FOSMVVM mints identities from *types*
+  (`ModelNamespace(for:)`, never a string literal), keeps identity contents opaque, and forbids raw
+  getters. Prefer an opaque/typed value over a `String` every time. If you're tempted to expose a
+  `String` "just for a test" or "just to derive X," that's the crack — **stop**.
+- **Encapsulation is broken by *publishing the representation*, too — not only by accessors.** Do
+  not state a sealed type's internal shape (encoded JSON keys, a token format, byte layout) on any
+  **public** surface — DocC comments, CHANGELOG, README. A doc that shows the shape is a de-facto
+  schema consumers will parse or hand-forge, and then you can never change it. State the **contract**
+  (opaque; `Codable` round-trips; stable within a major version; do not parse or hand-construct),
+  never the representation. Pin the shape, where it must be pinned, in an internal `//` comment +
+  an internal test — invisible to consumers.
+- **Test the contract, not the representation.** Assert behavior the contract guarantees (equality,
+  determinism, "old data still decodes"), never an incidental encoded shape. Reaching into internals
+  — or exposing them — to make a test easier is the same crack from the other side.
+
+### Documentation & Comments — Know Your Audience
+
+Three audiences, three homes. **Conflating them is the most common documentation failure** (and the
+tell that separates hand-written docs from AI-written ones):
+
+- **DocC (`///`) serves the code's *customer*.** Lead with **how they call it** — nearly always an
+  **example** — then *why they care* and *when it matters*. State the **contract**, never
+  implementation details, design rationale, or notes-to-self. "An opaque token that wraps a…" is the
+  wrong frame; "Create one from a type — `ModelNamespace(for: User.self)`; override to…" is right.
+  The repo treats undocumented **and** example-free public API as debt.
+- **Design/plan prose serves the *implementer* (future-you).** The "why this way", the rationale, the
+  gotchas, the rejected alternatives — this is expected and belongs here, in the implementation plan
+  or design doc, **not** baked into a DocC comment. When implementer context shows up in a DocC,
+  **relocate it to the prose**, don't just delete it.
+- **Internal `//` serves the *maintainer*.** Only when genuinely non-obvious — a constraint or gotcha
+  a competent reader would get wrong (`// Not @inlinable — calls an internal init @inlinable can't
+  reach`). Never to prove a non-problem or restate what the code plainly says (that is theatre; it
+  reads as compensating for doubt and costs lifetime velocity).
+
+**Write the DocC first — before the code.** Drafting "how will the user call this? why/when?" from the
+call site grounds you in the customer's frame; writing docs *after* implementing traps you in the
+implementer's frame (where notes-to-self leak into the customer's docs). See the
+`fosmvvm-planning` skill, which sequences design → customer-DocC → tests.
+
 ### Library Hierarchy
 
 ```

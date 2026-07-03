@@ -203,6 +203,25 @@ identity churn) that surface far from their cause. Treat a SOLID violation as a 
 - Key rules: a ViewModel is a *projection of* data, never the data (the Factory adapts);
   the ViewModel module never imports the domain/wire module; consume SPM products through
   the one `SPMLibraries` umbrella; `vmId` is stable data identity, never a throwaway.
+
+### Encapsulation Is the Precondition SOLID Assumes
+
+Encapsulation is **not** a SOLID principle and **not** something a "SOLID-clean" verdict
+certifies — it is the precondition SOLID relies on. SOLID governs structure/dependency
+direction; encapsulation governs state visibility. SOLID's benefits **degrade silently**
+without it (SRP is satisfied by all-`public var`; OCP is "followed" while an extension pokes
+another type's hidden state and the safe-extension payoff evaporates), so **review it
+separately**. Scalable, maintainable, testable apps require perfect encapsulation to run
+predictably over time — break one wall and it's the small hole in the dam that cascades.
+
+- **Stringly-typing is the encapsulation break.** A `String` used as an identity/route/key/
+  token has no wall — anyone can mint, parse, or route on it. Prefer a typed/opaque value;
+  never expose a `String` "just for a test" or "just to derive X."
+- **Don't publish the representation.** Never state a sealed type's internal shape (encoded
+  keys, token format) in DocC / CHANGELOG / README — it becomes a schema others parse or forge.
+  State the *contract* (opaque; round-trips; stable within a major version), not the shape.
+- **Test the contract, not the representation** (equality, determinism, "old data still
+  decodes"), never an incidental encoded byte layout.
 ```
 
 ## Project Structure Configuration

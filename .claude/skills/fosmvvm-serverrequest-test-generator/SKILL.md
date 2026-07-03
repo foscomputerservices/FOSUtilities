@@ -177,6 +177,8 @@ Available on `TestingApplicationTester`:
 
 ## Test Structure
 
+> **Testing discipline: assert the contract, not the wire representation.** Verify *behavior* through the typed response — status, and the decoded `response.body?.viewModel` (its properties, localized values, round-trip). **Never** assert the raw response JSON's shape/keys/byte layout; there is no contract that a request encodes *a particular way*, only that it round-trips. Build requests via their public initializers, not by reaching internal state. `@testable import` here is for seeing internal types + test infra — not a license to bypass a type's construction contract or read its privates (that's coverage-only). See [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md).
+
 ### Basic Test Suite
 
 ```swift
@@ -567,6 +569,7 @@ See [reference.md](reference.md) for complete file templates.
 ## See Also
 
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full architecture
+- [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md) — **test the contract, not the representation.** Assert behavior the contract guarantees (round-trip identity preservation, "old data still decodes", equality/determinism), never an incidental encoded byte/key layout, and never expose a type's internals to make an assertion easier — that's the encapsulation break from the test side. Repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.
 - [fosmvvm-serverrequest-generator](../fosmvvm-serverrequest-generator/SKILL.md) - Creating ServerRequest types
 - [fosmvvm-viewmodel-test-generator](../fosmvvm-viewmodel-test-generator/SKILL.md) - Testing ViewModels (localization only)
 - [reference.md](reference.md) - Complete file templates

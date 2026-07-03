@@ -139,6 +139,8 @@ public protocol {Name}Fields: ValidatableModel, Codable, Sendable {
 }
 ```
 
+> **Overridable-with-a-default member? Declare it as a *requirement* AND provide the default.** If you want a Fields member to have a zero-config default that a conformer can still override (a validation policy, a message source), it must be a protocol **requirement** with a default in an extension. A member defined *only* in an extension is statically dispatched — a conformer's "override" merely **shadows** it and calls through the protocol/a generic `some {Name}Fields` still hit the default. That's a silent OCP failure. See [Architecture Patterns → Requirement + Default = a Real Override](../shared/architecture-patterns.md).
+
 ### FormField Definition
 
 ```swift
@@ -244,6 +246,7 @@ en:
 ## See Also
 
 - [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) - Full FOSMVVM architecture reference
+- [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md) — **encapsulation is the precondition SOLID assumes, not a SOLID checkbox.** A Fields contract must express field identity/validation as *typed* values, never raw `String` keys/identities (stringly-typing is the encapsulation break — the small hole in the dam). Repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.
 - [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) - For ViewModels that adopt Fields
 - [fosmvvm-fluent-datamodel-generator](../fosmvvm-fluent-datamodel-generator/SKILL.md) - For Fluent DataModels that implement Fields
 - [reference.md](reference.md) - Complete file templates
