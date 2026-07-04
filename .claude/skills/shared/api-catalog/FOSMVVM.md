@@ -536,7 +536,7 @@ WindowGroup { RootView() }
     ))
 ```
 
-### Bind a ViewModel to a view — `ViewModelView` / `bind()` / `ViewModelViewError`
+### Bind a ViewModel to a view — `ViewModelView` / `bind()` / `ViewModelViewError` <!-- apple-only -->
 Reach for this when: writing any SwiftUI view over a ViewModel — conform to
 `ViewModelView` (not bare View) and let the parent call `bind()`: it shows the
 environment's loading view, fetches via the ViewModel's `Request` (or the
@@ -553,7 +553,7 @@ struct UserView: ViewModelView {
 UserView.bind(query: .init(userId: id))
 ```
 
-### Localized values in SwiftUI — `navigationTitle()` / `text`
+### Localized values in SwiftUI — `navigationTitle()` / `text` <!-- apple-only -->
 Reach for this when: displaying a `Localizable` — `Text(viewModel.title)`,
 `Label(viewModel.title, systemImage:)`, `TextField`, `Tab`, `LabeledContent`,
 and `ContentUnavailableView` all take Localizables directly, and
@@ -565,7 +565,7 @@ Text(viewModel.pageTitle)
     .navigationTitle(viewModel.navTitle)
 ```
 
-### Refresh a stale ViewModel binding — `invalidateBinding()` / `refreshedViewModel()`
+### Refresh a stale ViewModel binding — `invalidateBinding()` / `refreshedViewModel()` <!-- apple-only -->
 Reach for this when: a mutation makes a bound ViewModel out of date —
 `invalidateBinding($flag)` re-pulls from the server when the flag turns true;
 `refreshedViewModel($vm)` swaps in a replacement you already have (e.g., a
@@ -576,7 +576,7 @@ UserSubView.bind()
     .invalidateBinding($userOutOfDate)
 ```
 
-### Present form fields — `FormFieldView`
+### Present form fields — `FormFieldView` <!-- apple-only -->
 Reach for this when: rendering a `FormFieldModel` — it selects the
 platform-appropriate control, keyboard, and autocomplete from the `FormField`
 spec, debounces `onNewValue`, and runs the field validator on blur/submit.
@@ -603,7 +603,7 @@ var data = FormData()
 saveBus.invoke(&data)
 ```
 
-### Preview with localized stub data — `previewHost()`
+### Preview with localized stub data — `previewHost()` <!-- apple-only -->
 Reach for this when: writing a #Preview for a `ViewModelView` — hosts the view
 with `VM.stub()` (or a supplied ViewModel), resolves `@LocalizedString`
 bindings from the bundle's YAML, and can set `@State` via `setStates:`.
@@ -612,7 +612,7 @@ bindings from the bundle's YAML, and can set `@State` via `setStates:`.
 #Preview { UserView.previewHost() }
 ```
 
-### Host views for UI tests — `testHost()` / `testHostRequest` / `registerTestView()`
+### Host views for UI tests — `testHost()` / `testHostRequest` / `registerTestView()` <!-- apple-only -->
 Reach for this when: wiring an app target for FOSTestingUI's
 ViewModelViewTestCase — wrap the root view in `testHost()` (optionally
 decorating the view under test with test bindings) and register each testable
@@ -629,7 +629,7 @@ WindowGroup {
 // at startup: mvvmEnv.registerTestView(UserView.self)
 ```
 
-### Assert operations from XCUITests — `TestDataTransporter` / `testDataTransporter()`
+### Assert operations from XCUITests — `TestDataTransporter` / `testDataTransporter()` <!-- apple-only -->
 Reach for this when: verifying that UI interactions called your
 `ViewModelOperations` — the modifier serializes the (stub) operations into a
 hidden accessibility element that the test case reads back and decodes.
@@ -641,7 +641,7 @@ VStack { /* fields and buttons */ }
     .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
 ```
 
-### Tag elements for XCUITest — `uiTestingIdentifier()`
+### Tag elements for XCUITest — `uiTestingIdentifier()` <!-- apple-only -->
 Reach for this when: an XCUITest must locate an element — sets the
 accessibility identifier in DEBUG builds only, on both View and (iOS 18/
 macOS 15) TabContent.

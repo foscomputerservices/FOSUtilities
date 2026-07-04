@@ -162,7 +162,7 @@ public struct UserViewModel {
 
 Runtime checks on the application bundle (Apple platforms).
 
-### Detect simulator and TestFlight installs — `isSimulator` / `isTestFlightInstall`
+### Detect simulator and TestFlight installs — `isSimulator` / `isTestFlightInstall` <!-- apple-only -->
 Reach for this when: behavior should differ between simulator, TestFlight, and
 App Store installs (diagnostics, feature gating, analytics opt-out).
 
@@ -171,7 +171,7 @@ if Bundle.main.isSimulator { enableDebugOverlay() }
 if Bundle.main.isTestFlightInstall { showBetaFeedbackButton() }
 ```
 
-### App-bundle version as a SystemVersion — `appleOSVersion`
+### App-bundle version as a SystemVersion — `appleOSVersion` <!-- apple-only -->
 Reach for this when: comparing the version Apple shows in the App Store (the
 bundle's Version + Build) against `SystemVersion.current` to ensure the two are
 configured consistently.

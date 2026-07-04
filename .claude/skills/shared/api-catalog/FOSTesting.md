@@ -129,7 +129,7 @@ Requires app-side wiring: `testHost()` and `registerTestView()` from FOSMVVM
 (catalogued there). The `fosmvvm-ui-tests-generator` skill scaffolds both
 sides.
 
-### UI-test a display-only view — `ViewModelDisplayTestCase` / `presentView()` / `localizedViewModel()`
+### UI-test a display-only view — `ViewModelDisplayTestCase` / `presentView()` / `localizedViewModel()` <!-- apple-only -->
 Reach for this when: XCUITest-driving a ViewModelView that only displays data —
 no operations to verify. Create one project-level subclass that pins
 `setUp(bundle:resourceDirectoryName:appBundleIdentifier:locales:)`; each test
@@ -150,7 +150,7 @@ final class MyDisplayViewUITests: AppDisplayTestCase<MyDisplayViewModel>, @unche
 }
 ```
 
-### UI-test an interactive view — `ViewModelViewTestCase` / `viewModelOperations()`
+### UI-test an interactive view — `ViewModelViewTestCase` / `viewModelOperations()` <!-- apple-only -->
 Reach for this when: the view dispatches user actions to a ViewModelOperations
 protocol — drive the UI, then `viewModelOperations()` reads the recorded stub
 operations back out of the running app (transported via FOSMVVM's
@@ -169,7 +169,7 @@ final class MyViewUITests: AppViewTestCase<MyViewModel, MyViewModelStubOps>, @un
 }
 ```
 
-### Diagnose harness failures — `RunError`
+### Diagnose harness failures — `RunError` <!-- apple-only -->
 Reach for this when: a UI test throws before asserting anything —
 `setupNotCalled` means the subclass never called the base `setUp`;
 `didntStart` means the app never reached the foreground;
