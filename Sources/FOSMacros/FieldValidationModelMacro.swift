@@ -51,6 +51,7 @@ public struct FieldValidationModelMacro: ExtensionMacro, MemberMacro {
         "LocalizedString",
         "LocalizedInt",
         "LocalizedDouble",
+        "LocalizedDate",
         "LocalizedCompoundString",
         "LocalizedSubs",
 

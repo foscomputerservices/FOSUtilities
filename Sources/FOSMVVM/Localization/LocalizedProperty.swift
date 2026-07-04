@@ -166,6 +166,7 @@ public extension RetrievablePropertyNames {
     typealias LocalizedString = _LocalizedProperty<Self, LocalizableString>
     typealias LocalizedInt = _LocalizedProperty<Self, LocalizableInt>
     typealias LocalizedDouble = _LocalizedProperty<Self, LocalizableDouble>
+    typealias LocalizedDate = _LocalizedProperty<Self, LocalizableDate>
     typealias LocalizedCompoundString = _LocalizedProperty<Self, LocalizableCompoundValue<LocalizableString>>
     typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
@@ -340,6 +341,37 @@ public extension RetrievablePropertyNames {
             groupingSize: groupingSize,
             minimumFractionDigits: minimumFractionDigits,
             maximumFractionDigits: maximumFractionDigits
+        )
+        self.bindWrappedValue = nil
+        self.vFirst = vFirst ?? .vInitial
+        self.vLast = vLast
+    }
+
+    /// Initializes the ``LocalizedDate`` property wrapper
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @ViewModel struct MyViewModel {
+    ///     @LocalizedDate(value: order.placedAt, dateStyle: .short) var placedAt
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - value: The date to localize; formatted for the receiving **Locale** during encoding
+    ///   - dateStyle: The **DateFormatter.Style** for the date portion (when no style or
+    ///      format is provided, ``LocalizableDate`` defaults to `.medium`)
+    ///   - timeStyle: The **DateFormatter.Style** for the time portion (default: none)
+    ///   - dateFormat: A fixed date-format string that overrides the styles (default: none)
+    ///   - vFirst: The first *SystemVersion* that this property is valid in
+    ///   - vLast: The last *SystemVersion* that this property is valid in
+    public init(value: Date, dateStyle: DateFormatter.Style? = nil, timeStyle: DateFormatter.Style? = nil, dateFormat: String? = nil, vFirst: SystemVersion? = nil, vLast: SystemVersion? = nil) where Value == LocalizableDate {
+        self.localizationId = .random(length: 10)
+        self.wrappedValue = .init(
+            value: value,
+            dateStyle: dateStyle,
+            timeStyle: timeStyle,
+            dateFormat: dateFormat
         )
         self.bindWrappedValue = nil
         self.vFirst = vFirst ?? .vInitial

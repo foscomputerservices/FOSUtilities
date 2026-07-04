@@ -101,18 +101,20 @@ during encoding (see `localizingEncoder()` under Extensions) — so the server
 localizes ViewModels before they ever reach the client. Stores load from
 `.yml` resources; errors surface as typed enums.
 
-### Bind properties to YAML values — `LocalizedString` / `LocalizedInt` / `LocalizedDouble` / `LocalizedStrings` / `LocalizedCompoundString` / `LocalizedSubs`
+### Bind properties to YAML values — `LocalizedString` / `LocalizedInt` / `LocalizedDouble` / `LocalizedDate` / `LocalizedStrings` / `LocalizedCompoundString` / `LocalizedSubs`
 Reach for this when: declaring localized properties on an `@ViewModel` or
 `@FieldValidationModel` type. The property name is the YAML key by default;
 `parentKey(s)`, `propertyName`, and `index` navigate nested and array values.
-There is no `@LocalizedDate` wrapper — carry a `LocalizableDate` property
-instead.
+`@LocalizedDate` passes `dateStyle`/`timeStyle`/`dateFormat` through to
+`LocalizableDate` (`.medium` date style when nothing is specified); its
+`value:` is required — a date has no zero.
 Don't concatenate or format localized strings in Swift — bind them.
 
 ```swift
 @ViewModel public struct UserViewModel {
     @LocalizedString public var pageTitle // UserViewModel.pageTitle in YAML
     @LocalizedString(parentKey: "email") public var emailTitle
+    @LocalizedDate(value: user.createdAt, dateStyle: .short) public var createdAt
     @LocalizedStrings public var bulletPoints // YAML array
     public var vmId = ViewModelId()
 }
