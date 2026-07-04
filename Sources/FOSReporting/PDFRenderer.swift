@@ -89,7 +89,7 @@ public enum PDFRenderer {
     /// // Custom size
     /// let custom = PageSize(width: 800, height: 600)
     /// ```
-    public struct PageSize {
+    public struct PageSize: Sendable {
         /// The orientation of a page.
         ///
         /// Page orientation affects how standard page sizes are interpreted.
