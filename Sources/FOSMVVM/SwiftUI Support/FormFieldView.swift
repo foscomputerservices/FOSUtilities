@@ -32,12 +32,13 @@ import SwiftUI
 /// ```swift
 /// public struct UserFormView: ViewModelView {
 ///     let viewModel: UserFormModel
+///     @FocusState private var focusedField: FormFieldIdentifier?
 ///
 ///     var body: some View {
 ///         Form {
-///           FormFieldView(fieldModel: viewModel.$email)
-///           FormFieldView(fieldModel: viewModel.$firstName)
-///           FormFieldView(fieldModel: viewModel.$lastName)
+///           FormFieldView(fieldModel: viewModel.$email, focusField: $focusedField)
+///           FormFieldView(fieldModel: viewModel.$firstName, focusField: $focusedField)
+///           FormFieldView(fieldModel: viewModel.$lastName, focusField: $focusedField)
 ///         }
 ///     }
 /// }
@@ -71,7 +72,7 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
                 onNewValue?(newValue)
             }
             .onChange(of: isFocused) {
-                if !isFocused && hasChanged {
+                if !isFocused, hasChanged {
                     Self.validateIt(
                         fieldModel: fieldModel,
                         fieldValidator: fieldValidator,
@@ -167,12 +168,11 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
                 }
 
                 // Only the value forwarded downstream (debounced onNewValue) is trimmed.
-                let valueToSend: Value
-                if let str = newValue as? String {
+                let valueToSend: Value = if let str = newValue as? String {
                     // swiftlint:disable:next force_cast
-                    valueToSend = str.trimmingCharacters(in: .whitespaces) as! Value
+                    str.trimmingCharacters(in: .whitespaces) as! Value
                 } else {
-                    valueToSend = newValue
+                    newValue
                 }
                 coordinator.subject.send(valueToSend)
             }

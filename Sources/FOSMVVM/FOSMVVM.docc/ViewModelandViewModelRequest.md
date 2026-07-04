@@ -136,7 +136,7 @@ import Vapor
 import ViewModels
 
 func routes(_ app: Application) throws {
-    try app.routes.register(model: LandingPageViewModel.self)
+    try app.routes.register(viewModel: LandingPageViewModel.self)
 }
 ```
 

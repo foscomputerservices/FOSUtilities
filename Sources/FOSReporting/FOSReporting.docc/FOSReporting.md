@@ -23,7 +23,7 @@ import FOSReporting
 import SwiftUI
 
 // Generate a simple PDF
-let pdfData = try await PDFRenderer.render(
+let pdfData = try PDFRenderer.render(
     pageSize: .a4(),
     pageCount: 1
 ) { pageIndex in

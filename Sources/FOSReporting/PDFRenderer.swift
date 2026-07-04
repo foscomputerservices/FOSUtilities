@@ -42,7 +42,7 @@ import UIKit
 ///
 /// ```swift
 /// // Create a single-page PDF
-/// let pdfData = try await PDFRenderer.render(
+/// let pdfData = try PDFRenderer.render(
 ///     pageSize: .a4(),
 ///     pageCount: 1
 /// ) { _ in
@@ -51,7 +51,7 @@ import UIKit
 /// }
 ///
 /// // Create a multi-page document
-/// let multiPagePDF = try await PDFRenderer.render(
+/// let multiPagePDF = try PDFRenderer.render(
 ///     pageSize: .usLetter(orientation: .landscape),
 ///     pageCount: 10
 /// ) { pageIndex in
@@ -192,7 +192,7 @@ public enum PDFRenderer {
     /// ## Example
     ///
     /// ```swift
-    /// let pdfData = try await PDFRenderer.render(
+    /// let pdfData = try PDFRenderer.render(
     ///     pageSize: .a4(),
     ///     pageCount: 3,
     ///     format: {
@@ -284,7 +284,7 @@ public enum PDFRenderer {
     /// ## Example
     ///
     /// ```swift
-    /// let pdfData = try await PDFRenderer.render(
+    /// let pdfData = try PDFRenderer.render(
     ///     pageSize: .usLetter(orientation: .landscape),
     ///     pageCount: 5
     /// ) { pageIndex in
