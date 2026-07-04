@@ -126,6 +126,13 @@ a public plugin surface.
    - **Only symbols owned by THIS file's modules go in titles** (stale checks
      are scoped per file). A cross-module symbol goes in prose with a pointer
      to its own catalog file.
+   - **Apple-only symbols need the marker.** A title whose symbols are
+     SwiftUI/UIKit-gated (`#if canImport(SwiftUI)`, `#if os(iOS)`, …) inside a
+     module that still builds on Linux must end with `<!-- apple-only -->`
+     (invisible when rendered). Without it, Linux CI reports the symbols stale
+     — they're absent from Linux symbol graphs. On macOS the marker is inert,
+     so full stale enforcement still happens on every local/update-skill run.
+     Verify the marker path with `FOS_AUDIT_ASSUME_NON_APPLE=1` if needed.
    - Mixed title grammar is fine: imperative ("Compare versions — …") or
      noun-phrase ("Codable JSON round-trip — …").
 

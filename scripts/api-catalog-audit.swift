@@ -32,6 +32,12 @@
 // (never SKILL.md bodies or CLAUDE.md indexes), and within them ONLY backticked
 // symbols on "### " entry-title lines. Matching is by base identifier,
 // arity-insensitive.
+//
+// Title lines ending in "<!-- apple-only -->" declare Apple-only API (SwiftUI/
+// UIKit-gated symbols inside modules that still build on Linux): on non-Darwin
+// platforms such symbols are exempt from the stale check; on Darwin the marker
+// is inert and enforcement is complete. FOS_AUDIT_ASSUME_NON_APPLE=1 forces the
+// non-Darwin path (for verifying the exemption on a Mac).
 
 import Foundation
 
@@ -196,12 +202,23 @@ func loadSurfaces(from dir: URL) throws -> [String: ModuleSurface] {
 
 // MARK: - Catalog parsing
 
+/// Title lines carrying this marker declare Apple-only API: their symbols are
+/// exempt from the stale check on platforms whose symbol graphs cannot contain
+/// them (Linux/Windows). On Darwin the marker is inert — full enforcement.
+let appleOnlyMarker = "<!-- apple-only -->"
+
+struct CatalogFile {
+    var names: Set<String> = []
+    var appleOnly: Set<String> = []
+}
+
 /// Backticked symbols on "### " entry-title lines only; each backtick span may
 /// name several identifiers (`ViewModelId.Freshness`, `fromJSON()` / `toJSON()`).
-func catalogTitleNames(in text: String) -> Set<String> {
-    var names: Set<String> = []
+func catalogTitleNames(in text: String) -> CatalogFile {
+    var catalog = CatalogFile()
     for line in text.split(separator: "\n", omittingEmptySubsequences: false)
         where line.hasPrefix("### ") {
+        let isAppleOnly = line.contains(appleOnlyMarker)
         var rest = Substring(line)
         while let open = rest.firstIndex(of: "`") {
             rest = rest[rest.index(after: open)...]
@@ -211,16 +228,17 @@ func catalogTitleNames(in text: String) -> Set<String> {
             for token in span.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") }) {
                 let name = baseIdentifier(String(token))
                 if let first = name.first, first.isLetter || first == "_" {
-                    names.insert(name)
+                    catalog.names.insert(name)
+                    if isAppleOnly { catalog.appleOnly.insert(name) }
                 }
             }
         }
     }
-    return names
+    return catalog
 }
 
-func loadCatalog() throws -> [String: Set<String>] {
-    var byFile: [String: Set<String>] = [:]
+func loadCatalog() throws -> [String: CatalogFile] {
+    var byFile: [String: CatalogFile] = [:]
     let dir = URL(fileURLWithPath: catalogDir, isDirectory: true)
     guard FileManager.default.fileExists(atPath: dir.path) else { return byFile }
     for file in try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
@@ -247,8 +265,17 @@ do {
     let surfaces = try loadSurfaces(from: symbolGraphDir())
     let catalog = try loadCatalog()
     let ignored = loadIgnoreList()
-    let catalogNames = catalog.values.reduce(into: Set<String>()) { $0.formUnion($1) }
+    let catalogNames = catalog.values.reduce(into: Set<String>()) { $0.formUnion($1.names) }
     let presentModules = Set(surfaces.keys)
+
+    // Apple-only title symbols can't appear in Linux/Windows symbol graphs even
+    // though their modules build there; FOS_AUDIT_ASSUME_NON_APPLE=1 forces the
+    // non-Darwin path for verifying the exemption on a Mac.
+    #if canImport(Darwin)
+    let hasAppleSurface = ProcessInfo.processInfo.environment["FOS_AUDIT_ASSUME_NON_APPLE"] != "1"
+    #else
+    let hasAppleSurface = false
+    #endif
 
     var gaps: [AuditItem] = []
     var docWorklist: [AuditItem] = []
@@ -268,7 +295,8 @@ do {
     // catalog files whose covered modules are ALL present (on Linux,
     // FOSReporting has no symbol graph — its file is skipped).
     var stale: [(file: String, name: String)] = []
-    for (file, names) in catalog.sorted(by: { $0.key < $1.key }) {
+    var appleOnlySkipped = 0
+    for (file, entry) in catalog.sorted(by: { $0.key < $1.key }) {
         let covered = moduleToCatalog.filter { $0.value == file }.map(\.key)
         guard !covered.isEmpty else {
             print("info: \(file) maps to no module — skipping stale check")
@@ -281,9 +309,16 @@ do {
             continue
         }
         let universe = covered.reduce(into: Set<String>()) { $0.formUnion(surfaces[$1]?.allNames ?? []) }
-        for name in names.sorted() where !universe.contains(name) && !ignored.contains(name) {
+        for name in entry.names.sorted() where !universe.contains(name) && !ignored.contains(name) {
+            if !hasAppleSurface, entry.appleOnly.contains(name) {
+                appleOnlySkipped += 1
+                continue
+            }
             stale.append((file, name))
         }
+    }
+    if appleOnlySkipped > 0 {
+        print("info: \(appleOnlySkipped) apple-only title symbol(s) not stale-checked on this platform")
     }
 
     print("\n== Catalog gaps (warning): public API with no catalog entry ==")
