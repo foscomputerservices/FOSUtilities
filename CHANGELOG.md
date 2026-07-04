@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `LocalizableDate` (`.medium` date style when nothing is specified); `value:`
   is required.
 
+### Fixed
+
+- `FOSVaporServerError.debugDescription` now correctly labels itself (it
+  previously printed `FOSLocalizableError:`).
+- Corrected stale documentation examples: `PDFRenderer.render` shown with
+  `try` (both overloads are synchronous), `register(viewModel:)` label,
+  `FormFieldView` example includes the required `focusField:` parameter,
+  `hexString()` example values, and two `@Localized*` example typos.
+
 ## [0.4.0] - 2026-07-03
 
 ### Added

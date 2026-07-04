@@ -249,7 +249,7 @@ public extension RetrievablePropertyNames {
     ///
     /// ```swift
     /// @ViewModel struct MyViewModel {
-    ///     @LocalizedString var aLocalizedSting
+    ///     @LocalizedString var aLocalizedString
     /// }
     /// ```
     ///
@@ -289,7 +289,7 @@ public extension RetrievablePropertyNames {
     ///
     /// ```swift
     /// @ViewModel struct MyViewModel {
-    ///     @LocalizeInt(value: 42) var aLocalizedInt
+    ///     @LocalizedInt(value: 42) var aLocalizedInt
     /// }
     /// ```
     ///

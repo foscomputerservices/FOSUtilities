@@ -105,7 +105,7 @@ public enum FOSVaporServerError: Error, CustomDebugStringConvertible {
 
     public var debugDescription: String {
         switch self {
-        case .error(let message): "FOSLocalizableError: \(message)"
+        case .error(let message): "FOSVaporServerError: \(message)"
         }
     }
 

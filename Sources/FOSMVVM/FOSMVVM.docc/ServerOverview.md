@@ -38,11 +38,11 @@ For each ``ViewModel``, an entry needs to be added to the servers [Routing](http
 func routes(_ app: Application) throws {
     let routes = app.routes
 
-    try routes.register(model: LandingPageViewModel.self)
+    try routes.register(viewModel: LandingPageViewModel.self)
 
     let secureRoutes = routes
         .grouped(AuthMiddleware())
-    try secureRoutes.register(model: DashboardPagePageViewModel.self)
+    try secureRoutes.register(viewModel: DashboardPagePageViewModel.self)
 }
 ```
 

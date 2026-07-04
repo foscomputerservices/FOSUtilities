@@ -38,7 +38,7 @@ public extension UInt64 {
     /// ## Example:
     ///
     /// ```swift
-    /// print(256.hexString()) // Prints: 0xFF
+    /// print(255.hexString()) // Prints: 0xFF
     /// ```
     ///
     /// - Parameters:
@@ -55,7 +55,7 @@ public extension Int64 {
     /// ## Example:
     ///
     /// ```swift
-    /// print(256.hexString()) // Prints: 0xFF
+    /// print(255.hexString()) // Prints: 0xFF
     /// ```
     ///
     /// - Parameters:
@@ -72,7 +72,7 @@ public extension UInt {
     /// ## Example:
     ///
     /// ```swift
-    /// print(256.hexString()) // Prints: 0xFF
+    /// print(255.hexString()) // Prints: 0xFF
     /// ```
     ///
     /// - Parameters:
@@ -89,7 +89,7 @@ public extension Int {
     /// ## Example:
     ///
     /// ```swift
-    /// print(256.hexString()) // Prints: 0xFF
+    /// print(255.hexString()) // Prints: 0xFF
     /// ```
     ///
     /// - Parameters:
