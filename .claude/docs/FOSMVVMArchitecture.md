@@ -917,7 +917,7 @@ LocalizableString.localized(ref)  →  encode()  →  LocalizableString.constant
     // Simple values
     @LocalizedString var title           // String from YAML
     @LocalizedInt(value: 42) var count   // Formatted integer
-    @LocalizedDate var createdAt         // Formatted date
+    @LocalizedDate(value: model.createdAt) var createdAt // Formatted date
 
     // Contextual composition
     @LocalizedSubs(substitutions: \.subs) var greeting  // "Hello, %{name}!"

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`@LocalizedDate`** — a localized, locale-formatted `Date` property wrapper
+  (`LocalizableDate`), completing the family alongside `@LocalizedInt` and
+  `@LocalizedDouble`. `dateStyle`/`timeStyle`/`dateFormat` pass through to
+  `LocalizableDate` (`.medium` date style when nothing is specified); `value:`
+  is required.
+
 ## [0.4.0] - 2026-07-03
 
 ### Added
