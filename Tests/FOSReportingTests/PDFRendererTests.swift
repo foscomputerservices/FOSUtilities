@@ -16,25 +16,71 @@
 
 import FOSFoundation
 import FOSReporting
+import PDFKit
 import SwiftUI
 import Testing
 
 @MainActor
 struct PDFRendererTests {
-    @Test func simpleTest() throws {
+    @Test func multiPageContent() throws {
+        let pageCount = 3
         let pdfData = try PDFRenderer.render(
             pageSize: .usLetter(),
-            pageCount: 3
+            pageCount: pageCount
         ) { pageIndex in
             Text("Page \(pageIndex + 1)")
         }
 
-        #if os(macOS)
-        let tmpUrl = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString + ".pdf")
-        try pdfData.write(to: tmpUrl)
-        NSWorkspace.shared.open(tmpUrl)
-        #endif
+        let document = try #require(
+            PDFDocument(data: pdfData),
+            "Rendered data is not a readable PDF document"
+        )
+        #expect(document.pageCount == pageCount)
 
-        #expect(pdfData.isEmpty == false)
+        for pageIndex in 0..<pageCount {
+            let page = try #require(document.page(at: pageIndex))
+            let pageText = try #require(page.string)
+            #expect(pageText.contains("Page \(pageIndex + 1)"))
+        }
+    }
+
+    @Test(arguments: [
+        (PDFRenderer.PageSize.usLetter(), CGSize(width: 612, height: 792)),
+        (PDFRenderer.PageSize.usLetter(orientation: .landscape), CGSize(width: 792, height: 612)),
+        (PDFRenderer.PageSize.a4(), CGSize(width: 595.2, height: 841.8)),
+        (PDFRenderer.PageSize.a4(orientation: .landscape), CGSize(width: 841.8, height: 595.2)),
+        (PDFRenderer.PageSize(width: 500, height: 250), CGSize(width: 500, height: 250))
+    ])
+    func pageDimensions(pageSize: PDFRenderer.PageSize, expectedSize: CGSize) throws {
+        let pdfData = try PDFRenderer.render(
+            pageSize: pageSize,
+            pageCount: 1
+        ) { _ in
+            Text("Sized page")
+        }
+
+        let document = try #require(PDFDocument(data: pdfData))
+        let page = try #require(document.page(at: 0))
+        // The media box round-trips through PDF serialization, so allow
+        // for floating-point drift
+        let mediaBox = page.bounds(for: .mediaBox)
+        #expect(abs(mediaBox.width - expectedSize.width) < 0.01)
+        #expect(abs(mediaBox.height - expectedSize.height) < 0.01)
+    }
+
+    @Test func contentErrorsPropagate() {
+        struct ContentError: Error {}
+
+        #expect(throws: ContentError.self) {
+            _ = try PDFRenderer.render(
+                pageSize: .usLetter(),
+                pageCount: 2
+            ) { pageIndex in
+                if pageIndex > 0 {
+                    throw ContentError()
+                }
+                return Text("Page \(pageIndex + 1)")
+            }
+        }
     }
 }
