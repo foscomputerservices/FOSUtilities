@@ -13,6 +13,8 @@ Generate SwiftUI views that render FOSMVVM ViewModels.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § SwiftUI Support before hand-writing helpers.
+
 In FOSMVVM, **Views are thin rendering layers** that display ViewModels:
 
 ```

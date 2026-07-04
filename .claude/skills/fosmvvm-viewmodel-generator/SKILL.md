@@ -13,6 +13,8 @@ Generate ViewModels following FOSMVVM architecture patterns.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § Protocols, § Localization, § Macros and [`../shared/api-catalog/FOSFoundation.md`](../shared/api-catalog/FOSFoundation.md) § Coding (`Stubbable`) before hand-writing helpers.
+
 A **ViewModel** is the bridge in the Model-View-ViewModel architecture:
 
 ```
@@ -291,6 +293,8 @@ public struct CardViewModel {
     }
 }
 ```
+
+> **`vmId` derives from the data's identity — bind it, don't reach past it.** The row's `vmId` is built from the model's own id (`.init(id: id)`), so equal data ⇒ stable SwiftUI identity. When the identity value is itself a sealed/opaque type, get the `vmId` from a computed **on that identity** (it reads its own fields and vends a `ViewModelId`) — never expose the identity's raw string to build the token yourself, and never provide two spellings of the derivation. See [Architecture Patterns → Derive on the Owner](../shared/architecture-patterns.md).
 
 > **Don't restate `Codable`/`Sendable` — the macro adds them.** `@ViewModel`
 > synthesizes `ViewModel` conformance, which *already* provides `Codable` **and**

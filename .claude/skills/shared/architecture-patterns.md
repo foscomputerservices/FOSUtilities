@@ -23,6 +23,90 @@ Swift's type system and FOSMVVM's macros handle the complexity. Your job is to u
 
 ---
 
+## Encapsulation Is the Precondition (not a SOLID checkbox)
+
+FOSMVVM is built on SOLID — but **encapsulation is the precondition SOLID *assumes*, not one of its principles.** SOLID governs structure and dependency direction; encapsulation governs state visibility. The relationship is one-directional: SOLID's benefits **degrade silently** without perfect encapsulation, yet SOLID neither defines nor enforces it. SRP is satisfied by a type of all-`public var`; OCP is "followed" the moment you modify nothing — even while an extension reaches around an abstraction into another type's hidden state, at which point the safe-extension payoff evaporates. **A "SOLID-clean" verdict never certifies the internals are safe — check encapsulation separately.**
+
+**Why it matters here:** scalable, extensible, maintainable, testable systems require perfect encapsulation to run predictably over long periods. Break one wall and it's the small hole in the dam — the coupling leaks, spreads, and cascades into a failure far from the crack.
+
+**Red flags — if you're doing any of these, STOP:**
+
+| Move | Why it's the crack |
+|------|--------------------|
+| Using a `String` as an identity/route/key/token | A `String` has no wall — anyone can mint, parse, or route on it. This *is* the encapsulation break. Mint from a *type* (`ModelNamespace(for:)`), keep the value opaque. |
+| Exposing a `private` value via a getter "just to derive X" or "just for a test" | The derivation belongs on the *owner* (a computed that vends the finished typed value, never the raw string). Tests assert behavior, not internals. |
+| Documenting a sealed type's encoded shape in DocC / CHANGELOG / README | Publishing the representation makes it a de-facto schema consumers parse or forge. State the *contract* (opaque; round-trips; stable within a major version), never the shape. |
+| Asserting an exact encoded byte/key layout in a test | Test the *contract* (equality, determinism, "old data still decodes"), not the representation. Pin a truly-frozen format with an internal forward-compat fixture, not a public shape assertion. |
+
+**The rule:** prefer an opaque/typed value over a `String` every time; never expose or publish internals to make a caller or a test easier. That shortcut is exactly the hole in the dam.
+
+---
+
+## Derive on the Owner; Vend a Typed Value; One Spelling
+
+When you need to derive value **B** from a type **A** whose state is sealed (private storage, opaque), put the derivation as a **computed property on A** — the owner of the data — not as an accessor that hands A's raw internals out.
+
+- The computed reads A's **own** private fields (a type reading itself is *not* an encapsulation breach) and returns the **finished typed value B**, consumed on the spot. It never vends A's raw `String`/underlying guts — that would be the parseable-handle break (see *Encapsulation Is the Precondition*).
+- Provide **exactly one spelling** of the operation — `a.b`, **not** also `B(fromA:)`. Two ways to do one thing is API bloat that drifts. Put it on the owner and let the dependency point the natural way (the derived/rendering type never needs to know about its source).
+
+```swift
+// ON THE OWNER of the sealed data — reads its own privates, returns a typed value:
+public extension DataIdentity {
+    var renderingIdentity: RenderIdentity { .init(/* built from DataIdentity's own private fields */) }
+}
+// NOT a second spelling `RenderIdentity(dataIdentity:)`, and NOT a `var rawString: String` on DataIdentity.
+```
+
+This is why a ViewModel's `vmId` is derived from the *owner* of the data identity and bound to it, rather than a factory reaching in, unwrapping a raw `UUID`, and passing the bare value along (which erases the type).
+
+---
+
+## Requirement + Default = a Real Override (not just a default)
+
+To make a protocol member **overridable with dynamic dispatch**, declare it as a protocol **requirement** *and* give it a default in an extension. A member defined **only** in a protocol extension (no requirement) is **statically dispatched**: a conforming type that "overrides" it merely **shadows** — calls *through the protocol/an existential/a generic `some P`* still hit the extension's default, not the type's version. That is a **silent OCP failure**: you think you extended the behavior; you didn't.
+
+```swift
+protocol Model {
+    static var namespace: Namespace { get }               // REQUIREMENT — makes the override dispatch real
+}
+extension Model {
+    static var namespace: Namespace { .init(for: Self.self) }   // default — zero-config
+}
+// A conformer's own `static var namespace { … }` now dispatches through `Model.self` / `some Model`.
+```
+
+Adding a requirement that already has a default is **source-compatible** — existing conformers inherit the default and keep compiling. Reach for this whenever the goal is "zero-config default, *real* override when a type needs one" (namespaces, identity roots, formatting policies, …). If you only ever put it in an extension, a downstream override will compile and silently do nothing through the protocol.
+
+---
+
+## Documentation Has Three Audiences — Don't Conflate Them
+
+The most common documentation failure is writing for the wrong reader. Three homes:
+
+- **DocC (`///`) → the code's *customer*.** Lead with **how they call it** (nearly always an **example**), then *why they care* and *when it matters*. State the contract; keep implementation details, design rationale, and notes-to-self out. Undocumented — *and example-free* — public API is debt.
+- **Design/plan prose → the *implementer* (future-you).** Rationale, "why this way", gotchas, rejected alternatives — expected and correct, but it lives in the plan/design doc, **not** in a DocC comment. If implementer context surfaces in a DocC, *relocate it to the prose*, don't just delete it.
+- **Internal `//` → the *maintainer*.** Only when genuinely non-obvious (a constraint a competent reader would get wrong). Never to prove a non-problem or restate the obvious — that's theatre.
+
+```swift
+// ✗ implementer-framed, no example, notes-to-self:
+/// An opaque token. Minted via String(reflecting:); no ExpressibleByStringLiteral so it can't be
+/// forged. Stored as a private String. Used by ModelIdentity to build the vmId token.
+public struct ModelNamespace { … }
+
+// ✓ customer-framed, leads with the call, says why/when:
+/// Identifies the *kind* of a ``Model``. You rarely build one — every ``Model`` has a default;
+/// override it to keep a persisted identity stable across a type rename:
+///
+/// ```swift
+/// static var modelIdentityNamespace: ModelNamespace { .init(for: UserIdentity.self) }
+/// ```
+public struct ModelNamespace { … }
+```
+
+**Write the DocC first, before the code** — from the call site, it forces the customer's frame; written after implementing, it traps you in the implementer's frame and notes-to-self leak in.
+
+---
+
 ## Error UI Is Not Special
 
 **Errors are just data to render.** The ViewModel → View pattern still applies.

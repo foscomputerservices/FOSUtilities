@@ -104,6 +104,24 @@ Explain the "why" before the "how":
 └─────────────┘      └─────────────────┘      └─────────────┘
 ```
 
+### 2a. SOLID + Encapsulation Reminder (required for every `fosmvvm-*` skill)
+
+A generator skill must not just show the API — it must **state which SOLID principle the pattern protects and what breaks on deviation**, inline, so a builder tempted to "simplify" sees the red flag. And it must carry the **encapsulation** framing, because that's the precondition SOLID silently relies on (see the repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes* and [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md)). Where the skill's pattern touches identities, keys, routes, tokens, or serialized forms, remind the user (link, don't fully duplicate):
+
+- **Encapsulation is not a SOLID checkbox** — a "SOLID-clean" verdict doesn't certify the internals; review it separately.
+- **Stringly-typing is the encapsulation break** — a `String` identity/route/key/token has no wall; prefer a typed/opaque value (`ModelNamespace(for:)`, a `…Request`, `ModelIdentity`), never a raw string literal.
+- **Don't publish the representation** — never state a sealed type's encoded shape in DocC/CHANGELOG/README; state the contract (opaque; round-trips; stable within a major version).
+- **Test the contract, not the representation** — assert behavior (equality, determinism, "old data still decodes"), never an incidental byte/key layout, and never expose internals to make a test easier.
+
+### 2b. Generated DocC serves the CUSTOMER (required)
+
+Code a skill emits (types, protocols, ViewModels, requests) must carry **customer-facing DocC**, and the skill's *templates and examples* must model it — because scaffolded docs are copied and become the shipped docs. Enforce the three-audience rule (repo `CLAUDE.md` → *Documentation & Comments*; [Architecture Patterns → Documentation Has Three Audiences](../shared/architecture-patterns.md)):
+
+- **DocC (`///`) → the customer.** Lead with **how they call it** (an **example**), then *why they care* / *when it matters*. State the contract; keep implementation details, design rationale, and notes-to-self out. A generated type with no DocC — or DocC with no example — is debt the skill is shipping.
+- **Rationale/"why this way" → the surrounding skill prose or the generated file's plan**, never the DocC.
+- **Internal `//` → only the non-obvious.** No theatre (proving a non-problem, restating the obvious).
+- Author the skill's DocC examples **from the call site first** — it keeps them in the customer's frame.
+
 ### 3. When to Use This Skill
 
 ```markdown

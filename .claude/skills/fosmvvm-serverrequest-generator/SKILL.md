@@ -11,6 +11,8 @@ Generate ServerRequest types for client-server communication.
 
 > **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSMVVM.md`](../shared/api-catalog/FOSMVVM.md) § Protocols and [`../shared/api-catalog/FOSFoundation.md`](../shared/api-catalog/FOSFoundation.md) § Coding, § Networking before hand-writing helpers.
+
 ---
 
 ## STOP AND READ THIS

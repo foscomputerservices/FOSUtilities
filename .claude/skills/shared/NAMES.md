@@ -15,6 +15,14 @@ name is part of the contract.
 > - **Development velocity is lifetime velocity:** consistent, sortable names are how a
 >   maintainer *finds* the right type six months later. Inconsistent naming is a slow,
 >   compounding tax.
+>
+> **And encapsulation is the precondition all of this assumes** (it's not itself a SOLID
+> principle — SOLID's benefits just degrade silently without it). A *type* is a wall; a
+> `String` is not. Naming a concept as a real type (`ModelNamespace`, a `…Request`, a
+> `ModelIdentity`) instead of passing a raw `String` identity/route/key is what keeps the
+> wall standing — a stringly-typed value can be minted, parsed, or routed on by anyone, which
+> is the small hole in the dam that cascades. Prefer a typed value over a `String` every time;
+> see the repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.
 
 ---
 

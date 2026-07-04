@@ -13,6 +13,8 @@ Generate test files for ViewModels following FOSMVVM testing patterns.
 
 > For full architecture context, see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md#testing-support) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
 
+> **API catalog:** check [`../shared/api-catalog/FOSTesting.md`](../shared/api-catalog/FOSTesting.md) § FOSTesting before hand-writing helpers.
+
 ViewModel testing in FOSMVVM verifies three critical aspects:
 
 1. **Codable round-trip** - ViewModel encodes and decodes without data loss
@@ -91,6 +93,17 @@ When testing specific formatting behavior (substitutions, compound strings), add
 ```
 
 This is optional - use only when verifying specific formatting techniques.
+
+---
+
+## Testing Discipline: Contract, Not Representation
+
+The `expect*` helpers verify **behavior the contract guarantees** — Codable round-trip, version stability, translations exist. Keep any *added* assertions at that same altitude. (Background: [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md); repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.)
+
+- **Never assert the encoded *representation*.** Don't inspect the raw JSON for specific keys/shape (`obj["someKey"]`, "encodes as a bare string", exact byte layout, key order). There is no contract that a type encodes *a particular way* — only that it **round-trips**. Assert round-trip identity-preservation and behavior, never the shape. A representation assertion freezes an implementation detail and breaks on a harmless format change.
+- **Construct values the intended way; don't bypass a type's construction contract.** Build instances with `.stub()`, public inits, and the `try value.toJSON(encoder:).fromJSON()` round-trip. `@testable import` here exists to *see* internal ViewModel types and test infrastructure — it is **not** a license to reach a value's `private`/internal init or getter to fabricate or inspect state the public contract doesn't offer. `@testable`/private access is legitimate only for block/arc **coverage**, never for contract coverage. If a value type seals its backing (no public accessor), assert via `==` / `hashValue` / `Comparable`, not by reading internals.
+- **`expectVersionedViewModel` is decode-only — never "regenerate" baselines to make a change pass.** It writes a baseline once (if absent), then only *re-decodes* every committed version to prove old encodings still load; it does **not** encode-diff, and it **skips `ClientHostedViewModelFactory`** types. So a schema change must stay **backward-decodable** (add fields, don't rename/remove). Deleting the committed `.VersionedTestJSON` files to "refresh" them destroys the historical versions that are the entire point — don't. New fields are additive; old baselines must keep decoding.
+- **Date precision gotcha.** FOSMVVM's canonical date format is **millisecond** precision, so a freshly-created `Date`/timestamp is **not** equal to itself after a round-trip (sub-ms is truncated). Don't assert in-memory `Date` equality across encode→decode; compare via behavior/ordering, or start from an already-canonical fixture.
 
 ---
 
@@ -379,6 +392,7 @@ let vm = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
 ## See Also
 
 - [FOSMVVMArchitecture.md - Testing Support](../../docs/FOSMVVMArchitecture.md#testing-support) - Architecture overview
+- [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md) — **test the contract, not the representation.** A ViewModel test asserts behavior the contract guarantees (codable round-trip, version stability, correct localized projection, `vmId` equality/stability), never an incidental encoded shape, and never reaches into a sealed value's internals to assert them — that's the encapsulation break from the test side. Repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.
 - [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) - For creating ViewModels
 - [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) - For form validation testing
 - [reference.md](reference.md) - Complete file templates
