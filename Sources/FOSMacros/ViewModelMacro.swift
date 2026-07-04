@@ -56,6 +56,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         "LocalizedString",
         "LocalizedInt",
         "LocalizedDouble",
+        "LocalizedDate",
         "LocalizedCompoundString",
         "LocalizedSubs",
 

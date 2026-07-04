@@ -117,6 +117,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
                 @LocalizedString(parentKeys: "aField", "validationMessages") var error2
                 @LocalizedString(propertyName: "pieces", index: 0) var firstPiece
                 @LocalizedInt(value: 42) var aLocalizedInt
+                @LocalizedDate(value: Date(timeIntervalSince1970: 0)) var aLocalizedDate
                 @LocalizedStrings var pieces
                 @LocalizedString var separator
                 @LocalizedCompoundString(pieces: \._pieces) var aLocalizedCompoundNoSep
@@ -141,6 +142,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
                 @LocalizedString(parentKeys: "aField", "validationMessages") var error2
                 @LocalizedString(propertyName: "pieces", index: 0) var firstPiece
                 @LocalizedInt(value: 42) var aLocalizedInt
+                @LocalizedDate(value: Date(timeIntervalSince1970: 0)) var aLocalizedDate
                 @LocalizedStrings var pieces
                 @LocalizedString var separator
                 @LocalizedCompoundString(pieces: \._pieces) var aLocalizedCompoundNoSep
@@ -156,7 +158,7 @@ final class FieldValidationModelMacroTests: XCTestCase {
                 }
 
                 public func propertyNames() -> [LocalizableId: String] {
-                    [_aLocalizedString.localizationId: "aLocalizedString", _title.localizationId: "title", _aFieldTitle.localizationId: "aFieldTitle", _error1.localizationId: "error1", _error2.localizationId: "error2", _firstPiece.localizationId: "firstPiece", _aLocalizedInt.localizationId: "aLocalizedInt", _pieces.localizationId: "pieces", _separator.localizationId: "separator", _aLocalizedCompoundNoSep.localizationId: "aLocalizedCompoundNoSep", _aLocalizedCompoundSep.localizationId: "aLocalizedCompoundSep", _aLocalizedSubstitution.localizationId: "aLocalizedSubstitution"]
+                    [_aLocalizedString.localizationId: "aLocalizedString", _title.localizationId: "title", _aFieldTitle.localizationId: "aFieldTitle", _error1.localizationId: "error1", _error2.localizationId: "error2", _firstPiece.localizationId: "firstPiece", _aLocalizedInt.localizationId: "aLocalizedInt", _aLocalizedDate.localizationId: "aLocalizedDate", _pieces.localizationId: "pieces", _separator.localizationId: "separator", _aLocalizedCompoundNoSep.localizationId: "aLocalizedCompoundNoSep", _aLocalizedCompoundSep.localizationId: "aLocalizedCompoundSep", _aLocalizedSubstitution.localizationId: "aLocalizedSubstitution"]
                 }
             }
 
