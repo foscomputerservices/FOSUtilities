@@ -185,10 +185,11 @@ catch RunError.cannotRetrieveOperationsData { /* transporter missing or stale */
 In-process, full-pipeline testing of ServerRequests against a Vapor application
 (macOS/Linux only): the typed `test()` extension on VaporTesting's
 application tester with its `TestingServerRequestResponse`, a one-shot harness
-that boots a fresh application per request, `LocalizableTestCase` fixtures for
-localized Vapor Application/Request instances, Codable⇄ByteBuffer JSON bridges,
-and the harness error type. The standard test locales (see FOSTesting) are
-mirrored onto the application tester.
+that boots a fresh application per request, a scoped Fluent + in-memory SQLite
+application harness, `LocalizableTestCase` fixtures for localized Vapor
+Application/Request instances, Codable⇄ByteBuffer JSON bridges, and the harness
+error type. The standard test locales (see FOSTesting) are mirrored onto the
+application tester.
 
 ### End-to-end ServerRequest tests — `test()` / `TestingServerRequestResponse`
 Reach for this when: verifying a route serves a typed ServerRequest —
@@ -207,6 +208,23 @@ let request = UserViewModelRequest(query: .init(userId: id))
 try await app.testing().test(request, locale: en) { response in
     #expect(response.status == .ok)
     #expect(response.body != nil)
+}
+```
+
+### Test Fluent-backed code against a fresh database — `withFluentTestApp()`
+Reach for this when: a test needs a real database — register containers and add
+migrations in the `configure` closure, then use the `Application` and `Database`
+handed to the body closure. Each call owns a private in-memory SQLite database and a
+full application lifecycle (migrations run, async boot, guaranteed shutdown), so tests
+stay isolated and run in parallel.
+
+```swift
+let berths = try await withFluentTestApp { app in
+    try app.register(Dock.self, migration: CreateDock())
+    app.migrations.add(CreateBerth())
+} _: { app, db in
+    try await Dock(name: "5").save(on: db)
+    return try await Berth.query(on: db).all()
 }
 ```
 

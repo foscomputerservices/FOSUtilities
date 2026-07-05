@@ -47,13 +47,21 @@ line via the `fosutilities-api-catalog-update` skill.
 - Describing form fields — control type, keyboard, input constraints, value binding → `FOSMVVM.md § Forms`
 - Validating user input, reporting and aggregating validation outcomes → `FOSMVVM.md § Validation`
 - Binding a screen to server data — ViewModel requests, CRUD writes, factories → `FOSMVVM.md § Protocols`
+- Identifying *which* entity a model is (opaque `ModelIdentity`) — keying refresh or authorization by it → `FOSMVVM.md § Protocols`
+- Container-scoped authorization — declaring containers, grant verbs, who may touch which records → `FOSMVVM.md § Protocols`
+- Client-chosen sort or pagination on a request → `FOSMVVM.md § Protocols`
+- Declaring the data a server-rendered body needs — composable factory, load requirements, rooted scopes → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`
 - Booting a Vapor server for MVVM — YAML localization store, environment, locale, Leaf rendering → `FOSMVVMVapor.md § Extensions`
-- Registering Vapor routes that serve ViewModels or host CRUD writes → `FOSMVVMVapor.md § Vapor Support`
-- Projecting the database into ViewModels — Vapor factories, resolvable requests, Fluent `DataModel` → `FOSMVVMVapor.md § Protocols`
+- Registering request routes (reads and CRUD writes), or serving a request outside the guarded verbs → `FOSMVVMVapor.md § Vapor Support`
+- Projecting loaded records into a response body, or reading them through the projection context → `FOSMVVMVapor.md § Containment`, `§ Protocols`
+- Declaring Fluent containers and their relations, or mapping sort meanings to database columns → `FOSMVVMVapor.md § Containment`
+- Registering the container authorization provider, apex resolver, per-request app state, or a container migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`
+- The server-side write path — candidate set, field application, authorization provider → `FOSMVVMVapor.md § Protocols`
+- Projecting the database into ViewModels — resolvable requests, Fluent `DataModel` → `FOSMVVMVapor.md § Protocols`
 - Serving typed/localized errors, gating routes on client app version → `FOSMVVMVapor.md § Middleware`
 - Testing ViewModels — Codable round-trip, version stability, translation coverage → `FOSTesting.md § FOSTesting`
 - UI-testing SwiftUI ViewModel views (XCUITest hosting, operations, identifiers) → `FOSTesting.md § FOSTestingUI`, `FOSMVVM.md § SwiftUI Support`
-- Testing Vapor ServerRequests end to end → `FOSTesting.md § FOSTestingVapor`
+- Testing Vapor ServerRequests end to end, or Fluent-backed code against a fresh in-memory database → `FOSTesting.md § FOSTestingVapor`
 - Generating PDFs from SwiftUI views, choosing page size/orientation → `FOSReporting.md § PDF Rendering`
