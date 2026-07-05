@@ -150,7 +150,7 @@ final class TestVersionedViewModelRequest: ViewModelRequest, ViewModelFactoryCon
         }
     }
 
-    init(query: EmptyQuery? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TestVersionedViewModel? = nil) {
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TestVersionedViewModel? = nil) {
         self.responseBody = responseBody
     }
 }

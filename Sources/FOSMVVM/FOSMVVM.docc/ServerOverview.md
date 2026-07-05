@@ -32,19 +32,25 @@ public func configure(_ app: Application) async throws {
 
 #### Initializing Routes
 
-For each ``ViewModel``, an entry needs to be added to the servers [Routing](https://docs.vapor.codes/basics/routing/):
+Register each ``ServerRequest`` whose `ResponseBody` is a `VaporResponseBodyFactory`. Registration is
+**Application-only** — one door for every request:
 
 ```swift
 func routes(_ app: Application) throws {
-    let routes = app.routes
-
-    try routes.register(viewModel: LandingPageViewModel.self)
-
-    let secureRoutes = routes
-        .grouped(AuthMiddleware())
-    try secureRoutes.register(viewModel: DashboardPagePageViewModel.self)
+    try app.register(request: LandingPageRequest.self)
+    try app.register(request: DashboardPageRequest.self)
 }
 ```
+
+Registration derives and validates each composable request's data-load plan at boot, so a forgotten or
+unresolvable data need fails fast at startup rather than at request time. Write requests
+(`CreateRequest`/`UpdateRequest`/`DeleteRequest`) register the same way — Swift selects the write door.
+
+There is no grouped/`Routes`-level registration and no per-route auth middleware for data access.
+**Authorization is by data-scoping:** the framework loads only the records the current subject is
+authorized for, through the app's registered `ContainerAuthorizationProvider` — the projection is handed
+an already-auth-scoped, read-only cache and cannot load anything else. Register the provider (and the
+app's containers) before registering requests.
 
 ### Manual Initialization
 

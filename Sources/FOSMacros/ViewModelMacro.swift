@@ -222,6 +222,7 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
                     public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
+                        sort: EmptySort? = nil,
                         fragment: EmptyFragment? = nil,
                         requestBody: EmptyBody? = nil,
                         responseBody: \(raw: viewModelName)?

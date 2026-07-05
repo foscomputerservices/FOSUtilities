@@ -78,7 +78,7 @@ public final class LandingPageRequest: ViewModelRequest, @unchecked Sendable {
     public typealias Query = EmptyQuery
     public var responseBody: LandingPageViewModel?
 
-    public init(query: FOSMVVM.EmptyQuery? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: LandingPageViewModel? = nil) {
+    public init(query: FOSMVVM.EmptyQuery? = nil, sort: FOSMVVM.EmptySort? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: LandingPageViewModel? = nil) {
         self.responseBody = responseBody
     }
 }
@@ -102,10 +102,9 @@ Our ``ViewModel`` is now hosted in **HostView** and the model will automatically
 
 ### Creating ViewModel Instances
 
-The server is responsible for creating instances of the ``ViewModel``s.  This is done by conforming the ``ViewModel`` implementation to ``ViewModelFactory``.
-
-> NOTE: Since this example is a Vapor server, the implementation uses a Vapor-specific ``ViewModelFactory``,
-> ``VaporViewModelFactory``, which provides a standard *Context* with Vapor-specific information.
+The server is responsible for creating instances of the ``ViewModel``s. On a Vapor server this is
+done by conforming the ``ViewModel`` implementation to `VaporResponseBodyFactory`, whose
+`body(context:)` builds the body from a value-only projection context.
 
 ```swift
 import FOSFoundation
@@ -114,14 +113,18 @@ import Foundation
 import Vapor
 import ViewModels
 
-extension LandingPageViewModel: VaporViewModelFactory {
-    public static func model(context: VaporModelFactoryContext<LandingPageRequest>) async throws -> Self {
+extension LandingPageViewModel: VaporResponseBodyFactory {
+    public static func body(context: ProjectionContext<LandingPageRequest, Void>) throws -> Self {
         .init()
     }
 }
 ```
 
-In this example there was no work to do to create an instance of **LandingPageViewModel**.  However, the ``ViewModelFactory/model(context:)`` implementation may contain any code that is necessary to initialize the instance.  The context's [Vapor Request](https://docs.vapor.codes/advanced/request/) (`context.req`) is provided, so any Vapor service can be used including [Files](https://docs.vapor.codes/advanced/files/), [Fluent](https://docs.vapor.codes/advanced/queues/), [Redis](https://docs.vapor.codes/advanced/queues/), [Queues](https://docs.vapor.codes/advanced/queues/), etc., to configure a ``ViewModel`` instance.
+In this example there was no work to do to create an instance of **LandingPageViewModel**. When a
+screen *does* need data, the factory declares its needs as `ComposableFactory` requirements — the
+framework loads them (auth-scoped) *before* `body(context:)` runs, and the projection reads them
+back from the context by the same declared handle (`context.records(_:)`). `body(context:)` is
+synchronous by design: loading belongs to the declared load phase, never to the projection.
 
 Any ``Localizable`` properties in the ``ViewModel`` will automatically be localized to the [Locale](https://developer.apple.com/documentation/foundation/locale) of the client application.
 
@@ -136,7 +139,7 @@ import Vapor
 import ViewModels
 
 func routes(_ app: Application) throws {
-    try app.routes.register(viewModel: LandingPageViewModel.self)
+    try app.register(request: LandingPageRequest.self)
 }
 ```
 

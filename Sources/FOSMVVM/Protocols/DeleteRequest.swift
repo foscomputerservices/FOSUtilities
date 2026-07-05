@@ -20,7 +20,37 @@ import FOSFoundation
 ///
 /// > **delete** indicates "soft delete" as opposed to *destroy* that permanently
 /// > removes the item
-public protocol DeleteRequest: ServerRequest, Stubbable {}
+///
+/// After the delete commits, the server re-serves a read request so the caller
+/// receives the freshly-rendered screen the deletion left behind. Name that
+/// read request as ``RefreshRequest`` and build it from your write query in
+/// ``refreshRequest()``:
+///
+/// ```swift
+/// typealias RefreshRequest = DockPageRequest
+///
+/// func refreshRequest() -> DockPageRequest {
+///     DockPageRequest(query: query.map { .init(dock: $0.dock) })
+/// }
+/// ```
+public protocol DeleteRequest: ServerRequest, Stubbable
+    where ResponseBody == RefreshRequest.ResponseBody {
+    /// The read request re-served after this delete commits. Its `ResponseBody`
+    /// is this request's — by constraint — so the caller always receives the
+    /// fresh screen.
+    associatedtype RefreshRequest: ServerRequest
+
+    /// Builds the read request the server re-serves after this delete commits.
+    ///
+    /// Author it as a pure value mapping from the write query's root:
+    ///
+    /// ```swift
+    /// func refreshRequest() -> DockPageRequest {
+    ///     DockPageRequest(query: query.map { .init(dock: $0.dock) })
+    /// }
+    /// ```
+    func refreshRequest() -> RefreshRequest
+}
 
 public extension DeleteRequest {
     static var baseTypeName: String {

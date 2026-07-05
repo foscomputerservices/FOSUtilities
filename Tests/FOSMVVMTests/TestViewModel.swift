@@ -77,7 +77,7 @@ final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
         }
     }
 
-    init(query: TestQuery? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TestViewModel? = nil) {
+    init(query: TestQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TestViewModel? = nil) {
         self.query = query
         self.responseBody = responseBody
     }

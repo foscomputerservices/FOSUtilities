@@ -1,5 +1,12 @@
 # `VaporViewModelFactory` serving path is unexercised — missing localizing `encodeResponse`
 
+> **NOTE (2026-07-05):** The serving types this document names — `VaporViewModelFactory`,
+> `model(context:)`, `VaporModelFactoryContext` — were replaced in C8 by
+> `VaporResponseBodyFactory` / `ProjectionContext` (any `ServerRequestBody` may serve; the
+> factory projects from the loaded records rather than owning the fetch). This document is a
+> point-in-time 2026-07-02 record and keeps the original names below. See
+> `2026-07-05-vapor-response-body-factory-design.md`.
+
 - **Status:** ✅ done (2026-07-02). All acceptance criteria met; `swift test` green
   (331 tests / 46 suites, 2 pre-existing known issues).
 - **Surfaced:** 2026-07-02, while investigating the "assert the server actually serves *localized* ViewModels" improvement item.

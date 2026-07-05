@@ -172,7 +172,10 @@ public final class URLSession: URLSessionProtocol {
     }
 
     public static func session(config: URLSessionConfiguration) -> Self {
-        // For WASI, we ignore config and return shared
+        // For WASI, we ignore config and return shared. This WASI shim is final
+        // in practice (no subclass exists on WASI), so Self == URLSession and the
+        // cast cannot fail at runtime.
+        // swiftlint:disable:next force_cast
         shared as! Self
     }
 }

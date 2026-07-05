@@ -17,8 +17,39 @@
 import FOSFoundation
 
 /// A ``ServerRequest`` that requests that the server **update** a resource
+///
+/// After the update commits, the server re-serves a read request so the caller
+/// receives the freshly-rendered screen rather than the write's echo. Name that
+/// read request as ``RefreshRequest`` and build it from your write query in
+/// ``refreshRequest()``:
+///
+/// ```swift
+/// typealias RefreshRequest = DockPageRequest
+///
+/// func refreshRequest() -> DockPageRequest {
+///     DockPageRequest(query: query.map { .init(dock: $0.dock) })
+/// }
+/// ```
 public protocol UpdateRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel, ResponseBody: UpdateResponseBody {}
+    where RequestBody: ValidatableModel,
+    ResponseBody: UpdateResponseBody,
+    ResponseBody == RefreshRequest.ResponseBody {
+    /// The read request re-served after this update commits. Its `ResponseBody`
+    /// is this request's — by constraint — so the caller always receives the
+    /// fresh screen.
+    associatedtype RefreshRequest: ServerRequest
+
+    /// Builds the read request the server re-serves after this update commits.
+    ///
+    /// Author it as a pure value mapping from the write query's root:
+    ///
+    /// ```swift
+    /// func refreshRequest() -> DockPageRequest {
+    ///     DockPageRequest(query: query.map { .init(dock: $0.dock) })
+    /// }
+    /// ```
+    func refreshRequest() -> RefreshRequest
+}
 
 public extension UpdateRequest {
     static var baseTypeName: String {

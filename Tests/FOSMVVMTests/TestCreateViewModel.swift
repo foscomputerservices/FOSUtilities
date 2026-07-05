@@ -47,7 +47,7 @@ final class TestCreateViewModelRequest: ValidatableViewModelRequest, @unchecked 
         }
     }
 
-    init(query: Query? = nil, fragment: Fragment? = nil, requestBody: TestCreateModel?, responseBody: ResponseBody?) {
+    init(query: Query? = nil, sort: EmptySort? = nil, fragment: Fragment? = nil, requestBody: TestCreateModel?, responseBody: ResponseBody?) {
         self.requestBody = requestBody
         self.responseBody = responseBody
     }

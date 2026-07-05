@@ -30,10 +30,7 @@ public extension Request {
     /// - Returns: The query from the Vapor Request's url, if any
     func serverRequestQuery<Q: ServerRequestQuery>(ofType queryType: Q.Type) throws -> Q? {
         guard queryType != EmptyQuery.self else { return nil }
-        guard
-            let rawQueryStr = url.query,
-            !rawQueryStr.isEmpty
-        else {
+        guard let rawQueryStr = serverRequestURLComponents.query else {
             return nil
         }
 
@@ -44,6 +41,32 @@ public extension Request {
         }
 
         return try queryStr.fromJSON()
+    }
+
+    /// Retrieves the *ServerRequestSort* from the Vapor Request
+    ///
+    /// ```swift
+    /// app.get("berths") { req in
+    ///     let sort = try req.serverRequestSort(ofType: SortCriteria<BerthSortKey>.self)
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// - Parameter sortType: The concrete type of the *ServerRequestSort*
+    /// - Returns: The sort from the Vapor Request's url, or `nil` if the request carries none
+    func serverRequestSort<S: ServerRequestSort>(ofType sortType: S.Type) throws -> S? {
+        guard sortType != EmptySort.self else { return nil }
+        guard let rawSortStr = serverRequestURLComponents.sort else {
+            return nil
+        }
+
+        guard
+            let sortStr = rawSortStr.removingPercentEncoding
+        else {
+            throw Abort(.badRequest)
+        }
+
+        return try sortStr.fromJSON()
     }
 
     /// Retrieves the *ServerRequestQuery* from the Vapor Request
@@ -150,5 +173,35 @@ public extension Request {
                 localizationStore: application.requireLocalizationStore()
             )
         }
+    }
+}
+
+private extension Request {
+    /// Splits the request URL's raw query into the legacy whole-string query blob and the
+    /// reserved sort item's raw (still percent-encoded) value.
+    ///
+    /// Splitting on a raw "&" is safe: `URLQueryItem` percent-encodes '&' and '=' inside
+    /// item names and values, so an unencoded '&' only ever separates items. "sort" is the
+    /// reserved item name (see `URL.appending(serverRequest:)` in FOSMVVM); the legacy query
+    /// blob rides in an item NAME as percent-encoded JSON, which can never begin with
+    /// "sort=". On a hand-forged URL with multiple "sort=" components, the behavior is
+    /// deliberate: first wins; all "sort=" components are peeled from the query
+    /// remainder. Pinned by ServerRequestSortURLTests — never published in DocC.
+    var serverRequestURLComponents: (query: String?, sort: String?) {
+        guard let rawQueryStr = url.query, !rawQueryStr.isEmpty else {
+            return (query: nil, sort: nil)
+        }
+
+        let sortPrefix = "sort="
+        let components = rawQueryStr.components(separatedBy: "&")
+        let sortValue = components
+            .first { $0.hasPrefix(sortPrefix) }?
+            .dropFirst(sortPrefix.count)
+        let queryComponents = components.filter { !$0.hasPrefix(sortPrefix) }
+
+        return (
+            query: queryComponents.isEmpty ? nil : queryComponents.joined(separator: "&"),
+            sort: sortValue.map(String.init)
+        )
     }
 }

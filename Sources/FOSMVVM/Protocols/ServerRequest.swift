@@ -28,12 +28,13 @@ import Foundation
 /// final class MyRequest: ServerRequest {
 ///     typealias Fragment = EmptyFragment
 ///     typealias RequestBody = EmptyBody
+///     typealias ResponseError = EmptyError
 ///
 ///     let action: ServerRequestAction = .show
 ///     let query: Query?
 ///     var responseBody: ResponseBody?
 ///
-///     struct Query: SystemQuery {
+///     struct Query: ServerRequestQuery {
 ///         let modelId: Int
 ///     }
 ///
@@ -41,6 +42,11 @@ import Foundation
 ///         let id: Int
 ///         let firstName: String
 ///         let lastName: String
+///     }
+///
+///     init(query: Query?, sort: EmptySort?, fragment: Fragment?, requestBody: RequestBody?, responseBody: ResponseBody?) {
+///         self.query = query
+///         self.responseBody = responseBody
 ///     }
 /// }
 /// ```
@@ -50,6 +56,7 @@ public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable, Senda
     associatedtype RequestBody: ServerRequestBody
     associatedtype ResponseBody: ServerRequestBody
     associatedtype ResponseError: ServerRequestError
+    associatedtype Sort: ServerRequestSort = EmptySort
 
     static var path: String { get }
     static var baseTypeName: String { get }
@@ -59,8 +66,25 @@ public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable, Senda
     var fragment: Fragment? { get }
     var requestBody: RequestBody? { get }
     var responseBody: ResponseBody? { get set }
+    var sort: Sort? { get }
 
-    init(query: Query?, fragment: Fragment?, requestBody: RequestBody?, responseBody: ResponseBody?)
+    /// Creates the request from its constituent parts.
+    ///
+    /// Every conformer implements this initializer; call it directly to build a request with a
+    /// query and a ``SortCriteria`` sort:
+    ///
+    /// ```swift
+    /// let request = BerthsRequest(
+    ///     query: .init(dockId: 42),
+    ///     sort: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]),
+    ///     fragment: nil,
+    ///     requestBody: nil,
+    ///     responseBody: nil
+    /// )
+    /// ```
+    ///
+    /// Omit `sort:` to use ``init(query:fragment:requestBody:responseBody:)``, which sends no sort.
+    init(query: Query?, sort: Sort?, fragment: Fragment?, requestBody: RequestBody?, responseBody: ResponseBody?)
 }
 
 public extension ServerRequest {
@@ -91,6 +115,11 @@ public extension ServerRequest {
     static var baseTypeName: String {
         ""
     }
+
+    /// Creates the request with no sort (see ``init(query:sort:fragment:requestBody:responseBody:)``).
+    init(query: Query?, fragment: Fragment?, requestBody: RequestBody?, responseBody: ResponseBody?) {
+        self.init(query: query, sort: nil, fragment: fragment, requestBody: requestBody, responseBody: responseBody)
+    }
 }
 
 public extension URL {
@@ -109,11 +138,25 @@ public extension URL {
     }
 
     private func queryItems(from serverRequest: some ServerRequest) throws -> [URLQueryItem]? {
-        guard let query = serverRequest.query else {
-            return nil
+        var items = [URLQueryItem]()
+
+        // The query rides in the item NAME (nil value) — pre-C6 shape, unchanged
+        // byte-for-byte so that sortless URLs round-trip identically.
+        if let query = serverRequest.query {
+            try items.append(.init(name: query.toJSON(), value: nil))
         }
 
-        return try [.init(name: query.toJSON(), value: nil)]
+        // "sort" is a reserved item name multiplexed alongside the query item; the
+        // server strips it before the whole-string query decode (Request+FOS.swift).
+        // Safe alongside the query blob: URLQueryItem percent-encodes '&' and '='
+        // inside names/values, so raw '&' only ever separates items, and a JSON blob
+        // can never begin with "sort=". EmptySort conformers surface a nil sort, so
+        // no special case is needed here. Pinned by ServerRequestSortURLTests.
+        if let sort = serverRequest.sort {
+            try items.append(.init(name: "sort", value: sort.toJSON()))
+        }
+
+        return items.isEmpty ? nil : items
     }
 }
 
@@ -139,6 +182,12 @@ public extension ServerRequest where ResponseBody == EmptyBody {
     var responseBody: EmptyBody? {
         get { nil }
         set {} // swiftlint:disable:this unused_setter_value
+    }
+}
+
+public extension ServerRequest where Sort == EmptySort {
+    var sort: EmptySort? {
+        nil
     }
 }
 

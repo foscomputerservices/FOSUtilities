@@ -35,9 +35,14 @@ enum VaporServerRequestMiddlewareError: Error, CustomDebugStringConvertible {
 
 final class VaporServerRequestMiddleware<R: ServerRequest>: AsyncMiddleware {
     func respond(to req: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        // The URL is parsed exactly ONCE — here. The bound instance carries query AND sort,
+        // and everything downstream (plan resolution, projection) reads the instance; nothing
+        // re-parses the URL (no second source of truth).
         let query = try req.serverRequestQuery(ofType: R.Query.self)
+        let sort = try req.serverRequestSort(ofType: R.Sort.self)
         req.serverRequest_set(R(
             query: query,
+            sort: sort,
             fragment: nil,
             requestBody: nil,
             responseBody: nil
