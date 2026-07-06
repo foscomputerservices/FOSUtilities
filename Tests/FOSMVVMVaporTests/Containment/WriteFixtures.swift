@@ -70,7 +70,7 @@ struct BerthListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFa
         .init()
     }
 
-    static func body(context: ProjectionContext<BerthListRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         let berths = try context.records(Self.berths)
         return .init(
             berthNumbers: berths.map(\.number).sorted(),
@@ -80,7 +80,7 @@ struct BerthListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFa
 }
 
 /// The refresh body doubles as the write requests' ResponseBody — it adopts the write markers.
-extension BerthListVM: UpdateResponseBody, CreateResponseBody {}
+extension BerthListVM: UpdateResponseBody, CreateResponseBody, DeleteResponseBody {}
 
 final class BerthListRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = DockRootQuery
@@ -130,7 +130,6 @@ final class UpdateBerthRequest: UpdateRequest, @unchecked Sendable {
     typealias RequestBody = UpdateBerthBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -147,10 +146,6 @@ final class UpdateBerthRequest: UpdateRequest, @unchecked Sendable {
 
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
-    }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
     }
 }
 
@@ -179,7 +174,6 @@ final class CreateBerthRequest: CreateRequest, @unchecked Sendable {
     typealias RequestBody = CreateBerthBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -196,10 +190,6 @@ final class CreateBerthRequest: CreateRequest, @unchecked Sendable {
 
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
-    }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
     }
 }
 
@@ -218,7 +208,6 @@ final class DeleteBerthRequest: DeleteRequest, @unchecked Sendable {
     typealias RequestBody = DeleteBerthBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -236,10 +225,6 @@ final class DeleteBerthRequest: DeleteRequest, @unchecked Sendable {
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
     }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -252,7 +237,7 @@ final class DeleteBerthRequest: DeleteRequest, @unchecked Sendable {
 
 struct ReplaceEchoBody: ServerRequestBody, VaporResponseBodyFactory, ReplaceResponseBody {
     typealias Request = EchoReplaceRequest
-    static func body(context _: ProjectionContext<EchoReplaceRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context _: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }
@@ -287,13 +272,13 @@ final class EchoReplaceRequest: ReplaceRequest, @unchecked Sendable {
     }
 }
 
-// MARK: An UpdateRequest whose RequestBody is NOT a DataModelWriter — misses the write door, and
+// MARK: An UpdateRequest whose RequestBody is NOT a DataModelWriter — so it misses the write door
 
-// whose RefreshRequest is itself, so it binds the base read door instead of failing to compile.
+// and binds the base read door instead of failing to compile.
 
 struct SelfEchoBody: ServerRequestBody, VaporResponseBodyFactory, UpdateResponseBody {
     typealias Request = SelfRefreshUpdateRequest
-    static func body(context _: ProjectionContext<SelfRefreshUpdateRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context _: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }
@@ -309,7 +294,6 @@ final class SelfRefreshUpdateRequest: UpdateRequest, @unchecked Sendable {
     typealias RequestBody = NonWriterBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = SelfRefreshUpdateRequest
     typealias ResponseBody = SelfEchoBody
 
     let id: String
@@ -327,10 +311,6 @@ final class SelfRefreshUpdateRequest: UpdateRequest, @unchecked Sendable {
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
     }
-
-    func refreshRequest() -> SelfRefreshUpdateRequest {
-        self
-    }
 }
 
 // MARK: An UpdateRequest whose candidate roots at `.query` but whose query is not RootedQuery.
@@ -344,7 +324,6 @@ final class NoRootUpdateRequest: UpdateRequest, @unchecked Sendable {
     typealias RequestBody = UpdateBerthBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -363,10 +342,6 @@ final class NoRootUpdateRequest: UpdateRequest, @unchecked Sendable {
 
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
-    }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: nil)
     }
 }
 
@@ -393,7 +368,6 @@ final class ApexUpdateRequest: UpdateRequest, @unchecked Sendable {
     typealias RequestBody = ApexUpdateBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -412,10 +386,6 @@ final class ApexUpdateRequest: UpdateRequest, @unchecked Sendable {
 
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
-    }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
     }
 }
 
@@ -445,7 +415,6 @@ final class ComputedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable 
     typealias RequestBody = ComputedCandidatesBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -464,10 +433,6 @@ final class ComputedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable 
 
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
-    }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
     }
 }
 
@@ -492,7 +457,7 @@ struct ComputedReadVM: RequestableViewModel, ComposableFactory, VaporResponseBod
         .init()
     }
 
-    static func body(context _: ProjectionContext<ComputedReadRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context _: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }
@@ -525,7 +490,6 @@ final class WrongVerbDeleteRequest: DeleteRequest, @unchecked Sendable {
     typealias RequestBody = WrongVerbDeleteBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -544,10 +508,6 @@ final class WrongVerbDeleteRequest: DeleteRequest, @unchecked Sendable {
 
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
-    }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
     }
 }
 
@@ -574,7 +534,6 @@ final class RefinedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable {
     typealias RequestBody = RefinedCandidatesBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = EmptyError
-    typealias RefreshRequest = BerthListRequest
     typealias ResponseBody = BerthListVM
 
     let id: String
@@ -594,17 +553,13 @@ final class RefinedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable {
     static func stub() -> Self {
         .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
     }
-
-    func refreshRequest() -> BerthListRequest {
-        BerthListRequest(query: query.map { DockRootQuery(rootIdentity: $0.rootIdentity) })
-    }
 }
 
 // MARK: A DestroyRequest — a not-yet-supported write protocol, reaches the read door.
 
-struct DestroyEchoBody: ServerRequestBody, VaporResponseBodyFactory {
+struct DestroyEchoBody: ServerRequestBody, VaporResponseBodyFactory, DestroyResponseBody {
     typealias Request = EchoDestroyRequest
-    static func body(context _: ProjectionContext<EchoDestroyRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context _: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }

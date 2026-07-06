@@ -83,7 +83,7 @@ final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
 extension TestViewModel: VaporResponseBodyFactory {
     // MARK: VaporResponseBodyFactory Protocol
 
-    static func body(context: ProjectionContext<TestViewModelRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }

@@ -46,7 +46,7 @@ private struct BannerBody: ServerRequestBody {
 extension BannerBody: VaporResponseBodyFactory {
     typealias AppState = SessionBanner
 
-    static func body(context: ProjectionContext<BannerRequest, SessionBanner>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, SessionBanner>) throws -> Self where R.ResponseBody == Self {
         .init(signedInAs: context.appState.userName)
     }
 }

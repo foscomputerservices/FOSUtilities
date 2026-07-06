@@ -89,14 +89,10 @@ private func makeContext<SR: ServerRequest>(
     for vmRequest: SR,
     on req: Vapor.Request
 ) -> ProjectionContext<SR, Void> {
-    .init(
-        vmRequest: vmRequest,
-        appState: (),
-        appVersion: .success(.current),
-        plan: req.application.recordLoadPlan(for: SR.self),
-        cacheSnapshot: req.containerRecordCache,
-        tupleKeys: req.tupleCacheKeys
-    )
+    guard let plan = req.application.recordLoadPlan(for: SR.self) else {
+        return .init(vmRequest: vmRequest, appState: ())
+    }
+    return .init(vmRequest: vmRequest, appState: (), plan: plan, recordsByTuple: req.recordsByTuple())
 }
 
 // MARK: - Fixtures
@@ -139,7 +135,7 @@ private struct DockPageVM: RequestableViewModel, ComposableFactory, VaporRespons
         .init()
     }
 
-    static func body(context: ProjectionContext<DockPageRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         let berths = try context.records(Self.berths) //           own handle
         let crew = try context.records(CrewListVM.crew) //          a child's handle
         guard berths.count == 3, crew.count == 2 else {
@@ -191,7 +187,7 @@ private struct TwoBerthLoadsVM: RequestableViewModel, ComposableFactory, VaporRe
         .init()
     }
 
-    static func body(context: ProjectionContext<TwoBerthLoadsRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }
@@ -246,7 +242,7 @@ private struct HarborPageVM: RequestableViewModel, ComposableFactory, VaporRespo
         .init()
     }
 
-    static func body(context: ProjectionContext<HarborPageRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }
@@ -457,10 +453,8 @@ struct ProjectionContextTests {
         let context = ProjectionContext<DockPageRequest, Void>(
             vmRequest: DockPageRequest(),
             appState: (),
-            appVersion: .success(.current),
             plan: plan,
-            cacheSnapshot: [:],
-            tupleKeys: [:]
+            recordsByTuple: [:]
         )
 
         do {

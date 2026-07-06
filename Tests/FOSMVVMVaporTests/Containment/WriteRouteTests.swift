@@ -188,6 +188,9 @@ struct WriteRouteUpdateTests {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
             try app.register(request: UpdateBerthRequest.self)
+            // The pre-write prime reads through BerthListRequest, so register it as a read too —
+            // a write now derives only its OWN response plan, not a separate refresh request's.
+            try app.register(request: BerthListRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -458,7 +461,7 @@ struct WriteRouteBootTests {
             try app.register(request: UpdateBerthRequest.self)
         } _: { app, _ in
             #expect(app.candidatePlan(for: UpdateBerthRequest.self) != nil)
-            #expect(app.recordLoadPlan(for: BerthListRequest.self) != nil) // refresh plan too
+            #expect(app.recordLoadPlan(for: UpdateBerthRequest.self) != nil) // its own response plan too
         }
     }
 
@@ -524,20 +527,14 @@ struct WriteRouteBootTests {
     }
 }
 
-// MARK: - Group 16: refresh bridge typing
+// MARK: - Group 16: write response ↔ direct-serve parity
 
-@Suite("Write route: refresh bridge")
-struct WriteRouteBridgeTests {
-    /// ResponseBody == RefreshRequest.ResponseBody holds by constraint (compile-audit).
-    @Test func responseBodyEqualsRefreshResponseBody() {
-        #expect(UpdateBerthRequest.ResponseBody.self == UpdateBerthRequest.RefreshRequest.ResponseBody.self)
-        #expect(CreateBerthRequest.ResponseBody.self == CreateBerthRequest.RefreshRequest.ResponseBody.self)
-        #expect(DeleteBerthRequest.ResponseBody.self == DeleteBerthRequest.RefreshRequest.ResponseBody.self)
-    }
-
-    /// The authored bridge's output routes through the same code path as a direct GET: a write's
-    /// refresh body equals a direct serve of the same refresh request.
-    @Test func bridgeOutputMatchesDirectGet() async throws {
+@Suite("Write route: response parity")
+struct WriteRouteResponseParityTests {
+    /// The write re-serves ITSELF through the read pipeline, so its response equals a direct serve
+    /// of the same request: one `ResponseBody` factory (`BerthListVM`), reached by the write path or
+    /// as a read — the generalization that replaced the refresh bridge.
+    @Test func writeResponseMatchesDirectServe() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
             try app.register(request: UpdateBerthRequest.self)
@@ -553,14 +550,14 @@ struct WriteRouteBridgeTests {
                 responseBody: nil
             )
             let writeReq = makeRequest(on: app)
-            let viaBridge = try await writeReq.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
+            let viaWrite = try await writeReq.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
 
-            // A direct GET of the same refresh request, post-write, on a fresh request.
-            let getReq = makeRequest(on: app)
-            let viaGet = try await getReq.serve(vmRequest.refreshRequest())
+            // The same request served directly as a read builds the same ResponseBody, post-write.
+            let readReq = makeRequest(on: app)
+            let viaServe = try await readReq.serve(vmRequest)
 
-            #expect(viaBridge.berthNumbers == viaGet.berthNumbers)
-            #expect(viaBridge.berthNames.sorted() == viaGet.berthNames.sorted())
+            #expect(viaWrite.berthNumbers == viaServe.berthNumbers)
+            #expect(viaWrite.berthNames.sorted() == viaServe.berthNames.sorted())
         }
     }
 }

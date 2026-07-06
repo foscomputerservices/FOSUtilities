@@ -161,7 +161,7 @@ private struct DockPageVM: RequestableViewModel, ComposableFactory, VaporRespons
         .init()
     }
 
-    static func body(context: ProjectionContext<DockPageRequest, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 
