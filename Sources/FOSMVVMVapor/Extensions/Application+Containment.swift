@@ -70,7 +70,7 @@ extension Application {
     }
 }
 
-extension Request {
+extension Vapor.Request {
     var modelTypeRegistry: ModelTypeRegistry {
         application.modelTypeRegistry
     }

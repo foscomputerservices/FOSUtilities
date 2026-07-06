@@ -21,7 +21,7 @@ import FoundationNetworking
 #endif
 import Vapor
 
-public extension Request {
+public extension Vapor.Request {
     // MARK: ServerRequest Support
 
     /// Retrieves the *ServerRequestQuery* from the Vapor Request
@@ -176,7 +176,7 @@ public extension Request {
     }
 }
 
-private extension Request {
+private extension Vapor.Request {
     /// Splits the request URL's raw query into the legacy whole-string query blob and the
     /// reserved sort item's raw (still percent-encoded) value.
     ///

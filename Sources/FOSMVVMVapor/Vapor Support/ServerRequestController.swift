@@ -1,6 +1,6 @@
 // ServerRequestController.swift
 //
-// Copyright 2025 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -29,9 +29,7 @@ import Vapor
 ///
 ///     let actions: [ServerRequestAction: ActionProcessor] = [
 ///         .replace: { req, bound in
-///             guard let body = bound.requestBody else {
-///                 throw ServerRequestControllerError.missingRequestBody
-///             }
+///             let body = try req.content.decode(ReplaceBerthRequest.RequestBody.self)
 ///             return try await BerthPage(replacing: body, on: req.db)
 ///         }
 ///     ]
@@ -57,9 +55,9 @@ public protocol ServerRequestController: AnyObject, ControllerRouting, RouteColl
         TRequest
     ) async throws -> TRequest.ResponseBody
 
-    /// The actions this controller serves, each mapped to its HTTP method at
-    /// ``ControllerRouting/baseURL`` (`.show` GET · `.create` POST · `.replace` PUT ·
-    /// `.update` PATCH · `.delete`/`.destroy` DELETE).
+    /// The actions this controller serves, registered at ``ControllerRouting/baseURL``.
+    /// Each action's HTTP method and body handling fall out of the action itself, so the
+    /// dispatch layer never re-derives the verb.
     var actions: [ServerRequestAction: ActionProcessor] { get }
 }
 
@@ -76,34 +74,22 @@ public extension ServerRequestController {
             throw ServerRequestControllerError.invalidAction(.destroy)
         }
 
-        let groupName = Self.baseURL == "/" ? "" : Self.baseURL
-        let group = routes
-            .grouped(.constant(groupName))
-            .grouped(VaporServerRequestMiddleware<TRequest>())
+        // The route is the request's: its path components and, per action, its HTTP
+        // method both fall out of TRequest — never a registration-site switch. The method
+        // comes from ServerRequestAction's own string (the single source the client fetch
+        // side also reads). The group attaches the binding middleware only; `.pathComponents`
+        // splits a multi-segment path correctly (a single `.constant` would corrupt "a/b").
+        let group = routes.grouped(VaporServerRequestMiddleware<TRequest>())
+        let path = TRequest.path.pathComponents
         let bodyStrategy = TRequest.RequestBody.maxBodySize.bodyStreamStrategy
 
         for (action, processor) in actions {
-            switch action {
-            case .show:
-                group.get { req in
-                    try await runServerRequest(req, decodesBody: false, processor: processor)
-                }
-            case .create:
-                group.on(.POST, body: bodyStrategy) { req in
-                    try await runServerRequest(req, decodesBody: true, processor: processor)
-                }
-            case .replace:
-                group.on(.PUT, body: bodyStrategy) { req in
-                    try await runServerRequest(req, decodesBody: true, processor: processor)
-                }
-            case .update:
-                group.on(.PATCH, body: bodyStrategy) { req in
-                    try await runServerRequest(req, decodesBody: true, processor: processor)
-                }
-            case .delete, .destroy:
-                group.on(.DELETE) { req in
-                    try await runServerRequest(req, decodesBody: false, processor: processor)
-                }
+            group.on(HTTPMethod(rawValue: action.httpMethod), path, body: bodyStrategy) { req in
+                // The handler, end to end: bind the typed request, process it, encode the
+                // response. A processor that needs a wire body decodes it from `req` itself
+                // (its RequestBody type is concrete at registration) — nothing to decide here.
+                let request: TRequest = try req.requireServerRequest()
+                return try await processor(req, request).buildResponse(req)
             }
         }
     }
@@ -111,42 +97,11 @@ public extension ServerRequestController {
 
 public enum ServerRequestControllerError: Error, CustomDebugStringConvertible {
     case invalidAction(ServerRequestAction)
-    case missingRequestBody
 
     public var debugDescription: String {
         switch self {
         case .invalidAction(let action):
             "Invalid ServerRequestAction combination involving \(action): .delete and .destroy both map to HTTP DELETE at one URL — two deletion semantics need two request types. Register one of them on this controller."
-        case .missingRequestBody:
-            "Server request was missing its request body."
         }
     }
-}
-
-// MARK: Private Methods
-
-/// Binds the complete typed request (the middleware parsed query + sort; a body verb
-/// decodes `RequestBody` here) and runs the processor. `EmptyBody` requests decode
-/// nothing — `requestBody` stays nil.
-private func runServerRequest<TRequest: ServerRequest>(
-    _ req: Vapor.Request,
-    decodesBody: Bool,
-    processor: @Sendable (Vapor.Request, TRequest) async throws -> TRequest.ResponseBody
-) async throws -> Vapor.Response {
-    let bound: TRequest = try req.requireServerRequest()
-
-    let request: TRequest = if decodesBody, TRequest.RequestBody.self != EmptyBody.self {
-        try TRequest(
-            query: bound.query,
-            sort: bound.sort,
-            fragment: bound.fragment,
-            requestBody: req.content.decode(TRequest.RequestBody.self),
-            responseBody: nil
-        )
-    } else {
-        bound
-    }
-
-    return try await processor(req, request)
-        .buildResponse(req)
 }

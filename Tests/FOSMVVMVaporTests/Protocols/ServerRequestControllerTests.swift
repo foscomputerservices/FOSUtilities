@@ -64,15 +64,16 @@ struct ServerRequestControllerTests {
         }
     }
 
-    /// PATCH decodes the JSON body into the bound instance: the `.update` processor echoes
-    /// `bound.requestBody?.field` — AND the middleware-parsed query survives the decoded-body
-    /// reconstruction: the processor echoes both, and the combined marker is asserted.
+    /// PATCH: the `.update` processor decodes its own body from `req` — the framework no longer
+    /// pre-populates `bound.requestBody` — while the middleware-parsed query survives on `bound`.
+    /// The processor echoes both; the combined marker asserts the decoded body and the query.
     @Test func updateProcessorReceivesDecodedBody() async throws {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             let controller = EchoController<EchoUpdateRequest>(actions: [
-                .update: { _, bound in
-                    EchoMarker(marker: "\(bound.query?.text ?? "<nil>")|\(bound.requestBody?.field ?? "<nil>")")
+                .update: { req, bound in
+                    let body = try req.content.decode(EchoBody.self)
+                    return EchoMarker(marker: "\(bound.query?.text ?? "<nil>")|\(body.field)")
                 }
             ])
             try app.routes.register(collection: controller)
@@ -226,7 +227,7 @@ private final class EchoDeleteRequest: ServerRequest, @unchecked Sendable {
 }
 
 /// `.update` fixture: an `EchoQuery` AND a decodable `EchoBody`, so one PATCH proves the
-/// reconstructed instance carries both the middleware-parsed query and the decoded body.
+/// processor sees both the middleware-parsed query (on `bound`) and the body it decodes from `req`.
 private final class EchoUpdateRequest: ServerRequest, @unchecked Sendable {
     typealias Fragment = EmptyFragment
     typealias RequestBody = EchoBody

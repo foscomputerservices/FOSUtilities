@@ -20,15 +20,12 @@ import Foundation
 import Vapor
 
 enum VaporServerRequestMiddlewareError: Error, CustomDebugStringConvertible {
-    case missingQuery
     case missingRequest
 
     var debugDescription: String {
         switch self {
-        case .missingQuery:
-            "VaporServerRequestMiddlewareError: Required Query missing"
         case .missingRequest:
-            "VaporServerRequestMiddlewareError: Required Request missing"
+            "requireServerRequest() found no bound ServerRequest on this Vapor.Request. The typed request is bound during routing by VaporServerRequestMiddleware, which is installed only when the route is registered through the FOS path — app.register(request:), or routes.register(collection:) on a ServerRequestController. A hand-rolled route that calls requireServerRequest() without that middleware always lands here; register it through one of those instead."
         }
     }
 }
@@ -52,7 +49,7 @@ final class VaporServerRequestMiddleware<R: ServerRequest>: AsyncMiddleware {
     }
 }
 
-extension Request {
+extension Vapor.Request {
     func requireServerRequest<R: ServerRequest>() throws -> R {
         guard let request: R = serverRequest() else {
             throw VaporServerRequestMiddlewareError.missingRequest

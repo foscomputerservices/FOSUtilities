@@ -22,7 +22,7 @@ import Vapor
 // and refinement, then descend every tuple through the provider-driven authorized engine so
 // each load unit lands in the container-record cache before projection begins.
 
-extension Request {
+extension Vapor.Request {
     /// Executes the typed request's boot-derived ``RecordLoadPlan``: binds the roots and the
     /// request refinement from the INSTANCE (its `query`/`sort` properties — the single source
     /// of truth; nothing is re-parsed from the URL), loads every declared tuple through the
@@ -172,7 +172,7 @@ private extension ResolvedRecordLoadPlan {
 /// Internal (not private): the write route (WriteRoute.swift) resolves + executes the candidate
 /// plan through this same binding, so a write's candidate load and a read's plan load share one
 /// resolution path.
-extension Request {
+extension Vapor.Request {
     /// Binding reads the TYPED INSTANCE's `query`/`sort` properties — the middleware (or a
     /// programmatic caller, e.g. a write route's refresh) bound them; the executor never
     /// re-parses the URL, so the instance is the single source of truth.
@@ -268,7 +268,7 @@ extension SortCriteria: ErasedSortTermsProviding {
 
 // MARK: - Supplemental loads (runner; the public ``SupplementalRecordLoading`` surface is C8's)
 
-private extension Request {
+private extension Vapor.Request {
     /// Runs every conformer's hook over the composition graph: it shares the walk's pre-order /
     /// declaration order, so hooks fire deterministically. The global once-per-factory dedup is the
     /// runner's own (a factory reached on two paths runs its hook once), not a property inherited

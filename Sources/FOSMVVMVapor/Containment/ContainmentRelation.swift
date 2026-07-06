@@ -161,7 +161,7 @@ extension ContainmentRelation {
     }
 }
 
-extension Request {
+extension Vapor.Request {
     /// Creates `child` inside the container named by `container`, through the container's own
     /// declared containment (its `.children`/`.siblings` relation for the child's type). The
     /// framework's create path: it recovers the container, finds the relation, and sets the join —

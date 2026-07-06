@@ -84,9 +84,7 @@ public extension Vapor.Application {
         try deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .createRecords)
         try routes.register(collection: GuardedRequestController<SR>(actions: [
             .create: { req, bound in
-                guard let body = bound.requestBody else {
-                    throw ServerRequestControllerError.missingRequestBody
-                }
+                let body = try req.content.decode(SR.RequestBody.self)
                 return try await req.serveCreate(bound, body: body)
             }
         ]))
@@ -117,9 +115,7 @@ public extension Vapor.Application {
         try deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .writeRecords)
         try routes.register(collection: GuardedRequestController<SR>(actions: [
             .update: { req, bound in
-                guard let body = bound.requestBody else {
-                    throw ServerRequestControllerError.missingRequestBody
-                }
+                let body = try req.content.decode(SR.RequestBody.self)
                 return try await req.serveUpdate(bound, body: body)
             }
         ]))

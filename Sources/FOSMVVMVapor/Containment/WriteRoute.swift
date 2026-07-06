@@ -26,7 +26,7 @@ import Vapor
 // pipeline — building its own ResponseBody from the refreshed records. The whole flow runs
 // sequentially in the one handler task (the C6 cache's single-writer contract).
 
-extension Request {
+extension Vapor.Request {
     /// PATCH: validate → load candidates → resolve target → `apply` → save → invalidate → refresh.
     func serveUpdate<SR: UpdateRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> SR.ResponseBody
         where SR.RequestBody: DataModelWriter,
@@ -61,7 +61,7 @@ extension Request {
 
 // MARK: - Commit (steps 1–6; invalidation + the refresh are the serve tail above)
 
-extension Request {
+extension Vapor.Request {
     /// Split from serveUpdate — and deliberately NOT invalidating — so the commit half is observable
     /// in tests: candidates only, the page read plan never loaded, before the refresh runs.
     @discardableResult
@@ -133,7 +133,7 @@ struct WriteCandidateContext {
     let resolved: ResolvedRecordLoadPlan
 }
 
-extension Request {
+extension Vapor.Request {
     /// Runs the write request's candidate plan through the SAME executor path a read plan uses —
     /// its records land in the cache under the write verb's operation. The page's read plan is not
     /// loaded here; only the candidates are.

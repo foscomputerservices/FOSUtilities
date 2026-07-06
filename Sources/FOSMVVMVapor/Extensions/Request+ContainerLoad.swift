@@ -20,7 +20,7 @@ import FOSMVVM
 import Foundation
 import Vapor
 
-extension Request {
+extension Vapor.Request {
     /// The C8 entry: acquisition + scoping in one call (spec C3.3). Opens the stored provider (cheap;
     /// no fetch) and forwards to the opened-generic core — generics preserved end-to-end.
     func authorizedRecords(
@@ -60,7 +60,7 @@ extension Request {
     }
 }
 
-private extension Request {
+private extension Vapor.Request {
     /// The one memo point: [P.Authorization] is fetched once per Request and reused by every
     /// authorization consumer (record loads AND grant verdicts) — the structural form of the
     /// cache's one-authorization-set contract. Memo box is plainly Sendable

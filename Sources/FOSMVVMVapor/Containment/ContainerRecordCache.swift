@@ -69,7 +69,7 @@ struct ContainerRecordCacheKey: Hashable, Sendable {
     }
 }
 
-extension Request {
+extension Vapor.Request {
     /// CONTRACT (one authorization set per Request): the key deliberately does NOT name the
     /// authorizations. This is structural — the provider is fetched and memoized once per Request
     /// (the sole authorization path since the C8 audit removed the `authorizedBy:` engine entry),
