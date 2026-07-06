@@ -21,7 +21,7 @@ import FOSFoundation
 /// `ReplaceRequest` is the PUT verb of the write-protocol family: unlike
 /// ``UpdateRequest`` (PATCH, a partial modification of an existing resource),
 /// a replace supplies the resource's full desired state. It mirrors
-/// ``UpdateRequest``'s contract — its ``ServerRequest/RequestBody`` is a
+/// ``ReplaceRequest``'s contract — its ``ServerRequest/RequestBody`` is a
 /// ``ValidatableModel`` so the same ``Fields`` validation applies at every layer.
 public protocol ReplaceRequest: ServerRequest, Stubbable
     where RequestBody: ValidatableModel, ResponseBody: ReplaceResponseBody {}

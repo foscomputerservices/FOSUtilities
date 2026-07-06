@@ -20,10 +20,10 @@ import FOSMVVM
 import Foundation
 import Vapor
 
-// The write path (C8 T6): apply + fall-through. A write request never renders its own body — it
-// loads its auth-scoped candidate set, resolves the submitted target against it, mutates, commits,
-// invalidates the mutated containers' cached records (never the per-Request grant memo), then
-// re-serves its typed refresh request through the genuine read pipeline. The whole flow runs
+// The write path (C8 T6): apply + fall-through. A write loads its auth-scoped candidate set,
+// resolves the submitted target against it, mutates, commits, invalidates the mutated containers'
+// cached records (never the per-Request grant memo), then re-serves ITSELF through the genuine read
+// pipeline — building its own ResponseBody from the refreshed records. The whole flow runs
 // sequentially in the one handler task (the C6 cache's single-writer contract).
 
 extension Request {
@@ -31,22 +31,20 @@ extension Request {
     func serveUpdate<SR: UpdateRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> SR.ResponseBody
         where SR.RequestBody: DataModelWriter,
         SR.Query: TargetedQuery,
-        SR.RefreshRequest.ResponseBody: VaporResponseBodyFactory,
-        SR.RefreshRequest.ResponseBody.Request == SR.RefreshRequest {
+        SR.ResponseBody: VaporResponseBodyFactory {
         let context = try await commitUpdate(boundRequest, body: body)
         invalidateWrittenContainers(context)
-        return try await serve(boundRequest.refreshRequest())
+        return try await serve(boundRequest)
     }
 
     /// POST: validate → load candidate scope → fresh `Target()` → `apply` → create into scope →
     /// invalidate → refresh. No target resolution — the candidate scope is the destination.
     func serveCreate<SR: CreateRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> SR.ResponseBody
         where SR.RequestBody: DataModelWriter,
-        SR.RefreshRequest.ResponseBody: VaporResponseBodyFactory,
-        SR.RefreshRequest.ResponseBody.Request == SR.RefreshRequest {
+        SR.ResponseBody: VaporResponseBodyFactory {
         let context = try await commitCreate(boundRequest, body: body)
         invalidateWrittenContainers(context)
-        return try await serve(boundRequest.refreshRequest())
+        return try await serve(boundRequest)
     }
 
     /// DELETE: load candidates → resolve target → framework delete → invalidate → refresh. No body
@@ -54,11 +52,10 @@ extension Request {
     func serveDelete<SR: DeleteRequest>(_ boundRequest: SR) async throws -> SR.ResponseBody
         where SR.RequestBody: WriteTargetProviding,
         SR.Query: TargetedQuery,
-        SR.RefreshRequest.ResponseBody: VaporResponseBodyFactory,
-        SR.RefreshRequest.ResponseBody.Request == SR.RefreshRequest {
+        SR.ResponseBody: VaporResponseBodyFactory {
         let context = try await commitDelete(boundRequest)
         invalidateWrittenContainers(context)
-        return try await serve(boundRequest.refreshRequest())
+        return try await serve(boundRequest)
     }
 }
 

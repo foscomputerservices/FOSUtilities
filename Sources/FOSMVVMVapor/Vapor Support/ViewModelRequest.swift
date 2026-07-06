@@ -47,7 +47,7 @@ public extension Vapor.Application {
     ///
     /// - Parameter request: A *ServerRequest* whose *ResponseBody* is a ``VaporResponseBodyFactory``
     func register<SR: ServerRequest>(request _: SR.Type) throws
-        where SR.ResponseBody: VaporResponseBodyFactory, SR.ResponseBody.Request == SR {
+        where SR.ResponseBody: VaporResponseBodyFactory {
         // Boot-time fail-fast: overload resolution can send a write request to this read door.
         // Catch it here — a GET-only registration of a write request would be the silent mode.
         try rejectWriteProtocolAtReadDoor(SR.self)
@@ -62,41 +62,8 @@ public extension Vapor.Application {
         ]))
     }
 
-    /// Registers an update request's routes: PATCH for the write, plus the refresh request's read
-    /// plan for the fall-through. Swift picks this door when the update request's Query names a
-    /// target and its RequestBody writes.
-    ///
-    /// ## Example
-    ///
-    /// ```swift
-    /// func routes(_ app: Application) throws {
-    ///    try app.register(request: UpdateBerthRequest.self)
-    /// }
-    /// ```
-    ///
-    /// Register the app's containers and the refresh request's dependencies (apex resolver,
-    /// `useAppState`) **before** calling this — the candidate plan and the refresh read plan are
-    /// derived and validated here. After the update commits, the server re-serves the request's
-    /// ``UpdateRequest/refreshRequest()`` through the genuine read pipeline.
-    func register<SR: UpdateRequest>(request _: SR.Type) throws
-        where SR.RequestBody: DataModelWriter,
-        SR.Query: TargetedQuery,
-        SR.RefreshRequest.ResponseBody: VaporResponseBodyFactory,
-        SR.RefreshRequest.ResponseBody.Request == SR.RefreshRequest {
-        try registerRefreshPlan(for: SR.RefreshRequest.self)
-        try deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .writeRecords)
-        try routes.register(collection: GuardedRequestController<SR>(actions: [
-            .update: { req, bound in
-                guard let body = bound.requestBody else {
-                    throw ServerRequestControllerError.missingRequestBody
-                }
-                return try await req.serveUpdate(bound, body: body)
-            }
-        ]))
-    }
-
-    /// Registers a create request's routes: POST for the write, plus the refresh request's read
-    /// plan for the fall-through.
+    /// Registers a create request's routes: POST for the write, plus the request's own read plan
+    /// for the response.
     ///
     /// ## Example
     ///
@@ -107,13 +74,13 @@ public extension Vapor.Application {
     /// ```
     ///
     /// The framework instantiates a fresh `Target()`, calls the body's `apply`, sets the container
-    /// foreign key from the candidate scope, and saves — then re-serves the request's
-    /// ``CreateRequest/refreshRequest()``.
+    /// foreign key from the candidate scope, and saves — then re-serves the request itself to build
+    /// its `ResponseBody` from the refreshed records.
     func register<SR: CreateRequest>(request _: SR.Type) throws
         where SR.RequestBody: DataModelWriter,
-        SR.RefreshRequest.ResponseBody: VaporResponseBodyFactory,
-        SR.RefreshRequest.ResponseBody.Request == SR.RefreshRequest {
-        try registerRefreshPlan(for: SR.RefreshRequest.self)
+        SR.ResponseBody: VaporResponseBodyFactory {
+        try requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
+        try registerRecordLoadPlan(for: SR.self)
         try deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .createRecords)
         try routes.register(collection: GuardedRequestController<SR>(actions: [
             .create: { req, bound in
@@ -125,8 +92,41 @@ public extension Vapor.Application {
         ]))
     }
 
-    /// Registers a delete request's routes: DELETE for the write, plus the refresh request's read
-    /// plan for the fall-through. A delete body declares its candidate set only
+    /// Registers an update request's routes: PATCH for the write, plus the request's own read plan
+    /// for the response. Swift picks this door when the update request's Query names a
+    /// target and its RequestBody writes.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// func routes(_ app: Application) throws {
+    ///    try app.register(request: UpdateBerthRequest.self)
+    /// }
+    /// ```
+    ///
+    /// Register the app's containers and the request's response dependencies (apex resolver,
+    /// `useAppState`) **before** calling this — the candidate plan and the response read plan are
+    /// derived and validated here. After the update commits, the server re-serves the request itself
+    /// through the genuine read pipeline to build its `ResponseBody`.
+    func register<SR: UpdateRequest>(request _: SR.Type) throws
+        where SR.RequestBody: DataModelWriter,
+        SR.Query: TargetedQuery,
+        SR.ResponseBody: VaporResponseBodyFactory {
+        try requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
+        try registerRecordLoadPlan(for: SR.self)
+        try deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .writeRecords)
+        try routes.register(collection: GuardedRequestController<SR>(actions: [
+            .update: { req, bound in
+                guard let body = bound.requestBody else {
+                    throw ServerRequestControllerError.missingRequestBody
+                }
+                return try await req.serveUpdate(bound, body: body)
+            }
+        ]))
+    }
+
+    /// Registers a delete request's routes: DELETE for the write, plus the request's own read plan
+    /// for the response. A delete body declares its candidate set only
     /// (``WriteTargetProviding``); deletion is framework-owned.
     ///
     /// ## Example
@@ -137,13 +137,14 @@ public extension Vapor.Application {
     /// }
     /// ```
     ///
-    /// After the delete commits, the server re-serves the request's ``DeleteRequest/refreshRequest()``.
+    /// After the delete commits, the server re-serves the request itself to build its `ResponseBody`
+    /// from the refreshed records (or `EmptyBody` when there is nothing to return).
     func register<SR: DeleteRequest>(request _: SR.Type) throws
         where SR.RequestBody: WriteTargetProviding,
         SR.Query: TargetedQuery,
-        SR.RefreshRequest.ResponseBody: VaporResponseBodyFactory,
-        SR.RefreshRequest.ResponseBody.Request == SR.RefreshRequest {
-        try registerRefreshPlan(for: SR.RefreshRequest.self)
+        SR.ResponseBody: VaporResponseBodyFactory {
+        try requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
+        try registerRecordLoadPlan(for: SR.self)
         try deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .deleteRecords)
         try routes.register(collection: GuardedRequestController<SR>(actions: [
             .delete: { req, bound in try await req.serveDelete(bound) }
@@ -152,14 +153,6 @@ public extension Vapor.Application {
 }
 
 private extension Vapor.Application {
-    /// The read plan the write's refresh fall-through re-serves. A non-Void refresh AppState needs
-    /// its builder registered before the write request (same rule as the read door).
-    func registerRefreshPlan<Refresh: ServerRequest>(for _: Refresh.Type) throws
-        where Refresh.ResponseBody: VaporResponseBodyFactory, Refresh.ResponseBody.Request == Refresh {
-        try requireAppStateBuilder(appStateType: Refresh.ResponseBody.AppState.self, request: Refresh.self)
-        try registerRecordLoadPlan(for: Refresh.self)
-    }
-
     /// Overload resolution sends a write-protocol conformer that misses the write doors' constraints
     /// to the base read door. Reject it there: Create/Update/Delete conformers name unmet write
     /// constraints; Replace/Destroy name the not-yet-supported protocol.

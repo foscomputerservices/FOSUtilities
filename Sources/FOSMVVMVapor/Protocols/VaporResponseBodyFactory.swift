@@ -20,11 +20,13 @@ import Foundation
 import Vapor
 
 /// Produces a request's `ResponseBody` on the server — the one factory for every
-/// server-rendered body, ViewModel or not.
+/// server-produced body, ViewModel or not. Author it once on the body; every request
+/// whose `ResponseBody` is this type (a read and the writes that return it) reuses it.
 ///
 /// ```swift
 /// extension DockPageViewModel: VaporResponseBodyFactory {
-///     static func body(context: ProjectionContext<Request, Void>) throws -> Self {
+///     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
+///         where R.ResponseBody == Self {
 ///         .init(berthCells: try context.records(Self.berths)
 ///             .map { BerthCellViewModel(berth: $0) })
 ///     }
@@ -40,18 +42,9 @@ import Vapor
 /// phase (declare it, or use ``SupplementalRecordLoading``); an awaitable projection
 /// is the hole this type exists to close.
 ///
-/// A zero-data screen conforms to the factory alone (no ``ComposableFactory`` trait):
+/// A zero-data body conforms to the factory alone (no ``ComposableFactory`` trait):
 /// no plan, no data, just `body(context:)` returning the constructed value.
-public protocol VaporResponseBodyFactory: ServerRequestBody, Vapor.AsyncResponseEncodable {
-    /// The request this body answers. Its `ResponseBody` is this factory.
-    associatedtype Request: ServerRequest where Request.ResponseBody == Self
-
-    /// The app-declared per-request value the projection may read (`Void` by default).
-    associatedtype AppState: Sendable = Void
-
-    /// Builds the body from the projection context — synchronous by design.
-    static func body(context: ProjectionContext<Request, AppState>) throws -> Self
-}
+public protocol VaporResponseBodyFactory: ResponseBodyFactory, Vapor.AsyncResponseEncodable {}
 
 public extension VaporResponseBodyFactory {
     /// Serves the body *localized to the request's* [Accept-Language](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language).

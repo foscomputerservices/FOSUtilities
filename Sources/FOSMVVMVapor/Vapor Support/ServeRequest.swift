@@ -28,21 +28,33 @@ extension Vapor.Request {
     /// refresh instance and re-enters this same pipeline after it commits (there is no second
     /// serving path).
     func serve<SR: ServerRequest>(_ vmRequest: SR) async throws -> SR.ResponseBody
-        where SR.ResponseBody: VaporResponseBodyFactory, SR.ResponseBody.Request == SR {
+        where SR.ResponseBody: VaporResponseBodyFactory {
         // Load phase: declared requirements land in the container-record cache and the
         // tuple→keys side map (a no-op for a zero-data body). Projection reads only what
         // this deposited.
         try await executeRecordLoadPlan(for: vmRequest)
 
-        let context = try await ProjectionContext<SR, SR.ResponseBody.AppState>(
-            vmRequest: vmRequest,
-            appState: resolveAppState(SR.ResponseBody.AppState.self, request: SR.self),
-            appVersion: Result { try applicationVersion() },
-            plan: application.recordLoadPlan(for: SR.self),
-            cacheSnapshot: containerRecordCache,
-            tupleKeys: tupleCacheKeys
-        )
+        let appState = try await resolveAppState(SR.ResponseBody.AppState.self, request: SR.self)
+        // A zero-data body has no derived plan; it constructs a context that carries no records.
+        let context: ProjectionContext<SR, SR.ResponseBody.AppState>
+        if let plan = application.recordLoadPlan(for: SR.self) {
+            context = .init(vmRequest: vmRequest, appState: appState, plan: plan, recordsByTuple: recordsByTuple())
+        } else {
+            context = .init(vmRequest: vmRequest, appState: appState)
+        }
         return try SR.ResponseBody.body(context: context)
+    }
+
+    /// Flattens the request's container-record cache into the plan-tuple → records snapshot the
+    /// FOSMVVM ``ProjectionContext`` carries: resolves each tuple's cache keys to their deposited
+    /// records and upcasts the containment `DataModel`s to `Model`. The containment types never
+    /// leave this layer. `package` so the test harness builds a context the way `serve` does.
+    package func recordsByTuple() -> [RecordLoadPlan.Tuple: [any Model]] {
+        var result: [RecordLoadPlan.Tuple: [any Model]] = [:]
+        for (tuple, keys) in tupleCacheKeys {
+            result[tuple] = keys.flatMap { containerRecordCache[$0] ?? [] }.map { $0 as any Model }
+        }
+        return result
     }
 
     /// Resolves the projection's `AppState` value. `Void` is the zero-ceremony default (no builder,

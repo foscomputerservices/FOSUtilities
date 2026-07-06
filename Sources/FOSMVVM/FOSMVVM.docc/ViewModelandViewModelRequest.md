@@ -114,7 +114,7 @@ import Vapor
 import ViewModels
 
 extension LandingPageViewModel: VaporResponseBodyFactory {
-    public static func body(context: ProjectionContext<LandingPageRequest, Void>) throws -> Self {
+    public static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }

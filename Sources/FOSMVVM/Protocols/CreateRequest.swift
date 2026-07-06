@@ -16,40 +16,23 @@
 
 import FOSFoundation
 
-/// A ``ServerRequest`` that requests that the server **create** a resource
+/// A ``ServerRequest`` that requests that the server **create** a resource.
 ///
-/// After the create commits, the server re-serves a read request so the caller
-/// receives the freshly-rendered screen rather than the write's echo. Name that
-/// read request as ``RefreshRequest`` and build it from your write query in
-/// ``refreshRequest()``:
+/// A create returns a ``ServerRequest/ResponseBody`` like any request — normally the
+/// container's updated children, the same type a read of that container returns. Give
+/// the request that `ResponseBody`; the framework loads the writer's candidate scope,
+/// creates into it, commits, then builds the response from the refreshed records.
 ///
 /// ```swift
-/// typealias RefreshRequest = DockPageRequest
-///
-/// func refreshRequest() -> DockPageRequest {
-///     DockPageRequest(query: query.map { .init(dock: $0.dock) })
+/// final class CreateBerthRequest: CreateRequest {
+///     typealias RequestBody = CreateBerthBody   // a DataModelWriter
+///     typealias ResponseBody = BerthListVM      // the container's children
+///     // …query, init…
 /// }
 /// ```
 public protocol CreateRequest: ServerRequest, Stubbable
     where RequestBody: ValidatableModel,
-    ResponseBody: CreateResponseBody,
-    ResponseBody == RefreshRequest.ResponseBody {
-    /// The read request re-served after this create commits. Its `ResponseBody`
-    /// is this request's — by constraint — so the caller always receives the
-    /// fresh screen.
-    associatedtype RefreshRequest: ServerRequest
-
-    /// Builds the read request the server re-serves after this create commits.
-    ///
-    /// Author it as a pure value mapping from the write query's root:
-    ///
-    /// ```swift
-    /// func refreshRequest() -> DockPageRequest {
-    ///     DockPageRequest(query: query.map { .init(dock: $0.dock) })
-    /// }
-    /// ```
-    func refreshRequest() -> RefreshRequest
-}
+    ResponseBody: CreateResponseBody {}
 
 public extension CreateRequest {
     static var baseTypeName: String {
