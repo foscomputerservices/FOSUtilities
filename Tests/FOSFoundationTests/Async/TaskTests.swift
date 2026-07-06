@@ -18,7 +18,12 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite(.tags(.async, .extensions))
+// `.serialized`: every test here drives `Task.synchronous`, a sync-over-async bridge that
+// blocks its thread on a semaphore while a detached task runs on the shared cooperative
+// pool. Run several at once (Swift Testing parallelizes by default) and the pool starves —
+// a hang on Darwin, a segfault on Linux. Serializing exercises the bridge the way it is
+// actually used (one at a time); it is not a workaround for a production defect.
+@Suite(.tags(.async, .extensions), .serialized)
 struct TaskTests {
     @Test func syncTask() throws {
         let startTime = Date()

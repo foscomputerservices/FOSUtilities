@@ -68,9 +68,19 @@ public struct ViewModelId: Codable, Hashable, Sendable {
     private let id: String
     private let isRandom: Bool
 
+    /// This vmId's birth moment — a version clock. You rarely read it directly; the framework uses it
+    /// to tell a newer copy of a ViewModel from an older one (and drop stale refreshes). `==` and
+    /// `hash` ignore it, so two versions of the same entity stay equal. To compare versions yourself:
+    ///
+    /// ```swift
+    /// if incoming.freshness > current.freshness { current = incoming }   // keep the newer copy
+    /// ```
+    public let freshness: Freshness
+
     public init(id: String? = nil) {
         self.id = id ?? String.unique()
         self.isRandom = id == nil
+        self.freshness = Freshness()
     }
 
     public init(id: Int) {
@@ -93,6 +103,8 @@ public struct ViewModelId: Codable, Hashable, Sendable {
         let id = try container.decodeIfPresent(String.self, forKey: .id)
         self.isRandom = id == nil
         self.id = id ?? String.unique()
+        // Missing fsh (legacy payload) ⇒ now; present ⇒ preserved (decode never re-stamps).
+        self.freshness = try container.decodeIfPresent(Freshness.self, forKey: .freshness) ?? Freshness()
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -101,6 +113,7 @@ public struct ViewModelId: Codable, Hashable, Sendable {
         if !isRandom {
             try container.encode(id, forKey: .id)
         }
+        try container.encode(freshness, forKey: .freshness) // always encoded, unlike id
     }
 
     // MARK: Hashable
@@ -119,6 +132,34 @@ public struct ViewModelId: Codable, Hashable, Sendable {
 private extension ViewModelId {
     enum CodingKeys: String, CodingKey {
         case id
-        case timestamp = "ts"
+        case freshness = "fsh" // short key: ViewModelId is embedded in every streamed VM
+    }
+}
+
+public extension ViewModelId {
+    /// A version clock for a ``ViewModelId``. It only compares (`<`, `==`) — no `Date` arithmetic,
+    /// calendar, or formatting — which is exactly what you want to tell a newer version from an older
+    /// one: `a.freshness < b.freshness`.
+    struct Freshness: Comparable, Sendable {
+        private let timestamp: Date
+
+        init() {
+            self.timestamp = .now
+        } // internal ⇒ a Freshness can't be forged with an arbitrary moment
+
+        public static func < (lhs: Freshness, rhs: Freshness) -> Bool {
+            lhs.timestamp < rhs.timestamp
+        }
+    }
+}
+
+extension ViewModelId.Freshness: Codable {
+    public init(from decoder: Decoder) throws {
+        self.timestamp = try decoder.singleValueContainer().decode(Date.self)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(timestamp)
     }
 }

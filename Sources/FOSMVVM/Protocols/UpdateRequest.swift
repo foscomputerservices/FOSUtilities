@@ -16,9 +16,24 @@
 
 import FOSFoundation
 
-/// A ``ServerRequest`` that requests that the server **update** a resource
+/// A ``ServerRequest`` that requests that the server **update** a resource.
+///
+/// An update returns a ``ServerRequest/ResponseBody`` like any request — normally the
+/// container's updated children, the same type a read of that container returns. Give
+/// the request that `ResponseBody`; the framework loads the writer's candidate scope,
+/// resolves and mutates the target, commits, then builds the response from the
+/// refreshed records.
+///
+/// ```swift
+/// final class UpdateBerthRequest: UpdateRequest {
+///     typealias RequestBody = UpdateBerthBody   // a DataModelWriter
+///     typealias ResponseBody = BerthListVM      // the container's children
+///     // …query, init…
+/// }
+/// ```
 public protocol UpdateRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel, ResponseBody: UpdateResponseBody {}
+    where RequestBody: ValidatableModel,
+    ResponseBody: UpdateResponseBody {}
 
 public extension UpdateRequest {
     static var baseTypeName: String {

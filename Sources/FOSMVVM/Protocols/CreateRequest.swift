@@ -16,9 +16,23 @@
 
 import FOSFoundation
 
-/// A ``ServerRequest`` that requests that the server **create** a resource
+/// A ``ServerRequest`` that requests that the server **create** a resource.
+///
+/// A create returns a ``ServerRequest/ResponseBody`` like any request — normally the
+/// container's updated children, the same type a read of that container returns. Give
+/// the request that `ResponseBody`; the framework loads the writer's candidate scope,
+/// creates into it, commits, then builds the response from the refreshed records.
+///
+/// ```swift
+/// final class CreateBerthRequest: CreateRequest {
+///     typealias RequestBody = CreateBerthBody   // a DataModelWriter
+///     typealias ResponseBody = BerthListVM      // the container's children
+///     // …query, init…
+/// }
+/// ```
 public protocol CreateRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel, ResponseBody: CreateResponseBody {}
+    where RequestBody: ValidatableModel,
+    ResponseBody: CreateResponseBody {}
 
 public extension CreateRequest {
     static var baseTypeName: String {

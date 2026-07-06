@@ -152,7 +152,10 @@ public enum ServerRequestProcessingError: Error, CustomDebugStringConvertible {
     }
 }
 
-private extension ServerRequestAction {
+/// The action→HTTP-method bijection, stated once. Consumed by both the client fetch path
+/// (`processRequest`, above) and the server dispatch (`ServerRequestController.boot`), so it
+/// is package-visible rather than restated per module.
+package extension ServerRequestAction {
     var httpMethod: String {
         switch self {
         case .show: "GET"

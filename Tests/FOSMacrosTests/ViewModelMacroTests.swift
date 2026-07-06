@@ -377,6 +377,7 @@ final class ViewModelMacroTests: XCTestCase {
                     public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
+                        sort: EmptySort? = nil,
                         fragment: EmptyFragment? = nil,
                         requestBody: EmptyBody? = nil,
                         responseBody: TestViewModel?
@@ -468,6 +469,7 @@ final class ViewModelMacroTests: XCTestCase {
                     public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
+                        sort: EmptySort? = nil,
                         fragment: EmptyFragment? = nil,
                         requestBody: EmptyBody? = nil,
                         responseBody: TestViewModel?
@@ -556,6 +558,7 @@ final class ViewModelMacroTests: XCTestCase {
                     public typealias ResponseError = EmptyError
                     public init(
                         query: EmptyQuery?,
+                        sort: EmptySort? = nil,
                         fragment: EmptyFragment? = nil,
                         requestBody: EmptyBody? = nil,
                         responseBody: TestViewModel?

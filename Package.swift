@@ -77,6 +77,8 @@ let package = Package(
         #if os(macOS) || os(Linux)
         result.append(.package(url: "https://github.com/vapor/vapor.git", .upToNextMajor(from: "4.119.0")))
         result.append(.package(url: "https://github.com/vapor/fluent-kit.git", .upToNextMajor(from: "1.52.2")))
+        result.append(.package(url: "https://github.com/vapor/fluent.git", .upToNextMajor(from: "4.12.0")))
+        result.append(.package(url: "https://github.com/vapor/fluent-sqlite-driver.git", .upToNextMajor(from: "4.8.0")))
         result.append(.package(url: "https://github.com/vapor/leaf-kit.git", .upToNextMajor(from: "1.11.0")))
         #endif
 
@@ -185,6 +187,7 @@ let package = Package(
                 .byName(name: "FOSMacros"),
                 .product(name: "Vapor", package: "Vapor", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "FluentKit", package: "fluent-kit", condition: .when(platforms: [.macOS, .linux])),
+                .product(name: "Fluent", package: "fluent", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "LeafKit", package: "leaf-kit", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Yams", package: "Yams")
             ],
@@ -200,7 +203,9 @@ let package = Package(
                 .byName(name: "FOSMVVMVapor"),
                 .byName(name: "FOSTesting"),
                 .product(name: "Vapor", package: "Vapor"),
-                .product(name: "VaporTesting", package: "vapor")
+                .product(name: "VaporTesting", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver")
             ]
         ))
         result.append(.testTarget(
@@ -211,7 +216,9 @@ let package = Package(
                 .byName(name: "FOSMVVMVapor"),
                 .byName(name: "FOSTesting"),
                 .byName(name: "FOSTestingVapor"),
-                .product(name: "Vapor", package: "Vapor")
+                .product(name: "Vapor", package: "Vapor"),
+                .product(name: "FluentKit", package: "fluent-kit"),
+                .product(name: "Fluent", package: "fluent")
             ],
             resources: [
                 .copy("TestYAML")

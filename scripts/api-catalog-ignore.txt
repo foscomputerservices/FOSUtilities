@@ -6,3 +6,9 @@
 # regex replacement on toolchains without the native API; customers should reach
 # for Swift's built-in replacing/Regex APIs, not this shim.
 replacing
+
+# ResponseBodyFactory (FOSMVVM) — the transport-agnostic base of VaporResponseBodyFactory.
+# Not a distinct customer reach: a server conforms the refinement VaporResponseBodyFactory
+# (FOSMVVMVapor.md § Protocols), which also supplies the typed record reads and serving. The base
+# is named in that entry's prose; it is not adopted directly in practice.
+ResponseBodyFactory

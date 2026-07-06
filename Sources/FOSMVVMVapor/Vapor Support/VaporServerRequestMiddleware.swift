@@ -20,24 +20,26 @@ import Foundation
 import Vapor
 
 enum VaporServerRequestMiddlewareError: Error, CustomDebugStringConvertible {
-    case missingQuery
     case missingRequest
 
     var debugDescription: String {
         switch self {
-        case .missingQuery:
-            "VaporServerRequestMiddlewareError: Required Query missing"
         case .missingRequest:
-            "VaporServerRequestMiddlewareError: Required Request missing"
+            "requireServerRequest() found no bound ServerRequest on this Vapor.Request. The typed request is bound during routing by VaporServerRequestMiddleware, which is installed only when the route is registered through the FOS path — app.register(request:), or routes.register(collection:) on a ServerRequestController. A hand-rolled route that calls requireServerRequest() without that middleware always lands here; register it through one of those instead."
         }
     }
 }
 
 final class VaporServerRequestMiddleware<R: ServerRequest>: AsyncMiddleware {
     func respond(to req: Request, chainingTo next: AsyncResponder) async throws -> Response {
+        // The URL is parsed exactly ONCE — here. The bound instance carries query AND sort,
+        // and everything downstream (plan resolution, projection) reads the instance; nothing
+        // re-parses the URL (no second source of truth).
         let query = try req.serverRequestQuery(ofType: R.Query.self)
+        let sort = try req.serverRequestSort(ofType: R.Sort.self)
         req.serverRequest_set(R(
             query: query,
+            sort: sort,
             fragment: nil,
             requestBody: nil,
             responseBody: nil
@@ -47,7 +49,7 @@ final class VaporServerRequestMiddleware<R: ServerRequest>: AsyncMiddleware {
     }
 }
 
-extension Request {
+extension Vapor.Request {
     func requireServerRequest<R: ServerRequest>() throws -> R {
         guard let request: R = serverRequest() else {
             throw VaporServerRequestMiddlewareError.missingRequest

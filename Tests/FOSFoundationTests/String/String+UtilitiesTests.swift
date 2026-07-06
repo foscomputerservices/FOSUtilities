@@ -151,12 +151,9 @@ struct StringUtilitiesTests {
     }
 
     @Test(arguments: [
-        (input: "a,b,c", output: [["a", "b", "C"]]),
-        (input: "a,b,c\nd,e,f", output: [["a", "b", "C"], ["d", "e", "f"]]),
+        (input: "a,b,c", output: [["a", "b", "c"]]),
+        (input: "a,b,c\nd,e,f", output: [["a", "b", "c"], ["d", "e", "f"]]),
     ]) func loadCSVData(tuple: (input: String, output: [[String]])) {
-        // Equality of arrays doesn't seem to work???
-        withKnownIssue {
-            #expect(tuple.input.loadCSVData() == tuple.output)
-        }
+        #expect(tuple.input.loadCSVData() == tuple.output)
     }
 }

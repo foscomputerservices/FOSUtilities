@@ -21,7 +21,8 @@ import FOSFoundation
 import Foundation
 import Vapor
 
-public final class VaporServerRequestTest<Request: ServerRequest>: Sendable where Request.ResponseBody: VaporViewModelFactory {
+public final class VaporServerRequestTest<Request: ServerRequest>: Sendable
+    where Request.ResponseBody: VaporResponseBodyFactory {
     // `Bundle` is an immutable resource handle; it is only ever read (never
     // mutated) here, so treat it as safe to hold in this `Sendable` harness.
     private nonisolated(unsafe) let bundle: Bundle
@@ -51,9 +52,9 @@ public final class VaporServerRequestTest<Request: ServerRequest>: Sendable wher
                 bundle: bundle,
                 resourceDirectoryName: resourceDirectoryName
             )
-            try app.routes.register(
-                collection: VaporServerRequestHost<Request>()
-            )
+            try app.routes.register(collection: GuardedRequestController<Request>(actions: [
+                .show: { req, bound in try await req.serve(bound) }
+            ]))
             try await app.asyncBoot()
 
             let response = try await app.process(request: request, locale: locale)

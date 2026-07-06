@@ -32,6 +32,7 @@ final class TestReplaceRequest: ReplaceRequest, @unchecked Sendable {
 
     required init(
         query: EmptyQuery? = nil,
+        sort: EmptySort? = nil,
         fragment: EmptyFragment? = nil,
         requestBody: EmptyBody? = nil,
         responseBody: EmptyBody? = nil

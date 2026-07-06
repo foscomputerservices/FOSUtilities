@@ -20,7 +20,21 @@ import FOSFoundation
 ///
 /// > **delete** indicates "soft delete" as opposed to *destroy* that permanently
 /// > removes the item
-public protocol DeleteRequest: ServerRequest, Stubbable {}
+///
+/// A delete returns a ``ServerRequest/ResponseBody`` like any request — normally the
+/// container's remaining children, the same type a read of that container returns (or
+/// ``EmptyBody`` when there is nothing to return). The delete body declares its
+/// candidate set only (``WriteTargetProviding``); deletion is framework-owned.
+///
+/// ```swift
+/// final class DeleteBerthRequest: DeleteRequest {
+///     typealias RequestBody = DeleteBerthBody   // a WriteTargetProviding
+///     typealias ResponseBody = BerthListVM      // remaining children (or EmptyBody)
+///     // …query, init…
+/// }
+/// ```
+public protocol DeleteRequest: ServerRequest, Stubbable where
+    ResponseBody: DeleteResponseBody {}
 
 public extension DeleteRequest {
     static var baseTypeName: String {
@@ -31,3 +45,7 @@ public extension DeleteRequest {
         .delete
     }
 }
+
+public protocol DeleteResponseBody: ServerRequestBody {}
+
+extension EmptyBody: DeleteResponseBody {}

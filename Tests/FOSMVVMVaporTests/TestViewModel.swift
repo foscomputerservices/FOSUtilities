@@ -74,16 +74,16 @@ final class TestViewModelRequest: ViewModelRequest, @unchecked Sendable {
 
     let id: String
 
-    init(query: FOSMVVM.EmptyQuery? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: TestViewModel? = nil) {
+    init(query: FOSMVVM.EmptyQuery? = nil, sort: FOSMVVM.EmptySort? = nil, fragment: FOSMVVM.EmptyFragment? = nil, requestBody: FOSMVVM.EmptyBody? = nil, responseBody: TestViewModel? = nil) {
         self.id = .random(length: 10)
         self.responseBody = responseBody
     }
 }
 
-extension TestViewModel: VaporViewModelFactory {
-    // MARK: VaporViewModelFactory Protocol
+extension TestViewModel: VaporResponseBodyFactory {
+    // MARK: VaporResponseBodyFactory Protocol
 
-    static func model(context: VaporModelFactoryContext<TestViewModelRequest>) async throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         .init()
     }
 }

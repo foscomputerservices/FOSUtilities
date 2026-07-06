@@ -1,4 +1,4 @@
-// VaporServerRequestHostTests.swift
+// ServedRequestRouteTests.swift
 //
 // Copyright 2024 FOS Computer Services, LLC
 //
@@ -22,8 +22,8 @@ import Foundation
 import Testing
 import Vapor
 
-@Suite("Vapor Server Request Host Tests")
-struct VaporServerRequestHostTests {
+@Suite("Served Request Route Tests")
+struct ServedRequestRouteTests {
     @Test func performBasicRequest() async throws {
         let response = try await serverRequestTest.test(
             request: .init(),

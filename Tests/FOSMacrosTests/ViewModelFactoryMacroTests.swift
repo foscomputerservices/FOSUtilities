@@ -90,7 +90,7 @@ final class ViewModelFactoryMacroTests: XCTestCase {
         )
     }
 
-    func testVaporViewModelFactoryMethodMacro() {
+    func testVaporResponseBodyFactoryMethodMacro() {
         assertMacroExpansion(
             #"""
             struct TestViewModel: ViewModel {
@@ -111,16 +111,16 @@ final class ViewModelFactoryMacroTests: XCTestCase {
             }
 
             @VersionedFactory
-            extension TestViewModel: VaporViewModelFactory {
+            extension TestViewModel: VaporResponseBodyFactory {
                 typealias VMRequest = TestViewModelRequest
 
                 @Version(.v1_0_0)
-                static func model_v1_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                static func model_v1_0_0(context: ProjectionContext<VMRequest, Void>) async throws -> Self {
                     .stub()
                 }
 
                 @Version(.v2_0_0)
-                static func model_v2_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                static func model_v2_0_0(context: ProjectionContext<VMRequest, Void>) async throws -> Self {
                     .stub()
                 }
             }
@@ -142,12 +142,12 @@ final class ViewModelFactoryMacroTests: XCTestCase {
                     self.responseBody = responseBody
                 }
             }
-            extension TestViewModel: VaporViewModelFactory {
+            extension TestViewModel: VaporResponseBodyFactory {
                 typealias VMRequest = TestViewModelRequest
-                static func model_v1_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                static func model_v1_0_0(context: ProjectionContext<VMRequest, Void>) async throws -> Self {
                     .stub()
                 }
-                static func model_v2_0_0(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
+                static func model_v2_0_0(context: ProjectionContext<VMRequest, Void>) async throws -> Self {
                     .stub()
                 }
 

@@ -24,7 +24,10 @@ import Foundation
 ///
 /// > The protocol provides default implementations of: Hashable, Equatable and ``requireId()``
 public protocol Model: Codable, Hashable {
-    static var modelType: String { get }
+    /// The namespace identifying this model's *kind*. Defaults to the model's own type — override it
+    /// (anchored to a stable marker type) to keep a *persisted* identity stable across a type rename.
+    /// See ``ModelNamespace``.
+    static var modelIdentityNamespace: ModelNamespace { get }
 
     /// A unique identifier for the instance
     var id: ModelIdType? { get }
@@ -48,12 +51,22 @@ public extension Model {
         lhs.id == rhs.id
     }
 
-    @inlinable static var modelType: String {
-        String(describing: Self.self)
+    static var modelIdentityNamespace: ModelNamespace {
+        .init(for: Self.self)
     }
 
-    @inlinable var modelType: String {
-        Self.modelType
+    /// This model's opaque ``ModelIdentity`` — use it to compare, route on, or store *which entity
+    /// this is*:
+    ///
+    /// ```swift
+    /// let identity = try user.modelIdentity
+    /// ```
+    ///
+    /// - Throws: ``ModelError/missingId(modelType:)`` when ``id`` is `nil` (the model isn't persisted
+    ///   yet). For a non-throwing path, guard on `id != nil` first.
+    var modelIdentity: ModelIdentity {
+        // Not @inlinable — it calls ModelIdentity's internal init, which @inlinable can't reach.
+        get throws { try .init(namespace: Self.modelIdentityNamespace, id: requireId()) }
     }
 
     func requireId() throws -> ModelIdType {
