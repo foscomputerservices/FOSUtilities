@@ -377,7 +377,7 @@ try await request.processRequest(mvvmEnv: mvvmEnv)
 let viewModel = request.viewModel
 ```
 
-### CRUD write requests — `CreateRequest` / `UpdateRequest` / `ReplaceRequest` / `DeleteRequest` / `DestroyRequest` / `CreateResponseBody` / `UpdateResponseBody` / `ReplaceResponseBody`
+### CRUD write requests — `CreateRequest` / `UpdateRequest` / `ReplaceRequest` / `DeleteRequest` / `DestroyRequest` / `CreateResponseBody` / `UpdateResponseBody` / `ReplaceResponseBody` / `DeleteResponseBody` / `DestroyResponseBody`
 Reach for this when: an entity supports writes — adopt only the verbs it
 supports (that's why they're separate protocols). Each sets `action` and path
 naming for you; create/update/replace require the `RequestBody` to be a

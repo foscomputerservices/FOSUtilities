@@ -82,8 +82,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against the app's registered containers: composition cycles, duplicate `.refinedByRequest` marks,
   unresolvable containment hops, and `.query`/`.apex` roots missing their required conformance/resolver
   all fail fast at boot, never at request time.
-- **`VaporResponseBodyFactory` + `ProjectionContext`** (FOSMVVMVapor) — the one author-facing server
-  factory for every request's `ResponseBody`, ViewModel or not. `static func body(context:)` is
+- **`ResponseBodyFactory` (FOSMVVM) + `VaporResponseBodyFactory` (FOSMVVMVapor) + `ProjectionContext`
+  (FOSMVVM)** — the one author-facing server factory for every request's `ResponseBody`, ViewModel or
+  not. Authored **once on the body**: `static func body<R: ServerRequest>(context:) where
+  R.ResponseBody == Self` is generic over the request, so a single factory serves **every** request
+  that returns that body — a read *and* the writes that return the same value. `body` is
   **synchronous** (`throws`, never `async`) and is handed a `ProjectionContext` — the typed request,
   the app-declared `AppState`, and typed record reads by the same static handle the factory declared —
   never a `Vapor.Request` or `Database`. Reading a handle that never reached the plan throws (naming
@@ -101,11 +104,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (FOSMVVMVapor) are adopted by a write request's `RequestBody`: `candidates` declares the auth-scoped
   set (exactly one per write request), and `apply(to:)` is a **sealed synchronous** field application
   that cannot touch the database (create reuses the same `apply` on a fresh `Target()`; delete needs
-  no `apply`). `CreateRequest`/`UpdateRequest`/`DeleteRequest` gain a `RefreshRequest` associated type
-  and `refreshRequest()`: after a write commits and the mutated containers' records are invalidated,
-  the server re-serves the refresh request through the genuine read pipeline — the post-write re-bind
-  made structural. Create is gated on the authorization grant directly (a denied create throws the
-  same not-found shape as a nonexistent destination — no authorization oracle).
+  no `apply`). Each write protocol constrains its `ResponseBody` to a marker
+  (`Create`/`Update`/`Delete`/`Replace`/`Destroy` `ResponseBody`; `EmptyBody` conforms to each). After
+  a write commits and the mutated containers' records are invalidated, the server re-serves the **write
+  request itself** through the genuine read pipeline to build its `ResponseBody` — normally the
+  container's updated children, the same value a read of that container returns. No separate refresh
+  request: the body factory is generic over the request that returns it, so the write reuses its own
+  `ResponseBody`'s factory. Create is gated on the authorization grant directly (a denied create throws
+  the same not-found shape as a nonexistent destination — no authorization oracle).
 - **`Application.useAppState(_:builder:)`** (FOSMVVMVapor) — registers the one load-phase builder for a
   factory's `AppState` (session-derived display data), computed with full request power and handed to
   the synchronous projection as a plain value. Keyed by the `AppState` type; `Void` needs no

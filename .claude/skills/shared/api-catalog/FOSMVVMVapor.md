@@ -318,12 +318,16 @@ derived routing paths, and the Fluent-backed Model role.
 ### Produce a request's response body on the server — `VaporResponseBodyFactory`
 Reach for this when: writing the server-side factory for any request's
 `ResponseBody` — ViewModel or not — the DIP seam where loaded records become the
-value the client receives. `body(context:)` is **synchronous** (`throws`, never
-`async`): the records were loaded BEFORE projection began (auth-scoped, per the
+value the client receives. Authored once **on the body**; its generic
+`body<R: ServerRequest>(context:)` serves every request that returns that body —
+a read *and* the writes that return the same value (so a write reuses its own
+`ResponseBody`'s factory, with no separate refresh request). Refines the
+transport-agnostic `ResponseBodyFactory` (FOSMVVM). `body(context:)` is
+**synchronous** (`throws`, never `async`): the records were loaded BEFORE projection began (auth-scoped, per the
 factory's declared requirements — see FOSMVVM's `ComposableFactory` /
 `LoadRequirement`), so projection reads them, never loads them. The factory is
 handed a `ProjectionContext` (see Containment) — never a `Vapor.Request`, never a
-`Database`. A zero-data screen conforms to the factory alone (no
+`Database`. A zero-data body conforms to the factory alone (no
 `ComposableFactory`). Registered with `register(request:)` (see Vapor Support);
 the default `encodeResponse` serves the body *localized* to the request's
 Accept-Language via `buildResponse()`. Data the factory can't declare as tuples
@@ -334,7 +338,8 @@ instead.
 
 ```swift
 extension DockPageViewModel: VaporResponseBodyFactory {
-    static func body(context: ProjectionContext<Request, Void>) throws -> Self {
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
+        where R.ResponseBody == Self {
         .init(berthCells: try context.records(Self.berths)
             .map { BerthCellViewModel(berth: $0) })
     }
