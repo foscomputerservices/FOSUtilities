@@ -26,6 +26,9 @@ import FOSFoundation
 import FOSMVVM
 import FOSMVVMVapor
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import NIOCore
 import Testing
 import Vapor
