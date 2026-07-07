@@ -109,15 +109,24 @@ package extension Bundle {
                 .appending(path: resourceDirectoryName)
         ]
 
-        var result = Set<URL>()
-        for resourceURL in resourceURLs {
-            for file in resourceURL.findFiles(withExtension: "yml") {
-                let url = file.deletingLastPathComponent()
-                result.insert(url.absoluteURL)
-            }
-        }
+        return Set(resourceURLs.flatMap(\.yamlFileURLs))
+    }
+}
 
-        return result
+private extension URL {
+    var yamlFileURLs: [URL] {
+        findFiles(withExtension: "yml").map {
+            $0.deletingLastPathComponent().absoluteURL
+        }
+    }
+}
+
+package extension URL {
+    /// Initializes a ``LocalizationStore`` when the given URL roots the Resources
+    ///
+    /// > Only currently used for server-based previews
+    func yamlLocalizationStore() throws -> LocalizationStore {
+        try YamlStoreConfig(searchPaths: yamlFileURLs).localizationStore()
     }
 }
 

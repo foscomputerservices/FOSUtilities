@@ -323,7 +323,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     }
 
     /// - Throws: ``DataFetchError`` or **errorType**
-    public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?) async throws -> ResultValue {
+    public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, checkReceivedMimeType: Bool = true) async throws -> ResultValue {
         do {
             return try await send(
                 data: data,
@@ -331,6 +331,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
                 httpMethod: httpMethod,
                 headers: headers,
                 locale: locale,
+                checkReceivedMimeType: checkReceivedMimeType,
                 errorType: DummyError.self
             )
         } catch let error as DataFetchError {
@@ -344,7 +345,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     }
 
     /// - Throws: ``DataFetchError`` or **errorType**
-    public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+    public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, checkReceivedMimeType: Bool = true, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = httpMethod
 
@@ -391,7 +392,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             urlRequest.httpBody = data
         }
 
-        let responseMimeType = expectedResponseMimeType // Remove mutability
+        let responseMimeType = checkReceivedMimeType ? expectedResponseMimeType : nil // Remove mutability
 
         return try await withCheckedThrowingContinuation { continuation in
             urlSession

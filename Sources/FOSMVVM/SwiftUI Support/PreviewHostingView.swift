@@ -103,6 +103,96 @@ public extension ViewModelView {
             inner: Self.self,
             bundle: bundle,
             resourceDirectoryName: resourceDirectoryName,
+            serverHostedResourcesPath: nil,
+            locale: locale,
+            viewModel: viewModel,
+            setStates: setStates
+        )
+    }
+
+    /// Creates an instance of the ``ViewModelView`` and it's corresponding ``ViewModel`` that
+    /// will be bound with stub data and with all ``LocalizedString`` values bound to their localized
+    /// values, loading localization resources from a server-hosted path on the local filesystem
+    ///
+    /// ## Example:
+    ///
+    /// ```swift
+    /// public struct MyViewModel: ViewModel {
+    ///     @LocalizedString public var title
+    /// }
+    ///
+    /// struct MyView: ViewModelView {
+    ///
+    ///     let viewModel: MyViewModel
+    ///
+    ///     var body: some View {
+    ///         Text(viewModel.title)
+    ///     }
+    /// }
+    ///
+    /// #Preview {
+    ///     MyView.previewHost(serverHostedResourcesPath: myResourcesURL)
+    /// }
+    /// ```
+    ///
+    /// ## Example - Setting States
+    ///
+    /// At times it is advantageous to be able to set the @State variables of a view that is being previewed.
+    /// The *setStates:* function provides for this option.
+    ///
+    /// ```swift
+    /// public struct MyViewModel: ViewModel {
+    ///     @LocalizedString public var title
+    /// }
+    ///
+    /// struct MyView: ViewModelView {
+    ///     @State private isTitleShowing = true
+    ///
+    ///     let viewModel: MyViewModel
+    ///
+    ///     var body: some View {
+    ///         if isTitleShowing {
+    ///             Text(viewModel.title)
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// private extension MyView {
+    ///     mutating func setStates(
+    ///         isTitleShowing: Bool
+    ///     ) {
+    ///         _isTitleShowing = State(initialValue: isTitleShowing)
+    ///     }
+    /// }
+    ///
+    /// #Preview("Hidden Title") {
+    ///     MyView.previewHost(
+    ///         serverHostedResourcesPath: myResourcesURL,
+    ///         setStates: { view in
+    ///             view.setStates(
+    ///                 isTitleShowing: false
+    ///             )
+    ///         }
+    ///    )
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - serverHostedResourcesPath: A URL to a directory on the local filesystem containing YAML localization resources served by the Server
+    ///   - locale: The locale to lookup the YAML bindings for (default: Locale.current)
+    ///   - viewModel: A ViewModel that will be provided to the ViewModelView (default: .stub())
+    ///   - setStates: A function that can modify the ViewModelView instance (default: nil)
+    static func previewHost(
+        serverHostedResourcesPath: URL,
+        locale: Locale = .current,
+        viewModel: VM = .stub(),
+        setStates: ((inout Self) -> Void)? = nil
+    ) -> some View {
+        PreviewHostingView(
+            inner: Self.self,
+            bundle: .main,
+            resourceDirectoryName: "",
+            serverHostedResourcesPath: serverHostedResourcesPath,
             locale: locale,
             viewModel: viewModel,
             setStates: setStates
@@ -125,6 +215,7 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
     let inner: Inner.Type
     let bundle: Bundle
     let resourceDirectoryName: String
+    let serverHostedResourcesPath: URL?
     let locale: Locale
     let viewModel: Inner.VM
     let setStates: ((inout Inner) -> Void)?
@@ -140,17 +231,28 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
         } else {
             Text(loadingText)
                 .onAppear {
-                    do {
-                        localizationStore = try bundle.yamlLocalization(
-                            resourceDirectoryName: resourceDirectoryName
-                        )
-                    } catch {
-                        loadingText = """
-                            Unable to initialize the localization store: \(error)
+                    if let serverHostedResourcesPath {
+                        do {
+                            localizationStore = try serverHostedResourcesPath
+                                .yamlLocalizationStore()
+                        } catch {
+                            loadingText = """
+                                Unable to find serverHostedResourcesPath: \(serverHostedResourcesPath)
+                            """
+                        }
+                    } else {
+                        do {
+                            localizationStore = try bundle.yamlLocalization(
+                                resourceDirectoryName: resourceDirectoryName
+                            )
+                        } catch {
+                            loadingText = """
+                                Unable to initialize the localization store: \(error)
 
-                              - Bundle: \(bundle.bundlePath)
-                              - resourceDirectoryName: \(resourceDirectoryName.isEmpty ? "<Empty>" : resourceDirectoryName)
-                        """
+                                  - Bundle: \(bundle.bundlePath)
+                                  - resourceDirectoryName: \(resourceDirectoryName.isEmpty ? "<Empty>" : resourceDirectoryName)
+                            """
+                        }
                     }
                 }
         }

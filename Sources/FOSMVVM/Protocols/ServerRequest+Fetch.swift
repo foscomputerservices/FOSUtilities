@@ -96,14 +96,34 @@ public extension ServerRequest {
             try requestBody?.toJSONData() ?? Data()
         }
 
-        responseBody = try await dataFetch.send(
-            data: requestData,
-            to: requestURL(baseURL: baseURL),
-            httpMethod: action.httpMethod,
-            headers: requestHeaders,
-            locale: Locale.current,
-            errorType: Self.ResponseError.self
-        )
+        if ResponseBody.self == EmptyBody.self {
+            // An `EmptyBody` response carries no meaningful content, so its media type is irrelevant.
+            // Fetch it as `String` (the one decode path that accepts ANY 2xx body) with the
+            // received-MIME check disabled, discard the body, and synthesize the empty response. This
+            // round-trips against a server that answers `application/json` `{}` (`buildResponse`) AND
+            // one that answers `text/plain`/empty (a plain REST API) — neither type is
+            // enforced, because there is nothing to type. A non-2xx still decodes the typed
+            // `ResponseError` via `errorType`, unchanged.
+            let _: String = try await dataFetch.send(
+                data: requestData,
+                to: requestURL(baseURL: baseURL),
+                httpMethod: action.httpMethod,
+                headers: requestHeaders,
+                locale: Locale.current,
+                checkReceivedMimeType: false,
+                errorType: Self.ResponseError.self
+            )
+            responseBody = EmptyBody() as? ResponseBody
+        } else {
+            responseBody = try await dataFetch.send(
+                data: requestData,
+                to: requestURL(baseURL: baseURL),
+                httpMethod: action.httpMethod,
+                headers: requestHeaders,
+                locale: Locale.current,
+                errorType: Self.ResponseError.self
+            )
+        }
 
         return responseBody
     }
