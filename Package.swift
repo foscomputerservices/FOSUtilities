@@ -33,6 +33,10 @@ let package = Package(
             .library(
                 name: "FOSTestingUI",
                 targets: ["FOSTestingUI"]
+            ),
+            .library(
+                name: "FOSNetworkSecurity",
+                targets: ["FOSNetworkSecurity"]
             )
         ]
 
@@ -62,6 +66,8 @@ let package = Package(
             .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMajor(from: "1.4.3")),
             .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "4.1.0")),
             .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
+            .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMajor(from: "1.0.0")),
+            .package(url: "https://github.com/apple/swift-asn1.git", .upToNextMajor(from: "1.0.0")),
 
             // Third 🥳 frameworks
             // NOTE: WASM/WASI support is present but dormant. The WASI URLSession code
@@ -125,6 +131,21 @@ let package = Package(
                 dependencies: [
                     .byName(name: "FOSFoundation"),
                     .byName(name: "FOSMVVM")
+                ]
+            ),
+            .target(
+                name: "FOSNetworkSecurity",
+                dependencies: [
+                    .product(name: "X509", package: "swift-certificates"),
+                    .product(name: "SwiftASN1", package: "swift-asn1"),
+                    // CryptoKit on Apple; swift-crypto's Crypto on Linux (matches FOSFoundation).
+                    .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux]))
+                ]
+            ),
+            .testTarget(
+                name: "FOSNetworkSecurityTests",
+                dependencies: [
+                    .byName(name: "FOSNetworkSecurity")
                 ]
             ),
             .testTarget(
