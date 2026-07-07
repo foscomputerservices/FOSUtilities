@@ -124,7 +124,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
 
     /// A ``LocalizationStore`` instance that provides access to the localization data
     ///
-    /// > This is only provided/necessary for applications that created ``ViewModel``s
+    /// > This is only provided/necessary for applications that create ``ViewModel``s
     /// > in the application as opposed on the server.
     public var clientLocalizationStore: LocalizationStore? {
         get throws {
@@ -140,7 +140,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
 
     /// Returns a ``LocalizationStore`` instance that provides access to the localization data
     ///
-    /// > This is only provided/necessary for applications that created ``ViewModel``s
+    /// > This is only provided/necessary for applications that create ``ViewModel``s
     /// > in the application as opposed on the server.
     ///
     /// > The result of this function is **uncached** as opposed to ``clientLocalizationStore``
