@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-08
+
 ### Added
 
 - **`Container` protocol** (`Container: Model`) with `containedRecordTypes` — a
@@ -130,6 +132,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `@LocalizedDouble`. `dateStyle`/`timeStyle`/`dateFormat` pass through to
   `LocalizableDate` (`.medium` date style when nothing is specified); `value:`
   is required.
+- **`FOSNetworkSecurity`** — a new module for hardening client↔server transport.
+  `ServerCertPinning` pins a server by its SPKI public-key hash (`SPKIPin`), applied through a
+  `URLSession` extension so a pinned session drops in wherever `URLSession` is used; `MutualTLS`
+  + `ClientIdentityProvider` supply a client certificate for mutual-TLS handshakes.
+- **Paginated total-count** — `ProjectionContext.totalCount(for:)` and
+  `ContainmentRelation.memberCount` (FOSMVVMVapor): the size of the authorized set a
+  `PaginatedQuery` window is a view into, so a client can render window position (e.g.
+  "40–65 of 1,204,882"). Counted via `.count()` (no fetch), computed after the grant check so it
+  never counts unauthorized rows, and cached per window (0 for an unplanned or denied load).
+- **Query-driven filtering** — `FilterableDataModel` (FOSMVVMVapor): a searchable model declares
+  the one `ServerRequestQuery` type it reads and hand-writes `apply(filter:to:)` as a database
+  `WHERE`. A query *is* a filter, so there is no separate filter type or wire vocabulary; the
+  request's query rides the containment refinement into the load, the count, and the cache key, so
+  counts and windows reflect the narrowed set. Opportunistic — a non-filterable model, or a query
+  that isn't the model's declared type, is simply not narrowed (nothing is dropped or thrown).
+- **Server-hosted localization in view previews** — `previewHost(serverHostedResourcesPath:)` loads
+  YAML localization from a filesystem directory served by the server, so a server-localized view
+  can be previewed against those resources; adds `URL.yamlLocalizationStore()`.
 
 ### Changed
 
@@ -176,6 +196,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`EmptyBody` responses are content-agnostic on fetch (PL-8)** — a request whose `ResponseBody`
+  is `EmptyBody` no longer requires (or inspects) response content, so a bodyless server response
+  decodes cleanly.
 - `FOSVaporServerError.debugDescription` now correctly labels itself (it
   previously printed `FOSLocalizableError:`).
 - Corrected stale documentation examples: `PDFRenderer.render` shown with
@@ -270,5 +293,6 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.4.0...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.5.0...HEAD
+[0.5.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.3.7...0.4.0
