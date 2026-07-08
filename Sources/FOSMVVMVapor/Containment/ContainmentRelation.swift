@@ -44,6 +44,11 @@ public struct ContainmentRelation: Sendable {
     /// ONE refinement-aware code path with two internal entries (refined/unrefined) — no drift.
     private let load: @Sendable (any DataModel, any Database, ContainmentQueryRefinement) async throws -> [any DataModel]
 
+    /// The count twin of `load`: the size of the full authorized member set, run as a `.count()`
+    /// query — never a fetch. Ignores sort and window (neither changes a count). When a filter axis
+    /// is added to the refinement, apply it here too, in lockstep with `load`.
+    private let count: @Sendable (any DataModel, any Database) async throws -> Int
+
     /// The additive twin of `load`, captured at factory time: persists a new contained record
     /// into a fetched container, setting the join (FK or pivot) the same way Fluent's relationship
     /// does. `nil` for a `.parent` relation — a to-one parent is not a create scope. Internal so
@@ -54,11 +59,13 @@ public struct ContainmentRelation: Sendable {
         containerType: any DataModel.Type,
         containedType: any DataModel.Type,
         load: @escaping @Sendable (any DataModel, any Database, ContainmentQueryRefinement) async throws -> [any DataModel],
+        count: @escaping @Sendable (any DataModel, any Database) async throws -> Int,
         create: (@Sendable (any DataModel, any DataModel, any Database) async throws -> Void)?
     ) {
         self.containerType = containerType
         self.containedType = containedType
         self.load = load
+        self.count = count
         self.create = create
     }
 
@@ -73,6 +80,9 @@ public struct ContainmentRelation: Sendable {
                 try await refinement
                     .apply(to: container.cast(to: From.self)[keyPath: keyPath].query(on: db))
                     .all()
+            },
+            count: { container, db in
+                try await container.cast(to: From.self)[keyPath: keyPath].query(on: db).count()
             },
             create: { container, child, db in
                 // ChildrenProperty.create sets the child's FK back to the container and saves it.
@@ -92,6 +102,9 @@ public struct ContainmentRelation: Sendable {
                 try await refinement
                     .apply(to: container.cast(to: From.self)[keyPath: keyPath].query(on: db))
                     .all()
+            },
+            count: { container, db in
+                try await container.cast(to: From.self)[keyPath: keyPath].query(on: db).count()
             },
             create: { container, child, db in
                 // A new sibling must be persisted before the pivot can reference it; then attach.
@@ -117,6 +130,9 @@ public struct ContainmentRelation: Sendable {
             load: { container, db, _ in
                 // `.parent` ignores the whole refinement — sort AND window are lossless for one row.
                 try await container.cast(to: From.self)[keyPath: keyPath].query(on: db).all()
+            },
+            count: { container, db in
+                try await container.cast(to: From.self)[keyPath: keyPath].query(on: db).count()
             },
             create: nil
         )
@@ -145,6 +161,12 @@ extension ContainmentRelation {
         applying refinement: ContainmentQueryRefinement
     ) async throws -> [any DataModel] {
         try await load(container, db, refinement)
+    }
+
+    /// The count of the full authorized member set — the total the window is a view into. Runs a
+    /// `.count()` query; never fetches the rows. Same fetched-container PRECONDITION as `members`.
+    func memberCount(of container: any DataModel, on db: any Database) async throws -> Int {
+        try await count(container, db)
     }
 
     /// Persists `child` into `container` through this relation's join. Throws

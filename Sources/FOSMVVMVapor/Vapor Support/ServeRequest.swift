@@ -21,13 +21,13 @@ import Vapor
 
 // MARK: The shared serve point (GET; the write route's refresh re-enters here)
 
-extension Vapor.Request {
+package extension Vapor.Request {
     /// Runs the declared load plan for the TYPED request instance, then projects the request's
     /// body from a value-only ``ProjectionContext``. The single serve point: the GET route
     /// passes the middleware-bound instance; a write route's refresh passes its constructed
     /// refresh instance and re-enters this same pipeline after it commits (there is no second
     /// serving path).
-    func serve<SR: ServerRequest>(_ vmRequest: SR) async throws -> SR.ResponseBody
+    internal func serve<SR: ServerRequest>(_ vmRequest: SR) async throws -> SR.ResponseBody
         where SR.ResponseBody: VaporResponseBodyFactory {
         // Load phase: declared requirements land in the container-record cache and the
         // tuple→keys side map (a no-op for a zero-data body). Projection reads only what
@@ -36,11 +36,10 @@ extension Vapor.Request {
 
         let appState = try await resolveAppState(SR.ResponseBody.AppState.self, request: SR.self)
         // A zero-data body has no derived plan; it constructs a context that carries no records.
-        let context: ProjectionContext<SR, SR.ResponseBody.AppState>
-        if let plan = application.recordLoadPlan(for: SR.self) {
-            context = .init(vmRequest: vmRequest, appState: appState, plan: plan, recordsByTuple: recordsByTuple())
+        let context: ProjectionContext<SR, SR.ResponseBody.AppState> = if let plan = application.recordLoadPlan(for: SR.self) {
+            .init(vmRequest: vmRequest, appState: appState, plan: plan, recordsByTuple: recordsByTuple(), countsByTuple: countsByTuple())
         } else {
-            context = .init(vmRequest: vmRequest, appState: appState)
+            .init(vmRequest: vmRequest, appState: appState)
         }
         return try SR.ResponseBody.body(context: context)
     }
@@ -49,10 +48,24 @@ extension Vapor.Request {
     /// FOSMVVM ``ProjectionContext`` carries: resolves each tuple's cache keys to their deposited
     /// records and upcasts the containment `DataModel`s to `Model`. The containment types never
     /// leave this layer. `package` so the test harness builds a context the way `serve` does.
-    package func recordsByTuple() -> [RecordLoadPlan.Tuple: [any Model]] {
+    func recordsByTuple() -> [RecordLoadPlan.Tuple: [any Model]] {
         var result: [RecordLoadPlan.Tuple: [any Model]] = [:]
         for (tuple, keys) in tupleCacheKeys {
             result[tuple] = keys.flatMap { containerRecordCache[$0] ?? [] }.map { $0 as any Model }
+        }
+        return result
+    }
+
+    /// Flattens the count cache into the plan-tuple → total snapshot the ``ProjectionContext``
+    /// carries. A tuple with a window entry uses the cached total; a tuple without one (unpaginated)
+    /// falls back to the size of the records it deposited — so a non-windowed load's total is its
+    /// record count, at no extra query. `package` so the test harness builds a context like `serve`.
+    func countsByTuple() -> [RecordLoadPlan.Tuple: Int] {
+        var result: [RecordLoadPlan.Tuple: Int] = [:]
+        for (tuple, keys) in tupleCacheKeys {
+            result[tuple] = keys.reduce(0) { running, key in
+                running + (containerRecordCountCache[key] ?? (containerRecordCache[key]?.count ?? 0))
+            }
         }
         return result
     }
