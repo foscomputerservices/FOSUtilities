@@ -178,6 +178,24 @@ extension Berth: SortableDataModel {
     }
 }
 
+/// The request query Berth reads as a filter (test-side stand-in for a shared-module type). A query
+/// IS a filter — the model translates it to Fluent below.
+struct BerthSearchQuery: ServerRequestQuery {
+    var dockName: String?
+}
+
+/// A query type Berth does NOT read — the wrong-query-type fixture (mirror of OtherSortKey).
+struct OtherQuery: ServerRequestQuery {
+    var value: Int
+}
+
+extension Berth: FilterableDataModel {
+    static func apply(filter: BerthSearchQuery, to query: QueryBuilder<Berth>) -> QueryBuilder<Berth> {
+        guard let dockName = filter.dockName else { return query }
+        return query.filter(\.$dockName == dockName)
+    }
+}
+
 final class CrewMember: DataModel, @unchecked Sendable {
     static let schema = "crew_members"
     @ID(key: .id) var id: UUID?

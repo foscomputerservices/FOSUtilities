@@ -73,6 +73,7 @@ struct ResolvedRecordLoadPlan: Sendable {
     let rootIdentities: [RootSource: ModelIdentity]
     let sortTerms: [AnySortTerm]
     let pagination: Pagination?
+    let filter: AnyFilter?
 }
 
 extension ResolvedRecordLoadPlan {
@@ -132,13 +133,15 @@ private extension ResolvedRecordLoadPlan {
         for branch in branches {
             let sortedBy = tuple.isRefinedByRequest ? sortTerms : []
             let paginatedBy = tuple.isRefinedByRequest ? pagination : nil
+            let filteredBy = tuple.isRefinedByRequest ? filter : nil
             _ = try await request.authorizedRecords(
                 of: branch.container,
                 containing: recordType,
                 for: tuple.operation,
                 authorizedAs: branch.anchor,
                 sortedBy: sortedBy,
-                pagination: paginatedBy
+                pagination: paginatedBy,
+                filter: filteredBy
             )
             // Same inputs → the same key the engine just deposited (shared constructor —
             // ContainerRecordCacheKey.forLoad — is the no-drift guarantee).
@@ -148,7 +151,8 @@ private extension ResolvedRecordLoadPlan {
                 for: tuple.operation,
                 authorizedAs: branch.anchor,
                 sortedBy: sortedBy,
-                pagination: paginatedBy
+                pagination: paginatedBy,
+                filter: filteredBy
             ))
         }
         request.tupleCacheKeys[tuple] = depositedKeys
@@ -210,11 +214,14 @@ extension Vapor.Request {
         // The request's axes bind to the ONE marked tuple; without a mark they apply nowhere.
         var sortTerms = [AnySortTerm]()
         var pagination: Pagination?
+        var filter: AnyFilter?
         if plan.tuples.contains(where: \.isRefinedByRequest) {
             if let erasing = vmRequest.sort.flatMap({ $0 as? any ErasedSortTermsProviding }) {
                 sortTerms = erasing.erasedSortTerms
             }
             pagination = query.flatMap { $0 as? any PaginatedQuery }?.pagination
+            // The query IS the filter — a FilterableDataModel at the marked tuple reads it as a WHERE.
+            filter = query.map(AnyFilter.init)
         }
 
         return ResolvedRecordLoadPlan(
@@ -222,7 +229,8 @@ extension Vapor.Request {
             plan: plan,
             rootIdentities: rootIdentities,
             sortTerms: sortTerms,
-            pagination: pagination
+            pagination: pagination,
+            filter: filter
         )
     }
 
