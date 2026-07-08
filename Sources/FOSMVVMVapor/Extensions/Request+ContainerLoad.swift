@@ -148,6 +148,19 @@ private extension Vapor.Request {
             logger.warning("Container load returned \(records.count) \(String(describing: containedType)) records from \(String(describing: type(of: containerRecord))) — over maxRecordsWarningThreshold (\(threshold)). The full set was returned; consider paginating this load.")
         }
 
+        // Total the window is a view into: only when a window is present (an unpaginated load's
+        // total IS records.count — no query needed). Runs inside the authorized path, after the
+        // grant check above, so it never counts rows the caller cannot see. Mirrors the records
+        // loop's relation match.
+        if refinement.pagination != nil {
+            var total = 0
+            for relation in descriptor.containment
+                where ObjectIdentifier(relation.containedType) == ObjectIdentifier(containedType) {
+                total += try await relation.memberCount(of: containerRecord, on: db)
+            }
+            containerRecordCountCache[cacheKey] = total
+        }
+
         containerRecordCache[cacheKey] = records
         return records
     }

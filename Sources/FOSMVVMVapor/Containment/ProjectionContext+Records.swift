@@ -61,4 +61,50 @@ public extension ProjectionContext {
         // own (empty) entry, never another tuple's records.
         return (recordsByTuple[tuple] ?? []).compactMap { $0 as? Record }
     }
+
+    /// The total number of records the window pages through — read by the SAME handle the factory
+    /// declared, alongside ``records(_:)``.
+    ///
+    /// A ``PaginatedQuery`` returns only a window; the View needs the full set's size to render
+    /// position — a scroll bar over 1.2M rows, or "showing 40–65 of 1,204,882". Pre-compute it in
+    /// the factory and store it (a computed property would not survive the JSON round trip):
+    ///
+    /// ```swift
+    /// static func model(context: Context) throws -> BerthSearchViewModel {
+    ///     .init(
+    ///         berths: try context.records(Self.berths).map(BerthRowViewModel.init),
+    ///         totalMatches: try context.totalCount(for: Self.berths)
+    ///     )
+    /// }
+    /// ```
+    ///
+    /// The count is the **authorized** set the window is a view into — the same records
+    /// ``records(_:)`` would return without the window. For a non-paginated load it equals
+    /// `records(_:).count`.
+    ///
+    /// Throws exactly as ``records(_:)`` does: an unplanned handle throws (never returns 0 — a
+    /// misconfiguration is not a genuine "no matches"); a handle matching more than one declared
+    /// load throws.
+    func totalCount<Record: FOSMVVM.Model>(for handle: LoadRequirement<Record>) throws -> Int {
+        let requestName = String(describing: Request.self)
+        let recordName = String(describing: Record.self)
+
+        guard let plan else {
+            throw ContainmentError.unplannedRequirement(recordType: recordName, request: requestName)
+        }
+
+        let candidates = plan.tuples(matching: handle)
+        guard let tuple = candidates.first else {
+            throw ContainmentError.unplannedRequirement(recordType: recordName, request: requestName)
+        }
+        guard candidates.count == 1 else {
+            throw ContainmentError.ambiguousRequirement(
+                recordType: recordName,
+                request: requestName,
+                matchCount: candidates.count
+            )
+        }
+
+        return countsByTuple[tuple] ?? 0
+    }
 }

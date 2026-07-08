@@ -84,10 +84,20 @@ extension Vapor.Request {
         set { storage[ContainerRecordCacheStore.self] = ContainerRecordCacheEntries(entries: newValue) }
     }
 
+    /// Per-window totals, keyed exactly as `containerRecordCache`: the size of the authorized set a
+    /// windowed load is a view into. Written only when a load carries a window (unpaginated loads
+    /// need no entry — their total equals the records they already returned). Same single-writer /
+    /// snapshot-sharing contract as `containerRecordCache`.
+    var containerRecordCountCache: [ContainerRecordCacheKey: Int] {
+        get { storage[ContainerRecordCountCacheStore.self] ?? [:] }
+        set { storage[ContainerRecordCountCacheStore.self] = newValue }
+    }
+
     /// Pass-#2 support: a mutating caller invalidates after commit so its re-run recomputes.
     /// Drops ALL of the identity's entries — every contained type, operation, and refinement.
     func invalidateContainerRecords(of container: ModelIdentity) {
         containerRecordCache = containerRecordCache.filter { $0.key.container != container }
+        containerRecordCountCache = containerRecordCountCache.filter { $0.key.container != container }
     }
 }
 
@@ -115,4 +125,8 @@ private struct ContainerRecordCacheStore: StorageKey {
 
 private struct MaxRecordsWarningThresholdStore: StorageKey {
     typealias Value = Int
+}
+
+private struct ContainerRecordCountCacheStore: StorageKey {
+    typealias Value = [ContainerRecordCacheKey: Int]
 }

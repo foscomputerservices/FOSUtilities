@@ -48,17 +48,22 @@ public struct ProjectionContext<Request: ServerRequest, AppState: Sendable>: @un
     // Never a public surface: consumers read records through `records(_:)`, never the raw storage.
     package let plan: RecordLoadPlan?
     package let recordsByTuple: [RecordLoadPlan.Tuple: [any Model]]
+    /// Per-tuple total the window is a view into; empty for a zero-data context. Read via
+    /// FOSMVVMVapor's `totalCount(for:)`, never as raw storage.
+    package let countsByTuple: [RecordLoadPlan.Tuple: Int]
 
     package init(
         vmRequest: Request,
         appState: AppState,
         plan: RecordLoadPlan,
-        recordsByTuple: [RecordLoadPlan.Tuple: [any Model]]
+        recordsByTuple: [RecordLoadPlan.Tuple: [any Model]],
+        countsByTuple: [RecordLoadPlan.Tuple: Int] = [:]
     ) {
         self.vmRequest = vmRequest
         self.appState = appState
         self.plan = plan
         self.recordsByTuple = recordsByTuple
+        self.countsByTuple = countsByTuple
     }
 
     package init(
@@ -69,5 +74,6 @@ public struct ProjectionContext<Request: ServerRequest, AppState: Sendable>: @un
         self.appState = appState
         self.plan = nil
         self.recordsByTuple = [:]
+        self.countsByTuple = [:]
     }
 }

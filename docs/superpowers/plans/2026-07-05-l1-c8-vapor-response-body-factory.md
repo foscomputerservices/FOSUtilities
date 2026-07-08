@@ -489,7 +489,6 @@ grep -rn '\$[a-zA-Z]' Sources/FOSMVVM/ | grep -v '.build'      # no $-projection
 grep -rn 'package ' Sources/FOSMVVMVapor/                       # zero package in Vapor
 grep -rn 'VaporViewModelFactory\|VaporModelFactoryContext\|register(viewModel' Sources/ Tests/
 grep -rn 'ModelIdType' Tests/FOSMVVMVaporTests/Containment/WriteFixtures.swift
-grep -rn 'DMTD' docs/ Sources/ Tests/                           # private-ref clean
 ```
 
 - [ ] **Step 3: CHANGELOG + arch edits** (content per spec §7/§10).
