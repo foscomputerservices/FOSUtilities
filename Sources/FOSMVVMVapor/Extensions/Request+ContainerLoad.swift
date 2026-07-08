@@ -29,14 +29,15 @@ extension Vapor.Request {
         for operation: ContainerOperation,
         authorizedAs anchor: ModelIdentity? = nil,
         sortedBy sortTerms: [AnySortTerm] = [],
-        pagination: Pagination? = nil
+        pagination: Pagination? = nil,
+        filter: AnyFilter? = nil
     ) async throws -> [any DataModel] {
         guard let provider = application.containerAuthorizationProvider else {
             throw ContainmentError.noAuthorizationProvider
         }
         return try await authorizedRecords(
             via: provider, of: container, containing: containedType,
-            for: operation, authorizedAs: anchor, sortedBy: sortTerms, pagination: pagination
+            for: operation, authorizedAs: anchor, sortedBy: sortTerms, pagination: pagination, filter: filter
         )
     }
 
@@ -100,7 +101,8 @@ private extension Vapor.Request {
         for operation: ContainerOperation,
         authorizedAs anchor: ModelIdentity?,
         sortedBy sortTerms: [AnySortTerm],
-        pagination: Pagination?
+        pagination: Pagination?,
+        filter: AnyFilter?
     ) async throws -> [any DataModel] {
         let anchor = anchor ?? container
         // Anchor + pagination-boundary normalization live inside the shared key constructor —
@@ -111,7 +113,8 @@ private extension Vapor.Request {
             for: operation,
             authorizedAs: anchor,
             sortedBy: sortTerms,
-            pagination: pagination
+            pagination: pagination,
+            filter: filter
         )
         let refinement = cacheKey.refinement
         if let cached = containerRecordCache[cacheKey] {
@@ -149,14 +152,15 @@ private extension Vapor.Request {
         }
 
         // Total the window is a view into: only when a window is present (an unpaginated load's
-        // total IS records.count — no query needed). Runs inside the authorized path, after the
-        // grant check above, so it never counts rows the caller cannot see. Mirrors the records
-        // loop's relation match.
+        // total IS records.count — no query needed). Applies the refinement's FILTER (via the
+        // refined memberCount) so the total is the FILTERED set size the window slices, never the
+        // whole-set size. Runs inside the authorized path, after the grant check above, so it never
+        // counts rows the caller cannot see. Mirrors the records loop's relation match.
         if refinement.pagination != nil {
             var total = 0
             for relation in descriptor.containment
                 where ObjectIdentifier(relation.containedType) == ObjectIdentifier(containedType) {
-                total += try await relation.memberCount(of: containerRecord, on: db)
+                total += try await relation.memberCount(of: containerRecord, on: db, applying: refinement)
             }
             containerRecordCountCache[cacheKey] = total
         }

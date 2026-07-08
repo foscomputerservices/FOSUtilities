@@ -57,14 +57,15 @@ struct ContainerRecordCacheKey: Hashable, Sendable {
         for operation: ContainerOperation,
         authorizedAs anchor: ModelIdentity?,
         sortedBy sortTerms: [AnySortTerm],
-        pagination: Pagination?
+        pagination: Pagination?,
+        filter: AnyFilter?
     ) -> ContainerRecordCacheKey {
         .init(
             container: container,
             containedType: containedType,
             operation: operation,
             authorizedAs: anchor,
-            refinement: .normalized(sortTerms: sortTerms, pagination: pagination)
+            refinement: .normalized(sortTerms: sortTerms, pagination: pagination, filter: filter)
         )
     }
 }
@@ -77,7 +78,7 @@ extension Vapor.Request {
     /// CONTRACT (snapshot sharing): cached elements are shared class references — readers
     /// (projections) must NOT mutate them; only the write path mutates records, and after commit
     /// it calls invalidateContainerRecords(of:).
-    /// The engine (authorizedRecords(via:of:containing:for:authorizedAs:sortedBy:pagination:))
+    /// The engine (authorizedRecords(via:of:containing:for:authorizedAs:sortedBy:pagination:filter:))
     /// is the cache's ONLY writer; everything else reads or invalidates.
     var containerRecordCache: [ContainerRecordCacheKey: [any DataModel]] {
         get { storage[ContainerRecordCacheStore.self]?.entries ?? [:] }
