@@ -69,3 +69,28 @@ jobs:
             -scheme FOSUtilities-Package \
             -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
         if: matrix.ios_platform == 'macOS'
+
+  # Fail if the checked-in generated Localizable overloads are stale relative to
+  # the SDKs. --check is stamp-aware: it compares the runner's SDK versions
+  # against the stamp in SweepCoverage.md and only byte-compares when all five
+  # match; a version mismatch (or a missing SDK) is an informational skip
+  # (exit 0), never a false drift failure.
+  #
+  # DORMANT on today's hosted runners: GitHub's macos-latest ships no visionOS
+  # SDK (see the ios_platform matrix comment above), so this gate SKIPs there
+  # by design. The generated output is a function of ALL five SDKs
+  # (union-derived availability), so a partial regeneration can never
+  # byte-match. The gate fires on any machine with all five SDKs — maintainer
+  # Macs today, hosted runners whenever GitHub adds visionOS.
+  overload_sweep_staleness:
+    name: Generated overloads staleness gate
+    runs-on: macos-latest
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/checkout@v2
+
+      - name: Staleness gate
+        run: swift scripts/localizable-overload-sweep.swift --check
