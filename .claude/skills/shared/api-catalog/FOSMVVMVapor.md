@@ -185,8 +185,8 @@ routes.on(.POST, body: .collect(maxSize: FileUploadBody.maxBodySize?.vaporByteCo
 
 ## Middleware
 
-Two middlewares that belong on every FOSMVVM route group: typed, localized
-error responses and client-version gating.
+Three middlewares for FOSMVVM route groups: typed, localized error
+responses, client-version gating, and client-credential verification.
 
 ### Serve errors typed and localized — `ErrorMiddleware`
 Reach for this when: configuring the application's error handling — use
@@ -211,6 +211,25 @@ applications are rejected before any handler runs.
 ```swift
 let versionedGroup = app.grouped(RequireVersionedAppMiddleware())
 try versionedGroup.register(collection: ReplaceBerthController())
+```
+
+### Verify the caller's credential — `ClientCredentialMiddleware` / `ServerCredentialVerifier` / `BearerCredentialVerifier`
+Reach for this when: a route group must reject unauthenticated callers and the
+app owns the validity rule — the server complement of FOSMVVM's
+`ClientCredentialProvider` (the client attaches the credential, this verifies
+it). Supply the rule as a `ServerCredentialVerifier` (throw to reject, return
+to admit); the stock `BearerCredentialVerifier` extracts `Authorization:
+Bearer` and asks your `isValid` closure (compare digests or constant-time —
+never `==` on raw secrets). Missing or invalid → 401 with `WWW-Authenticate`.
+Limitation: a rejection reaches a FOSMVVM client as a transport-level
+bad-status error (401), not the request's typed `ResponseError` — and a
+`ResponseError` that decodes from any JSON body (e.g. `EmptyError`) swallows
+the 401 entirely; give protected requests an error type with a required field
+absent from rejection bodies.
+
+```swift
+let protected = app.grouped(ClientCredentialMiddleware(
+    verifier: BearerCredentialVerifier { token in await tokens.isCurrent(token) }))
 ```
 
 ## Containment

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ClientCredentialProvider`** (FOSMVVM) — supplies the authentication headers that
+  accompany every `ServerRequest`; consulted per request, so a rotating credential is
+  picked up on the next call. The dynamic sibling of the static
+  `MVVMEnvironment.requestHeaders`. Ships with the stock **`BearerCredentialProvider`**
+  (`Authorization: Bearer <token>`; a `nil` token sends the request unauthenticated).
+- **`MVVMEnvironment.clientCredentialProvider`** — register a `ClientCredentialProvider`
+  once (defaulted parameter on every initializer; additive) and
+  `processRequest(mvvmEnv:)` attaches its headers to every request, after the static
+  `requestHeaders` so the per-request credential wins on a duplicate field.
+- **`ClientCredentialMiddleware` + `ServerCredentialVerifier`** (FOSMVVMVapor) — the
+  server half of the credential pair: route groups run an app-supplied
+  `ServerCredentialVerifier` before each route; throw to reject, return to admit.
+  Consulted per request, so a credential revoked server-side takes effect on the next
+  call. Ships with the stock **`BearerCredentialVerifier`** — the matched pair of
+  `BearerCredentialProvider` — which extracts `Authorization: Bearer` and asks the
+  app whether that token is currently valid (missing or invalid → `401` with
+  `WWW-Authenticate: Bearer`, never echoing the presented token). On a FOSMVVM client
+  a rejection surfaces as `DataFetchError.badStatus(httpStatusCode: 401)` — this
+  requires an error serializer that forwards the `Abort`'s status and headers (FOS
+  `ErrorMiddleware.default` does). Known limitation: a request whose `ResponseError`
+  decodes from the rejection body swallows the `401` into a typed error instead —
+  `EmptyError` always does (its synthesized decode is a no-op, accepting any
+  valid-JSON body); pre-existing `DataFetch` behavior.
 - **Complete generated `Localizable` overload surface** — every SwiftUI
   initializer and modifier that takes a `LocalizedStringKey` now has a
   `some Localizable`-accepting twin with a `defaultValue:` fallback: 253

@@ -419,6 +419,24 @@ public struct ResponseError: ValidatableViewModelRequestError {
 }
 ```
 
+### Attach a credential to every request — `ClientCredentialProvider` / `BearerCredentialProvider`
+Reach for this when: the app must authenticate its ServerRequests (a bearer
+token, an API key) without per-call header plumbing — set a provider once on
+`MVVMEnvironment` and `processRequest(mvvmEnv:)` consults it on every request,
+so a credential that rotates mid-session is picked up on the next call. A `nil`
+token sends no header (the request proceeds unauthenticated). The server-side
+complement is `ClientCredentialMiddleware` (see `FOSMVVMVapor.md § Middleware`).
+Don't bake a token into the static `requestHeaders` — a rotating credential
+goes stale there; the provider is the dynamic sibling.
+
+```swift
+let env = MVVMEnvironment(
+    appBundle: .main,
+    clientCredentialProvider: BearerCredentialProvider { await tokens.current },
+    deploymentURLs: deploymentURLs
+)
+```
+
 ### Cap upload sizes — `ServerRequestBodySize`
 Reach for this when: a request body can be large (file uploads) — set
 `maxBodySize` on the `ServerRequestBody` so the server collects the whole

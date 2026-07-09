@@ -146,6 +146,13 @@ public extension ServerRequest {
                 headers.append((field: key, value: value))
             }
 
+            // Credential headers append AFTER the static requestHeaders: headers apply to the
+            // URLRequest in order (setValue), so on a duplicate field the per-request
+            // credential wins.
+            if let credentialProvider = mvvmEnv.clientCredentialProvider {
+                headers += try await credentialProvider.credentialHeaders()
+            }
+
             try await processRequest(
                 baseURL: mvvmEnv.serverBaseURL,
                 headers: headers,
