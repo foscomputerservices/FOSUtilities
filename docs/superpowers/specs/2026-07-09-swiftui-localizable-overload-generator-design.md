@@ -10,9 +10,10 @@ FOSMVVM ships `Localizable`-accepting overloads that mirror SwiftUI's
 `LocalizedStringKey`/`String` APIs (`Text`, `Label`, `TextField`,
 `LabeledContent`, `Tab`, `ContentUnavailableView`, `View.navigationTitle`).
 
-Today those overloads are hand-written:
+Today those overloads are hand-written — six dedicated files, plus
+`navigationTitle` living inside the shared `View.swift`:
 
-- Coverage is incidental (seven files; Button, Toggle, Picker, alerts,
+- Coverage is incidental (Button, Toggle, Picker, alerts,
   and hundreds of others have no overload).
 - Conventions drifted (`defaultValue:` vs `defaultTitle:`,
   `some Localizable` vs `any Localizable`).
@@ -39,8 +40,9 @@ automatically, deterministically, and verifiably.
 3. **Checked-in, maintainer-run** — the generator is a tool the
    maintainer runs when new SDKs ship. Generated sources are committed.
    FOSMVVM's public API is deterministic and reviewable in PRs.
-4. **Generated replaces hand-written** — the seven hand-written mirror
-   files are deleted. Non-mirror machinery is relocated (see
+4. **Generated replaces hand-written** — the hand-written mirror
+   overloads are deleted (six files plus the `View.swift` overload).
+   Non-mirror machinery is relocated or stays put (see
    "Not generated"). Source-breaking unification is accepted now,
    pre-1.0 (`defaultTitle:` → `defaultValue:`,
    `any Localizable` → `some Localizable`).
@@ -66,7 +68,10 @@ automatically, deterministically, and verifiably.
 ## Empirical grounding (probed 2026-07-08, OS 26-era macOS SDK)
 
 - `swift-symbolgraph-extract -module-name SwiftUI` succeeds;
-  output ~456 MB JSON, 83,378 symbols.
+  output ~456 MB JSON, 83,378 symbols. Across 5 platforms × 2 modules
+  (+ extension graphs) the working set is multi-GB — the Extract/Select
+  stages must process graphs one at a time (select while decoding,
+  discard the rest) rather than holding all graphs in memory.
 - 5,124 symbols are inits/methods with a `LocalizedStringKey`
   parameter (184 inits, 4,940 methods) *before* filtering
   deprecated/obsoleted/underscored — filtering will cut this
@@ -144,8 +149,12 @@ e.g. `extension TextField where Label == Text`):
 re-enter bundle lookup). Deterministic, in order:
 
 1. A `some StringProtocol` sibling with an otherwise-identical
-   signature exists in the graphs → delegate directly:
+   signature exists in the graphs → delegate directly.
+   Init-shaped:
    `self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), ...)`
+   Method/modifier-shaped (the dominant case, ~96% of candidates):
+   `navigationTitle(localizable.defaultedLocalizedString(defaultValue: defaultValue))`
+   — call the sibling method and return its result.
 2. Else a `Text`-taking sibling exists → delegate wrapping
    `Text(verbatim: resolved)`.
 3. Else → skip; record in the coverage manifest.
@@ -188,14 +197,22 @@ re-enter bundle lookup). Deterministic, in order:
 Run the tool → review the diff (new APIs appear as new overloads;
 manifest diff shows coverage changes) → commit.
 
-## Not generated (relocated, stays hand-written)
+## Not generated (stays hand-written)
+
+Relocated to one hand-written file (name: naming table):
 
 - `LocalizableResolverView` + the `Localizable.text` property —
   client-side resolution machinery; mirrors nothing.
 - The optional-Localizable `Text` init — SwiftUI has no optional-key
   inits to mirror.
 
-Both move to one hand-written file (name: naming table).
+Stays exactly where it is (`View.swift` is a shared file — only its
+`navigationTitle` overload is a mirror):
+
+- `withValidations(for:)` (3 overloads), `invalidateBinding(_:)`,
+  `refreshedViewModel(_:)`, and the `EnvironmentValues` `@Entry`
+  extension. None of these mirror SwiftUI API; they are load-bearing
+  for `FormFieldView` and ViewModel binding.
 
 ## Documentation
 
@@ -237,8 +254,16 @@ Both move to one hand-written file (name: naming table).
 
 ## Migration (one-time, in implementation)
 
-1. Delete the seven hand-written mirror files.
-2. Relocate resolver machinery + optional-Text init.
+Order matters: relocate first, delete second — and deletion is
+**per-overload** in shared files, never wholesale.
+
+1. Relocate resolver machinery + optional-Text init out of
+   `Text.swift` into the hand-written survivor file.
+2. Delete the four pure-mirror files wholesale
+   (`Label.swift`, `LabeledContent.swift`, `Tab.swift`,
+   `ContentUnavailableView.swift`); delete `Text.swift` once emptied
+   of relocated content; remove **only** the `navigationTitle`
+   mirror overload from `View.swift` (its other members stay put).
 3. Generate; run the full suite.
 4. Intended breakage surfaces in existing call sites
    (`defaultTitle:` → `defaultValue:`, `any` → `some`).
