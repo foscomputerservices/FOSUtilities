@@ -58,6 +58,16 @@ public struct ModelIdentity: Hashable, Codable, Sendable {
 }
 
 public extension ModelIdentity {
+    /// The HTTP response header FOSMVVM uses to keep ``LiveViewModel`` screens current
+    ///
+    /// The framework attaches it to served responses and the live bind resolver consumes
+    /// it — application code never reads, parses, or constructs its value. The constant
+    /// exists so infrastructure (proxies, logging filters, tests) can reference the header
+    /// **by name**; its value is an opaque framework contract that may evolve.
+    static let registrationsHeader = "X-FOS-Registrations"
+}
+
+public extension ModelIdentity {
     /// Whether this identity is the one rooted in `model` — sugar for `models.filter { changed == $0 }`.
     ///
     /// An unpersisted `model` (`id == nil`) compares `false`; it never throws.

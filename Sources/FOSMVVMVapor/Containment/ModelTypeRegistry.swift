@@ -55,6 +55,9 @@ struct RegisteredModel: Sendable {
     let containment: [ContainmentRelation]
     let authorityFlow: AuthorityFlow
     let typeName: String
+    /// The registered concrete type — the L2 emit-middleware sweep opens it back into a generic
+    /// (a container with EMPTY containment has no relation to recover its type from).
+    let modelType: any DataModel.Type
 
     private let findById: @Sendable (ModelIdType, any Database) async throws -> (any DataModel)?
 
@@ -63,6 +66,7 @@ struct RegisteredModel: Sendable {
         self.containment = type.containment
         self.authorityFlow = type.authorityFlow
         self.typeName = String(describing: type)
+        self.modelType = type
         self.findById = { id, db in try await type.find(id, on: db) }
     }
 

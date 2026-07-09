@@ -403,6 +403,9 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     @Environment(\.viewModelInvalidated) private var viewModelInvalidated
     @Environment(\.viewModelRefreshed) private var viewModelRefreshed
     @State private var viewModel: VM?
+    /// Inert unless `VM` is a `LiveViewModel`: only then is it ever handed a dispatcher (see
+    /// `registerLive`), so a non-live bind never touches the invalidation machinery.
+    @State private var liveCoordinator = LiveRegistrationCoordinator()
 
     private let query: VM.Request.Query?
     private let fragment: VM.Request.Fragment?
@@ -413,13 +416,13 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                 VMV(viewModel: viewModel)
                     .id(viewModel.vmId)
                     .onChange(of: query, initial: true) { Task {
-                        self.viewModel = await resolveServerHostedRequest()
+                        await loadAndBind()
                         viewModelInvalidated.wrappedValue = false
                     } }
                     .onChange(of: fragment, initial: true) {
                         guard fragment != nil else { return }
                         Task {
-                            self.viewModel = await resolveServerHostedRequest()
+                            await loadAndBind()
                             viewModelInvalidated.wrappedValue = false
                         }
                     }
@@ -438,11 +441,16 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                         else {
                             return
                         }
-                        self.viewModel = refreshedVM
+                        swapThroughFreshnessGate(refreshedVM)
+                    }
+                    // A matching server nudge advances `refreshSignal`; re-fetch in place through the
+                    // freshness gate (spec §3.4). Inert for a non-live VM — the signal never advances.
+                    .onChange(of: liveCoordinator.refreshSignal, initial: false) {
+                        Task { await refreshInPlace() }
                     }
             } else {
                 ProgressView().task {
-                    viewModel = await resolveServerHostedRequest()
+                    await loadAndBind()
                 }
             }
         }
@@ -453,7 +461,48 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
         self.fragment = fragment
     }
 
-    private func resolveServerHostedRequest() async -> VM? {
+    /// The gated in-place swap seam shared by same-request refresh arrivals — the pushed-JSON path
+    /// and the nudge-triggered re-fetch. Navigation (`query`/`fragment`) bypasses it: different data,
+    /// incomparable freshness (spec §3.3 scoping rule).
+    private func swapThroughFreshnessGate(_ incoming: VM) {
+        guard FreshnessGate.shouldReplace(current: viewModel, with: incoming) else { return }
+        viewModel = incoming
+    }
+
+    /// Navigation / initial load: replace the bound ViewModel outright (no gate — different data),
+    /// then (re-)register the live set if `VM` is live. A failed load registers nothing — the error
+    /// path's `(nil, [])` must not touch the registration (see `refreshInPlace`).
+    private func loadAndBind() async {
+        let (vm, registrations) = await resolveServerHostedRequest()
+        viewModel = vm
+        guard vm != nil else { return }
+        registerLive(registrations)
+    }
+
+    /// A nudge-triggered same-request refresh: re-fetch and swap through the freshness gate, then
+    /// re-register the latest response's set so newly-touched containers start listening.
+    ///
+    /// A failed re-fetch returns `(nil, [])`, so the guard covers the swap AND the registration:
+    /// the screen keeps showing its stale data and keeps listening with the prior set —
+    /// reregistering to the error path's empty set would deafen it until the next `.connected`
+    /// sweep or navigation. A genuinely-empty *successful* response still reregisters to empty.
+    private func refreshInPlace() async {
+        let (vm, registrations) = await resolveServerHostedRequest()
+        guard let vm else { return }
+        swapThroughFreshnessGate(vm)
+        registerLive(registrations)
+    }
+
+    private func registerLive(_ registrations: [ModelIdentity]) {
+        // A metatype conformance probe (not a stored existential): only a `LiveViewModel` registers,
+        // so a non-live bind never reaches the dispatcher and its behavior is wholly untouched. Where
+        // no channel is configured the dispatcher is inert (no socket, no events), degrading a live
+        // bind to fetch-once-on-appear (spec §3.4).
+        guard VM.self is any LiveViewModel.Type else { return }
+        liveCoordinator.update(registrations: registrations, dispatcher: mvvmEnv.invalidationDispatcher)
+    }
+
+    private func resolveServerHostedRequest() async -> (viewModel: VM?, registrations: [ModelIdentity]) {
         do {
             let request = VM.Request(
                 query: query,
@@ -462,9 +511,9 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                 responseBody: nil
             )
 
-            try await request.processRequest(mvvmEnv: mvvmEnv)
+            let registrations = try await request.processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
 
-            return request.viewModel
+            return (request.viewModel, registrations)
         } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
             print("ViewModel Bind Error: \(error)")
             // TODO: Error handling
@@ -474,7 +523,7 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
             // over the UI.  But instead, some top-level
             // way to display to the user that the app
             // encountered an error.
-            return nil
+            return (nil, [])
         }
     }
 }

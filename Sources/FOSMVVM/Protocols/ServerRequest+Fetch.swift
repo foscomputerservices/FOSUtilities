@@ -79,6 +79,19 @@ public extension ServerRequest {
     /// - Returns: ``ServerRequest/ResponseBody``
     @discardableResult
     func processRequest(baseURL: URL, headers: [(field: String, value: String)]? = nil, session: URLSession? = nil) async throws -> ResponseBody? {
+        try await processRequestCapturingRegistrations(baseURL: baseURL, headers: headers, session: session).body
+    }
+
+    /// Internal live-delivery seam: the same fetch as `processRequest(baseURL:headers:session:)`, also
+    /// returning the ViewModel's server-derived live registration set decoded from the
+    /// `X-FOS-Registrations` response header (spec §3.4). The public overload delegates here and drops
+    /// the registrations, so its observable behavior is byte-identical. Absent header ⇒ empty set; a
+    /// malformed value ⇒ empty set (decided: a broken registration header must never fail the fetch —
+    /// the screen simply degrades to fetch-once).
+    ///
+    /// Explicitly `internal` — this sits in a `public extension`, whose default would silently
+    /// publish the wire seam onto ``ServerRequest``'s public surface.
+    internal func processRequestCapturingRegistrations(baseURL: URL, headers: [(field: String, value: String)]? = nil, session: URLSession? = nil) async throws -> (body: ResponseBody?, registrations: [ModelIdentity]) {
         let dataFetch: DataFetch<URLSession> = if let session {
             DataFetch(urlSession: session)
         } else {
@@ -96,6 +109,7 @@ public extension ServerRequest {
             try requestBody?.toJSONData() ?? Data()
         }
 
+        let headerValue: String?
         if ResponseBody.self == EmptyBody.self {
             // An `EmptyBody` response carries no meaningful content, so its media type is irrelevant.
             // Fetch it as `String` (the one decode path that accepts ANY 2xx body) with the
@@ -104,28 +118,33 @@ public extension ServerRequest {
             // one that answers `text/plain`/empty (a plain REST API) — neither type is
             // enforced, because there is nothing to type. A non-2xx still decodes the typed
             // `ResponseError` via `errorType`, unchanged.
-            let _: String = try await dataFetch.send(
+            let (_, captured): (String, String?) = try await dataFetch.send(
                 data: requestData,
                 to: requestURL(baseURL: baseURL),
                 httpMethod: action.httpMethod,
                 headers: requestHeaders,
                 locale: Locale.current,
                 checkReceivedMimeType: false,
-                errorType: Self.ResponseError.self
+                errorType: Self.ResponseError.self,
+                capturingResponseHeader: ModelIdentity.registrationsHeader
             )
             responseBody = EmptyBody() as? ResponseBody
+            headerValue = captured
         } else {
-            responseBody = try await dataFetch.send(
+            let (body, captured): (ResponseBody, String?) = try await dataFetch.send(
                 data: requestData,
                 to: requestURL(baseURL: baseURL),
                 httpMethod: action.httpMethod,
                 headers: requestHeaders,
                 locale: Locale.current,
-                errorType: Self.ResponseError.self
+                errorType: Self.ResponseError.self,
+                capturingResponseHeader: ModelIdentity.registrationsHeader
             )
+            responseBody = body
+            headerValue = captured
         }
 
-        return responseBody
+        return (responseBody, LiveRegistrations.decode(headerValue))
     }
 
     /// Send the ``ServerRequest`` to the web service and wait for a response
@@ -137,6 +156,18 @@ public extension ServerRequest {
     ///   - mvvmEnv: The current ``MVVMEnvironment`` for the client application
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     func processRequest(mvvmEnv: MVVMEnvironment) async throws {
+        _ = try await processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+    }
+
+    /// Internal live-delivery seam: the `mvvmEnv` fetch, additionally returning the response's live
+    /// registration set (spec §3.4). Error handling matches `processRequest(mvvmEnv:)`; the bind
+    /// resolver drives every server-hosted request through it — a non-live ViewModel simply ignores
+    /// the returned set.
+    ///
+    /// Explicitly `internal` — this sits in a `public extension`, whose default would silently
+    /// publish the wire seam onto ``ServerRequest``'s public surface.
+    @discardableResult
+    internal func processRequestCapturingRegistrations(mvvmEnv: MVVMEnvironment) async throws -> [ModelIdentity] {
         do {
             var headers = [(field: String, value: String)]()
             if ResponseBody.self == EmptyBody.self {
@@ -153,18 +184,30 @@ public extension ServerRequest {
                 headers += try await credentialProvider.credentialHeaders()
             }
 
-            try await processRequest(
+            return try await processRequestCapturingRegistrations(
                 baseURL: mvvmEnv.serverBaseURL,
                 headers: headers,
                 session: mvvmEnv.session
-            )
+            ).registrations
         } catch let error as ServerRequestError {
             if let errorHandler = mvvmEnv.requestErrorHandler {
                 errorHandler(self, error)
+                return []
             } else {
                 throw error
             }
         }
+    }
+}
+
+/// Decodes the `X-FOS-Registrations` response header into a live-invalidation registration set.
+enum LiveRegistrations {
+    /// An absent or empty header ⇒ empty set. A malformed value also ⇒ empty set: a broken
+    /// registration header must never fail the fetch (spec §3.4) — the screen degrades to
+    /// fetch-once rather than surfacing an error the user cannot act on.
+    static func decode(_ headerValue: String?) -> [ModelIdentity] {
+        guard let headerValue, !headerValue.isEmpty else { return [] }
+        return (try? headerValue.fromJSON()) ?? []
     }
 }
 

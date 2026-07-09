@@ -19,6 +19,9 @@ import FOSFoundation
 public enum ViewModelOptions {
     /// Generate ``ClientHostedViewModelFactory`` support
     case clientHostedFactory
+
+    /// Refresh bound views automatically when server data changes — see ``LiveViewModel``
+    case live
 }
 
 @attached(extension, conformances: RetrievablePropertyNames, FieldValidationModel)
@@ -28,7 +31,7 @@ public macro FieldValidationModel() = #externalMacro(
     type: "FieldValidationModelMacro"
 )
 
-@attached(extension, conformances: RetrievablePropertyNames, ViewModel, ClientHostedViewModelFactory, RequestableViewModel)
+@attached(extension, conformances: RetrievablePropertyNames, ViewModel, ClientHostedViewModelFactory, RequestableViewModel, LiveViewModel)
 @attached(member, names: named(propertyNames), named(Request), named(AppState), named(model), named(modelSync), named(ClientHostedRequest), named(stub))
 public macro ViewModel(options: Set<ViewModelOptions> = []) = #externalMacro(
     module: "FOSMacros",

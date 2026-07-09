@@ -432,7 +432,10 @@ existing response builder.
   `DataRequirement` sealed: pure public marker + internal walk face; foreign conformers boot-reject
   (D-C8-5, §3.5). Opening members later is additive; freezing them public was forever.
 
-### C9 — Live invalidation  ·  Layer 2  ·  **SPECIFIED@arc-level, detail DEFERRED**  ·  [proven prior art; L0 freshness]
+### C9 — Live invalidation  ·  Layer 2  ·  **IMPLEMENTED**  ·  [proven prior art; L0 freshness]
+
+Delivered as L2 — full design and reconciliation:
+[`2026-07-09-live-invalidation-l2-design.md`](2026-07-09-live-invalidation-l2-design.md).
 
 Slotted here only to fix its seams to this layer: the L2 emit fires on the container's `ModelIdentity`
 after commit (C8 write path); the dispatcher routes by `ModelIdentity` (exact) or `ModelNamespace`

@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Live ViewModel invalidation — `@ViewModel(options: [.live])`** (FOSMVVM / FOSMVVMVapor).
+  Opt a screen in with the one macro option and any view bound with `.bind()` re-fetches
+  automatically whenever another actor commits a change to the data that ViewModel was served
+  from — no polling, no manual invalidation, nothing else to write. Where no live connection is
+  configured the ViewModel behaves exactly like a non-live one (fetch once on appear), so adding
+  `.live` to a shipped screen is purely additive. The macro synthesizes a **`LiveViewModel`**
+  marker; `.live` combined with `.clientHostedFactory` is a macro diagnostic (a client-hosted VM
+  has no server response to derive registrations from).
+- **`Application.useLiveInvalidation(on:)`** (FOSMVVMVapor) — the server boot switch. Call once,
+  passing the route group your clients authenticate against; every registered container model then
+  nudges connected clients after each committed change. Registrations made before or after the
+  call are both honored.
+- **`Request.liveTransaction` / `Application.liveTransaction`** (FOSMVVMVapor) — the sanctioned
+  replacement for a bare `database.transaction { }` in a live application: every write inside the
+  closure nudges live clients if — and only if — the transaction commits (a throw/rollback nudges
+  nothing). Inside a bare `transaction { }` the framework cannot know whether your writes commit,
+  so it stays silent and logs a warning.
+- **`InvalidationChannel` / `InvalidationEvent` + `MVVMEnvironment.invalidationChannel`** (FOSMVVM)
+  — the transport seam. Most apps configure nothing (leave `invalidationChannel` `nil` and the
+  standard channel is synthesized over your deployment URLs, with `invalidationBaseURL` defaulting
+  to `serverBaseURL`); conform your own `InvalidationChannel` only to replace the transport
+  wholesale. The invalidation nudge carries opaque `ModelIdentity` values only — **never** any
+  ViewModel data. Contract: the client authenticates the stream through your
+  `ClientCredentialProvider` at connect, and a reconnect refreshes every live screen.
+- **`withServedFluentTestApp`** (FOSTestingVapor) — a Fluent test harness that serves the app on
+  an ephemeral local port and hands the test a base URL, for exercising long-lived streaming
+  endpoints that outlast the in-process `app.test(...)` responder.
+- Served responses now carry an **`X-FOS-Registrations`** response header alongside `X-FOS-Version`
+  (the data a live client registers to watch). Treat it as opaque — do not parse or hand-construct
+  it; only the live resolver reads it.
+
+### Fixed
+
+- **`X-FOS-Version` attaches exactly once** to a served response (FOSMVVMVapor). The version header
+  was being appended twice on the served response; `addSystemVersion()` now replaces-or-adds, so
+  exactly one value is present. Clients reading the first value were unaffected — this removes a
+  latent duplicate on the wire.
+
 - **`ClientCredentialProvider`** (FOSMVVM) — supplies the authentication headers that
   accompany every `ServerRequest`; consulted per request, so a rotating credential is
   picked up on the next call. The dynamic sibling of the static

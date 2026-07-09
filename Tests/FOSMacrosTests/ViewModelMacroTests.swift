@@ -18,6 +18,7 @@
 import FOSFoundation
 import FOSMacros
 import Foundation
+import SwiftDiagnostics
 import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
@@ -26,6 +27,76 @@ final class ViewModelMacroTests: XCTestCase {
     private let testMacros: [String: any Macro.Type] = [
         "ViewModel": ViewModelMacro.self
     ]
+
+    func testLiveConformanceExpansion() {
+        assertMacroExpansion(
+            #"""
+            @ViewModel(options: [.live]) struct TestViewModel: RequestableViewModel {
+                @LocalizedString public var name
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+            }
+            """#,
+            expandedSource: #"""
+            struct TestViewModel: RequestableViewModel {
+                @LocalizedString public var name
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+
+                public func propertyNames() -> [LocalizableId: String] {
+                    [_name.localizationId: "name"]
+                }
+            }
+
+            extension TestViewModel: ViewModel {
+            }
+
+            extension TestViewModel: RetrievablePropertyNames {
+            }
+
+            extension TestViewModel: LiveViewModel {
+            }
+            """#,
+            macros: testMacros,
+            indentationWidth: .spaces(4)
+        )
+    }
+
+    func testLiveAndClientHostedFactoryConflictDiagnoses() {
+        assertMacroExpansion(
+            #"""
+            @ViewModel(options: [.live, .clientHostedFactory]) struct TestViewModel: RequestableViewModel {
+                @LocalizedString public var name
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+            }
+            """#,
+            expandedSource: #"""
+            struct TestViewModel: RequestableViewModel {
+                @LocalizedString public var name
+                var vmId: FOSMVVM.ViewModelId = .init()
+                static func stub() -> TestViewModel {
+                    .init()
+                }
+            }
+            """#,
+            diagnostics: [
+                DiagnosticSpec(
+                    message: "'.live' cannot be combined with '.clientHostedFactory': a client-hosted ViewModel is built on the client and has no server response to derive live registrations from",
+                    line: 1,
+                    column: 1
+                )
+            ],
+            macros: testMacros,
+            indentationWidth: .spaces(4)
+        )
+    }
 
     func testBlankExpansion() {
         assertMacroExpansion(

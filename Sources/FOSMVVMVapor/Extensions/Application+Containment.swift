@@ -56,10 +56,17 @@ public extension Application {
 
         // Boot-time fail-fast #1 (duplicate namespace) lives in insert(_:).
         var registry = modelTypeRegistry
-        try registry.insert(RegisteredModel(for: type))
+        let descriptor = RegisteredModel(for: type)
+        try registry.insert(descriptor)
         storage[ModelTypeRegistryStore.self] = registry
 
         migrations.add(migration)
+
+        // L2 live invalidation honors registrations made AFTER useLiveInvalidation(on:) — the
+        // boot switch sweeps the earlier ones (either call order works, spec §3.1).
+        if let hub = invalidationHub {
+            registerInvalidationEmitMiddleware(for: descriptor, hub: hub)
+        }
     }
 }
 

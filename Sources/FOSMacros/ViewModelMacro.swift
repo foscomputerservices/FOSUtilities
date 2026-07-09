@@ -17,6 +17,7 @@
 #if os(macOS) || os(Linux) || os(Windows)
 public import SwiftSyntax
 public import SwiftSyntaxMacros
+import SwiftDiagnostics
 import SwiftSyntaxBuilder
 
 public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
@@ -28,6 +29,21 @@ public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
             "ViewModelMacroError: @ViewModel can only be applied to structs"
         }
     }
+}
+
+// The customer-facing message for the `.live` + `.clientHostedFactory` conflict (spec §3.4 v1
+// constraint): a client-hosted ViewModel is composed on the client, so there is no server response
+// header from which to derive its live-invalidation registrations.
+private struct ViewModelMacroDiagnostic: DiagnosticMessage {
+    let message: String
+    let diagnosticID: MessageID
+    let severity: DiagnosticSeverity
+
+    static let liveClientHostedConflict = ViewModelMacroDiagnostic(
+        message: "'.live' cannot be combined with '.clientHostedFactory': a client-hosted ViewModel is built on the client and has no server response to derive live registrations from",
+        diagnosticID: MessageID(domain: "FOSMacros", id: "liveClientHostedConflict"),
+        severity: .error
+    )
 }
 
 // Example:
@@ -48,6 +64,9 @@ public enum ViewModelMacroError: Error, CustomDebugStringConvertible {
 private enum ViewModelOptions: String {
     /// Generate ``ClientHostedViewModelFactory`` support
     case clientHostedFactory
+
+    /// Emit the ``LiveViewModel`` marker conformance
+    case live
 }
 
 public struct ViewModelMacro: ExtensionMacro, MemberMacro {
@@ -83,6 +102,17 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
 
         let options = node.vmOptions
+
+        // v1 constraint (spec §3.4): `.live` derives its registration set from the server response,
+        // which a client-hosted ViewModel never has. Reject the combination up front.
+        if options.contains(.live), options.contains(.clientHostedFactory) {
+            context.diagnose(Diagnostic(
+                node: node,
+                message: ViewModelMacroDiagnostic.liveClientHostedConflict
+            ))
+            return []
+        }
+
         var result = [ExtensionDeclSyntax]()
 
         // Skip extension generation if ViewModel is explicitly declared
@@ -132,6 +162,20 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
             }
         }
 
+        // `.live` synthesizes the ``LiveViewModel`` marker and nothing else (spec §3.4). It refines
+        // `RequestableViewModel`, so declaring `: LiveViewModel` carries that conformance — no
+        // separate `RequestableViewModel` extension is needed here.
+        if options.contains(.live), !structDecl.conformsTo("LiveViewModel") {
+            let extensionDecl = try ExtensionDeclSyntax(
+                """
+                extension \(type): LiveViewModel {
+                }
+                """
+            )
+
+            result.append(extensionDecl)
+        }
+
         return result
     }
 
@@ -151,6 +195,13 @@ public struct ViewModelMacro: ExtensionMacro, MemberMacro {
         }
 
         let options = node.vmOptions
+
+        // The conflict is diagnosed once in the extension role; here we only decline to emit members
+        // so the invalid combination produces no half-formed expansion.
+        if options.contains(.live), options.contains(.clientHostedFactory) {
+            return []
+        }
+
         let viewModelName = structDecl.name.text
 
         // Collect properties with _LocalizedProperty wrapper

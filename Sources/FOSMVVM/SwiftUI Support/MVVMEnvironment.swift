@@ -73,14 +73,19 @@ public final class MVVMEnvironment: @unchecked Sendable {
         /// The base  URL for images
         public let resourcesBaseURL: URL
 
+        /// The base URL of the live-invalidation stream
+        public let invalidationBaseURL: URL
+
         /// Initializes the ``MVVMEnvironment``
         ///
         /// - Parameters:
         ///   - serverBaseURL: The base URL of the web service used to retrieve ``ViewModel``s
         ///   - resourcesBaseURL: The base URL of the web service used to retrieve images (default: ``serverBaseURL``)
-        public init(serverBaseURL: URL, resourcesBaseURL: URL? = nil) {
+        ///   - invalidationBaseURL: The base URL of the live-invalidation stream (default: ``serverBaseURL``)
+        public init(serverBaseURL: URL, resourcesBaseURL: URL? = nil, invalidationBaseURL: URL? = nil) {
             self.serverBaseURL = serverBaseURL
             self.resourcesBaseURL = resourcesBaseURL ?? serverBaseURL
+            self.invalidationBaseURL = invalidationBaseURL ?? serverBaseURL
         }
     }
 
@@ -104,6 +109,10 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// Use the stock ``BearerCredentialProvider`` for `Authorization: Bearer`
     /// authentication, or conform your own ``ClientCredentialProvider``.
     public let clientCredentialProvider: (any ClientCredentialProvider)?
+
+    /// The transport that delivers server invalidation nudges, or `nil` when live
+    /// invalidation is not configured — see ``InvalidationChannel``
+    public let invalidationChannel: (any InvalidationChannel)?
 
     /// A function that is called when there is an error processing a ``ServerRequest``
     public let requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)?
@@ -171,26 +180,32 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// Returns the URL for the web server that provides ``ViewModel``s for the current ``Deployment``
     public var serverBaseURL: URL {
         get async throws {
-            let deployment = await Deployment.current
-            guard let result = deploymentURLs[deployment] else {
-                throw MVVMEnvironmentError.missingDeploymentConfiguration(deployment: deployment)
-            }
-
-            return result.serverBaseURL
+            try await currentURLPackage().serverBaseURL
         }
     }
 
     /// Returns the URL for the web server that provides images and resources for the current ``Deployment``
     public var resourcesBaseURL: URL {
         get async throws {
-            let deployment = await Deployment.current
-            guard let result = deploymentURLs[deployment] else {
-                throw MVVMEnvironmentError.missingDeploymentConfiguration(deployment: deployment)
-            }
-
-            return result.resourcesBaseURL
+            try await currentURLPackage().resourcesBaseURL
         }
     }
+
+    /// The one Deployment → ``URLPackage`` resolution every base-URL accessor projects from.
+    private func currentURLPackage() async throws -> URLPackage {
+        let deployment = await Deployment.current
+        guard let result = deploymentURLs[deployment] else {
+            throw MVVMEnvironmentError.missingDeploymentConfiguration(deployment: deployment)
+        }
+
+        return result
+    }
+
+    @ObservationIgnored
+    private var _defaultInvalidationChannel: (any InvalidationChannel)?
+
+    @ObservationIgnored
+    private var _invalidationDispatcher: InvalidationDispatcher?
 
     #if canImport(SwiftUI)
     /// Initializes the ``MVVMEnvironment`` for SwiftUI
@@ -207,6 +222,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
     ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
+    ///   - invalidationChannel: The transport that delivers server invalidation nudges; supply one
+    ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
@@ -220,6 +237,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         clientCredentialProvider: (any ClientCredentialProvider)? = nil,
+        invalidationChannel: (any InvalidationChannel)? = nil,
         deploymentURLs: [Deployment: URLPackage],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
@@ -230,6 +248,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
         self.clientCredentialProvider = clientCredentialProvider
+        self.invalidationChannel = invalidationChannel
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
         self.session = session
@@ -257,6 +276,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
     ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
+    ///   - invalidationChannel: The transport that delivers server invalidation nudges; supply one
+    ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
@@ -270,6 +291,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         clientCredentialProvider: (any ClientCredentialProvider)? = nil,
+        invalidationChannel: (any InvalidationChannel)? = nil,
         deploymentURLs: [Deployment: URL],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
@@ -282,6 +304,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
             resourceDirectoryName: resourceDirectoryName,
             requestHeaders: requestHeaders,
             clientCredentialProvider: clientCredentialProvider,
+            invalidationChannel: invalidationChannel,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair
@@ -311,6 +334,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceDirectoryName = nil
         self.requestHeaders = [:]
         self.clientCredentialProvider = nil
+        self.invalidationChannel = nil
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = nil
         self.session = session
@@ -334,6 +358,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
     ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
+    ///   - invalidationChannel: The transport that delivers server invalidation nudges; supply one
+    ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
@@ -345,6 +371,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         clientCredentialProvider: (any ClientCredentialProvider)? = nil,
+        invalidationChannel: (any InvalidationChannel)? = nil,
         deploymentURLs: [Deployment: URLPackage],
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
@@ -357,6 +384,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
         self.clientCredentialProvider = clientCredentialProvider
+        self.invalidationChannel = invalidationChannel
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
         self.session = session
@@ -396,6 +424,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
     ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
     ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
+    ///   - invalidationChannel: The transport that delivers server invalidation nudges; supply one
+    ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
@@ -407,6 +437,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
         clientCredentialProvider: (any ClientCredentialProvider)? = nil,
+        invalidationChannel: (any InvalidationChannel)? = nil,
         deploymentURLs: [Deployment: URL],
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
@@ -421,6 +452,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
             resourceDirectoryName: resourceDirectoryName,
             requestHeaders: requestHeaders,
             clientCredentialProvider: clientCredentialProvider,
+            invalidationChannel: invalidationChannel,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair
@@ -442,6 +474,57 @@ public enum MVVMEnvironmentError: Error, CustomDebugStringConvertible {
         case .missingDeploymentConfiguration(deployment: let deployment):
             "debugDescription: Missing deployment configuration for \(deployment)"
         }
+    }
+}
+
+extension MVVMEnvironment {
+    /// The base URL of the live-invalidation stream for the current ``Deployment``
+    var invalidationBaseURL: URL {
+        get async throws {
+            try await currentURLPackage().invalidationBaseURL
+        }
+    }
+
+    /// The channel the live-invalidation dispatcher consumes: the app-supplied
+    /// ``invalidationChannel`` if set, otherwise the lazily-synthesized default SSE channel over
+    /// ``invalidationBaseURL`` and ``clientCredentialProvider``. The default channel is
+    /// Darwin-only (FoundationNetworking lacks `URLSession.bytes`); on Linux/WASI this is `nil`
+    /// and the app degrades to fetch-once.
+    @MainActor
+    var effectiveInvalidationChannel: (any InvalidationChannel)? {
+        if let invalidationChannel {
+            return invalidationChannel
+        }
+        #if canImport(Darwin)
+        if let cached = _defaultInvalidationChannel {
+            return cached
+        }
+        let channel = SSEInvalidationChannel(
+            baseURL: { [weak self] in
+                guard let self else { throw await MVVMEnvironmentError.missingDeploymentConfiguration(deployment: Deployment.current) }
+                return try await invalidationBaseURL
+            },
+            credentialProvider: clientCredentialProvider,
+            session: session
+        )
+        _defaultInvalidationChannel = channel
+        return channel
+        #else
+        return nil
+        #endif
+    }
+
+    /// The dispatcher live screens register with — lazily created over ``effectiveInvalidationChannel``.
+    /// `@MainActor`-only, like the channel memo it mirrors: creation and every consultation happen on
+    /// the main actor, which is what leaves `_invalidationDispatcher` safe to store unsynchronized.
+    @MainActor
+    var invalidationDispatcher: InvalidationDispatcher {
+        if let _invalidationDispatcher {
+            return _invalidationDispatcher
+        }
+        let dispatcher = InvalidationDispatcher(channel: effectiveInvalidationChannel)
+        _invalidationDispatcher = dispatcher
+        return dispatcher
     }
 }
 
