@@ -58,7 +58,16 @@ automatically, deterministically, and verifiably.
    SwiftUI's surface is tied to the OS SDK. All stamps, comparisons,
    and gates key on per-platform SDK versions
    (`xcrun --sdk <name> --show-sdk-version`).
-8. **Availability spans old-through-beta from one generated set** —
+8. **Script first, package only if warranted** — the tool is a plain
+   single-file Swift script in `Scripts/` (run as
+   `swift Scripts/<name>.swift`, same convention as
+   `api-catalog-audit.swift`). Zero dependencies, so swift-sh is not
+   needed. The rejected-for-now alternative (SPM package under
+   `Tools/`) bought exactly one thing — a unit-test target for the
+   transformer; if a regeneration-debugging session ever makes that
+   pain real, promotion to a tested package is mechanical and done
+   then, with evidence.
+9. **Availability spans old-through-beta from one generated set** —
    generation runs against the newest installed SDKs, betas included
    (today: the OS 27 betas), and every overload carries the
    per-platform `@available` matrix from symbol-graph data, so one
@@ -88,10 +97,11 @@ automatically, deterministically, and verifiably.
 
 ## Architecture — six-stage pipeline
 
-The tool is a standalone SPM executable package under `Tools/`,
-independent of the root package (consumers never see it).
-Not a single-file script: it has real parsing and transformation
-rules and deserves unit tests.
+The tool is a single-file Swift script in `Scripts/`
+(decision 8) — outside the root package; consumers never see it.
+The file is organized in clearly-marked sections mirroring the six
+stages below, so a future promotion to a package is a mechanical
+split.
 
 ### 1. Extract
 
@@ -237,13 +247,16 @@ Stays exactly where it is (`View.swift` is a shared file — only its
 
 ## Testing
 
-1. **Unit tests on the tool** (Swift Testing, in the tool package):
-   selection filter, availability merge + floor clamping, signature
-   transformation, delegate-target policy, multi-slot naming.
-   Driven by small checked-in symbol-graph fixtures (hand-trimmed JSON
-   records, a few KB — never the real graphs).
-   Golden tests: fixture record in → expected Swift source out,
-   verbatim.
+1. **Unit tests on the tool — DEFERRED** (decision 8). A script has
+   no test target. What ships is verified by layers 2–3 regardless;
+   what the deferred tests would protect is maintainer debugging of a
+   future regeneration. If that pain materializes, promote the script
+   to an SPM package under `Tools/` and add the deferred layer:
+   Swift Testing over small checked-in symbol-graph fixtures
+   (hand-trimmed JSON, a few KB — never the real graphs), golden
+   tests fixture-record-in → exact-Swift-out, covering the selection
+   filter, availability merge + floor clamping, signature
+   transformation, delegate-target policy, and multi-slot naming.
 2. **The package build is the integration test** — checked-in output
    compiling on the full CI matrix proves delegate targets resolve and
    availability is coherent.
@@ -268,42 +281,22 @@ Order matters: relocate first, delete second — and deletion is
 4. Intended breakage surfaces in existing call sites
    (`defaultTitle:` → `defaultValue:`, `any` → `some`).
 
-## Naming table — David arbitrates
+## Naming table — arbitrated 2026-07-09
 
-No name below is settled. Candidates carry the legibility axis
-(distinct leading characters, no confusable shapes).
-
-**1. Tool package directory (under `Tools/`)**
-
-- `LocalizableOverloads` — plain, states the output
-- `OverloadSweep` — states the mechanism (sweep), distinct shape
-- `SwiftUIMirror` — states the relationship, risks vagueness
-
-**2. Generated-sources directory (inside `SwiftUI Support/`)**
-
-- `Generated` — conventional, instantly legible
-- `Swept` — distinct from everything, but cryptic
-
-**3. Relocated hand-written file**
-
-- `LocalizableViews.swift`
-- `LocalizableResolution.swift` — names the machinery's job
-
-**4. Coverage manifest filename**
-
-- `SweepCoverage.md` — ⚠ flagged: `Generated/` + `GenerationManifest.md`
-  would share a `Genera-` prefix (confusable shapes); a `Sweep-` name
-  avoids the collision
-- `GenerationManifest.md`
-
-**5. Multi-slot fallback parameter convention**
-
-- `defaultValue:` (unnamed slot) + `default<Label>:` (labeled slots) —
-  proposed
-- alternative: `default<Label>:` everywhere, no bare `defaultValue:`
-  (uniform but breaks the shipped convention)
+- **Tool** — single-file script (decision 8); no `Tools/` package
+  directory exists. Script filename proposal:
+  `Scripts/localizable-overload-sweep.swift`
+  (kebab-case like `api-catalog-audit.swift`; pairs with
+  `SweepCoverage.md`). Awaiting David's veto only.
+- **Generated-sources directory** —
+  `Sources/FOSMVVM/SwiftUI Support/Generated/` ✓ settled
+- **Relocated hand-written file** — `LocalizableViews.swift` ✓ settled
+- **Coverage manifest** — `SweepCoverage.md` ✓ settled
+  (distinct leading word; avoids `Genera-` prefix collision with
+  `Generated/`)
+- **Multi-slot fallback convention** — `defaultValue:` (unnamed slot)
+  + `default<Label>:` (labeled slots) ✓ settled at design Section 2
 
 ## Open questions
 
-- None blocking. Naming table awaits arbitration; can be settled at
-  implementation-plan time.
+- None blocking. Script filename awaits a veto-or-nod.
