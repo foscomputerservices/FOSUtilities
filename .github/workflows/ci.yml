@@ -53,6 +53,9 @@ jobs:
     strategy:
       matrix:
         ios_platform: ["macOS", "iOS", "watchOS", "tvOS", "visionOS"]
+      # Each platform's verdict is independent evidence — one red leg must
+      # not cancel the others (default fail-fast hid exactly that).
+      fail-fast: false
 
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
