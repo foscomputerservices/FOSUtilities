@@ -117,6 +117,9 @@ let package = Package(
                     .byName(name: "FOSFoundation"),
                     .byName(name: "FOSMacros"),
                     .product(name: "Yams", package: "Yams")
+                ],
+                exclude: [
+                    "SwiftUI Support/SweepCoverage.md"
                 ]
             ),
             .target(
