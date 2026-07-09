@@ -487,14 +487,15 @@ extension MVVMEnvironment {
 
     /// The channel the live-invalidation dispatcher consumes: the app-supplied
     /// ``invalidationChannel`` if set, otherwise the lazily-synthesized default SSE channel over
-    /// ``invalidationBaseURL`` and ``clientCredentialProvider``. `nil` only where no default
-    /// transport exists (e.g. WASI) — the app then degrades to fetch-once.
+    /// ``invalidationBaseURL`` and ``clientCredentialProvider``. The default channel is
+    /// Darwin-only (FoundationNetworking lacks `URLSession.bytes`); on Linux/WASI this is `nil`
+    /// and the app degrades to fetch-once.
     @MainActor
     var effectiveInvalidationChannel: (any InvalidationChannel)? {
         if let invalidationChannel {
             return invalidationChannel
         }
-        #if canImport(Darwin) || canImport(FoundationNetworking)
+        #if canImport(Darwin)
         if let cached = _defaultInvalidationChannel {
             return cached
         }

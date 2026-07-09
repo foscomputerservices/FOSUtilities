@@ -14,16 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The default ``InvalidationChannel`` transport (spec §3.2/§6). Compiled only where an async
-// streaming `URLSession` exists — Apple platforms and Linux (FoundationNetworking). On WASI and
-// any platform without it, `MVVMEnvironment.effectiveInvalidationChannel` degrades to `nil`
-// (no channel ⇒ fetch-once semantics, the north-star promise).
-#if canImport(Darwin) || canImport(FoundationNetworking)
+// The default ``InvalidationChannel`` transport (spec §3.2/§6). Darwin-only: swift-corelibs
+// FoundationNetworking has no async `URLSession.bytes(for:)`. On every other platform
+// (Linux, WASI) `MVVMEnvironment.effectiveInvalidationChannel` degrades to `nil`
+// (no channel ⇒ fetch-once semantics, the north-star promise); a custom
+// ``InvalidationChannel`` remains the door for those clients.
+#if canImport(Darwin)
 import FOSFoundation
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 
 /// The default Server-Sent-Events transport for live invalidation.
 ///

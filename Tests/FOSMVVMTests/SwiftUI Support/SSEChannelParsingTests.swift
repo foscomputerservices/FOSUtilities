@@ -15,9 +15,9 @@
 // limitations under the License.
 
 // @testable coverage of the internal default-channel parser and reconnect loop (spec §3.2/§6,
-// test group 6). The types are compiled only where an async streaming URLSession exists, so the
-// suite carries the same guard.
-#if canImport(Darwin) || canImport(FoundationNetworking)
+// test group 6). The subject types are Darwin-only (FoundationNetworking lacks
+// `URLSession.bytes`), so the suite carries the same guard.
+#if canImport(Darwin)
 import FOSFoundation
 @testable import FOSMVVM
 import Foundation

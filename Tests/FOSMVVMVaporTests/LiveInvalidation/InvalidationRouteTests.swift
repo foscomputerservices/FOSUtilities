@@ -32,6 +32,10 @@ import Vapor
 
 @Suite("Invalidation SSE endpoint (spec §3.2/§6, test group 4)")
 struct InvalidationRouteTests {
+    // The wire-consuming assertions are Darwin-only: they read the stream via `URLSession.bytes`,
+    // which swift-corelibs FoundationNetworking does not provide. The hub-level overflow proof
+    // stays unguarded (no HTTP client involved).
+    #if canImport(Darwin)
     /// A connected client receives one framed `data:` event whose JSON array round-trips (via
     /// `defaultDecoder`) to the containment-derived set of a real save: {Berth, owning Dock}.
     @Test func framedEventRoundTrip() async throws {
@@ -88,6 +92,7 @@ struct InvalidationRouteTests {
             #expect(sawHeartbeat)
         }
     }
+    #endif
 
     /// Overflow closes — proven at the internal hub-subscription seam (deterministic): emitting past
     /// the buffer limit without consuming terminates the subscriber's stream.
@@ -121,6 +126,7 @@ struct InvalidationRouteTests {
         }
     }
 
+    #if canImport(Darwin)
     /// Overflow closes — observed at the client: while the client reads nothing, a burst large
     /// enough to fill the OS socket buffer makes the server pump block, so the hub overflows and
     /// finishes the subscription. When the client then drains, it reaches a clean EOF (the line
@@ -169,6 +175,7 @@ struct InvalidationRouteTests {
             #expect(root == 404)
         }
     }
+    #endif
 }
 
 // MARK: - Helpers
@@ -184,6 +191,7 @@ private func configureLiveHarbor(_ app: Application, on routes: any RoutesBuilde
     try app.useLiveInvalidation(on: routes)
 }
 
+#if canImport(Darwin)
 /// Opens a bounded GET, reads only the status, and cancels the (possibly streaming) body so the
 /// server can tear down promptly.
 private func status(of url: URL) async throws -> Int {
@@ -195,6 +203,7 @@ private func status(of url: URL) async throws -> Int {
         return status
     }
 }
+#endif
 
 private struct TimeoutError: Error {}
 

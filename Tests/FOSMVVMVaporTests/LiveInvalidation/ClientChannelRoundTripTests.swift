@@ -16,7 +16,7 @@
 
 // End-to-end: the default SSE client channel (FOSMVVM) against the real served endpoint
 // (FOSMVVMVapor), locking the frozen §6 wire across the module boundary (spec §3.2, test group 6).
-#if canImport(Darwin) || canImport(FoundationNetworking)
+#if canImport(Darwin)
 import Fluent
 import FluentKit
 import FOSFoundation
@@ -26,9 +26,6 @@ import FOSTestingVapor
 import Foundation
 import Testing
 import Vapor
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 
 @Suite("Default SSE channel — end-to-end round-trip (spec §3.2, test group 6)")
 struct ClientChannelRoundTripTests {
