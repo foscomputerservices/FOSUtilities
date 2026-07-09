@@ -405,14 +405,30 @@ public extension <TypeName> <constraints> {
 
 ---
 
+> **Execution amendments (2026-07-09, from Task 7):**
+> 1. Generated files are named `<Type>+Localizable.swift` — SwiftPM
+>    refuses two same-basename files in one target, and the hand-written
+>    `View.swift` survives forever.
+> 2. The plain non-optional `Text(_ localizable:defaultValue:)` init is
+>    NOT generated (Apple's LSK Text init is
+>    `init(_:tableName:bundle:comment:)`; bundle-lookup params have no
+>    meaning for pre-localized strings → honest no-delegate-target
+>    reject). Step 1a relocates it to `LocalizableViews.swift` as a
+>    hand-written survivor, joining its optional sibling, with a comment
+>    stating why. Only then is `Text.swift` deleted.
+> 3. Sibling matching now decodes the `swiftGenerics` mixin
+>    (declaration-level constraints) — the first real compile exposed
+>    delegates to more-constrained siblings; fixed reject-only.
+
 ### Task 8: The swap (delete mirrors, build green)
 
 **Files:**
-- Delete: `Label.swift`, `LabeledContent.swift`, `Tab.swift`, `ContentUnavailableView.swift`, `TextField.swift`, `Text.swift` (all in `SwiftUI Support/`)
+- Delete: `Label.swift`, `LabeledContent.swift`, `Tab.swift`, `ContentUnavailableView.swift`, `TextField.swift`, `Text.swift` (all in `SwiftUI Support/`; `Text.swift` only after Step 1a)
 - Modify: `View.swift` — remove ONLY the `navigationTitle` overload, DocC + func (View.swift:38-57). Line 37 (`public extension View {`) MUST stay — `invalidateBinding` and `refreshedViewModel` live in that same extension block. `withValidations` and the `EnvironmentValues` entry also stay.
 - Add: everything under `Generated/` + `SweepCoverage.md`
 
-- [ ] **Step 1:** Delete/trim per the file list. **Do not touch `LocalizableViews.swift`.**
+- [ ] **Step 1a:** Relocate the non-optional `Text` init (with its DocC) from `Text.swift` into `LocalizableViews.swift`, commented as a deliberate hand-written survivor.
+- [ ] **Step 1:** Delete/trim per the file list. **Do not touch `LocalizableViews.swift`** (beyond Step 1a's addition).
 - [ ] **Step 2:** `swift build` → fix any in-repo call sites that used retired spellings. No `defaultTitle:` callers exist in `Sources/`; the realistic risk is `any` → `some` inference at the ~13 `TextField(` call sites in `FormFieldView.swift`.
 - [ ] **Step 3:** `swift test` → full suite green on macOS.
 - [ ] **Step 4:** `xcrun xcodebuild` iOS-simulator build (mirror the ci.yml invocation) → compiles. This is the first proof the availability matrices are coherent on a non-macOS platform.

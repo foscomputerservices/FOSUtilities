@@ -112,6 +112,22 @@ extension graphs (e.g. `SwiftUI@SwiftUICore.symbols.json`).
 Record each SDK's version at extract time; these versions become the
 run's identity stamp.
 
+**Amendment (2026-07-09, discovered during implementation):**
+extraction MUST pass `-emit-extension-block-symbols`. Without it, an
+extension of an external-module type (e.g. SwiftUI's `navigationTitle`
+on SwiftUICore's `View`) never appears as a member of that type —
+the tool instead SYNTHESIZES a copy onto every conformer
+(95 copies of `navigationTitle`, on `MenuButton`, `Table`, …; USRs
+suffixed `::SYNTHESIZED::<conformer>`). With the flag, extension-block
+members land canonically in the `@`-extension graphs with the correct
+extended type, once. Select additionally collapses any synthesized
+copies onto their base USR (strip the `::SYNTHESIZED::` suffix), with
+a hard coverage guard: a collapsed base with no canonical declaration
+is a run failure, never a silent drop. No special-casing of
+conformer types: canonical Apple declarations get overloads; synthesized
+fan-out is collapsed. (Corrected empirical baseline: ~259 unique
+candidates in the macOS SwiftUI graph, not 5,124.)
+
 ### 2. Select
 
 Keep a symbol when all of:
@@ -191,6 +207,25 @@ re-enter bundle lookup). Deterministic, in order:
   version is flagged `beta-tier` in the manifest — informational, so
   the RC-time regeneration diff shows exactly which beta-era
   signatures Apple renamed or dropped.
+
+**Amendment (2026-07-09, platform gating):** `@available(<os>,
+unavailable)` gates *use*, not *compilation* — a generated body still
+type-checks on every platform, and a delegate Apple compiled out of an
+SDK with `#if os(...)` (e.g. `MenuBarExtra`'s `ImageResource` inits on
+iOS) breaks the build. Symbol graphs cannot distinguish
+present-but-unavailable from SDK-absent (their availability data is
+identical for both). Therefore Emit wraps each member in `#if os(...)`
+listing exactly the platforms where the candidate AND its matched
+delegate sibling appear in the graphs, whenever that set is not all
+five — sound by construction, no second data source. Guard: `os(iOS)`
+is included whenever the macCatalyst domain is declared available
+(Catalyst compiles as `os(iOS)` but has no graph of its own). The
+`@available` annotations remain — they carry OS-version semantics;
+`#if os` carries SDK-membership. Rejected alternatives: a
+`.swiftinterface` presence probe (reintroduces the parsing universe the
+approach selection rejected, as a second matching engine) and a
+hand-maintained denylist (a hole — future Apple-`#if`'d APIs would be
+discovered only by compile failure).
 
 ### 6. Verify
 

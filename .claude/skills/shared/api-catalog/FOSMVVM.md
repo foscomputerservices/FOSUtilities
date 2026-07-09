@@ -728,10 +728,10 @@ struct UpdateBerthQuery: TargetedQuery, RootedQuery {
 
 Binding ViewModels to SwiftUI: app configuration, the `ViewModelView`
 pattern, binding invalidation/refresh, form rendering, the operation buses
-for coordinating multi-view actions, Localizable-aware conveniences
-(initializers on Text, Label, LabeledContent, TextField, Tab, and
-ContentUnavailableView all accept a `Localizable`), preview hosting, and the
-UI-testing bridge. Platform-gated to targets where SwiftUI is available.
+for coordinating multi-view actions, the generated `Localizable` overload
+surface (every SwiftUI initializer and modifier that takes a
+`LocalizedStringKey` has a `Localizable`-accepting twin), preview hosting, and
+the UI-testing bridge. Platform-gated to targets where SwiftUI is available.
 
 ### Configure the app for MVVM — `MVVMEnvironment` / `MVVMEnvironmentError`
 Reach for this when: setting up the `@main` App — register an
@@ -768,16 +768,47 @@ struct UserView: ViewModelView {
 UserView.bind(query: .init(userId: id))
 ```
 
-### Localized values in SwiftUI — `navigationTitle()` / `text` <!-- apple-only -->
-Reach for this when: displaying a `Localizable` — `Text(viewModel.title)`,
-`Label(viewModel.title, systemImage:)`, `TextField`, `Tab`, `LabeledContent`,
-and `ContentUnavailableView` all take Localizables directly, and
-`navigationTitle()` accepts one for the navigation bar. `localizable.text`
-resolves a still-pending value client-side against the environment's store.
+### Localizable twins for SwiftUI inits and modifiers — `navigationTitle()` / `navigationSubtitle()` / `searchable()` / `help()` / `badge()` / `alert()` / `confirmationDialog()` / `dismissalConfirmationDialog()` / `dialogSuppressionToggle()` / `typeSelectEquivalent()` / `fileDialogMessage()` / `fileDialogConfirmationLabel()` / `fileExporterFilenameLabel()` / `text` <!-- apple-only -->
+Reach for this when: showing or labeling with a ViewModel's `Localizable` value
+anywhere SwiftUI expects a `LocalizedStringKey`. Every Apple initializer and
+modifier that takes a `LocalizedStringKey` has a `some Localizable`-accepting
+twin — call it exactly like Apple's, passing the ViewModel property in the
+string-key slot; an optional `defaultValue:` follows that slot as the fallback
+shown when localization hasn't completed.
+Don't resolve a `Localizable` to a `String` and hand it to Apple's initializer —
+the twin resolves it for you and keeps the call site declarative.
 
 ```swift
-Text(viewModel.pageTitle)
-    .navigationTitle(viewModel.navTitle)
+Button(viewModel.cta) { save() }               // init twin
+ContentUnavailableView(viewModel.emptyTitle, systemImage: "tray")
+Text(viewModel.pageTitle)                      // init twin
+    .navigationTitle(viewModel.navTitle)       // modifier twin
+```
+
+The twin surface spans 44 SwiftUI types (inits and modifiers): init twins on
+Text, Button, Label, TextField, Toggle, Picker, Link, Menu, Section, Tab,
+ContentUnavailableView, and more; modifier twins on View, ModifiedContent,
+Scene, Text, and TabContent. The accessibility modifiers have their own entry
+below.
+`localizable.text` resolves a still-pending value on the client against the
+environment's store — for a stubbed or locally-built value that never
+round-tripped the server; a server-localized value uses `Text(localizable)`.
+Contract: the twins mirror Apple's own signatures (labels, arity, generic
+constraints), inserting `defaultValue:` immediately after each localizable slot.
+Not sure a specific call has a twin? The coverage ledger is
+`Sources/FOSMVVM/SwiftUI Support/SweepCoverage.md`.
+
+### Localizable accessibility modifiers — `accessibilityLabel()` / `accessibilityHint()` / `accessibilityValue()` / `accessibilityAction()` / `accessibilityRotor()` / `accessibilityCustomContent()` / `accessibilityDragPoint()` / `accessibilityDropPoint()` / `accessibilityScrollStatus()` <!-- apple-only -->
+Reach for this when: labeling accessibility surfaces with a ViewModel's
+`Localizable` — the same twin pattern as the entry above (Apple's signature,
+`defaultValue:` after the localizable slot) on every accessibility modifier
+that takes a `LocalizedStringKey`, on View, ModifiedContent, Text, and
+TabContent.
+
+```swift
+Button(viewModel.cta) { save() }
+    .accessibilityLabel(viewModel.saveLabel)
+    .accessibilityHint(viewModel.saveHint)
 ```
 
 ### Refresh a stale ViewModel binding — `invalidateBinding()` / `refreshedViewModel()` <!-- apple-only -->
