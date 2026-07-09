@@ -299,6 +299,27 @@ extension Berth: SortableDataModel {
 }
 ```
 
+### Narrow a container load by the request's query — `FilterableDataModel`
+Reach for this when: a request should load only the records matching its query (a
+search box, a filtered list) instead of the whole container — conform the Fluent
+model and translate the request's own `ServerRequestQuery` (FOSMVVM's Protocols)
+to a Fluent `WHERE`, by hand, in `apply(filter:to:)`. The framework rides that
+filter into the one query it counts, paginates, and caches, so counts and windows
+reflect the narrowed set. `Filter` is the single query type this model narrows by —
+a request whose query is a different type loads the model unfiltered. Return the
+query unchanged when there's nothing to narrow by — never a silent match-nothing.
+Don't invent a filter vocabulary or leak column names to the wire — the request's
+query *is* the filter, and your Fluent columns stay server-side.
+
+```swift
+extension Berth: FilterableDataModel {
+    static func apply(filter: BerthQuery, to query: QueryBuilder<Berth>) -> QueryBuilder<Berth> {
+        guard let name = filter.dockName else { return query }
+        return query.filter(\.$dockName == name)   // your Fluent, your columns
+    }
+}
+```
+
 ### Register per-request app state for projections — `useAppState`
 Reach for this when: a projection needs session-derived display data ("signed in
 as…") that isn't a loaded record. Register one builder per `AppState` type in
@@ -323,6 +344,49 @@ one resolver per application — a second registration throws.
 ```swift
 try app.useApexContainerResolver { req in
     try await req.auth.require(User.self).harborIdentity
+}
+```
+
+## Live Invalidation
+
+Server-push refresh for `@ViewModel(options: [.live])` screens (FOSMVVM's
+`LiveViewModel`): enable it once at boot, and every committed change to a
+registered container model nudges connected clients to re-fetch. The moving parts
+behind it — the fan-out hub, the per-model emit middleware, and the SSE stream
+route — are all internal; the two calls below are the entire author-facing surface.
+
+### Enable server-push refresh at boot — `useLiveInvalidation()`
+Reach for this when: turning on live invalidation for the server — call once in
+`configure(_:)`, passing the route group clients authenticate against. Every
+registered container model (`register(_:migration:)`, see Extensions) then nudges
+connected clients to re-fetch after each committed change; registrations made
+before or after this call are both honored. Screens refresh only after a change
+commits, and a client with no live connection degrades to fetch-once — so enabling
+it is purely additive.
+Limitation: fan-out is single-process — one server instance notifies the clients
+connected to it. Enable exactly once — a second call throws at boot.
+
+```swift
+let authed = app.grouped(MyAuthMiddleware())
+try app.useLiveInvalidation(on: authed)
+```
+
+### Writes that notify live clients — `liveTransaction`
+Reach for this when: a mutation you run yourself must refresh live screens — wrap
+the writes in `req.liveTransaction { db in … }` (route handlers) or
+`app.liveTransaction { db in … }` (background jobs, other app-level work). Every
+write inside the closure nudges live clients if — and only if — the transaction
+commits; a throw rolls back and notifies no one. With live invalidation not
+enabled the wrapper is just a plain Fluent transaction.
+Don't reach for a bare `database.transaction { }` on a live model — FOSMVVM can't
+tell whether those writes commit, so it stays silent (and warns once). The
+framework's own guarded write path (`DataModelWriter`, see Protocols) already
+notifies; `liveTransaction` is for the writes you drive by hand.
+
+```swift
+try await req.liveTransaction { db in
+    dock.status = .closed
+    try await dock.save(on: db)
 }
 ```
 
