@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.6.0] - 2026-07-09
+
 ### Added
 
 - **Live ViewModel invalidation — `@ViewModel(options: [.live])`** (FOSMVVM / FOSMVVMVapor).
@@ -389,6 +393,7 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.3.7...0.4.0
