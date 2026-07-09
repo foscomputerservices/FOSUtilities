@@ -52,14 +52,13 @@ struct ServerRequestRoundTripTests {
 
     /// An `EmptyBody` response must round-trip through the real client too. This drives the exact
     /// header `processRequest(mvvmEnv:)` injects for an `EmptyBody` response — `Accept: text/plain`
-    /// (`ServerRequest+Fetch.swift:122`) — which is what a real consumer sends.
+    /// (the `EmptyBody` branch of `processRequest` in `ServerRequest+Fetch.swift`) — which is what
+    /// a real consumer sends.
     ///
-    /// It currently FAILS (`DataFetchError.badResponseMimeType`): `buildResponse` answers
-    /// `application/json` (`EmptyBody` → `{}`) regardless of `Accept`, and `DataFetch.checkMimeType`
-    /// rejects `application/json` against the expected `text/plain`. That is the content-negotiation
-    /// gap (PL-8): one fixed `Accept` for `EmptyBody` cannot satisfy both a `text/plain` (plain REST)
-    /// server and an `application/json` (`buildResponse`) server. The fix should make an `EmptyBody`
-    /// response content-agnostic (on 2xx, decode to `EmptyBody()` without a MIME gate).
+    /// This locks the resolution of the content-negotiation gap (PL-8): an `EmptyBody` response is
+    /// content-agnostic on the client (any 2xx body is accepted and discarded, no MIME gate), so one
+    /// request satisfies both an `application/json` (`buildResponse` answers `{}`) server and a
+    /// `text/plain` (plain REST) server.
     @Test func emptyBodyResponseRoundTrips() async throws {
         try await withRunningServer { app in
             let controller = RoundTripController<EmptyAckRequest>(actions: [
@@ -112,50 +111,11 @@ struct ServerRequestRoundTripTests {
         }
     }
 
-    // MARK: - Harness
-
-    /// Boots a real listening `Application` on an OS-assigned port (`127.0.0.1:0`), registers routes
-    /// via `register`, yields the base URL (`http://127.0.0.1:<port>`) to `body`, then tears the
-    /// server down. Localization is initialized so `buildResponse`'s `localizingEncoder` resolves.
-    private func withRunningServer(
-        register: (Application) throws -> Void,
-        _ body: (URL) async throws -> Void
-    ) async throws {
-        let app = try await Application.make(.testing)
-        do {
-            // A stub store so `buildResponse`'s `localizingEncoder` resolves (keys fall back to
-            // default). The live server needs this; the round-trip asserts transport, not localization.
-            app.localizationStore = RoundTripLocalizationStore()
-            try register(app)
-
-            try await app.server.start(address: .hostname("127.0.0.1", port: 0))
-            let port = try #require(
-                app.http.server.shared.localAddress?.port,
-                "Failed to read OS-assigned port after server.start"
-            )
-            let base = try #require(URL(string: "http://127.0.0.1:\(port)"))
-
-            try await body(base)
-
-            await app.server.shutdown()
-            try await app.asyncShutdown()
-        } catch {
-            await app.server.shutdown()
-            try await app.asyncShutdown()
-            throw error
-        }
-    }
+    // The harness (`withRunningServer`) and the generic `RoundTripController` live in
+    // `RoundTripHarness.swift`, shared with the other live-server round-trip suites.
 }
 
 // MARK: - Fixtures
-
-/// A no-op `LocalizationStore` so `req.localizingEncoder` resolves on the live server; every key
-/// falls back to its `default`.
-private struct RoundTripLocalizationStore: LocalizationStore {
-    func value(_ key: String, locale: Locale, default defaultValue: Any?, index: Int?) -> Any? {
-        defaultValue
-    }
-}
 
 /// A query carrying a single string, so a `.show` processor can echo it back over the wire.
 private struct RoundTripQuery: ServerRequestQuery {
@@ -165,17 +125,6 @@ private struct RoundTripQuery: ServerRequestQuery {
 /// A marker response body — the processor writes what it observed; the client decodes it off the wire.
 private struct RoundTripMarker: ServerRequestBody {
     let marker: String
-}
-
-/// A hand-written controller: one processor per action, over any `ServerRequest`.
-private final class RoundTripController<R: ServerRequest>: ServerRequestController, @unchecked Sendable {
-    typealias TRequest = R
-
-    let actions: [ServerRequestAction: ActionProcessor]
-
-    init(actions: [ServerRequestAction: ActionProcessor]) {
-        self.actions = actions
-    }
 }
 
 /// `.show` fixture with a real (`RoundTripMarker`) response body — the control case.

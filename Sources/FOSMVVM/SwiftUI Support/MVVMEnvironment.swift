@@ -94,6 +94,17 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// A dictionary of values to populate the *URLRequest*'s HTTPHeaderFields
     public let requestHeaders: [String: String]
 
+    /// Supplies the authentication headers that accompany every ``ServerRequest``
+    ///
+    /// The provider is consulted per request, so a rotating credential (a refreshed
+    /// access token) is picked up on the next call — the dynamic sibling of the static
+    /// ``requestHeaders``. On a duplicate header field the provider's value wins.
+    /// `nil` (the default) sends requests without authentication headers.
+    ///
+    /// Use the stock ``BearerCredentialProvider`` for `Authorization: Bearer`
+    /// authentication, or conform your own ``ClientCredentialProvider``.
+    public let clientCredentialProvider: (any ClientCredentialProvider)?
+
     /// A function that is called when there is an error processing a ``ServerRequest``
     public let requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)?
 
@@ -194,6 +205,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
+    ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
+    ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
@@ -206,6 +219,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceBundles: [Bundle]? = nil,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
+        clientCredentialProvider: (any ClientCredentialProvider)? = nil,
         deploymentURLs: [Deployment: URLPackage],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
@@ -215,6 +229,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceBundles = resourceBundles ?? [appBundle]
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
+        self.clientCredentialProvider = clientCredentialProvider
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
         self.session = session
@@ -240,6 +255,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
+    ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
+    ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
@@ -252,6 +269,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceBundles: [Bundle]? = nil,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
+        clientCredentialProvider: (any ClientCredentialProvider)? = nil,
         deploymentURLs: [Deployment: URL],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
@@ -263,6 +281,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
             resourceBundles: resourceBundles,
             resourceDirectoryName: resourceDirectoryName,
             requestHeaders: requestHeaders,
+            clientCredentialProvider: clientCredentialProvider,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair
@@ -291,6 +310,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceBundles = []
         self.resourceDirectoryName = nil
         self.requestHeaders = [:]
+        self.clientCredentialProvider = nil
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = nil
         self.session = session
@@ -312,6 +332,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
+    ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
+    ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
@@ -322,6 +344,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceBundles: [Bundle]? = nil,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
+        clientCredentialProvider: (any ClientCredentialProvider)? = nil,
         deploymentURLs: [Deployment: URLPackage],
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
@@ -333,6 +356,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.resourceBundles = resourceBundles ?? [appBundle]
         self.resourceDirectoryName = resourceDirectoryName
         self.requestHeaders = requestHeaders
+        self.clientCredentialProvider = clientCredentialProvider
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
         self.session = session
@@ -370,6 +394,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - resourceDirectoryName: The directory name that contains the resources (default: nil).  Only needed
     ///          if the client application is hosting the YAML files.
     ///   - requestHeaders: A set of HTTP header fields for the URLRequest
+    ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
+    ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
@@ -380,6 +406,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         resourceBundles: [Bundle]? = nil,
         resourceDirectoryName: String? = nil,
         requestHeaders: [String: String] = [:],
+        clientCredentialProvider: (any ClientCredentialProvider)? = nil,
         deploymentURLs: [Deployment: URL],
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
@@ -393,6 +420,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
             resourceBundles: resourceBundles,
             resourceDirectoryName: resourceDirectoryName,
             requestHeaders: requestHeaders,
+            clientCredentialProvider: clientCredentialProvider,
             deploymentURLs: deploymentURLs.reduce([Deployment: URLPackage]()) { result, pair in
                 var result = result
                 let (deployment, url) = pair

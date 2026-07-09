@@ -1,0 +1,302 @@
+# SwiftUI Localizable Overload Generator — Design
+
+**Date:** 2026-07-09
+**Status:** Approved design, pre-implementation
+**Owner:** David Hunt
+
+## Problem
+
+FOSMVVM ships `Localizable`-accepting overloads that mirror SwiftUI's
+`LocalizedStringKey`/`String` APIs (`Text`, `Label`, `TextField`,
+`LabeledContent`, `Tab`, `ContentUnavailableView`, `View.navigationTitle`).
+
+Today those overloads are hand-written — six dedicated files, plus
+`navigationTitle` living inside the shared `View.swift`:
+
+- Coverage is incidental (Button, Toggle, Picker, alerts,
+  and hundreds of others have no overload).
+- Conventions drifted (`defaultValue:` vs `defaultTitle:`,
+  `some Localizable` vs `any Localizable`).
+- Every new SwiftUI release silently widens the gap.
+
+## Goal
+
+A mechanism that sweeps the SwiftUI API surface as it evolves each OS
+release and generates the full set of `Localizable` overloads
+automatically, deterministically, and verifiably.
+
+## Decisions (settled during design review)
+
+1. **Fully automatic selection** — a deterministic rule decides which
+   APIs get overloads. No per-API human allowlist.
+   The rule leans on Apple's own curation: a `LocalizedStringKey`
+   parameter is Apple's signal that the parameter is display text.
+2. **Sweep scope: the SwiftUI module surface** — initializers *and*
+   modifiers/methods. Because `Text`, `LocalizedStringKey`, and much of
+   the surface migrated to `SwiftUICore` (2024 SDKs), the sweep covers
+   both binary modules (`SwiftUI`, `SwiftUICore`) and their
+   cross-module extension graphs. Sibling frameworks (Charts,
+   WidgetKit, TipKit) are out of scope.
+3. **Checked-in, maintainer-run** — the generator is a tool the
+   maintainer runs when new SDKs ship. Generated sources are committed.
+   FOSMVVM's public API is deterministic and reviewable in PRs.
+4. **Generated replaces hand-written** — the hand-written mirror
+   overloads are deleted (six files plus the `View.swift` overload).
+   Non-mirror machinery is relocated or stays put (see
+   "Not generated"). Source-breaking unification is accepted now,
+   pre-1.0 (`defaultTitle:` → `defaultValue:`,
+   `any Localizable` → `some Localizable`).
+5. **`defaultValue:` kept everywhere** — every generated overload takes
+   a `String? = nil` fallback after each Localizable slot.
+6. **Extraction mechanism: symbol graphs** (Approach A) —
+   `xcrun swift-symbolgraph-extract` JSON, decoded with plain
+   `Codable`. Zero new dependencies; prior art in
+   `Scripts/api-catalog-audit.swift`. The rejected alternative
+   (parsing `.swiftinterface` with swift-syntax) bought only verbatim
+   extension contexts at the cost of a high-churn dependency.
+7. **Version identity is the SDK/OS version, never Xcode's version.**
+   SwiftUI's surface is tied to the OS SDK. All stamps, comparisons,
+   and gates key on per-platform SDK versions
+   (`xcrun --sdk <name> --show-sdk-version`).
+8. **Script first, package only if warranted** — the tool is a plain
+   single-file Swift script in `Scripts/` (run as
+   `swift Scripts/<name>.swift`, same convention as
+   `api-catalog-audit.swift`). Zero dependencies, so swift-sh is not
+   needed. The rejected-for-now alternative (SPM package under
+   `Tools/`) bought exactly one thing — a unit-test target for the
+   transformer; if a regeneration-debugging session ever makes that
+   pain real, promotion to a tested package is mechanical and done
+   then, with evidence.
+9. **Availability spans old-through-beta from one generated set** —
+   generation runs against the newest installed SDKs, betas included
+   (today: the OS 27 betas), and every overload carries the
+   per-platform `@available` matrix from symbol-graph data, so one
+   checked-in set serves clients back through OS 26 (and the package
+   floors below that) while exposing 27-beta API behind guards.
+
+## Empirical grounding (probed 2026-07-08, OS 26-era macOS SDK)
+
+- `swift-symbolgraph-extract -module-name SwiftUI` succeeds;
+  output ~456 MB JSON, 83,378 symbols. Across 5 platforms × 2 modules
+  (+ extension graphs) the working set is multi-GB — the Extract/Select
+  stages must process graphs one at a time (select while decoding,
+  discard the rest) rather than holding all graphs in memory.
+- 5,124 symbols are inits/methods with a `LocalizedStringKey`
+  parameter (184 inits, 4,940 methods) *before* filtering
+  deprecated/obsoleted/underscored — filtering will cut this
+  substantially; expect a shipped surface in the hundreds.
+- `declarationFragments` reproduce exact signatures, including
+  default arguments, `nonisolated`, generic params, and `where`
+  clauses. Example, verbatim from the graph:
+
+  ```swift
+  nonisolated init<F>(_ titleKey: LocalizedStringKey,
+      value: Binding<F.FormatInput?>, format: F, prompt: Text? = nil)
+      where F : ParseableFormatStyle, F.FormatOutput == String
+  ```
+
+## Architecture — six-stage pipeline
+
+The tool is a single-file Swift script in `Scripts/`
+(decision 8) — outside the root package; consumers never see it.
+The file is organized in clearly-marked sections mirroring the six
+stages below, so a future promotion to a package is a mechanical
+split.
+
+### 1. Extract
+
+For each platform — macOS, iOS, tvOS, watchOS, visionOS — run
+`xcrun swift-symbolgraph-extract` against that platform's SDK for both
+modules (`SwiftUI`, `SwiftUICore`), collecting main graphs and
+extension graphs (e.g. `SwiftUI@SwiftUICore.symbols.json`).
+Record each SDK's version at extract time; these versions become the
+run's identity stamp.
+
+### 2. Select
+
+Keep a symbol when all of:
+
+- kind ∈ { `swift.init`, `swift.method`, `swift.func` }
+- at least one *parameter* is `LocalizedStringKey`, matched by the
+  fragment's `preciseIdentifier` (`s:7SwiftUI18LocalizedStringKeyV`),
+  never by spelling
+- not deprecated, not obsoleted, not underscored, not SPI
+
+### 3. Union
+
+Merge platform graphs by USR (Apple's stable symbol ID).
+One API seen on several platforms becomes one record with a merged
+per-platform availability matrix.
+
+Availability clamping against the Package.swift floors
+(iOS 17 / macOS 14 / macCatalyst 17 / tvOS 17 / watchOS 10 /
+visionOS 1): introduced-at-or-below-floor ⇒ no annotation;
+otherwise emit the full `@available(...)` line from graph data.
+`unavailable` domains are emitted as Apple declares them.
+
+iPadOS has no separate availability domain in symbol graphs — it rides
+`iOS`. macCatalyst is its own domain.
+
+### 4. Transform
+
+For each record, produce one overload:
+Apple's signature with these edits, everything else copied verbatim
+(generic parameters, `where` clauses, default arguments,
+`nonisolated`, extension context and its constraints —
+e.g. `extension TextField where Label == Text`):
+
+- Each `LocalizedStringKey` parameter type becomes `some Localizable`.
+  Never `any` (existentials are a code smell, per governance).
+- After each replaced slot, insert a fallback parameter:
+  - unnamed leading slot (`_ titleKey:`) → `defaultValue: String? = nil`
+  - labeled slot → `default<Label>: String? = nil`
+    (a two-slot API reads `defaultValue:` + `defaultMessage:`)
+- Multi-slot APIs produce **one** overload with all key slots
+  replaced — no mixed String/Localizable combinatorics.
+
+**Body — delegate-target policy.** The body must hand SwiftUI an
+*already-localized* `String`, never a `LocalizedStringKey` (that would
+re-enter bundle lookup). Deterministic, in order:
+
+1. A `some StringProtocol` sibling with an otherwise-identical
+   signature exists in the graphs → delegate directly.
+   Init-shaped:
+   `self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), ...)`
+   Method/modifier-shaped (the dominant case, ~96% of candidates):
+   `navigationTitle(localizable.defaultedLocalizedString(defaultValue: defaultValue))`
+   — call the sibling method and return its result.
+2. Else a `Text`-taking sibling exists → delegate wrapping
+   `Text(verbatim: resolved)`.
+3. Else → skip; record in the coverage manifest.
+   The tool never emits a call it cannot prove has a target.
+
+### 5. Emit
+
+- One generated file per extended type (`Text.swift`,
+  `TextField.swift`, `View.swift`, …) under a generated-sources
+  directory inside `Sources/FOSMVVM/SwiftUI Support/`
+  (directory name: naming table).
+- Files wrapped in `#if canImport(SwiftUI)`.
+- Every file gets a DO-NOT-EDIT header stamped with the per-platform
+  SDK versions the run saw (Xcode version recorded only as an
+  informational footnote).
+- Output sorted by USR: same SDKs in ⇒ byte-identical files out.
+- `swiftformat` runs on output (also inserts the Apache header).
+- Alongside the code: a checked-in **coverage manifest** listing every
+  candidate the run skipped, with a reason from a closed set
+  (`deprecated` / `no-delegate-target` / `unrecognized-shape` /
+  duplicates folded by union). Silent truncation is banned; coverage
+  changes must be visible in the PR diff.
+- **Beta hygiene:** any API whose `introduced:` equals a beta SDK's own
+  version is flagged `beta-tier` in the manifest — informational, so
+  the RC-time regeneration diff shows exactly which beta-era
+  signatures Apple renamed or dropped.
+
+### 6. Verify
+
+- Generated code is checked in ⇒ the existing CI matrix compiling
+  FOSMVVM on all Apple platforms is the primary integration test.
+- **CI staleness gate:** per platform, if the runner's SDK version
+  equals the stamped one, that platform's regeneration slice must be
+  `git diff --exit-code` clean. Platforms whose SDK differs are
+  skipped with an informational note — a new-SDK rollout never breaks
+  unrelated PRs; regeneration is a deliberate, reviewed act.
+
+### Maintainer workflow (new SDKs ship)
+
+Run the tool → review the diff (new APIs appear as new overloads;
+manifest diff shows coverage changes) → commit.
+
+## Not generated (stays hand-written)
+
+Relocated to one hand-written file (name: naming table):
+
+- `LocalizableResolverView` + the `Localizable.text` property —
+  client-side resolution machinery; mirrors nothing.
+- The optional-Localizable `Text` init — SwiftUI has no optional-key
+  inits to mirror.
+
+Stays exactly where it is (`View.swift` is a shared file — only its
+`navigationTitle` overload is a mirror):
+
+- `withValidations(for:)` (3 overloads), `invalidateBinding(_:)`,
+  `refreshedViewModel(_:)`, and the `EnvironmentValues` `@Entry`
+  extension. None of these mirror SwiftUI API; they are load-bearing
+  for `FormFieldView` and ViewModel binding.
+
+## Documentation
+
+- Every generated overload gets a template-driven, customer-framed
+  DocC comment: one sentence
+  ("Localizable-accepting form of SwiftUI's `Label.init(_:systemImage:)`")
+  plus one usage example per extended type.
+- The API catalog gets one curated *family* entry
+  (`FOSMVVM.md § SwiftUI Support`) so the catalog audit sees the
+  surface without flooding gap warnings.
+
+## Error handling
+
+- **Missing SDK** → hard exit, nonzero, naming exactly which SDKs are
+  missing. No partial-platform generation — it would silently emit
+  wrong availability annotations.
+- **Un-transformable symbol** (unrecognized declaration shape) →
+  never guess, never emit: skip + manifest entry with reason and raw
+  declaration. The run still succeeds.
+- **Nothing is silently dropped** — every non-generated candidate is a
+  manifest line with a closed-set reason.
+
+## Testing
+
+1. **Unit tests on the tool — DEFERRED** (decision 8). A script has
+   no test target. What ships is verified by layers 2–3 regardless;
+   what the deferred tests would protect is maintainer debugging of a
+   future regeneration. If that pain materializes, promote the script
+   to an SPM package under `Tools/` and add the deferred layer:
+   Swift Testing over small checked-in symbol-graph fixtures
+   (hand-trimmed JSON, a few KB — never the real graphs), golden
+   tests fixture-record-in → exact-Swift-out, covering the selection
+   filter, availability merge + floor clamping, signature
+   transformation, delegate-target policy, and multi-slot naming.
+2. **The package build is the integration test** — checked-in output
+   compiling on the full CI matrix proves delegate targets resolve and
+   availability is coherent.
+3. **Behavioral tests stay behavioral** — a small hand-written test
+   file exercises one representative overload per delegate-policy path
+   (String-sibling, Text-verbatim), asserting the localized value
+   lands in the view. Test the contract, not the generated text.
+
+## Migration (one-time, in implementation)
+
+Order matters: relocate first, delete second — and deletion is
+**per-overload** in shared files, never wholesale.
+
+1. Relocate resolver machinery + optional-Text init out of
+   `Text.swift` into the hand-written survivor file.
+2. Delete the four pure-mirror files wholesale
+   (`Label.swift`, `LabeledContent.swift`, `Tab.swift`,
+   `ContentUnavailableView.swift`); delete `Text.swift` once emptied
+   of relocated content; remove **only** the `navigationTitle`
+   mirror overload from `View.swift` (its other members stay put).
+3. Generate; run the full suite.
+4. Intended breakage surfaces in existing call sites
+   (`defaultTitle:` → `defaultValue:`, `any` → `some`).
+
+## Naming table — arbitrated 2026-07-09
+
+- **Tool** — single-file script (decision 8); no `Tools/` package
+  directory exists. Script filename proposal:
+  `Scripts/localizable-overload-sweep.swift`
+  (kebab-case like `api-catalog-audit.swift`; pairs with
+  `SweepCoverage.md`). Awaiting David's veto only.
+- **Generated-sources directory** —
+  `Sources/FOSMVVM/SwiftUI Support/Generated/` ✓ settled
+- **Relocated hand-written file** — `LocalizableViews.swift` ✓ settled
+- **Coverage manifest** — `SweepCoverage.md` ✓ settled
+  (distinct leading word; avoids `Genera-` prefix collision with
+  `Generated/`)
+- **Multi-slot fallback convention** — `defaultValue:` (unnamed slot)
+  + `default<Label>:` (labeled slots) ✓ settled at design Section 2
+
+## Open questions
+
+- None blocking. Script filename awaits a veto-or-nod.
