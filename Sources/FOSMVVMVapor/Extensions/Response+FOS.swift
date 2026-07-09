@@ -61,7 +61,11 @@ public extension Response {
     @discardableResult func addSystemVersion() throws -> Response {
         let version = try SystemVersion.current.toJSON()
 
-        headers.add(name: SystemVersion.httpHeader, value: version)
+        // replaceOrAdd, not add: `buildResponse` runs this AND `buildJSONResponse` already ran it,
+        // so an appending `add` attached `X-FOS-Version` twice. Idempotent here is a belt against
+        // any current or future double-call — one served response, one version header — and matches
+        // `addJSONContentType`'s replaceOrAdd idiom.
+        headers.replaceOrAdd(name: SystemVersion.httpHeader, value: version)
 
         return self
     }

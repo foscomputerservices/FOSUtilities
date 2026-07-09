@@ -60,4 +60,33 @@ struct VaporResponseBodyFactoryTests {
             #expect(try body.aLocalizedString.localizedString != "")
         }
     }
+
+    /// `X-FOS-Version` attaches exactly once. `buildResponse` and `buildJSONResponse` each stamp the
+    /// version; before the `replaceOrAdd` fix the appending `add` left the header on the served
+    /// response TWICE — a client reading `.first` was unaffected, but the duplicate was a latent
+    /// wire defect. Assert the served header carries exactly one value.
+    @Test func servedResponseCarriesExactlyOneVersionHeader() async throws {
+        try await withFluentTestApp { app in
+            try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
+            try app.register(request: TestViewModelRequest.self)
+        } _: { app, _ in
+            let prefix = "http://localhost"
+            let base = try #require(URL(string: prefix))
+            let url = try #require(try base.appending(serverRequest: TestViewModelRequest()))
+            let uriStr = String(url.absoluteString.trimmingPrefix(prefix))
+            let headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
+            let req = Request(
+                application: app,
+                method: .GET,
+                url: URI(path: uriStr),
+                headers: headers,
+                collectedBody: .init(),
+                on: app.eventLoopGroup.next()
+            )
+
+            let response = try await app.responder.respond(to: req).get()
+            #expect(response.status == .ok)
+            #expect(response.headers[SystemVersion.httpHeader].count == 1)
+        }
+    }
 }
