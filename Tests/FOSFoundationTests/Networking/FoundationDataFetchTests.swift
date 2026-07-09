@@ -135,6 +135,58 @@ struct FoundationDataFetchTests {
         }
     }
 
+    // MARK: Response-header capture (the live-invalidation `package` seam)
+
+    @Test func sendCapturesNamedResponseHeader() async throws {
+        let model = TestModel.stub()
+        let response = HTTPURLResponse(
+            url: dummyURL,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: [
+                "Content-Type": "application/json;charset=utf-8",
+                "X-FOS-Registrations": #"["opaque"]"#
+            ]
+        )
+        let session = try MockURLSession(data: model.toJSONData(), error: nil, response: response)
+        let dataFetch = DataFetch(urlSession: session)
+
+        let (value, header): (TestModel, String?) = try await dataFetch.send(
+            data: nil,
+            to: dummyURL,
+            httpMethod: "GET",
+            headers: nil,
+            locale: nil,
+            errorType: TestError.self,
+            capturingResponseHeader: "X-FOS-Registrations"
+        )
+        #expect(value == model)
+        #expect(header == #"["opaque"]"#)
+    }
+
+    @Test func sendReturnsNilWhenHeaderAbsent() async throws {
+        let model = TestModel.stub()
+        let response = HTTPURLResponse(
+            url: dummyURL,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json;charset=utf-8"]
+        )
+        let session = try MockURLSession(data: model.toJSONData(), error: nil, response: response)
+        let dataFetch = DataFetch(urlSession: session)
+
+        let (_, header): (TestModel, String?) = try await dataFetch.send(
+            data: nil,
+            to: dummyURL,
+            httpMethod: "GET",
+            headers: nil,
+            locale: nil,
+            errorType: TestError.self,
+            capturingResponseHeader: "X-FOS-Registrations"
+        )
+        #expect(header == nil)
+    }
+
     private let dummyURL = URL(string: "https://my.domain")!
 }
 

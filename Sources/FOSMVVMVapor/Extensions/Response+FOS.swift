@@ -33,6 +33,7 @@ public extension ServerRequestBody {
     func buildResponse(_ req: Vapor.Request) throws -> Response {
         try Response.buildJSONResponse(req, content: self)
             .addSystemVersion()
+            .addRegistrations(from: req)
     }
 }
 
@@ -61,6 +62,21 @@ public extension Response {
         let version = try SystemVersion.current.toJSON()
 
         headers.add(name: SystemVersion.httpHeader, value: version)
+
+        return self
+    }
+
+    /// Attaches the executed plan's registration set — the roots and touched containers the
+    /// executor deposited on `req` — as the `X-FOS-Registrations` header, so a live client can
+    /// register exactly what the response depended on. A response that executed no plan (empty
+    /// set) carries no header.
+    @discardableResult internal func addRegistrations(from req: Vapor.Request) throws -> Response {
+        let identities = req.registrationSet
+        guard !identities.isEmpty else {
+            return self
+        }
+
+        try headers.replaceOrAdd(name: ModelIdentity.registrationsHeader, value: Array(identities).toJSON())
 
         return self
     }

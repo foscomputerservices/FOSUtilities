@@ -1,6 +1,6 @@
 # Live ViewModel Invalidation — Architecture (North Star)
 
-**Status:** Design / reconciliation. Not yet implemented.
+**Status:** Delivered — L0 (2026-07-03), L1 (2026-07-05), L2 (2026-07-09; see `2026-07-09-live-invalidation-l2-design.md`).
 **Date:** 2026-07-03
 **Author:** David Hunt (design), with Claude (reconciliation)
 **Scope:** FOSFoundation, FOSMVVM, FOSMVVMVapor, FOSMacros

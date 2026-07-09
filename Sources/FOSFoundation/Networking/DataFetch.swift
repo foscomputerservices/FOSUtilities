@@ -346,6 +346,25 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
     /// - Throws: ``DataFetchError`` or **errorType**
     public func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, checkReceivedMimeType: Bool = true, errorType: (some Decodable & Error).Type) async throws -> ResultValue {
+        try await send(
+            data: data,
+            to: url,
+            httpMethod: httpMethod,
+            headers: headers,
+            locale: locale,
+            checkReceivedMimeType: checkReceivedMimeType,
+            errorType: errorType,
+            capturingResponseHeader: nil
+        ).value
+    }
+
+    /// Identical to `send(…errorType:)` but also returns the value of a single named response
+    /// header (`nil` when absent). `package`, not public: FOSMVVM's live-invalidation resolver reads
+    /// `X-FOS-Registrations` off the very fetch that produced the ViewModel, and there is no other
+    /// way for a sibling module to reach a response header the public API deliberately discards. Kept
+    /// `package` (not public) so the wire concern never leaks onto FOSFoundation's public surface.
+    /// - Throws: ``DataFetchError`` or **errorType**
+    package func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, checkReceivedMimeType: Bool = true, errorType: (some Decodable & Error).Type, capturingResponseHeader field: String?) async throws -> (value: ResultValue, headerValue: String?) {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = httpMethod
 
@@ -406,7 +425,10 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
                             errorType: errorType
                         )
 
-                        continuation.resume(returning: result)
+                        let headerValue = field.flatMap {
+                            (response as? HTTPURLResponse)?.value(forHTTPHeaderField: $0)
+                        }
+                        continuation.resume(returning: (value: result, headerValue: headerValue))
                     } catch let e {
                         continuation.resume(throwing: e)
                     }

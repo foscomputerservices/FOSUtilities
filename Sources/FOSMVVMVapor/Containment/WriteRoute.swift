@@ -177,17 +177,12 @@ extension Vapor.Request {
         return typed
     }
 
-    /// Invalidates the cached records of every container the candidate load touched (its roots and
-    /// each branch container) — the C6 pass-#2 contract, so the refresh re-serves fresh. Touches
-    /// records only; the per-Request grant memo stands.
+    /// Invalidates the cached records of every container the candidate load touched —
+    /// ``touchedContainers(of:)``, the same traversal the registration set derives from — the C6
+    /// pass-#2 contract, so the refresh re-serves fresh. Touches records only; the per-Request
+    /// grant memo stands.
     func invalidateWrittenContainers(_ context: WriteCandidateContext) {
-        var touched = Set(context.resolved.rootIdentities.values)
-        for tuple in context.plan.tuples {
-            for key in tupleCacheKeys[tuple] ?? [] {
-                touched.insert(key.container)
-            }
-        }
-        for container in touched {
+        for container in touchedContainers(of: context.resolved) {
             invalidateContainerRecords(of: container)
         }
     }

@@ -47,7 +47,39 @@ extension Vapor.Request {
 
         let resolved = try await resolveRecordLoadPlan(plan, for: vmRequest)
         try await resolved.execute(on: self)
+        depositRegistrationSet(from: resolved)
         try await runSupplementalLoads(of: factory)
+    }
+
+    /// The executed plan's staleness surface — ``touchedContainers(of:)`` — deposited for
+    /// ``ServerRequestBody/buildResponse(_:)`` to attach as the `X-FOS-Registrations` header.
+    /// Derived from the executed plan's tuples only (spec §3.4): containers touched solely by a
+    /// SupplementalRecordLoading hook are outside the v1 registration surface.
+    private func depositRegistrationSet(from resolved: ResolvedRecordLoadPlan) {
+        registrationSet = touchedContainers(of: resolved)
+    }
+
+    /// The containers an executed plan touched: its resolved root identities plus every container
+    /// its tuples' cache keys name. The ONE traversal behind both the read path's registration set
+    /// (`depositRegistrationSet`) and the write path's cache invalidation
+    /// (`invalidateWrittenContainers`, WriteRoute.swift) — the live-invalidation contract holds
+    /// only while a client registers on exactly what a write invalidates, so neither site may
+    /// re-derive this shape on its own.
+    func touchedContainers(of resolved: ResolvedRecordLoadPlan) -> Set<ModelIdentity> {
+        var identities = Set(resolved.rootIdentities.values)
+        for tuple in resolved.plan.tuples {
+            for key in tupleCacheKeys[tuple] ?? [] {
+                identities.insert(key.container)
+            }
+        }
+        return identities
+    }
+
+    /// The registration set the executor deposited for this served response (empty when no plan
+    /// executed). ``ServerRequestBody/buildResponse(_:)`` reads it to attach `X-FOS-Registrations`.
+    var registrationSet: Set<ModelIdentity> {
+        get { storage[RegistrationSetStore.self] ?? [] }
+        set { storage[RegistrationSetStore.self] = newValue }
     }
 
     /// The executor's per-request side map: each executed tuple → the record-level cache keys
@@ -62,6 +94,10 @@ extension Vapor.Request {
 
 private struct TupleCacheKeysStore: StorageKey {
     typealias Value = [RecordLoadPlan.Tuple: [ContainerRecordCacheKey]]
+}
+
+private struct RegistrationSetStore: StorageKey {
+    typealias Value = Set<ModelIdentity>
 }
 
 /// A ``RecordLoadPlan`` bound to one request: each root source resolved to an identity and
