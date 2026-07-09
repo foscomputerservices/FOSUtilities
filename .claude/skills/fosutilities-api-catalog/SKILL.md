@@ -50,6 +50,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Identifying *which* entity a model is (opaque `ModelIdentity`) — keying refresh or authorization by it → `FOSMVVM.md § Protocols`
 - Container-scoped authorization — declaring containers, grant verbs, who may touch which records → `FOSMVVM.md § Protocols`
 - Client-chosen sort or pagination on a request → `FOSMVVM.md § Protocols`
+- Attaching auth headers (bearer token, API key) to every client request, rotation-safe → `FOSMVVM.md § Protocols`
 - Declaring the data a server-rendered body needs — composable factory, load requirements, rooted scopes → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`
@@ -61,6 +62,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - The server-side write path — candidate set, field application, authorization provider → `FOSMVVMVapor.md § Protocols`
 - Projecting the database into ViewModels — resolvable requests, Fluent `DataModel` → `FOSMVVMVapor.md § Protocols`
 - Serving typed/localized errors, gating routes on client app version → `FOSMVVMVapor.md § Middleware`
+- Verifying a caller's bearer token / protecting route groups with app-owned credential rules → `FOSMVVMVapor.md § Middleware`
 - Testing ViewModels — Codable round-trip, version stability, translation coverage → `FOSTesting.md § FOSTesting`
 - UI-testing SwiftUI ViewModel views (XCUITest hosting, operations, identifiers) → `FOSTesting.md § FOSTestingUI`, `FOSMVVM.md § SwiftUI Support`
 - Testing Vapor ServerRequests end to end, or Fluent-backed code against a fresh in-memory database → `FOSTesting.md § FOSTestingVapor`
