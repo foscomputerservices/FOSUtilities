@@ -238,9 +238,10 @@ write them by hand; `ViewModelOptions` tunes `@ViewModel`'s output.
 Reach for this when: creating any View-Model — always the macro, never bare
 protocol conformance (the macro generates the `propertyNames()` localization
 bindings; hand conformance breaks OCP and silently unbinds `@LocalizedString`).
-Pass `options: [.clientHostedFactory]` to generate
-`ClientHostedViewModelFactory` support. Scaffolded by
-`fosmvvm-viewmodel-generator`.
+Tune the output through `options:`: `.clientHostedFactory` generates
+`ClientHostedViewModelFactory` support; `.live` makes the ViewModel refresh
+automatically when its server data changes (`LiveViewModel`, under Protocols).
+Scaffolded by `fosmvvm-viewmodel-generator`.
 
 ```swift
 @ViewModel
@@ -570,6 +571,44 @@ struct UserViewModel: RequestableViewModel, ModelIdentifiedViewModel {
 }
 ```
 
+### Refresh a screen when its server data changes — `LiveViewModel`
+Reach for this when: a bound screen must re-fetch automatically after another
+actor mutates the data it was served from — opt in with
+`@ViewModel(options: [.live])` (never conform `LiveViewModel` directly; the
+macro generates the conformance). Any view bound with `.bind()` then refreshes
+on each server change — no polling, no manual invalidation. Where no live
+connection is configured the ViewModel behaves exactly like a non-live one
+(fetch once on appear), so adding `.live` to a shipped screen is purely
+additive. The server half lives in `FOSMVVMVapor.md § Live Invalidation`.
+
+```swift
+@ViewModel(options: [.live])
+public struct DocksViewModel: RequestableViewModel { /* ... */ }
+```
+
+### Replace the live-invalidation transport — `InvalidationChannel` / `InvalidationEvent`
+Reach for this when: the standard live-invalidation transport won't do (a shared
+push socket, a custom connection) and you must supply your own — conform a
+`Sendable` type whose `events()` yields an `InvalidationEvent` stream and hand it
+to `MVVMEnvironment(invalidationChannel:)`. Yield `.connected` each time your
+transport (re)establishes — FOSMVVM refreshes every live screen — and
+`.invalidated` with each identity set the server pushes. Most apps never conform
+this: leave `invalidationChannel` nil and FOSMVVM synthesizes the standard
+channel over the deployment URLs.
+Don't hand-wire per-screen refresh — one channel feeds every
+`@ViewModel(options: [.live])` screen at once.
+
+```swift
+struct MyChannel: InvalidationChannel {
+    func events() -> AsyncStream<InvalidationEvent> { myStream }
+}
+let env = MVVMEnvironment(
+    appBundle: .main,
+    invalidationChannel: MyChannel(),
+    deploymentURLs: deploymentURLs
+)
+```
+
 ### Own and authorize contained records — `Container` / `AuthorityFlow`
 Reach for this when: a model owns other records (a `Dock` owns its `Berth`s) and
 those records need authorized loading and live-invalidation membership. List what it
@@ -738,7 +777,10 @@ Reach for this when: setting up the `@main` App — register an
 `MVVMEnvironment` in the SwiftUI environment with per-`Deployment` server
 URLs; it also establishes the app's SystemVersion at startup. Missing
 deployment URLs throw `MVVMEnvironmentError` when a request resolves.
-Scaffolded by `fosmvvm-swiftui-app-setup`.
+For live-updating screens, `invalidationChannel:` overrides the invalidation
+transport (see `InvalidationChannel` under Protocols) and a `URLPackage`'s
+`invalidationBaseURL` overrides where the default channel connects (defaults to
+the server base URL). Scaffolded by `fosmvvm-swiftui-app-setup`.
 
 ```swift
 WindowGroup { RootView() }

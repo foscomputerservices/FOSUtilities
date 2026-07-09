@@ -228,6 +228,30 @@ let berths = try await withFluentTestApp { app in
 }
 ```
 
+### Test a streaming / SSE endpoint over a real socket — `withServedFluentTestApp()`
+Reach for this when: a test must hold open a genuine HTTP connection that
+`app.test(...)` can't — a streaming response, a live-invalidation SSE feed.
+Configure the application in `configure` (register containers, enable live
+invalidation), then use the `Application` and the base `URL` handed to `body` to
+open a real socket to it. The server binds to `127.0.0.1` on an ephemeral port;
+each call owns a private in-memory SQLite database, a bound port, and a full
+lifecycle (always shut down), so tests stay isolated and run in parallel.
+Don't reach for `app.test(...)` for a stream — it drives the request in-process
+and cannot keep a socket open.
+
+```swift
+try await withServedFluentTestApp { app in
+    try app.register(Dock.self, migration: CreateDock())
+    try app.useLiveInvalidation(on: app.routes)
+} _: { app, baseURL in
+    let url = baseURL.appending(path: "invalidations")
+    let (bytes, _) = try await URLSession(configuration: .ephemeral).bytes(from: url)
+    for try await line in bytes.lines where line.hasPrefix("data:") {
+        break   // a connected client received a pushed nudge
+    }
+}
+```
+
 ### Serve one request through a fresh server — `VaporServerRequestTest`
 Reach for this when: testing a ViewModel factory end-to-end without owning any
 application configuration — each `test(request:locale:)` boots a fresh Vapor
