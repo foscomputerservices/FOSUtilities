@@ -21,7 +21,7 @@ import FOSFoundation
 /// > **destroy** indicates **permanent destruction** of the resource as
 /// > opposed to *delete* that performs a "soft deletion" of the resource
 public protocol DestroyRequest: ServerRequest, Stubbable where
-ResponseBody: DestroyResponseBody  {}
+    ResponseBody: DestroyResponseBody {}
 
 public extension DestroyRequest {
     static var baseTypeName: String {
