@@ -2551,13 +2551,56 @@ func pad(_ text: String, _ width: Int) -> String {
     text.count >= width ? text : text + String(repeating: " ", count: width - text.count)
 }
 
+/// Shells to `/usr/bin/diff -u` and returns at most `maxLines` lines of the
+/// unified diff. Output is captured via a temp file, not a pipe — large
+/// diffs would deadlock a pipe buffer.
+func unifiedDiffExcerpt(checkedIn: URL, rendered: String, maxLines: Int) -> [String] {
+    let fm = FileManager.default
+    let dir = fm.temporaryDirectory
+        .appendingPathComponent("sweep-diff-\(UUID().uuidString)", isDirectory: true)
+    defer { try? fm.removeItem(at: dir) }
+    do {
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let renderedURL = dir.appendingPathComponent("rendered")
+        try rendered.write(to: renderedURL, atomically: true, encoding: .utf8)
+        let outURL = dir.appendingPathComponent("diff.out")
+        fm.createFile(atPath: outURL.path, contents: nil)
+        let out = try FileHandle(forWritingTo: outURL)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/diff")
+        process.arguments = ["-u", checkedIn.path, renderedURL.path]
+        process.standardOutput = out
+        process.standardError = out
+        try process.run()
+        process.waitUntilExit()
+        try out.close()
+        let text = try String(contentsOf: outURL, encoding: .utf8)
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        if lines.count > maxLines {
+            lines = Array(lines.prefix(maxLines)) + ["… diff truncated at \(maxLines) lines"]
+        }
+        return lines
+    } catch {
+        return ["(diff unavailable: \(error))"]
+    }
+}
+
+struct DriftReport {
+    /// One line per drifted file: `missing:` / `differs:` / `stale:`.
+    let drift: [String]
+    /// Bounded unified-diff excerpts (the manifest's always, plus the first
+    /// two differing generated files) so a remote CI failure is diagnosable
+    /// from the job log alone.
+    let diagnostics: [String]
+}
+
 /// Byte-compares the freshly rendered output against the checked-in files
 /// and returns the drift list (empty when clean). Missing, differing, and
 /// stale (checked in but no longer generated) files all count. The SDK/Xcode
 /// stamp lines participate in the byte-compare, but only after
 /// `stampComparisonPasses` has confirmed every runner SDK matches the stamp —
 /// so a stamp-line difference here can only be real drift, never an SDK skew.
-func driftReport(_ output: EmitOutput, packageRoot: URL) -> [String] {
+func driftReport(_ output: EmitOutput, packageRoot: URL) -> DriftReport {
     var expected: [String: String] = [:]
     for file in output.files {
         expected["\(generatedDirRelativePath)/\(file.fileName)"] = file.contents
@@ -2565,6 +2608,8 @@ func driftReport(_ output: EmitOutput, packageRoot: URL) -> [String] {
     expected[manifestRelativePath] = output.manifest
 
     var drift: [String] = []
+    var diagnostics: [String] = []
+    var fileExcerptsEmitted = 0
     for (relativePath, contents) in expected.sorted(by: { $0.key < $1.key }) {
         let url = packageRoot.appendingPathComponent(relativePath)
         guard let existing = try? String(contentsOf: url, encoding: .utf8) else {
@@ -2573,6 +2618,16 @@ func driftReport(_ output: EmitOutput, packageRoot: URL) -> [String] {
         }
         if existing != contents {
             drift.append("differs: \(relativePath)")
+            let isManifest = relativePath == manifestRelativePath
+            if isManifest || fileExcerptsEmitted < 2 {
+                if !isManifest { fileExcerptsEmitted += 1 }
+                diagnostics.append("--- diff excerpt: \(relativePath) ---")
+                diagnostics.append(contentsOf: unifiedDiffExcerpt(
+                    checkedIn: url,
+                    rendered: contents,
+                    maxLines: isManifest ? 120 : 60
+                ))
+            }
         }
     }
 
@@ -2588,7 +2643,7 @@ func driftReport(_ output: EmitOutput, packageRoot: URL) -> [String] {
             drift.append("stale: \(relativePath)")
         }
     }
-    return drift
+    return DriftReport(drift: drift, diagnostics: diagnostics)
 }
 
 // MARK: - Main
@@ -2802,12 +2857,15 @@ func main(options: Options) throws -> Int32 {
         }
 
         if options.check {
-            let drift = driftReport(output, packageRoot: packageRoot)
-            if drift.isEmpty {
+            let report = driftReport(output, packageRoot: packageRoot)
+            if report.drift.isEmpty {
                 print("  --check: clean — checked-in output matches regeneration")
             } else {
-                print("  --check: DRIFT in \(drift.count) file(s):")
-                for line in drift {
+                print("  --check: DRIFT in \(report.drift.count) file(s):")
+                for line in report.drift {
+                    print("    \(line)")
+                }
+                for line in report.diagnostics {
                     print("    \(line)")
                 }
                 exitCode = 1
