@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Complete generated `Localizable` overload surface** — every SwiftUI
+  initializer and modifier that takes a `LocalizedStringKey` now has a
+  `some Localizable`-accepting twin with a `defaultValue:` fallback: 253
+  overloads across 44 SwiftUI types (inits and modifiers). Call the twin exactly
+  like Apple's API — `Text(viewModel.title)`, `Button(viewModel.cta) { … }`,
+  `EmptyView().navigationTitle(viewModel.title)` — passing the ViewModel's
+  `Localizable` where the string key goes. The surface is regenerated per SDK by
+  `scripts/localizable-overload-sweep.swift`, and a CI staleness gate fails the
+  build if the checked-in overloads drift from a fresh sweep. The swept,
+  generated, and rejected-candidate coverage ledger lives in
+  `Sources/FOSMVVM/SwiftUI Support/SweepCoverage.md`.
+
+### Changed
+
+- **BREAKING: `defaultTitle:` → `defaultValue:` on `TextField` Localizable
+  overloads.** The fallback-label argument is now spelled `defaultValue:`,
+  uniform with every other overload in the surface. A caller passing the old
+  label renames the argument.
+- **BREAKING: `any Localizable` → `some Localizable` on the Localizable
+  overloads.** The generated inits and modifiers take an opaque `some
+  Localizable` rather than an existential `any Localizable`. Ordinary call sites
+  are source-compatible; only callers who spelled the parameter type explicitly
+  are affected — replace `any Localizable` with `some Localizable` in the
+  parameter type annotation.
+- **BREAKING: `ContentUnavailableView` `defaultValue:` moved to second
+  position.** The Localizable overload `init(_:systemImage:defaultValue:)` is now
+  `init(_:defaultValue:systemImage:description:)` — `defaultValue:` follows the
+  localizable slot uniformly across the surface. Source-breaking only for callers
+  who passed `defaultValue` explicitly.
+- **The `Text(_:defaultValue:)` Localizable inits, `Localizable.text`, and
+  `LabeledContent(_:defaultValue:value:)` (String value) are unchanged** — no
+  source change for callers.
+
 ## [0.5.0] - 2026-07-08
 
 ### Added
