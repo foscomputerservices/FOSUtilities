@@ -25,7 +25,7 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-@available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public extension TabContent {
     /// Localizable-accepting form of SwiftUI's `TabContent.accessibilityHint(_:isEnabled:)`.
     ///

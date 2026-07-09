@@ -34,13 +34,28 @@ jobs:
         run: swift scripts/api-catalog-audit.swift
         shell: bash
  
-  # Ensure that compilation succeeds via xcodebuild
+  # Ensure that compilation succeeds via xcodebuild.
+  #
+  # Non-macOS destinations build the FOSMVVM scheme (the Apple-platform
+  # surface, transitively FOSFoundation + FOSMacros): the Vapor targets are
+  # macOS/Linux-only BY DESIGN — their Vapor/Fluent/Leaf dependencies are
+  # platform-conditional in Package.swift, so the package scheme can never
+  # compile for device platforms (unguarded `import Vapor` with no module).
+  # macOS builds the full package scheme, where Vapor is real.
+  #
+  # `set -o pipefail` is load-bearing: a pipeline's exit status is the LAST
+  # command's (xcpretty's, always 0), and GitHub's DEFAULT shell is bash
+  # WITHOUT pipefail — these legs were false-green for failing xcodebuilds
+  # until it was added.
   run_xcodebuild_tests:
-    name: Buiild ${{ matrix.ios_platform }} via Xcodebuild 'latest-stable'
+    name: Build ${{ matrix.ios_platform }} via Xcodebuild 'latest-stable'
     runs-on: macos-latest
     strategy:
       matrix:
-        ios_platform: ["macOS", "iOS", "watchOS", "tvOS"] # , "visionOS"] -- Not installed on GitHub Actions
+        ios_platform: ["macOS", "iOS", "watchOS", "tvOS", "visionOS"]
+      # Each platform's verdict is independent evidence — one red leg must
+      # not cancel the others (default fail-fast hid exactly that).
+      fail-fast: false
 
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
@@ -54,15 +69,17 @@ jobs:
 
       - name: Run ${{ matrix.ios_platform }} build
         run: |
+          set -o pipefail
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
-            "$PWD/.derivedData" -scheme FOSUtilities-Package \
+            "$PWD/.derivedData" -scheme FOSMVVM \
             -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
         if: matrix.ios_platform != 'macOS'
 
       # Simply cannot get macOS to work with swift test & github actions, they hang 🤷‍♂️
       - name: Run macOS build
         run: |
+          set -o pipefail
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation \
             -derivedDataPath "$PWD/.derivedData" \
@@ -74,14 +91,11 @@ jobs:
   # the SDKs. --check is stamp-aware: it compares the runner's SDK versions
   # against the stamp in SweepCoverage.md and only byte-compares when all five
   # match; a version mismatch (or a missing SDK) is an informational skip
-  # (exit 0), never a false drift failure.
-  #
-  # DORMANT on today's hosted runners: GitHub's macos-latest ships no visionOS
-  # SDK (see the ios_platform matrix comment above), so this gate SKIPs there
-  # by design. The generated output is a function of ALL five SDKs
-  # (union-derived availability), so a partial regeneration can never
-  # byte-match. The gate fires on any machine with all five SDKs — maintainer
-  # Macs today, hosted runners whenever GitHub adds visionOS.
+  # (exit 0), never a false drift failure. The generated output is a function
+  # of ALL five SDKs (union-derived availability), so a partial regeneration
+  # can never byte-match — hence all-or-nothing. LIVE on hosted runners
+  # (verified 2026-07-09: macos-latest ships all five SDKs, visionOS
+  # included); it skips only when a runner's SDK versions trail the stamp.
   overload_sweep_staleness:
     name: Generated overloads staleness gate
     runs-on: macos-latest
