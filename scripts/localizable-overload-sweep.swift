@@ -430,12 +430,22 @@ struct SelectResult {
     let synthesizedRowsCollapsed: Int
     /// Every canonical public init/method/func, for Stage 4's sibling matching.
     let siblingIndex: SiblingIndex
+    /// Every public TYPE's availability (dotted name -> per-domain state),
+    /// merged across platform graphs — the source for Emit's extension-header
+    /// `@available` lines (the header references the TYPE, so the type's own
+    /// introduction is its requirement).
+    let typeAvailability: [String: [AvailabilityDomain: DomainAvailability]]
 }
 
 /// Type kinds under which the `LocalizedStringKey` / `Text` type symbols
 /// could be published.
 let typeSymbolKinds: Set<String> =
     ["swift.struct", "swift.class", "swift.enum", "swift.typealias"]
+
+/// Type kinds an extension header can reference as its extended type — the
+/// kinds Select's type-availability index records.
+let extendedTypeSymbolKinds: Set<String> =
+    ["swift.struct", "swift.protocol", "swift.class", "swift.enum"]
 
 /// Reads and decodes one symbol-graph file. Any read/decode error is a thrown
 /// `Failure` that names the file — a graph is never silently skipped.
@@ -589,11 +599,24 @@ func runSelect(graphs: [ExtractedGraphs], lskUSRs: Set<String>, filter: String?)
     var synthesizedBases: Set<String> = []
     var synthesizedRows = 0
     var siblingIndex = SiblingIndex()
+    var typeAvailability: [String: [AvailabilityDomain: DomainAvailability]] = [:]
     for group in graphs {
         for file in group.files {
             let graph = try loadGraph(at: file)
             for symbol in graph.symbols {
                 siblingIndex.add(symbol, platform: group.platform)
+                // Index every public type's availability for Emit's
+                // extension-header annotations. Tiny (name -> domain states);
+                // streams with the pass like everything else.
+                if extendedTypeSymbolKinds.contains(symbol.kind.identifier),
+                   symbol.accessLevel == "public",
+                   !symbol.identifier.precise.contains(synthesizedUSRMarker),
+                   !symbol.pathComponents.contains(where: { $0.hasPrefix("_") }) {
+                    let typeName = symbol.pathComponents.joined(separator: ".")
+                    var states = typeAvailability[typeName] ?? [:]
+                    mergeAvailability(symbol.availability ?? [], into: &states)
+                    typeAvailability[typeName] = states
+                }
                 switch classify(symbol, platform: group.platform, module: group.module, lskUSRs: lskUSRs) {
                 case .candidate(let candidate):
                     canonicalUSRs.insert(candidate.usr)
@@ -622,7 +645,8 @@ func runSelect(graphs: [ExtractedGraphs], lskUSRs: Set<String>, filter: String?)
         candidates: candidates,
         rejected: rejected,
         synthesizedRowsCollapsed: synthesizedRows,
-        siblingIndex: siblingIndex
+        siblingIndex: siblingIndex,
+        typeAvailability: typeAvailability
     )
 }
 
@@ -813,6 +837,51 @@ func resolveConflict(_ lhs: DomainAvailability, _ rhs: DomainAvailability) -> Do
     return version(lhs) >= version(rhs) ? lhs : rhs
 }
 
+/// Merges one symbol's raw availability entries into a per-domain state map —
+/// the ONE union semantics both candidates (`runUnion`) and extended-type
+/// symbols (Select's type index) use: a wildcard `*` unavailable fans out to
+/// every domain, and disagreements resolve higher-restriction-wins. Returns
+/// true when any entry conflicted with an existing state.
+@discardableResult
+func mergeAvailability(
+    _ entries: [Symbol.Availability],
+    into states: inout [AvailabilityDomain: DomainAvailability]
+) -> Bool {
+    var conflicted = false
+    func merge(_ domain: AvailabilityDomain, _ new: DomainAvailability) {
+        if let old = states[domain], old != new {
+            conflicted = true
+            states[domain] = resolveConflict(old, new)
+        } else {
+            states[domain] = new
+        }
+    }
+    for entry in entries {
+        guard let domainString = entry.domain else { continue }
+        if domainString == "*" {
+            // A wildcard unavailable marks the whole API unavailable on
+            // every domain. (Wildcard-deprecated never reaches here for
+            // candidates — Select already rejects deprecated symbols.)
+            if entry.isUnconditionallyUnavailable == true {
+                for domain in AvailabilityDomain.allCases {
+                    merge(domain, .unavailable)
+                }
+            }
+            continue
+        }
+        guard let domain = AvailabilityDomain(graphDomain: domainString) else { continue }
+        let state: DomainAvailability = if entry.isUnconditionallyUnavailable == true {
+            .unavailable
+        } else if let introduced = entry.introduced {
+            .introduced(SemVer(introduced))
+        } else {
+            .sinceForever
+        }
+        merge(domain, state)
+    }
+    return conflicted
+}
+
 /// Merges the per-platform candidates into one `UnifiedAPI` per USR: unions the
 /// availability domains, clamps nothing yet (that is a view on the record),
 /// flags beta-tier domains, and verifies that fragments/structure agree across
@@ -872,38 +941,10 @@ func runUnion(candidates: [Candidate], sdks: [PlatformSDK]) -> UnionResult {
         // Union availability across every contributing platform.
         var states: [AvailabilityDomain: DomainAvailability] = [:]
         var conflicted = false
-        func merge(_ domain: AvailabilityDomain, _ new: DomainAvailability) {
-            if let old = states[domain], old != new {
-                conflicted = true
-                states[domain] = resolveConflict(old, new)
-            } else {
-                states[domain] = new
-            }
-        }
         for candidate in group {
-            for entry in candidate.availability {
-                guard let domainString = entry.domain else { continue }
-                if domainString == "*" {
-                    // A wildcard unavailable marks the whole API unavailable on
-                    // every domain. (Wildcard-deprecated never reaches Union —
-                    // Select already rejects deprecated symbols.)
-                    if entry.isUnconditionallyUnavailable == true {
-                        for domain in AvailabilityDomain.allCases {
-                            merge(domain, .unavailable)
-                        }
-                    }
-                    continue
-                }
-                guard let domain = AvailabilityDomain(graphDomain: domainString) else { continue }
-                let state: DomainAvailability = if entry.isUnconditionallyUnavailable == true {
-                    .unavailable
-                } else if let introduced = entry.introduced {
-                    .introduced(SemVer(introduced))
-                } else {
-                    .sinceForever
-                }
-                merge(domain, state)
-            }
+            // Merge first, then fold — `conflicted ||` would short-circuit
+            // the merge itself.
+            conflicted = mergeAvailability(candidate.availability, into: &states) || conflicted
         }
         if conflicted { conflictCount += 1 }
 
@@ -1961,36 +2002,36 @@ func renderAvailabilityLines(_ api: UnifiedAPI) -> [String] {
     return lines
 }
 
-/// The `@available` lines for one extension BLOCK. The block header itself
-/// references the extended type (and its constraint types), so a type newer
-/// than a platform's floor — or absent from a platform — fails to compile
-/// unless the extension carries availability too. Derived from the block's
-/// members: a member can never be more available than its type, so the
-/// per-domain minimum member `introduced` (emitted only when every member
-/// constrains the domain and the minimum clears the floor) and the
-/// all-members-unavailable domains are always-safe block annotations.
-func renderBlockAvailabilityLines(_ members: [TransformedOverload]) -> [String] {
-    var introduced: [(domain: AvailabilityDomain, version: SemVer)] = []
-    var unavailable: [AvailabilityDomain] = []
-    for domain in AvailabilityDomain.allCases {
-        let states = members.map { $0.api.availability[domain] }
-        if states.allSatisfy({ $0 == .unavailable }) {
-            unavailable.append(domain)
-            continue
-        }
-        var minimum: SemVer?
-        var allIntroduced = true
-        for state in states {
-            guard case .introduced(let version) = state else {
-                allIntroduced = false
-                break
-            }
-            minimum = minimum.map { min($0, version) } ?? version
-        }
-        if allIntroduced, let minimum, minimum > domain.floor {
-            introduced.append((domain, minimum))
-        }
+/// The `@available` lines for one extension BLOCK. The block HEADER
+/// references the extended TYPE, so its `introduced` requirement is the
+/// type's own availability (same floor clamp as members), taken from
+/// Select's type index. Deriving it from the members was WRONG: omitting a
+/// domain is not neutral — one member without (say) a tvOS entry dropped
+/// tvOS from the annotation, and the wildcard `*` then claimed the block at
+/// the tvOS floor, below the type's introduction (TabContent, tvOS 18).
+/// All-members-unavailable domains keep their
+/// `@available(<domain>, unavailable)` lines and win over an introduced
+/// entry for the same domain.
+///
+/// Known theoretical residue: `where` clause constraint types are header
+/// references too, and their availability is NOT derived here — Apple's
+/// extension-block members have so far always carried compatible
+/// constraints; the CI platform compiles are the backstop.
+func renderBlockAvailabilityLines(
+    typeAvailability: [AvailabilityDomain: DomainAvailability],
+    members: [TransformedOverload]
+) -> [String] {
+    let unavailable = AvailabilityDomain.allCases.filter { domain in
+        members.allSatisfy { $0.api.availability[domain] == .unavailable }
     }
+    let introduced = AvailabilityDomain.allCases
+        .compactMap { domain -> (domain: AvailabilityDomain, version: SemVer)? in
+            guard !unavailable.contains(domain),
+                  case .introduced(let version) = typeAvailability[domain],
+                  version > domain.floor
+            else { return nil }
+            return (domain, version)
+        }
     var lines: [String] = []
     if !introduced.isEmpty {
         let arguments = introduced
@@ -2191,9 +2232,22 @@ func renderMember(
 func renderGeneratedFile(
     extendedType: String,
     overloads: [TransformedOverload],
-    stamp: GenerationStamp
-) -> GeneratedFile {
+    stamp: GenerationStamp,
+    typeAvailability: [String: [AvailabilityDomain: DomainAvailability]]
+) throws -> GeneratedFile {
     let fileName = (extendedType.isEmpty ? "GlobalFunctions" : extendedType) + "+Localizable.swift"
+
+    // The extension header's availability comes from the TYPE it references.
+    // A swept member whose extended type never appeared as a public type
+    // symbol would mean the type index is broken — never guess an annotation.
+    var extendedTypeAvailability: [AvailabilityDomain: DomainAvailability] = [:]
+    if !extendedType.isEmpty {
+        guard let availability = typeAvailability[extendedType] else {
+            throw Failure("no indexed availability for extended type '\(extendedType)' — " +
+                "cannot annotate its extension header")
+        }
+        extendedTypeAvailability = availability
+    }
 
     var blockOrder: [String] = []
     var blocks: [String: [TransformedOverload]] = [:]
@@ -2232,7 +2286,9 @@ func renderGeneratedFile(
             }
         } else {
             let clause = constraintsText.isEmpty ? "" : " \(constraintsText)"
-            lines += renderBlockAvailabilityLines(members)
+            lines += renderBlockAvailabilityLines(
+                typeAvailability: extendedTypeAvailability, members: members
+            )
             lines.append("public extension \(extendedType)\(clause) {")
             for (index, member) in members.enumerated() {
                 if index > 0 { lines.append("") }
@@ -2376,15 +2432,17 @@ struct EmitOutput {
     let manifest: String
 }
 
-/// The full render — pure; no I/O.
+/// The full render — pure; no I/O. Throws only when a swept member's
+/// extended type has no indexed availability (a broken type index).
 func renderEmitOutput(
     overloads: [TransformedOverload],
     rejects: [RejectedCandidate],
     betaTierAPIs: [UnifiedAPI],
     sweptCandidateRows: Int,
     uniqueAPIs: Int,
-    stamp: GenerationStamp
-) -> EmitOutput {
+    stamp: GenerationStamp,
+    typeAvailability: [String: [AvailabilityDomain: DomainAvailability]]
+) throws -> EmitOutput {
     var typeOrder: [String] = []
     var byType: [String: [TransformedOverload]] = [:]
     for overload in overloads {
@@ -2393,9 +2451,12 @@ func renderEmitOutput(
     }
     typeOrder.sort()
 
-    return EmitOutput(
+    return try EmitOutput(
         files: typeOrder.map {
-            renderGeneratedFile(extendedType: $0, overloads: byType[$0]!, stamp: stamp)
+            try renderGeneratedFile(
+                extendedType: $0, overloads: byType[$0]!, stamp: stamp,
+                typeAvailability: typeAvailability
+            )
         },
         manifest: renderManifest(
             stamp: stamp,
@@ -2825,13 +2886,14 @@ func main(options: Options) throws -> Int32 {
         }
 
         let stamp = makeGenerationStamp(sdks: sdks)
-        let output = renderEmitOutput(
+        let output = try renderEmitOutput(
             overloads: transformed.overloads,
             rejects: manifestRejects,
             betaTierAPIs: union.apis.filter { !$0.betaTierDomains.isEmpty },
             sweptCandidateRows: selection.candidates.count,
             uniqueAPIs: union.stats.uniqueAPIs,
-            stamp: stamp
+            stamp: stamp,
+            typeAvailability: selection.typeAvailability
         )
 
         print("\n== Emit ==")

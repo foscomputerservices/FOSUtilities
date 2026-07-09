@@ -25,7 +25,6 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
-@available(macOS 15.0, *)
 @available(iOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
