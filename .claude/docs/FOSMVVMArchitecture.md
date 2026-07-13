@@ -571,7 +571,28 @@ When a `ServerRequestController` registers routes, it automatically applies the 
 
 ### ServerRequestError - Typed Error Responses
 
-Each `ServerRequest` can define a custom `ResponseError` type for structured error handling:
+**`ResponseError` is the operation's semantic error — NOT an HTTP-status mapping.**
+
+If there were no wire, the operation would be a local function call,
+and it would `throw` a well-defined Swift error.
+`ResponseError` **is** that error.
+`ServerRequestError` exists so the throw can happen *across the wire*:
+
+1. Server-side code `throw`s the typed error
+2. It rides the response body as `Codable` (encoded by `ErrorMiddleware`)
+3. The client's `processRequest` rethrows the **same typed error** —
+   as if the call had been local
+
+The HTTP status underneath is transport dressing the framework applies.
+It carries no result semantics, and nobody should read it back to
+interpret a result.
+
+**Design starts from the throw, never from the status:**
+
+- ✅ "What would this operation `throw` if it were a local call?" —
+  that error is the `ResponseError`
+- ❌ "What should a 401 become on the client?" —
+  status-first thinking; the wrong frame entirely
 
 ```swift
 public protocol ServerRequest {
@@ -617,7 +638,22 @@ Server returns response
 └────────────────────────────────┘
 ```
 
-The key insight: if the server returns JSON that can't decode as `ResponseBody` but CAN decode as `ResponseError`, that typed error is thrown. This works even when HTTP status is 200 (some APIs return errors with success status codes).
+The key insight: this decode chain is transport *plumbing*, not semantics. If the server returns JSON that can't decode as `ResponseBody` but CAN decode as `ResponseError`, that typed error is thrown — even when the HTTP status is 200. The status check exists only to route decoding down the error path; the client branches by **catching the typed case**, never by reading a status.
+
+**Never interpret results from HTTP statuses:**
+
+```swift
+// ❌ WRONG - status sniffing. A 401 is a raw transport number;
+// ANY failure can wear it, so the client learns nothing typed.
+catch DataFetchError.badStatus(401) {
+    refreshSessionAndRetry()
+}
+
+// ✅ RIGHT - the operation's thrown vocabulary crossed the wire; catch the case
+catch let error as LoginError where error.code == .sessionExpired {
+    refreshSessionAndRetry()
+}
+```
 
 #### Why Use Custom ServerRequestError?
 
@@ -851,7 +887,8 @@ struct LocalizedError: ServerRequestError {
 
 #### When to Use EmptyError
 
-Use `EmptyError` (the default) when:
+Use `EmptyError` (the default) when the operation, as a local call, would have
+nothing well-defined to throw:
 - The operation rarely fails
 - Failures are truly exceptional (network down, server crash)
 - No structured error response is expected from the server

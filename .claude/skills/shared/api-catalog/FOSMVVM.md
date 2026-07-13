@@ -340,7 +340,11 @@ Reach for this when: defining any client↔server interaction — every client
 by URL string. The pieces map onto HTTP: `action` (`.show`/`.create`/`.update`/
 `.replace`/`.delete`/`.destroy` → GET/POST/PATCH/PUT/DELETE), `Query`,
 `Fragment`, `RequestBody`, `ResponseBody`; a unique path is derived from the
-type names automatically. Typed server failures decode into `ResponseError`.
+type names automatically. `ResponseError` carries the operation's *thrown*
+error across the wire — the error the operation would throw as a local call;
+the server throws it and `processRequest` rethrows the same `Codable` error
+client-side. It is not an HTTP-status mapping: branch by catching the typed
+case, never by reading a status.
 Don't hand-build URLs or raw URLSession calls — that is the stringly-typed
 encapsulation break this hierarchy exists to prevent.
 

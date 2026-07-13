@@ -102,11 +102,12 @@ for locale in [en, es] {
     }
 }
 
-// ✅ RIGHT - Test error responses
+// ✅ RIGHT - Test error responses: assert the TYPED error (the operation's
+// thrown vocabulary), not just a status — statuses are transport, not results
 let badRequest = MyShowRequest(query: .init(userId: invalidId))
 try await app.testing().test(badRequest, locale: en) { response in
-    #expect(response.status == .notFound)
-    #expect(response.error != nil)
+    #expect(response.status == .notFound)          // transport contract
+    #expect(response.error?.code == .userNotFound) // the semantics
 }
 ```
 

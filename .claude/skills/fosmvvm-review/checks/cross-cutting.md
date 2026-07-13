@@ -46,6 +46,17 @@ static var modelNamespace: ModelNamespace { .init(stringLiteral: "User") }      
 ```
 **Detection:** Flag: (a) a `public`/`internal` `var`/`func` on a sealed identity/namespace/token type that returns `String`/`UUID` of its private storage; (b) a raw `String`/`UUID` parameter or stored property used as an identity/route/key/token where a typed value exists; (c) constructing an identity/namespace from a string literal rather than a type. Exempt: the single owner-scoped computed that *consumes* the string to build a typed value and never returns it.
 
+## Check: status-interpreted-as-result
+**Severity:** blocker
+**What:** Client code reading an HTTP status to interpret an operation's *result*. Statuses govern transport consequences only (logging, caching, retry/backoff); result semantics ride the typed error path — the server `throw`s a `ServerRequestError` and the client catches the typed case. Branching business behavior on a status number is the stringly-typed break applied to errors: any failure can wear a 401, so the client learns nothing typed. See [Architecture Patterns → Typed Errors Are the Operation's Throw](../../shared/architecture-patterns.md).
+**Anti-pattern:**
+```swift
+catch DataFetchError.badStatus(401) {
+    refreshSessionAndRetry()          // result semantics inferred from a transport number
+}
+```
+**Detection:** In non-test source, find `catch` clauses or `if`/`switch` branches keyed on a specific HTTP status (`DataFetchError.badStatus(<code>)`, `response.status == .<case>`, raw `401`/`403`/`404` comparisons) where the branch drives business behavior (retry with new credential, navigation, user-facing state). Exempt: pure transport consequences (structured logging, cache invalidation, generic backoff without semantic branching) and test assertions of the server's transport contract.
+
 ## Check: published-representation
 **Severity:** warning
 **What:** A sealed type's internal encoded shape (JSON keys, token format, byte/column layout) stated on a **public** surface — a DocC `///` comment, `CHANGELOG`, or `README`. Publishing the representation makes it a de-facto schema consumers parse or hand-forge, defeating the opacity and freezing an implementation detail. Public docs state the *contract* (opaque; `Codable` round-trips; stable within a major version), never the shape; pin the shape in an internal `//` comment + a forward-compat test.

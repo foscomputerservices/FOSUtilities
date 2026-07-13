@@ -222,10 +222,12 @@ to admit); the stock `BearerCredentialVerifier` extracts `Authorization:
 Bearer` and asks your `isValid` closure (compare digests or constant-time —
 never `==` on raw secrets). Missing or invalid → 401 with `WWW-Authenticate`.
 Limitation: a rejection reaches a FOSMVVM client as a transport-level
-bad-status error (401), not the request's typed `ResponseError` — and a
-`ResponseError` that decodes from any JSON body (e.g. `EmptyError`) swallows
-the 401 entirely; give protected requests an error type with a required field
-absent from rejection bodies.
+bad-status error (401), not the request's typed `ResponseError` — a known gap
+in the errors-are-data model (a `ResponseError` is the operation's *thrown*
+error crossing the wire; statuses carry no result semantics), so never build
+client branching on the 401 itself. Also, a `ResponseError` that decodes from
+any JSON body (e.g. `EmptyError`) swallows the 401 entirely; give protected
+requests an error type with a required field absent from rejection bodies.
 
 ```swift
 let protected = app.grouped(ClientCredentialMiddleware(

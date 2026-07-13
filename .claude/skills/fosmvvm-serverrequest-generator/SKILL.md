@@ -127,10 +127,40 @@ try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 | HTTP Method | Determined by `action.httpMethod` (ShowRequest=GET, CreateRequest=POST, etc.) |
 | Request Body | `RequestBody` type, automatically JSON encoded via `requestBody?.toJSONData()` |
 | Response Body | `ResponseBody` type, automatically JSON decoded into `responseBody` |
-| Error Response | `ResponseError` type, automatically decoded when response can't decode as `ResponseBody` |
+| Error Response | `ResponseError` type — the operation's *thrown* error carried across the wire; `processRequest` rethrows it client-side (see below) |
 | Validation | `RequestBody: ValidatableModel` for write operations |
 | Body Size Limits | `RequestBody.maxBodySize` for large uploads (files, images) |
 | Type Safety | Compiler enforces correct types throughout |
+
+---
+
+## ResponseError Is the Operation's Throw, Not a Status Mapping
+
+If there were no wire, the operation would be a local function call that
+`throw`s a well-defined Swift error. `ResponseError` **is** that error.
+`ServerRequestError` (`Error, Codable, Sendable`) exists so the throw can
+happen *across the wire*:
+
+- The server-side handler `throw`s the typed error
+- It rides the response as `Codable` (via `ErrorMiddleware`)
+- The client's `processRequest` rethrows the **same typed error**,
+  as if the call had been local
+
+**Design from the throw, never from the transport:**
+
+- ✅ Ask: "what would this operation `throw` if it were local?" —
+  that error (usually an enum-carrying struct) is the `ResponseError`
+- ❌ Never ask: "what should a 401 / an HTTP status become?" —
+  statuses are transport dressing; they carry no result semantics
+- Clients branch by **catching the typed case** —
+  never by reading an HTTP status back
+
+**Why this protects encapsulation:** an HTTP status is a raw,
+publicly-mintable number — any failure can wear a 401, so routing result
+semantics on one is the stringly-typed encapsulation break (see SOLID /
+encapsulation in `CLAUDE.md`). The typed error IS the contract; the moment a
+client sniffs a status, the error vocabulary you declared stops being the
+only door.
 
 ---
 
@@ -229,9 +259,12 @@ From requirements already in context:
 
 From requirements already in context:
 - **ResponseBody type** (often a ViewModel, sometimes just an ID)
-- **ResponseError type** (custom error structure or EmptyError)
+- **ResponseError type** — ask "what would this operation `throw` if it were
+  a local call?"; that error is the `ResponseError` (`EmptyError` if nothing
+  well-defined). Never derive it from HTTP statuses.
 - **Success scenarios** (what indicates successful operation)
-- **Error scenarios** (known failure modes requiring structured errors)
+- **Error scenarios** (known failure modes the client must branch on —
+  each becomes a typed case the client catches)
 
 ### Client Detection
 
