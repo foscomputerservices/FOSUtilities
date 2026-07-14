@@ -110,38 +110,47 @@ public extension ServerRequest {
         }
 
         let headerValue: String?
-        if ResponseBody.self == EmptyBody.self {
-            // An `EmptyBody` response carries no meaningful content, so its media type is irrelevant.
-            // Fetch it as `String` (the one decode path that accepts ANY 2xx body) with the
-            // received-MIME check disabled, discard the body, and synthesize the empty response. This
-            // round-trips against a server that answers `application/json` `{}` (`buildResponse`) AND
-            // one that answers `text/plain`/empty (a plain REST API) — neither type is
-            // enforced, because there is nothing to type. A non-2xx still decodes the typed
-            // `ResponseError` via `errorType`, unchanged.
-            let (_, captured): (String, String?) = try await dataFetch.send(
-                data: requestData,
-                to: requestURL(baseURL: baseURL),
-                httpMethod: action.httpMethod,
-                headers: requestHeaders,
-                locale: Locale.current,
-                checkReceivedMimeType: false,
-                errorType: Self.ResponseError.self,
-                capturingResponseHeader: ModelIdentity.registrationsHeader
-            )
-            responseBody = EmptyBody() as? ResponseBody
-            headerValue = captured
-        } else {
-            let (body, captured): (ResponseBody, String?) = try await dataFetch.send(
-                data: requestData,
-                to: requestURL(baseURL: baseURL),
-                httpMethod: action.httpMethod,
-                headers: requestHeaders,
-                locale: Locale.current,
-                errorType: Self.ResponseError.self,
-                capturingResponseHeader: ModelIdentity.registrationsHeader
-            )
-            responseBody = body
-            headerValue = captured
+        // WireError is decode plumbing — unwrap so callers catch the payload
+        // (the surface rejection or the request's typed ResponseError).
+        do {
+            if ResponseBody.self == EmptyBody.self {
+                // An `EmptyBody` response carries no meaningful content, so its media type is irrelevant.
+                // Fetch it as `String` (the one decode path that accepts ANY 2xx body) with the
+                // received-MIME check disabled, discard the body, and synthesize the empty response. This
+                // round-trips against a server that answers `application/json` `{}` (`buildResponse`) AND
+                // one that answers `text/plain`/empty (a plain REST API) — neither type is
+                // enforced, because there is nothing to type. A non-2xx still decodes the typed
+                // `ResponseError` via `errorType`, unchanged.
+                let (_, captured): (String, String?) = try await dataFetch.send(
+                    data: requestData,
+                    to: requestURL(baseURL: baseURL),
+                    httpMethod: action.httpMethod,
+                    headers: requestHeaders,
+                    locale: Locale.current,
+                    checkReceivedMimeType: false,
+                    errorType: WireError<Self.ResponseError>.self,
+                    capturingResponseHeader: ModelIdentity.registrationsHeader
+                )
+                responseBody = EmptyBody() as? ResponseBody
+                headerValue = captured
+            } else {
+                let (body, captured): (ResponseBody, String?) = try await dataFetch.send(
+                    data: requestData,
+                    to: requestURL(baseURL: baseURL),
+                    httpMethod: action.httpMethod,
+                    headers: requestHeaders,
+                    locale: Locale.current,
+                    errorType: WireError<Self.ResponseError>.self,
+                    capturingResponseHeader: ModelIdentity.registrationsHeader
+                )
+                responseBody = body
+                headerValue = captured
+            }
+        } catch let wire as WireError<Self.ResponseError> {
+            switch wire {
+            case .surface(let rejection): throw rejection
+            case .response(let error): throw error
+            }
         }
 
         return (responseBody, LiveRegistrations.decode(headerValue))
@@ -189,6 +198,10 @@ public extension ServerRequest {
                 headers: headers,
                 session: mvvmEnv.session
             ).registrations
+        } catch let rejection as CredentialRejectedError {
+            // A surface rejection always reaches the caller — recovery
+            // (refresh credential, retry) is a call-site decision.
+            throw rejection
         } catch let error as ServerRequestError {
             if let errorHandler = mvvmEnv.requestErrorHandler {
                 errorHandler(self, error)

@@ -14,13 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import FOSMVVM
 import Vapor
 
 /// Decides whether a request's presented credential admits it
 ///
 /// A ``ServerCredentialVerifier`` is the validity rule that ``ClientCredentialMiddleware``
 /// runs before each route in a protected group: return to admit the request, throw to
-/// reject it — typically `Abort(.unauthorized)`. Rejection reasons must **never** echo
+/// reject it — throw ``CredentialRejectedError`` (carrying its code + challenge) to
+/// reject; any other thrown error is wrapped by the middleware into
+/// `CredentialRejectedError(code: .invalid)`. Rejection reasons must **never** echo
 /// the presented credential back to the caller.
 ///
 /// The verifier is consulted **per request**, so a credential revoked or rotated on the
@@ -35,7 +38,9 @@ public protocol ServerCredentialVerifier: Sendable {
     /// Called once per request before the route runs.
     ///
     /// - Parameter headers: The HTTP headers the request presented
-    /// - Throws: To reject the request — typically `Abort(.unauthorized)`; the
+    /// - Throws: To reject the request — throw ``CredentialRejectedError``
+    ///     (carrying code + challenge); any other thrown error is wrapped by
+    ///     the middleware into `CredentialRejectedError(code: .invalid)`. The
     ///     rejection reason must not contain the presented credential
     func verify(headers: HTTPHeaders) async throws
 }
@@ -51,21 +56,10 @@ public protocol ServerCredentialVerifier: Sendable {
 ///
 /// ## Client-Side Contract
 ///
-/// On a FOSMVVM client, a rejection surfaces from `processRequest(mvvmEnv:)` as
-/// FOSFoundation's `DataFetchError.badStatus(httpStatusCode: 401)` — not as the
-/// request's typed `ResponseError` — so `MVVMEnvironment.requestErrorHandler` is
-/// bypassed and the error propagates directly to the caller. This contract requires
-/// an installed error serializer that forwards the `Abort`'s status and headers;
-/// FOS ``ErrorMiddleware`` (`.default(environment:)`) does.
-///
-/// Known limitation: a request whose `ResponseError` decodes from the rejection body
-/// swallows the 401 into a typed error instead. `EmptyError` **always** does — an
-/// empty struct's synthesized decode is a no-op, so it decodes from ANY valid-JSON
-/// rejection body (FOS ``ErrorMiddleware``'s JSON string and Vapor's stock JSON
-/// object alike). A pre-existing `DataFetch` property, noted here because this
-/// middleware is the first consumer depending on 401 visibility: a request that must
-/// observe the 401 needs a `ResponseError` with at least one required field absent
-/// from rejection bodies.
+/// On a FOSMVVM client, a rejection surfaces from
+/// `processRequest(mvvmEnv:)` as `CredentialRejectedError` — the same typed
+/// error whether the request's own `ResponseError` is `EmptyError` or a
+/// custom type. Catch it to recover; see ``CredentialRejectedError``.
 ///
 /// ## Example
 ///
@@ -88,7 +82,20 @@ public struct ClientCredentialMiddleware: AsyncMiddleware {
 
     public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         // Ensure that the presented credential admits the request
-        try await verifier.verify(headers: request.headers)
+        do {
+            try await verifier.verify(headers: request.headers)
+        } catch let rejection as CredentialRejectedError {
+            throw rejection
+        } catch is CancellationError {
+            // Cancellation is a control-flow signal, not a domain rejection —
+            // the "throw to reject" contract covers domain failures.
+            throw CancellationError()
+        } catch {
+            // The verifier contract is "throw to reject" — any throw is a
+            // rejection; custom verifiers throw CredentialRejectedError
+            // directly to carry richer intent (code, challenge).
+            throw CredentialRejectedError(code: .invalid)
+        }
 
         return try await next.respond(to: request)
     }
@@ -125,25 +132,19 @@ public struct ClientCredentialMiddleware: AsyncMiddleware {
 /// }
 /// ```
 public struct BearerCredentialVerifier: ServerCredentialVerifier {
+    private static let challenge = "Bearer"
+
     private let isValid: @Sendable (String) async -> Bool
 
     // MARK: ServerCredentialVerifier Protocol
 
     public func verify(headers: HTTPHeaders) async throws {
         guard let token = headers.bearerAuthorization?.token else {
-            throw Abort(
-                .unauthorized,
-                headers: ["WWW-Authenticate": "Bearer"],
-                reason: "Missing bearer credential"
-            )
+            throw CredentialRejectedError(code: .missing, challenge: Self.challenge)
         }
 
         guard await isValid(token) else {
-            throw Abort(
-                .unauthorized,
-                headers: ["WWW-Authenticate": "Bearer"],
-                reason: "Invalid bearer credential"
-            )
+            throw CredentialRejectedError(code: .invalid, challenge: Self.challenge)
         }
     }
 

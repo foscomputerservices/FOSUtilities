@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ErrorMiddleware`**: an error conforming to both `Encodable` and `AbortError` is
   now served with **both** its typed body and its own status/headers (previously such errors
   were served `400 Bad Request`). Plain `Encodable` errors are unchanged.
+- **`ClientCredentialMiddleware`**: any verifier throw that is not a
+  `CredentialRejectedError` is now wrapped as one (`.invalid`) — a custom
+  verifier that previously threw an `Abort` with its own status/reason now
+  rejects as `401` with the typed body. Throw `CredentialRejectedError`
+  directly to carry intent; `CancellationError` propagates unchanged.
 
 ## [0.6.0] - 2026-07-09
 

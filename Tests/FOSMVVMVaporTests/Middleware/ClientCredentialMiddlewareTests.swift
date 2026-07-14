@@ -29,11 +29,19 @@
 //   • the Authorization parse edges are pinned: a lowercase `bearer` scheme admits;
 //     an empty token (`Bearer `) rejects,
 //   • the CLIENT-SIDE contract: through the REAL client (`processRequest(mvvmEnv:)`)
-//     with FOS `ErrorMiddleware.default` installed, a rejection surfaces as
-//     `DataFetchError.badStatus(httpStatusCode: 401)` — requestErrorHandler bypassed —
-//     PROVIDED the request's `ResponseError` does not decode from the rejection body;
-//     `EmptyError` always decodes (no-op synthesized decode), swallowing the 401 into
-//     a contentless typed error — the known limitation, pinned by its own test.
+//     with FOS `ErrorMiddleware.default` installed, a rejection surfaces TYPED as
+//     `CredentialRejectedError` (`.invalid`) — the wrapper claims the rejection body
+//     before the request's own `ResponseError` decode runs, so:
+//       - an `EmptyError` `ResponseError` no longer swallows the 401 (the retired
+//         gotcha) — the typed rejection wins,
+//       - a permissive custom `ResponseError` (an all-optional shape that decodes
+//         from any JSON object) likewise cannot swallow it,
+//   • the rejection THROWS PAST `requestErrorHandler` — recovery (refresh, retry) is a
+//     call-site decision — while an operation's own `ResponseError` still routes to the
+//     handler (the positive half),
+//   • skew fallback: a plain 401 WITHOUT the self-identifying envelope (an old server,
+//     Vapor's stock middleware) still surfaces as `DataFetchError.badStatus(401)`,
+//     unchanged.
 
 import FOSFoundation
 import FOSMVVM
@@ -125,8 +133,8 @@ struct ClientCredentialMiddlewareTests {
         }
     }
 
-    @Test("On a FOSMVVM client, a rejection surfaces as DataFetchError.badStatus(401)")
-    func rejectionSurfacesAsBadStatus401ToTheClient() async throws {
+    @Test("On a FOSMVVM client, a rejection surfaces as the typed CredentialRejectedError")
+    func rejectionSurfacesTypedToTheClient() async throws {
         try await withRunningServer { app in
             try Self.registerRejectingClientContractRoutes(app)
         } _: { base in
@@ -138,21 +146,38 @@ struct ClientCredentialMiddlewareTests {
             let request = ShowStrictErrorReplyRequest()
             do {
                 try await request.processRequest(mvvmEnv: env)
-                Issue.record("Expected DataFetchError.badStatus(401), but the request succeeded")
-            } catch DataFetchError.badStatus(httpStatusCode: let code) {
-                // NOT a ServerRequestError — requestErrorHandler is bypassed; this is
-                // the error downstream consumers branch on.
-                #expect(code == 401)
+                Issue.record("Expected CredentialRejectedError, but the request succeeded")
+            } catch let rejection as CredentialRejectedError {
+                #expect(rejection.code == .invalid)
             } catch {
-                Issue.record("Expected DataFetchError.badStatus(401), got \(error)")
+                Issue.record("Expected CredentialRejectedError, got \(error)")
             }
 
             #expect(request.responseBody == nil)
         }
     }
 
-    @Test("Known limitation: an EmptyError ResponseError swallows the 401 into a contentless typed error")
-    func emptyErrorResponseSwallowsThe401() async throws {
+    @Test("With no credential provider configured, a rejection surfaces typed as .missing")
+    func missingCredentialSurfacesTypedToTheClient() async throws {
+        try await withRunningServer { app in
+            try Self.registerRejectingClientContractRoutes(app)
+        } _: { base in
+            let env = Self.environment(base: base) // no clientCredentialProvider
+
+            let request = ShowStrictErrorReplyRequest()
+            do {
+                try await request.processRequest(mvvmEnv: env)
+                Issue.record("Expected CredentialRejectedError")
+            } catch let rejection as CredentialRejectedError {
+                #expect(rejection.code == .missing)
+            } catch {
+                Issue.record("Expected CredentialRejectedError, got \(error)")
+            }
+        }
+    }
+
+    @Test("EmptyError no longer swallows a rejection — the typed error wins")
+    func emptyErrorNoLongerSwallowsRejections() async throws {
         try await withRunningServer { app in
             try Self.registerRejectingClientContractRoutes(app)
         } _: { base in
@@ -161,20 +186,130 @@ struct ClientCredentialMiddlewareTests {
                 provider: BearerCredentialProvider { "revoked-token" }
             )
 
-            // EmptyError's synthesized decode is a no-op, so it decodes from ANY
-            // valid-JSON rejection body — the 401 never reaches the caller. Pinned
-            // here so a DataFetch behavior change surfaces as a test delta.
-            let request = ShowGrantedReplyRequest()
+            let request = ShowGrantedReplyRequest() // ResponseError == EmptyError
             do {
                 try await request.processRequest(mvvmEnv: env)
-                Issue.record("Expected EmptyError, but the request succeeded")
-            } catch is EmptyError {
-                // The documented swallow — a contentless typed error, no status visible
+                Issue.record("Expected CredentialRejectedError, but the request succeeded")
+            } catch let rejection as CredentialRejectedError {
+                #expect(rejection.code == .invalid)
             } catch {
-                Issue.record("Expected EmptyError, got \(error)")
+                Issue.record("Expected CredentialRejectedError, got \(error) — the swallow is back")
             }
+        }
+    }
 
-            #expect(request.responseBody == nil)
+    @Test("A rejection bypasses requestErrorHandler; operation errors still route to it")
+    func rejectionBypassesRequestErrorHandler() async throws {
+        try await withRunningServer { app in
+            try Self.registerRejectingClientContractRoutes(app)
+            // ADMITTED route whose controller throws an operation error — the
+            // positive half: ordinary ResponseErrors still route to the handler.
+            try Self.registerAdmittedThrowingRoute(app)
+        } _: { base in
+            let handled = ErrorSink() // synchronous, lock-guarded — see support code
+            let env = Self.environment(
+                base: base,
+                provider: BearerCredentialProvider { "revoked-token" },
+                requestErrorHandler: { _, error in handled.record(error) }
+            )
+
+            // (a) A rejection THROWS to the caller — never reaches the handler
+            let rejected = ShowStrictErrorReplyRequest()
+            do {
+                try await rejected.processRequest(mvvmEnv: env)
+                Issue.record("Expected CredentialRejectedError")
+            } catch is CredentialRejectedError {
+                // thrown to the caller — NOT swallowed into the handler
+            } catch {
+                Issue.record("Expected CredentialRejectedError, got \(error)")
+            }
+            #expect(handled.count == 0)
+
+            // (b) An operation's own ResponseError still routes to the handler
+            // (handler swallows: no throw, responseBody stays nil)
+            let admittedEnv = Self.environment(
+                base: base,
+                provider: BearerCredentialProvider { "valid-token" },
+                requestErrorHandler: { _, error in handled.record(error) }
+            )
+            let failing = ShowOperationFailureRequest()
+            try await failing.processRequest(mvvmEnv: admittedEnv)
+            #expect(handled.count == 1)
+            #expect(handled.last is StrictContractError)
+            #expect(failing.responseBody == nil)
+        }
+    }
+
+    @Test("Precedence: a permissive custom ResponseError does not swallow a rejection")
+    func permissiveCustomResponseErrorDoesNotSwallow() async throws {
+        try await withRunningServer { app in
+            try Self.registerRejectingClientContractRoutes(app) // also registers the permissive fixture
+        } _: { base in
+            let env = Self.environment(
+                base: base,
+                provider: BearerCredentialProvider { "revoked-token" }
+            )
+
+            let request = ShowPermissiveErrorReplyRequest() // ResponseError decodes loose JSON
+            do {
+                try await request.processRequest(mvvmEnv: env)
+                Issue.record("Expected CredentialRejectedError")
+            } catch let rejection as CredentialRejectedError {
+                #expect(rejection.code == .invalid)
+            } catch {
+                Issue.record("Expected CredentialRejectedError, got \(error)")
+            }
+        }
+    }
+
+    @Test("Skew fallback: a plain 401 without the envelope behaves as today")
+    func plain401WithoutEnvelopeFallsBack() async throws {
+        try await withRunningServer { app in
+            // Vapor's STOCK middleware — the old-server wire shape (no envelope)
+            let protected = app.grouped(
+                ClientCredentialMiddleware(verifier: BearerCredentialVerifier { _ in false })
+            )
+            try protected.register(collection: RoundTripController<ShowStrictErrorReplyRequest>(actions: [
+                .show: { _, _ in GrantedReply(message: "granted") }
+            ]))
+        } _: { base in
+            let env = Self.environment(
+                base: base,
+                provider: BearerCredentialProvider { "revoked-token" }
+            )
+
+            let request = ShowStrictErrorReplyRequest()
+            do {
+                try await request.processRequest(mvvmEnv: env)
+                Issue.record("Expected a failure")
+            } catch DataFetchError.badStatus(httpStatusCode: let code) {
+                #expect(code == 401) // pre-envelope fallback, unchanged
+            } catch {
+                Issue.record("Expected badStatus(401) fallback, got \(error)")
+            }
+        }
+    }
+
+    @Test("Under FOS ErrorMiddleware, a rejection body IS the typed CredentialRejectedError")
+    func rejectionBodyIsTypedUnderFOSErrorMiddleware() async throws {
+        try await withRunningServer { app in
+            app.middleware = .init()
+            app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
+            Self.registerProtectedRoute(app, isValid: { _ in false })
+        } _: { base in
+            let rejected = try await Self.send(
+                to: base,
+                headers: ["Authorization": "Bearer nope"]
+            )
+
+            #expect(rejected.status == 401) // transport dressing
+            #expect(rejected.wwwAuthenticate == "Bearer") // RFC 7235 preserved
+            let typed: CredentialRejectedError = try rejected.body.fromJSON()
+            #expect(typed.code == .invalid) // the semantics
+
+            let missing = try await Self.send(to: base, headers: [:])
+            let missingTyped: CredentialRejectedError = try missing.body.fromJSON()
+            #expect(missingTyped.code == .missing)
         }
     }
 
@@ -221,12 +356,14 @@ struct ClientCredentialMiddlewareTests {
             #expect(afterRevocation.status == 401)
         }
     }
+}
 
-    // MARK: - Fixtures
+// MARK: - Fixtures
 
+private extension ClientCredentialMiddlewareTests {
     /// Registers `GET /protected` behind a ``ClientCredentialMiddleware`` running the stock
     /// bearer verifier over `isValid`.
-    private static func registerProtectedRoute(
+    static func registerProtectedRoute(
         _ app: Application,
         isValid: @Sendable @escaping (String) async -> Bool
     ) {
@@ -239,7 +376,7 @@ struct ClientCredentialMiddlewareTests {
     /// Registers both client-contract fixtures behind an always-rejecting bearer verifier,
     /// with FOS `ErrorMiddleware.default` replacing Vapor's stock error serializer — the
     /// configuration the DocC's Client-Side Contract describes.
-    private static func registerRejectingClientContractRoutes(_ app: Application) throws {
+    static func registerRejectingClientContractRoutes(_ app: Application) throws {
         app.middleware = .init()
         app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
 
@@ -252,12 +389,30 @@ struct ClientCredentialMiddlewareTests {
         try protected.register(collection: RoundTripController<ShowGrantedReplyRequest>(actions: [
             .show: { _, _ in GrantedReply(message: "granted") }
         ]))
+        try protected.register(collection: RoundTripController<ShowPermissiveErrorReplyRequest>(actions: [
+            .show: { _, _ in GrantedReply(message: "granted") }
+        ]))
+    }
+
+    /// Adds a SECOND protected group (admitting `"valid-token"`) whose `.show`
+    /// controller throws `StrictContractError` — an operation's own
+    /// `ResponseError`, which must still route to `requestErrorHandler`. Assumes
+    /// FOS `ErrorMiddleware.default` is already installed by
+    /// ``registerRejectingClientContractRoutes(_:)`` (called first in the same
+    /// fixture).
+    static func registerAdmittedThrowingRoute(_ app: Application) throws {
+        let admitted = app.grouped(
+            ClientCredentialMiddleware(verifier: BearerCredentialVerifier { $0 == "valid-token" })
+        )
+        try admitted.register(collection: RoundTripController<ShowOperationFailureRequest>(actions: [
+            .show: { _, _ in throw StrictContractError(errorCode: 99) }
+        ]))
     }
 
     /// Performs `GET <base>/protected` with the given headers and yields the raw
     /// status + body + challenge header the server sent — no client-side error
     /// mapping in the way.
-    private static func send(
+    static func send(
         to base: URL,
         headers: [String: String]
     ) async throws -> (status: Int, body: String, wwwAuthenticate: String?) {
@@ -290,9 +445,10 @@ struct ClientCredentialMiddlewareTests {
     /// holds regardless of how the test process resolves `Deployment.current`. The explicit
     /// `session:`-before-`requestErrorHandler:` label order selects the non-SwiftUI
     /// initializer (no bundle-version compatibility gate).
-    private static func environment(
+    static func environment(
         base: URL,
-        provider: any ClientCredentialProvider
+        provider: (any ClientCredentialProvider)? = nil,
+        requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) -> MVVMEnvironment {
         MVVMEnvironment(
             currentVersion: SystemVersion.current,
@@ -305,7 +461,7 @@ struct ClientCredentialMiddlewareTests {
                 .test: base
             ],
             session: nil,
-            requestErrorHandler: nil
+            requestErrorHandler: requestErrorHandler
         )
     }
 }
@@ -343,28 +499,16 @@ private actor TokenRegistry {
     }
 }
 
-/// The response body a protected route grants — the client-contract test never
-/// receives one (the middleware rejects first).
-private struct GrantedReply: ServerRequestBody {
-    let message: String
-}
-
-/// A typed error with a required field — it does NOT decode from a rejection body,
-/// so the middleware's 401 stays visible to the caller as `DataFetchError.badStatus`.
-private struct StrictContractError: ServerRequestError {
-    let errorCode: Int
-}
-
-/// `.show` fixture behind the protected group — drives the REAL client
-/// (`processRequest(mvvmEnv:)`) against the middleware. Its `EmptyError`
-/// `ResponseError` is the known-limitation fixture: it decodes from any
-/// valid-JSON rejection body, swallowing the 401.
-private final class ShowGrantedReplyRequest: ServerRequest, @unchecked Sendable {
+/// Same `.show` shape; its `ResponseError` cannot decode from a rejection body,
+/// so under stock (non-FOS) middleware the raw 401 surfaces
+/// (`plain401WithoutEnvelopeFallsBack`), and under FOS `ErrorMiddleware` the
+/// typed rejection wins.
+private final class ShowStrictErrorReplyRequest: ServerRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias Fragment = EmptyFragment
     typealias RequestBody = EmptyBody
     typealias ResponseBody = GrantedReply
-    typealias ResponseError = EmptyError
+    typealias ResponseError = StrictContractError
 
     var action: ServerRequestAction {
         .show
@@ -378,14 +522,39 @@ private final class ShowGrantedReplyRequest: ServerRequest, @unchecked Sendable 
     }
 }
 
-/// The 401-visibility fixture: same `.show` shape, but its `ResponseError` cannot
-/// decode from a rejection body, so `DataFetchError.badStatus(401)` surfaces.
-private final class ShowStrictErrorReplyRequest: ServerRequest, @unchecked Sendable {
+/// Synchronous, lock-guarded error sink — the handler is a plain @Sendable
+/// closure; an actor + Task would make the count assertion racy on the
+/// failure path this test exists to catch.
+private final class ErrorSink: @unchecked Sendable {
+    private let lock = NSLock()
+    private var errors: [any Error] = []
+
+    func record(_ error: any Error) {
+        lock.withLock { errors.append(error) }
+    }
+
+    var count: Int {
+        lock.withLock { errors.count }
+    }
+
+    var last: (any Error)? {
+        lock.withLock { errors.last }
+    }
+}
+
+/// A permissive error — its single optional field decodes from ANY JSON
+/// object, like EmptyError but user-defined (spec §6 test 7).
+private struct PermissiveContractError: ServerRequestError {
+    let note: String?
+}
+
+/// Same .show shape as the other fixtures; ResponseError is permissive.
+private final class ShowPermissiveErrorReplyRequest: ServerRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias Fragment = EmptyFragment
     typealias RequestBody = EmptyBody
     typealias ResponseBody = GrantedReply
-    typealias ResponseError = StrictContractError
+    typealias ResponseError = PermissiveContractError
 
     var action: ServerRequestAction {
         .show

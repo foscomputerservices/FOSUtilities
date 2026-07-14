@@ -29,6 +29,10 @@ import Vapor
 /// values will be localized before sending them  back to the client.  The client will then
 /// convert the response back to the *ServerRequest*'s *ResponseError* type and
 /// throw it for the client application to use.
+///
+/// An error that is both `Encodable` and `AbortError` is served with its typed body
+/// (localized through the request's encoder) AND its own status and headers. A plain
+/// `Encodable` error keeps the typed body with `400 Bad Request`.
 public final class ErrorMiddleware: AsyncMiddleware {
     /// Error-handling closure.
     private let closure: @Sendable (Request, any Error) -> (Response)
@@ -70,6 +74,27 @@ public extension ErrorMiddleware {
 
             // Inspect the error type and extract what data we can.
             switch error {
+            case let encodableAbort as any (Encodable & AbortError):
+                do {
+                    let encoder = try req.localizingEncoder
+
+                    (reason, errorData, status, headers, source) = try (
+                        "",
+                        encodableAbort.toJSONData(encoder: encoder),
+                        encodableAbort.status,
+                        encodableAbort.headers,
+                        .capture()
+                    )
+                } catch {
+                    (reason, errorData, status, headers, source) = (
+                        encodableAbort.reason,
+                        nil,
+                        encodableAbort.status,
+                        encodableAbort.headers,
+                        .capture()
+                    )
+                }
+
             case let encodable as any Encodable:
                 do {
                     let encoder = try req.localizingEncoder
@@ -152,7 +177,7 @@ public extension ErrorMiddleware {
                 var byteBuffer = req.byteBufferAllocator.buffer(capacity: 0)
                 if let errorData {
                     byteBuffer.writeBytes(errorData)
-                    headers.add(
+                    headers.replaceOrAdd(
                         name: HTTPHeaders.Name.contentType,
                         value: "application/json; charset=utf-8"
                     )
