@@ -422,12 +422,17 @@ public enum ServerRequestBodySize: Equatable, Hashable, Sendable {
     }
 }
 
-/// A custom *Error* implementation that the server will send in the event of an error
+/// The error your operation throws, carried across the wire
 ///
-/// If the server encounters an error, it can return JSON in the response body.  If
-/// the response body cannot be converted into ``ServerRequest/responseBody->ResponseBody?``,
-/// then an attempt will be made to convert it to ``ServerRequest/ResponseError``.  The resulting
-/// error will be thrown by the requesting api.
+/// If there were no wire, your operation would be a local function call that
+/// `throw`s a well-defined Swift error. A ``ServerRequestError`` *is* that
+/// error — conforming makes the throw wire-capable: server-side code throws
+/// it, and the client's ``ServerRequest/processRequest(mvvmEnv:)`` rethrows
+/// the same typed error, as if the call had been local.
+///
+/// Design the type by asking "what would this operation throw?" — never from
+/// the transport ("what should a 401 become?"). HTTP statuses carry no result
+/// semantics; clients branch by catching the typed case.
 ///
 /// ## Simple Errors
 ///
@@ -514,7 +519,12 @@ public enum ServerRequestBodySize: Equatable, Hashable, Sendable {
 ///     // ...
 /// }
 ///
-/// // Type-safe error handling
+/// // Server side: throw it like any local error
+/// guard operationSucceeded else {
+///     throw MyError(code: .applicationFailed)
+/// }
+///
+/// // Client side: catch the same typed error
 /// do {
 ///     try await request.processRequest(mvvmEnv: mvvmEnv)
 /// } catch let error as MyError {

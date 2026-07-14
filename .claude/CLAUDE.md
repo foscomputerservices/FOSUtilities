@@ -112,6 +112,7 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 - Semantic version comparison/parsing → `FOSFoundation.md § Versioning`
 - Typed model identifiers (never a raw `UUID`/`String` field) → `FOSFoundation.md § Data`
 - Declaring/localizing/encoding ViewModels, factories, requests → `FOSMVVM.md § Macros`, `§ Localization`, `§ Protocols`
+- Credential rejection / typed 401 recovery → `FOSMVVM.md § Protocols`
 - Form fields and input validation → `FOSMVVM.md § Forms`, `§ Validation`
 - SwiftUI binding/app setup, property versioning, deployment URLs → `FOSMVVM.md § SwiftUI Support`, `§ Versioning`
 - Vapor boot/Leaf, routes, Fluent factories, versioned middleware → `FOSMVVMVapor.md § Extensions`, `§ Vapor Support`, `§ Protocols`, `§ Middleware`

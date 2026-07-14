@@ -388,6 +388,19 @@ Available size units:
 - `.mb(_ count: UInt)` - Megabytes (× 1,048,576)
 - `.gb(_ count: UInt)` - Gigabytes (× 1,073,741,824)
 
+### Custom ResponseError — Design From the Throw
+
+`ResponseError` is the operation's *semantic* error — the well-defined Swift
+error the operation would `throw` if it were a local function call.
+`ServerRequestError` (`Error, Codable, Sendable`) makes that throw
+wire-capable: the controller throws it, `ErrorMiddleware` encodes it into the
+response, and the client's `processRequest` rethrows the same typed error.
+
+It is **NOT an HTTP-status mapping**:
+- never design an error case from a status ("what should a 401 become?")
+- never have a client read a status to interpret a result —
+  clients branch by catching the typed case
+
 ### Custom ResponseError - Pattern 1: Associated Values
 
 For errors with dynamic data in messages, use `LocalizableSubstitutions`:
@@ -539,7 +552,7 @@ do {
 - [ ] Extends correct protocol (ShowRequest, CreateRequest, UpdateRequest, DeleteRequest)
 - [ ] RequestBody has all fields client needs to send
 - [ ] ResponseBody contains what client needs back (often a ViewModel)
-- [ ] ResponseError defined if operation has known failure modes (use EmptyError otherwise)
+- [ ] ResponseError answers "what would this operation throw locally?" (EmptyError if nothing well-defined) — never derived from an HTTP status
 - [ ] Stubbable conformance for testing
 - [ ] ValidatableModel on RequestBody (for write operations)
 - [ ] `maxBodySize` set on RequestBody if handling large uploads (files, images, etc.)
@@ -557,7 +570,7 @@ do {
 - [ ] MVVMEnvironment configured once at app/tool startup
 - [ ] Uses `request.processRequest(mvvmEnv:)` - NO baseURL/headers per-call
 - [ ] Handles response via `request.responseBody`
-- [ ] Catches custom `ResponseError` type if defined
+- [ ] Catches custom `ResponseError` type if defined (branches on the typed case, never on an HTTP status)
 - [ ] Generic error fallback for unexpected errors
 
 ### WebApp Bridge (if needed)

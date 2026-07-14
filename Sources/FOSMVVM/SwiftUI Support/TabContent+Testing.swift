@@ -17,10 +17,12 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+// swiftformat:disable docComments
 // The wildcard in an @available list claims every UNLISTED platform at the
 // package floor — TabContent itself is tvOS 18 / watchOS 11 / visionOS 2, so
 // omitting those platforms is a floor-level lie that only an honest
 // device-platform compile exposes.
+// swiftformat:enable docComments
 @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public extension TabContent {
     /// Adds an identifier that can be used to identify the element in an XCUITest

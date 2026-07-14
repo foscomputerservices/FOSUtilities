@@ -62,7 +62,7 @@ func withRunningServer(
 
 /// A no-op `LocalizationStore` so `req.localizingEncoder` resolves on the live server; every key
 /// falls back to its `default`.
-private struct RoundTripLocalizationStore: LocalizationStore {
+struct RoundTripLocalizationStore: LocalizationStore {
     func value(_ key: String, locale: Locale, default defaultValue: Any?, index: Int?) -> Any? {
         defaultValue
     }

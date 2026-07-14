@@ -30,6 +30,11 @@ public struct TestingServerRequestResponse<R: ServerRequest> {
     /// The received *ServerRequest/ResponseBody*, if any
     public let body: R.ResponseBody?
 
+    /// The received *CredentialRejectedError*, if the protected route rejected the
+    /// request's credential — assert rejections on this typed value, never on
+    /// `status` alone
+    public let credentialRejection: CredentialRejectedError?
+
     /// The received *ServerRequest/ResponseError*, if any
     public let error: R.ResponseError?
 
@@ -37,7 +42,21 @@ public struct TestingServerRequestResponse<R: ServerRequest> {
         self.status = response.status
         self.headers = response.headers
         self.body = try? response.body.fromJSON()
-        self.error = try? response.body.fromJSON()
+        // One decode chain, defined by WireError (FOSMVVM): the surface
+        // rejection is claimed first so a permissive ResponseError
+        // (EmptyError) can't swallow it.
+        let wire: WireError<R.ResponseError>? = try? response.body.fromJSON()
+        switch wire {
+        case .surface(let rejection):
+            self.credentialRejection = rejection
+            self.error = nil
+        case .response(let error):
+            self.credentialRejection = nil
+            self.error = error
+        case nil:
+            self.credentialRejection = nil
+            self.error = nil
+        }
     }
 }
 

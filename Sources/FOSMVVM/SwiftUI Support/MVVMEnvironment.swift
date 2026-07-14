@@ -115,6 +115,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
     public let invalidationChannel: (any InvalidationChannel)?
 
     /// A function that is called when there is an error processing a ``ServerRequest``
+    ///
+    /// Surface rejections (``CredentialRejectedError``) are never routed here — they
+    /// always throw to the caller.
     public let requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)?
 
     /// A custom ``URLSession``
@@ -226,7 +229,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
-    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
+    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
+    ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
@@ -280,7 +284,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
-    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
+    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
+    ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
     ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
@@ -363,7 +368,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
-    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
+    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
+    ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
     public init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
@@ -429,7 +435,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
-    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil)
+    ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
+    ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
     public convenience init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,

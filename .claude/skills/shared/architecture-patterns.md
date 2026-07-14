@@ -171,6 +171,40 @@ Each error scenario is a **UX design decision**, not a type system problem:
 
 ---
 
+## Typed Errors Are the Operation's Throw, Not a Status Mapping
+
+If there were no wire, the operation would be a local function call that
+`throw`s a well-defined Swift error. A request's `ResponseError` **is** that
+error — `ServerRequestError` (`Error, Codable, Sendable`) exists so the throw
+can happen *across the wire*: the server throws it, it rides the response as
+`Codable`, and the client's `processRequest` rethrows the same typed error,
+as if the call had been local.
+
+The HTTP status underneath is transport dressing.
+It carries no result semantics — nobody reads it back.
+
+**Wrong (status brain):**
+```swift
+// A 401 is a raw transport number — ANY failure can wear it.
+// Status sniffing is the stringly-typed break applied to errors.
+catch DataFetchError.badStatus(401) {
+    refreshSessionAndRetry()
+}
+```
+
+**Right (throw brain):**
+```swift
+// The vocabulary was declared where it belongs — on the operation's error
+catch let error as LoginRequest.ResponseError where error.code == .sessionExpired {
+    refreshSessionAndRetry()
+}
+```
+
+**Design test:** never ask "what should a 401 decode into?" —
+ask "what would this operation throw if it were local?"
+
+---
+
 ## Type Safety Means You Already Know
 
 In Swift, you know the types at compile time. Don't write code that "discovers" types at runtime.

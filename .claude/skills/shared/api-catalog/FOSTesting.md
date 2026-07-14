@@ -196,7 +196,9 @@ Reach for this when: verifying a route serves a typed ServerRequest —
 `app.testing().test(request, locale:)` derives the path, HTTP method, query
 string, and version/locale headers from the request type, and hands the
 callback a `TestingServerRequestResponse` carrying the status, headers, decoded
-`ResponseBody`, and decoded `ResponseError`. Scaffolded by
+`ResponseBody`, and decoded `ResponseError`. It also carries a typed
+`credentialRejection` — assert credential rejections on it, never on the status
+alone; `error` is nil when a rejection decoded. Scaffolded by
 `fosmvvm-serverrequest-test-generator`.
 Don't hand-build paths with `app.test(.GET, "/my_request?...")` — that is the
 stringly-typed break the ServerRequest hierarchy exists to prevent.

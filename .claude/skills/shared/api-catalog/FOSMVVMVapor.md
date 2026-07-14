@@ -195,7 +195,9 @@ errors (ValidationError, a request's ResponseError) are encoded through the
 request's localizing encoder and returned as the response body, so the client
 decodes them back into the ServerRequest's typed `ResponseError` and throws
 them in context (form validation, for example); other errors degrade to
-status + reason, hiding details in release builds.
+status + reason, hiding details in release builds. An error that is both
+`Encodable` and `AbortError` is served with its typed body and its own status
+and headers (e.g. `CredentialRejectedError` → 401 + `WWW-Authenticate`).
 Don't keep Vapor's stock ErrorMiddleware — it flattens typed ResponseErrors
 into plain-text reasons the client cannot decode.
 
@@ -221,11 +223,11 @@ it). Supply the rule as a `ServerCredentialVerifier` (throw to reject, return
 to admit); the stock `BearerCredentialVerifier` extracts `Authorization:
 Bearer` and asks your `isValid` closure (compare digests or constant-time —
 never `==` on raw secrets). Missing or invalid → 401 with `WWW-Authenticate`.
-Limitation: a rejection reaches a FOSMVVM client as a transport-level
-bad-status error (401), not the request's typed `ResponseError` — and a
-`ResponseError` that decodes from any JSON body (e.g. `EmptyError`) swallows
-the 401 entirely; give protected requests an error type with a required field
-absent from rejection bodies.
+A rejection reaches a FOSMVVM client as the typed `CredentialRejectedError`
+(requires FOS `ErrorMiddleware.default`, the documented configuration) — catch
+it, never branch on the 401. Verifiers throw it directly (code + challenge);
+any other verifier throw is wrapped as `.invalid`; a thrown `CancellationError`
+propagates unchanged, never as `.invalid`.
 
 ```swift
 let protected = app.grouped(ClientCredentialMiddleware(
