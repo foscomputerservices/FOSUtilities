@@ -359,6 +359,22 @@ final class UserViewModelRequest: ViewModelRequest, @unchecked Sendable {
 }
 ```
 
+### Catch a credential rejection typed — `CredentialRejectedError`
+Reach for this when: a request to a protected route may be rejected before the
+operation runs — catch the typed error (`.missing` = no credential configured;
+`.invalid` = presented and refused → refresh and retry, safe because the
+operation never ran); never branch on an HTTP status. It always throws to the
+caller (never `requestErrorHandler`).
+
+```swift
+} catch let error as CredentialRejectedError {
+    switch error.code {
+    case .missing: ... // check the MVVMEnvironment's clientCredentialProvider
+    case .invalid: ... // refresh the credential and retry
+    }
+}
+```
+
 ### Placeholders for unused pieces — `EmptyQuery` / `EmptyFragment` / `EmptyBody` / `EmptyError`
 Reach for this when: a request has no query, fragment, body, or well-defined
 error — typealias the slot to the Empty type and the protocol's default

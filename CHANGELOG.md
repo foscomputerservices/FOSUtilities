@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`CredentialRejectedError`** (FOSMVVM / FOSMVVMVapor). A credential rejection from
+  `ClientCredentialMiddleware` now crosses the wire as a typed, `Codable` error and is
+  rethrown by `processRequest(mvvmEnv:)` — catch it to recover (`.missing` /
+  `.invalid`); it always throws to the caller (never `requestErrorHandler`). Requires
+  FOS `ErrorMiddleware.default` (already the documented configuration). Retires the
+  `DataFetchError.badStatus(401)` client contract and the documented `EmptyError`
+  rejection-swallow. `TestingServerRequestResponse` gains `credentialRejection`.
+
+### Changed
+
+- **`ErrorMiddleware`**: an error conforming to both `Encodable` and `AbortError` is
+  now served with **both** its typed body and its own status/headers (previously such errors
+  were served `400 Bad Request`). Plain `Encodable` errors are unchanged.
 
 ## [0.6.0] - 2026-07-09
 

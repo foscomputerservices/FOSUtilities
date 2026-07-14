@@ -655,6 +655,40 @@ catch let error as LoginError where error.code == .sessionExpired {
 }
 ```
 
+#### The Framework's Own Typed Throws
+
+The middleware stack is itself a layer that can throw
+**before the operation runs** — a credential check, a version gate.
+
+FOS declares well-known typed errors for those rejections.
+The client-visible thrown vocabulary of `processRequest` is therefore:
+
+    the request's ResponseError  ∪  the framework's own well-known errors
+
+There is currently one such error: **`CredentialRejectedError`**.
+
+- Served by `ClientCredentialMiddleware` + FOS `ErrorMiddleware`.
+- Two caller-actionable meanings: `.missing` / `.invalid`.
+- Rethrown typed by `processRequest` — always thrown
+  **past** `requestErrorHandler`, never routed to it.
+- Decoded **before** the request's own `ResponseError`, so a
+  permissive `ResponseError` (even `EmptyError`) cannot swallow it.
+- The rejection happens before the operation runs, so
+  refresh-and-retry after recovery never duplicates effects.
+
+```swift
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as CredentialRejectedError {
+    switch error.code {
+    case .missing: break // no credential was presented — check the
+                         // MVVMEnvironment's clientCredentialProvider
+    case .invalid: break // presented but refused — refresh the credential
+                         // and retry (safe: the operation never ran)
+    }
+}
+```
+
 #### Why Use Custom ServerRequestError?
 
 **1. Errors with Associated Values (Parameterized Messages)**
