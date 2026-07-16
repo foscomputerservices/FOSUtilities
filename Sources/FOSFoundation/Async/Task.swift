@@ -62,7 +62,9 @@ public extension Task where Failure == Error {
         }
 
         semaphore.wait()
-        if let error = box.value { throw error }
+        if let error = box.value {
+            throw error
+        }
     }
 }
 

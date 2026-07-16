@@ -82,7 +82,9 @@ struct InvalidationChannelTests {
 
         var sawConnected = false
         for await event in stored.events() {
-            if case .connected = event { sawConnected = true }
+            if case .connected = event {
+                sawConnected = true
+            }
         }
         #expect(sawConnected)
     }

@@ -101,7 +101,9 @@ struct SSEInvalidationChannel: InvalidationChannel {
             } catch {
                 // Any open/stream failure is a drop → reconnect after back-off.
             }
-            if Task.isCancelled { break }
+            if Task.isCancelled {
+                break
+            }
             await sleep(backoff)
             backoff = min(backoff * 2, maxBackoff)
         }

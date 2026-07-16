@@ -121,8 +121,12 @@ public extension ValidationResult.Status {
 
         forLoop: for valResponse in validations {
             switch valResponse.status {
-            case .info: if status < .info { status = .info }
-            case .warning: if status < .warning { status = .warning }
+            case .info: if status < .info {
+                    status = .info
+                }
+            case .warning: if status < .warning {
+                    status = .warning
+                }
             case .error: status = .error; break forLoop
             }
         }

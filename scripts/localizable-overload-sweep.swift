@@ -496,8 +496,12 @@ func discoverTypeUSRs(_ graphs: [ExtractedGraphs]) throws -> (lsk: Set<String>, 
         }
     }
     var missing: [String] = []
-    if lsk.isEmpty { missing.append("LocalizedStringKey") }
-    if text.isEmpty { missing.append("Text") }
+    if lsk.isEmpty {
+        missing.append("LocalizedStringKey")
+    }
+    if text.isEmpty {
+        missing.append("Text")
+    }
     throw Failure("type symbol(s) not found in any symbol graph: " +
         "\(missing.joined(separator: ", ")) — cannot identify localizable " +
         "declarations and their delegate siblings")
@@ -620,7 +624,9 @@ func runSelect(graphs: [ExtractedGraphs], lskUSRs: Set<String>, filter: String?)
                 switch classify(symbol, platform: group.platform, module: group.module, lskUSRs: lskUSRs) {
                 case .candidate(let candidate):
                     canonicalUSRs.insert(candidate.usr)
-                    if let filter, candidate.extendedType != filter { continue }
+                    if let filter, candidate.extendedType != filter {
+                        continue
+                    }
                     candidates.append(candidate)
                 case .rejected(let reject):
                     canonicalUSRs.insert(reject.usr)
@@ -829,9 +835,13 @@ struct UnionResult {
 /// This is only reached on a genuine cross-platform conflict, which is counted
 /// and reported — it is not expected to fire.
 func resolveConflict(_ lhs: DomainAvailability, _ rhs: DomainAvailability) -> DomainAvailability {
-    if lhs == .unavailable || rhs == .unavailable { return .unavailable }
+    if lhs == .unavailable || rhs == .unavailable {
+        return .unavailable
+    }
     func version(_ state: DomainAvailability) -> SemVer {
-        if case .introduced(let v) = state { return v }
+        if case .introduced(let v) = state {
+            return v
+        }
         return SemVer(0)
     }
     return version(lhs) >= version(rhs) ? lhs : rhs
@@ -902,7 +912,9 @@ func runUnion(candidates: [Candidate], sdks: [PlatformSDK]) -> UnionResult {
     var order: [String] = []
     var platformContribution: [String: Int] = [:]
     for candidate in candidates {
-        if groups[candidate.usr] == nil { order.append(candidate.usr) }
+        if groups[candidate.usr] == nil {
+            order.append(candidate.usr)
+        }
         groups[candidate.usr, default: []].append(candidate)
         platformContribution[candidate.platform, default: 0] += 1
     }
@@ -946,7 +958,9 @@ func runUnion(candidates: [Candidate], sdks: [PlatformSDK]) -> UnionResult {
             // the merge itself.
             conflicted = mergeAvailability(candidate.availability, into: &states) || conflicted
         }
-        if conflicted { conflictCount += 1 }
+        if conflicted {
+            conflictCount += 1
+        }
 
         var betaDomains: Set<AvailabilityDomain> = []
         for domain in AvailabilityDomain.allCases {
@@ -1179,12 +1193,16 @@ func parseParameterSlots(_ fragments: [Symbol.Fragment]) -> [ParameterSlot]? {
     var paramsClosed = false
 
     func closeCurrent() {
-        if let slot = current { finished.append(slot) }
+        if let slot = current {
+            finished.append(slot)
+        }
         current = nil
     }
 
     for (index, fragment) in fragments.enumerated() {
-        if paramsClosed { break }
+        if paramsClosed {
+            break
+        }
         if fragment.kind == "text" {
             var previous: Character = " "
             for ch in fragment.spelling {
@@ -1213,7 +1231,9 @@ func parseParameterSlots(_ fragments: [Symbol.Fragment]) -> [ParameterSlot]? {
                 case "}": braceDepth -= 1
                 case "<": angleDepth += 1
                 case ">" where previous != "-": // "->" is an arrow
-                    if angleDepth > 0 { angleDepth -= 1 }
+                    if angleDepth > 0 {
+                        angleDepth -= 1
+                    }
                 case "," where parenDepth == 1 && angleDepth == 0
                     && squareDepth == 0 && braceDepth == 0:
                     closeCurrent()
@@ -1221,13 +1241,17 @@ func parseParameterSlots(_ fragments: [Symbol.Fragment]) -> [ParameterSlot]? {
                 default:
                     break
                 }
-                if paramsClosed { break }
+                if paramsClosed {
+                    break
+                }
                 if var slot = current {
                     slot.lastIndex = index
                     if slot.inTypeRegion {
                         slot.typeText.append(ch)
                         if !ch.isWhitespace {
-                            if slot.firstTypeIndex == nil { slot.firstTypeIndex = index }
+                            if slot.firstTypeIndex == nil {
+                                slot.firstTypeIndex = index
+                            }
                             slot.lastTypeIndex = index
                         }
                     } else if ch == ":" {
@@ -1250,7 +1274,9 @@ func parseParameterSlots(_ fragments: [Symbol.Fragment]) -> [ParameterSlot]? {
                 } else if slot.inTypeRegion {
                     slot.typeText += fragment.spelling
                     slot.typeFragments.append(fragment)
-                    if slot.firstTypeIndex == nil { slot.firstTypeIndex = index }
+                    if slot.firstTypeIndex == nil {
+                        slot.firstTypeIndex = index
+                    }
                     slot.lastTypeIndex = index
                     slot.lastIndex = index
                     current = slot
@@ -1341,10 +1367,16 @@ func stringSiblingSpelling(
     of slot: ParameterSlot,
     constrainedNames: Set<String>
 ) -> StringSiblingSpelling? {
-    if slot.typeText == "String" { return .bareString }
+    if slot.typeText == "String" {
+        return .bareString
+    }
     if slot.typeText == "some StringProtocol",
-       slot.containsType(in: [stringProtocolUSR]) { return .someStringProtocol }
-    if constrainedNames.contains(slot.typeText) { return .genericWhereClause }
+       slot.containsType(in: [stringProtocolUSR]) {
+        return .someStringProtocol
+    }
+    if constrainedNames.contains(slot.typeText) {
+        return .genericWhereClause
+    }
     return nil
 }
 
@@ -1571,7 +1603,9 @@ func runPolicy(
             case .unrecognizedShape: stats.rejectedUnrecognizedShape += 1
             case .deprecated: break // Stage 4 never rejects for deprecation
             }
-            if lskReturnOnly { stats.lskReturnOnly += 1 }
+            if lskReturnOnly {
+                stats.lskReturnOnly += 1
+            }
         }
     }
     return PolicyResult(classified: classified, rejected: rejected, stats: stats)
@@ -1759,7 +1793,9 @@ func transform(_ classified: ClassifiedAPI) -> TransformVerdict {
     var existingNames: Set<String> = []
     for slot in slots {
         existingNames.insert(slot.label)
-        if let internalName = slot.internalName { existingNames.insert(internalName) }
+        if let internalName = slot.internalName {
+            existingNames.insert(internalName)
+        }
     }
     let insertedNames = localizableNames + fallbackNames
     guard Set(insertedNames).count == insertedNames.count,
@@ -1816,7 +1852,9 @@ func transform(_ classified: ClassifiedAPI) -> TransformVerdict {
             forwardedValues.append(slot.label == "_" ? resolved : "\(slot.label): \(resolved)")
             continue
         }
-        if !slot.hasDefaultValue { hasOtherRequired = true }
+        if !slot.hasDefaultValue {
+            hasOtherRequired = true
+        }
         guard !slot.typeText.hasPrefix("inout ") else {
             return reject("inout parameter '\(slot.label)' cannot be forwarded verbatim")
         }
@@ -1836,7 +1874,9 @@ func transform(_ classified: ClassifiedAPI) -> TransformVerdict {
     var signature = ""
     for (index, fragment) in fragments.enumerated() {
         signature += replaceAt[index] ?? fragment.spelling
-        if let insertion = insertAfter[index] { signature += insertion }
+        if let insertion = insertAfter[index] {
+            signature += insertion
+        }
     }
     signature = signature.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -1889,7 +1929,9 @@ func runTransform(_ classified: [ClassifiedAPI]) -> TransformResult {
         switch transform(item) {
         case .transformed(let overload):
             overloads.append(overload)
-            if overload.insertedSlots.count > 1 { multiSlotCount += 1 }
+            if overload.insertedSlots.count > 1 {
+                multiSlotCount += 1
+            }
         case .rejected(let reject):
             rejected.append(reject)
         }
@@ -2278,7 +2320,9 @@ func renderGeneratedFile(
             // member — top-level declarations do not inherit it the way
             // `public extension` members do.
             for (index, member) in members.enumerated() {
-                if index > 0 { lines.append("") }
+                if index > 0 {
+                    lines.append("")
+                }
                 lines += renderMember(
                     member, isFirstInFile: isFirstInFile, indent: "", accessPrefix: "public "
                 )
@@ -2291,7 +2335,9 @@ func renderGeneratedFile(
             )
             lines.append("public extension \(extendedType)\(clause) {")
             for (index, member) in members.enumerated() {
-                if index > 0 { lines.append("") }
+                if index > 0 {
+                    lines.append("")
+                }
                 lines += renderMember(
                     member, isFirstInFile: isFirstInFile, indent: "    ", accessPrefix: ""
                 )
@@ -2446,7 +2492,9 @@ func renderEmitOutput(
     var typeOrder: [String] = []
     var byType: [String: [TransformedOverload]] = [:]
     for overload in overloads {
-        if byType[overload.extendedType] == nil { typeOrder.append(overload.extendedType) }
+        if byType[overload.extendedType] == nil {
+            typeOrder.append(overload.extendedType)
+        }
         byType[overload.extendedType, default: []].append(overload)
     }
     typeOrder.sort()
@@ -2671,7 +2719,9 @@ func driftReport(_ output: EmitOutput, packageRoot: URL) -> DriftReport {
             drift.append("differs: \(relativePath)")
             let isManifest = relativePath == manifestRelativePath
             if isManifest || fileExcerptsEmitted < 2 {
-                if !isManifest { fileExcerptsEmitted += 1 }
+                if !isManifest {
+                    fileExcerptsEmitted += 1
+                }
                 diagnostics.append("--- diff excerpt: \(relativePath) ---")
                 diagnostics.append(contentsOf: unifiedDiffExcerpt(
                     checkedIn: url,
@@ -2803,7 +2853,9 @@ func main(options: Options) throws -> Int32 {
                 .joined(separator: ", ")
             print("     introduced: \(introduced.isEmpty ? "(none — all at/below floor)" : introduced)")
             let unavailable = api.unavailableDomains.map(\.rawValue).joined(separator: ", ")
-            if !unavailable.isEmpty { print("     unavailable: \(unavailable)") }
+            if !unavailable.isEmpty {
+                print("     unavailable: \(unavailable)")
+            }
             if !api.betaTierDomains.isEmpty {
                 let beta = api.betaTierDomains.map(\.rawValue).sorted().joined(separator: ", ")
                 print("     beta-tier: \(beta)")

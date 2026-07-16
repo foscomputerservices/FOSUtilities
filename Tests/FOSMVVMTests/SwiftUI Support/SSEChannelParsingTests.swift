@@ -168,7 +168,9 @@ private func collectSleeps(
             initialBackoff: initialBackoff,
             maxBackoff: maxBackoff
         ) { _, onOpen in
-            if await script.nextShouldOpen() { onOpen() }
+            if await script.nextShouldOpen() {
+                onOpen()
+            }
             throw DropError()
         }
     }
@@ -176,7 +178,9 @@ private func collectSleeps(
     var collected: [Duration] = []
     for await duration in durations {
         collected.append(duration)
-        if collected.count == count { break }
+        if collected.count == count {
+            break
+        }
     }
     loop.cancel()
     durationsCont.finish()
@@ -203,8 +207,12 @@ private func collectConnects(count: Int) async -> Int {
 
     var connects = 0
     for await event in events {
-        if case .connected = event { connects += 1 }
-        if connects == count { break }
+        if case .connected = event {
+            connects += 1
+        }
+        if connects == count {
+            break
+        }
     }
     loop.cancel()
     eventsCont.finish()
