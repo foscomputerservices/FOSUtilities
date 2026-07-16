@@ -52,28 +52,39 @@ public struct ProjectionContext<Request: ServerRequest, AppState: Sendable>: @un
     /// FOSMVVMVapor's `totalCount(for:)`, never as raw storage.
     package let countsByTuple: [RecordLoadPlan.Tuple: Int]
 
+    /// Deposits one registered dependency identity into the serving request's
+    /// registration set. Installed at construction — required, never defaulted: a
+    /// silently-dropping sink would be a misconfiguration's invisible mode. Invoked
+    /// only within the projection, on the request's handler task (the same
+    /// no-escape contract the record snapshot already relies on).
+    package let dependencySink: (ModelIdentity) -> Void
+
     package init(
         vmRequest: Request,
         appState: AppState,
         plan: RecordLoadPlan,
         recordsByTuple: [RecordLoadPlan.Tuple: [any Model]],
-        countsByTuple: [RecordLoadPlan.Tuple: Int] = [:]
+        countsByTuple: [RecordLoadPlan.Tuple: Int] = [:],
+        dependencySink: @escaping (ModelIdentity) -> Void
     ) {
         self.vmRequest = vmRequest
         self.appState = appState
         self.plan = plan
         self.recordsByTuple = recordsByTuple
         self.countsByTuple = countsByTuple
+        self.dependencySink = dependencySink
     }
 
     package init(
         vmRequest: Request,
-        appState: AppState
+        appState: AppState,
+        dependencySink: @escaping (ModelIdentity) -> Void
     ) {
         self.vmRequest = vmRequest
         self.appState = appState
         self.plan = nil
         self.recordsByTuple = [:]
         self.countsByTuple = [:]
+        self.dependencySink = dependencySink
     }
 }

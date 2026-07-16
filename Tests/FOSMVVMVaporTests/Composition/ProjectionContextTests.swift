@@ -90,9 +90,9 @@ private func makeContext<SR: ServerRequest>(
     on req: Vapor.Request
 ) -> ProjectionContext<SR, Void> {
     guard let plan = req.application.recordLoadPlan(for: SR.self) else {
-        return .init(vmRequest: vmRequest, appState: ())
+        return .init(vmRequest: vmRequest, appState: (), dependencySink: { _ in })
     }
-    return .init(vmRequest: vmRequest, appState: (), plan: plan, recordsByTuple: req.recordsByTuple())
+    return .init(vmRequest: vmRequest, appState: (), plan: plan, recordsByTuple: req.recordsByTuple(), dependencySink: { _ in })
 }
 
 // MARK: - Fixtures
@@ -454,7 +454,8 @@ struct ProjectionContextTests {
             vmRequest: DockPageRequest(),
             appState: (),
             plan: plan,
-            recordsByTuple: [:]
+            recordsByTuple: [:],
+            dependencySink: { _ in }
         )
 
         do {
