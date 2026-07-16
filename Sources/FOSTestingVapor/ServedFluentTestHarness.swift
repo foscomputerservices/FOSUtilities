@@ -67,7 +67,7 @@ public func withServedFluentTestApp<R: Sendable>(
         // asyncBoot (not startup()): async lifecycle handlers only run under async boot, and
         // startup()'s console parser chokes on test-runner arguments (see FluentTestHarness).
         try await app.asyncBoot()
-        try await app.server.start()
+        try app.server.start()
         serverStarted = true
 
         guard let port = app.http.server.shared.localAddress?.port,

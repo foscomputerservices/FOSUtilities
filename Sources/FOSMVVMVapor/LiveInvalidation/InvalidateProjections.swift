@@ -46,11 +46,12 @@ public extension Vapor.Application {
     ///
     /// Clients refresh the ViewModels whose factory called
     /// ``FOSMVVM/ProjectionContext/registerDependency(on:)`` for this model.
-    /// Fluent-persisted models never need this call — their saves already
-    /// notify live clients. When the change ships together with Fluent writes,
-    /// make the call inside ``liveTransaction(_:)`` and it reaches clients
-    /// only if the transaction commits. With live invalidation not enabled
-    /// (no `useLiveInvalidation(on:)` at boot) it is a no-op.
+    ///
+    /// > **Fluent-persisted models never need this call** — their saves already
+    /// > notify live clients. When the change ships together with Fluent writes,
+    /// > make the call inside ``liveTransaction(_:)`` and it reaches clients
+    /// > only if the transaction commits. With live invalidation not enabled
+    /// > (no `useLiveInvalidation(on:)` at boot) it is a no-op.
     ///
     /// - Throws: `ModelError.missingId` when `model.id` is `nil`.
     func invalidateProjections(of model: some FOSMVVM.Model) async throws {

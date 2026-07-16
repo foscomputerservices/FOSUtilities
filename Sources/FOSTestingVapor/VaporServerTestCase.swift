@@ -25,7 +25,7 @@ public final class VaporServerRequestTest<Request: ServerRequest>: Sendable
     where Request.ResponseBody: VaporResponseBodyFactory {
     // `Bundle` is an immutable resource handle; it is only ever read (never
     // mutated) here, so treat it as safe to hold in this `Sendable` harness.
-    private nonisolated(unsafe) let bundle: Bundle
+    private let bundle: Bundle
     private let resourceDirectoryName: String
 
     public init(for request: Request.Type, bundle: Bundle, resourceDirectoryName: String = "Resources") async throws {
