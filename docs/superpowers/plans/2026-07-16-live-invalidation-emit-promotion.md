@@ -525,6 +525,9 @@ request the header rides. Fixture VMs use neutral vocabulary. Cover these contra
    `let knownId = ModelIdType()`), served over HTTP. Decode the header whole-value —
    `let registered: [ModelIdentity] = try #require(res.headers.first(name: ModelIdentity.registrationsHeader)).fromJSON()`
    — and assert `Set(registered).contains(try StatusSnapshot(id: knownId).modelIdentity)`.
+   *Execution note (2026-07-16): shipped as 4 tests, not 5 — review found this
+   contract's path byte-identical to contract 3's with a strictly weaker assertion,
+   so it is subsumed by contracts 2 (merge) + 3 (exact equality) and was dropped.*
 2. **Merges with the plan's set — no clobber.** A fixture WITH a `LoadRequirement`
    (reuse the `HarborBerthsVM` shape from `RegistrationHeaderTests.swift` as plumbing)
    whose factory ALSO registers a `StatusSnapshot`: the header contains the plan's

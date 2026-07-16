@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`Application.invalidateProjections(of:)`** / **`Request.invalidateProjections(of:)`**
+  (FOSMVVMVapor) — non-Fluent server-side sources (an `Application`-hosted actor, a
+  computed aggregate) nudge live clients to refresh when their state changes. Composes
+  with `liveTransaction` — inside it the nudge reaches clients only if the transaction
+  commits; where live invalidation is not enabled it is a no-op. Fluent-persisted models
+  never need it — their saves already notify live clients.
+- **`ProjectionContext.registerDependency(on:)`** (FOSMVVMVapor) — a factory registers
+  response data the record-load plan can't see (e.g. an `appState` actor snapshot) so
+  live clients refresh it when the model changes. Register a dependency on what you read;
+  invalidate projections of what you changed.
 
 ## [0.7.0] - 2026-07-14
 
