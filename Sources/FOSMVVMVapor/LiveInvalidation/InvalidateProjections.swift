@@ -73,7 +73,7 @@ public extension Vapor.Request {
     }
 }
 
-/// The shared routing core, mirroring the middleware's pinned order
+/// The shared routing core, following the middleware's collector-first precedence
 /// (InvalidationEmitMiddleware.route): task-local collector present → COLLECT
 /// (its liveTransaction flushes on commit); else hub present → EMIT; else live
 /// invalidation is not enabled → no-op. A collector is only ever installed by

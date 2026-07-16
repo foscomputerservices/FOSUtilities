@@ -33,7 +33,9 @@ public struct ProjectionContext<Request: ServerRequest, AppState: Sendable>: @un
     // @unchecked Sendable: the records vended by `recordsByTuple` are live model class instances
     // (not statically Sendable), captured here as a value snapshot of the request's loaded records.
     // The snapshot is only ever READ, and only within the request's handler task (the context must
-    // not escape the projection). No reader mutates the shared instances.
+    // not escape the projection). No reader mutates the shared instances. The `dependencySink`
+    // closure is likewise invoke-only on that same handler task (see its field doc) — never stored,
+    // never called off-task.
 
     /// The typed request — query, sort, pagination, selectors.
     public let vmRequest: Request
