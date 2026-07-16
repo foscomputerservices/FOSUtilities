@@ -229,7 +229,9 @@ func catalogTitleNames(in text: String) -> CatalogFile {
                 let name = baseIdentifier(String(token))
                 if let first = name.first, first.isLetter || first == "_" {
                     catalog.names.insert(name)
-                    if isAppleOnly { catalog.appleOnly.insert(name) }
+                    if isAppleOnly {
+                        catalog.appleOnly.insert(name)
+                    }
                 }
             }
         }
@@ -283,8 +285,12 @@ do {
         for item in surface.auditItems where !ignored.contains(item.name) {
             let covered = catalogNames.contains(item.name)
                 || item.parent.map { catalogNames.contains($0) } ?? false
-            if !covered { gaps.append(item) }
-            if !item.hasDoc { docWorklist.append(item) }
+            if !covered {
+                gaps.append(item)
+            }
+            if !item.hasDoc {
+                docWorklist.append(item)
+            }
         }
     }
 
@@ -325,17 +331,23 @@ do {
     for g in gaps {
         print("  \(g.module): \(g.name)  [\(g.sourceFile)]")
     }
-    if gaps.isEmpty { print("  (none)") }
+    if gaps.isEmpty {
+        print("  (none)")
+    }
     print("\n== Stale catalog entries (ERROR): title symbols not in the API ==")
     for s in stale {
         print("  \(s.file): `\(s.name)`")
     }
-    if stale.isEmpty { print("  (none)") }
+    if stale.isEmpty {
+        print("  (none)")
+    }
     print("\n== DocC worklist (warning): audit-surface symbols with no doc comment ==")
     for d in docWorklist {
         print("  \(d.module): \(d.name)  [\(d.sourceFile)]")
     }
-    if docWorklist.isEmpty { print("  (none)") }
+    if docWorklist.isEmpty {
+        print("  (none)")
+    }
     print("\nSummary: \(gaps.count) gap(s), \(stale.count) stale, \(docWorklist.count) undocumented; " +
         "modules audited: \(presentModules.sorted().joined(separator: ", "))")
 

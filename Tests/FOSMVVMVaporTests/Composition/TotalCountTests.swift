@@ -113,9 +113,9 @@ private final class PagedDockRequest: ViewModelRequest, @unchecked Sendable {
 /// Builds the context the way `serve` does — WITH the count snapshot.
 private func makeContext(for vmRequest: PagedDockRequest, on req: Vapor.Request) -> ProjectionContext<PagedDockRequest, Void> {
     guard let plan = req.application.recordLoadPlan(for: PagedDockRequest.self) else {
-        return .init(vmRequest: vmRequest, appState: ())
+        return .init(vmRequest: vmRequest, appState: (), dependencySink: { _ in })
     }
-    return .init(vmRequest: vmRequest, appState: (), plan: plan, recordsByTuple: req.recordsByTuple(), countsByTuple: req.countsByTuple())
+    return .init(vmRequest: vmRequest, appState: (), plan: plan, recordsByTuple: req.recordsByTuple(), countsByTuple: req.countsByTuple(), dependencySink: { _ in })
 }
 
 @Suite("Paginated total-count")

@@ -35,11 +35,15 @@ package extension Vapor.Request {
         try await executeRecordLoadPlan(for: vmRequest)
 
         let appState = try await resolveAppState(SR.ResponseBody.AppState.self, request: SR.self)
+        // The factory's dependency deposit: INSERTS into the set executeRecordLoadPlan
+        // already assigned — factory-registered identities merge with the plan's, and
+        // buildResponse attaches the union as X-FOS-Registrations.
+        let dependencySink: (ModelIdentity) -> Void = { self.registrationSet.insert($0) }
         // A zero-data body has no derived plan; it constructs a context that carries no records.
         let context: ProjectionContext<SR, SR.ResponseBody.AppState> = if let plan = application.recordLoadPlan(for: SR.self) {
-            .init(vmRequest: vmRequest, appState: appState, plan: plan, recordsByTuple: recordsByTuple(), countsByTuple: countsByTuple())
+            .init(vmRequest: vmRequest, appState: appState, plan: plan, recordsByTuple: recordsByTuple(), countsByTuple: countsByTuple(), dependencySink: dependencySink)
         } else {
-            .init(vmRequest: vmRequest, appState: appState)
+            .init(vmRequest: vmRequest, appState: appState, dependencySink: dependencySink)
         }
         return try SR.ResponseBody.body(context: context)
     }

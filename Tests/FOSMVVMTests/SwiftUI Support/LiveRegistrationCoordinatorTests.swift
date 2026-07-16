@@ -147,7 +147,9 @@ private extension LiveRegistrationCoordinatorTests {
 
     func waitUntil(_ predicate: @MainActor () -> Bool) async {
         for _ in 0..<200 {
-            if predicate() { return }
+            if predicate() {
+                return
+            }
             await Task.yield()
             try? await Task.sleep(nanoseconds: 500000)
         }

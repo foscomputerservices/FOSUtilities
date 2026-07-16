@@ -165,14 +165,30 @@ private struct YamlValue {
     let boolArray: [Bool]?
 
     var value: Any? {
-        if let string { return string }
-        if let int { return int }
-        if let double { return double }
-        if let bool { return bool }
-        if let stringArray { return stringArray }
-        if let intArray { return intArray }
-        if let doubleArray { return doubleArray }
-        if let boolArray { return boolArray }
+        if let string {
+            return string
+        }
+        if let int {
+            return int
+        }
+        if let double {
+            return double
+        }
+        if let bool {
+            return bool
+        }
+        if let stringArray {
+            return stringArray
+        }
+        if let intArray {
+            return intArray
+        }
+        if let doubleArray {
+            return doubleArray
+        }
+        if let boolArray {
+            return boolArray
+        }
 
         return nil
     }

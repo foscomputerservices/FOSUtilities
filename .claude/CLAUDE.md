@@ -116,6 +116,7 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 - Form fields and input validation → `FOSMVVM.md § Forms`, `§ Validation`
 - SwiftUI binding/app setup, property versioning, deployment URLs → `FOSMVVM.md § SwiftUI Support`, `§ Versioning`
 - Vapor boot/Leaf, routes, Fluent factories, versioned middleware → `FOSMVVMVapor.md § Extensions`, `§ Vapor Support`, `§ Protocols`, `§ Middleware`
+- Live ViewModel refresh (server push), incl. nudging live clients from non-Fluent/hybrid sources → `FOSMVVMVapor.md § Live Invalidation`
 - Testing ViewModels / UI / ServerRequests → `FOSTesting.md § FOSTesting`, `§ FOSTestingUI`, `§ FOSTestingVapor`
 - PDF generation from SwiftUI views → `FOSReporting.md § PDF Rendering`
 

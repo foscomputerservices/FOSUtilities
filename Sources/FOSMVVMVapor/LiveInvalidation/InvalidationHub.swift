@@ -39,8 +39,8 @@ actor InvalidationHub {
         let (stream, continuation) = AsyncStream<Set<ModelIdentity>>.makeStream(
             bufferingPolicy: .bufferingOldest(Self.subscriberBufferLimit)
         )
-        continuation.onTermination = { _ in
-            Task { [weak self] in
+        continuation.onTermination = { [weak self] _ in
+            Task {
                 await self?.removeSubscriber(id)
             }
         }

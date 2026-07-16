@@ -62,6 +62,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Registering the container authorization provider, apex resolver, per-request app state, or a container migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`
 - Filtering (narrowing) a large container load by the request's query → `FOSMVVMVapor.md § Containment`
 - Enabling server-pushed refresh at boot, or transactional writes that notify live clients → `FOSMVVMVapor.md § Live Invalidation`
+- Refreshing live screens whose data isn't Fluent-persisted — nudging from an `Application`-hosted actor or computed aggregate, or registering a dependency the load plan can't see → `FOSMVVMVapor.md § Live Invalidation`
 - The server-side write path — candidate set, field application, authorization provider → `FOSMVVMVapor.md § Protocols`
 - Projecting the database into ViewModels — resolvable requests, Fluent `DataModel` → `FOSMVVMVapor.md § Protocols`
 - Serving typed/localized errors, gating routes on client app version → `FOSMVVMVapor.md § Middleware`

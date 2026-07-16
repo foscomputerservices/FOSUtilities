@@ -1174,6 +1174,27 @@ A complete form specification consists of:
 
 ---
 
+## Live Invalidation
+
+A ViewModel opted into live refresh with `@ViewModel(options: [.live])` re-fetches whenever the server signals that the data it was served from has changed. Most of this is automatic: a Fluent-persisted model nudges live clients on every committed save, and plan-loaded records register their dependency with no code.
+
+Two cases fall outside that automatic path — a response reads state the record-load plan can't see (an `Application`-hosted actor's snapshot, a computed aggregate), and a non-Fluent source mutates that state. A paired public contract closes them.
+
+### The register / invalidate pair (non-Fluent sources)
+
+**Register a dependency on what you read; invalidate projections of what you changed.**
+
+- **`ProjectionContext.registerDependency(on:)`** (read side) — the factory declares that its response depends on a model the plan didn't load. The registered identity rides to the client with the response.
+- **`Application.invalidateProjections(of:)`** / **`Request.invalidateProjections(of:)`** (write side) — the non-Fluent source nudges live clients when its state changes. Inside `liveTransaction(_:)` the nudge reaches clients only if the transaction commits; where live invalidation is not enabled it is a no-op.
+
+**Both are required, and they must name the same entity.** Emit without a matching registration nudges nobody; registration without a matching emit refreshes never. That pairing *is* the live contract.
+
+**Fluent-persisted models never need either call** — their saves already notify live clients. Reach for the pair only for state Fluent doesn't own.
+
+**v1 scope:** the write side emits the changed model's *own* identity only — no containment derivation for non-Fluent sources. A screen that must refresh on a container's change registers a dependency on that container directly.
+
+---
+
 ## Key Macros
 
 | Macro | Purpose |

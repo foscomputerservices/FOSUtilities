@@ -236,7 +236,9 @@ private extension FormField {
         if case FormFieldType.text(let inputType) = type,
            inputType == .date || inputType == .datetimeLocal,
            options.count(where: {
-               if case FormInputOption.size = $0 { return true }
+               if case FormInputOption.size = $0 {
+                   return true
+               }
                return false
            }) == 0 {
             options.append(FormInputOption<Value>.size(value: inputType == .date

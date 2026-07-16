@@ -355,7 +355,11 @@ Server-push refresh for `@ViewModel(options: [.live])` screens (FOSMVVM's
 `LiveViewModel`): enable it once at boot, and every committed change to a
 registered container model nudges connected clients to re-fetch. The moving parts
 behind it — the fan-out hub, the per-model emit middleware, and the SSE stream
-route — are all internal; the two calls below are the entire author-facing surface.
+route — are all internal; the calls below are the entire author-facing surface.
+Fluent-persisted container models refresh automatically (their saves notify, see
+`register(_:migration:)` under Extensions). The `registerDependency()` /
+`invalidateProjections()` pair covers what Fluent doesn't own — state an
+`Application`-hosted actor or a computed aggregate holds.
 
 ### Enable server-push refresh at boot — `useLiveInvalidation()`
 Reach for this when: turning on live invalidation for the server — call once in
@@ -390,6 +394,41 @@ try await req.liveTransaction { db in
     dock.status = .closed
     try await dock.save(on: db)
 }
+```
+
+### Nudge live clients from a non-Fluent source — `invalidateProjections()`
+Reach for this when: state a live screen shows lives outside Fluent and just changed — an
+`Application`-hosted actor mutating its own data, a computed aggregate going stale — and you
+must refresh the projections built from it. Call `req.invalidateProjections(of: model)` in a
+route handler, or `app.invalidateProjections(of: model)` from an actor or background job. It
+composes with `liveTransaction`: called inside one, the nudge reaches clients only if the
+transaction commits. With live invalidation not enabled it is a no-op. Pair it with
+`registerDependency()` on the read side — a nudge refreshes only the projections that
+registered a dependency on the same model. v1 emits the changed model's own identity only; a
+screen that must refresh on a container's change registers a dependency on that container.
+Don't reach for it for Fluent-persisted models — their saves already notify live clients.
+
+```swift
+// actor mutates its own state, then nudges the screens built from it
+activeSessions += 1
+try await app.invalidateProjections(of: snapshot())
+```
+
+### Register a live dependency the plan can't see — `registerDependency()`
+Reach for this when: a `body(context:)` projection reads state the load plan can't see — an
+`appState` snapshot of an `Application`-hosted actor, a computed value — and its screen is
+`@ViewModel(options: [.live])`. Plan-loaded records register automatically (that is what
+`records(_:)` reads); call `context.registerDependency(on: model)` for the rest. The
+registered identity rides to the client with the response, so a later
+`invalidateProjections()` for the same model refreshes the screen. Register a dependency on
+what you read; invalidate projections of what you changed — the two must name the same
+entity, and that pairing *is* the live contract.
+Don't reach for it for records the plan already loaded, or for Fluent saves the framework
+already notifies.
+
+```swift
+let status = context.appState.status
+try context.registerDependency(on: status)
 ```
 
 ## Protocols
