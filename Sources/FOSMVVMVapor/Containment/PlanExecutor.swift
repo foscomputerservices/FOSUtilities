@@ -30,8 +30,8 @@ extension Vapor.Request {
     /// keys land in ``tupleCacheKeys``), then runs the ``SupplementalRecordLoading`` hooks.
     ///
     /// A non-composable (legacy) ResponseBody is a no-op. A composable ResponseBody with NO
-    /// stored plan throws `ContainmentError.invalidLoadPlan` — registration is Application-only
-    /// (`register(request:)`), which always derives the plan, so a missing plan means the request
+    /// stored plan throws `ContainmentError.invalidLoadPlan` — registration
+    /// (`register(request:app:)`) always derives the plan, so a missing plan means the request
     /// was never registered, and silently loading nothing would be the misconfiguration's
     /// invisible mode.
     func executeRecordLoadPlan<SR: ServerRequest>(for vmRequest: SR) async throws {
@@ -41,7 +41,7 @@ extension Vapor.Request {
         guard let plan = application.recordLoadPlan(for: SR.self) else {
             throw ContainmentError.invalidLoadPlan(
                 request: String(describing: SR.self),
-                reason: "\(String(describing: SR.ResponseBody.self)) is composable but no RecordLoadPlan was derived — register the request on the Application via try app.register(request:), which derives and validates the plan at boot"
+                reason: "\(String(describing: SR.ResponseBody.self)) is composable but no RecordLoadPlan was derived — register the request via try app.register(request: SR.self, app: app), which derives and validates the plan at boot"
             )
         }
 

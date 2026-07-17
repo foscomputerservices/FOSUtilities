@@ -98,7 +98,7 @@ struct WriteRouteUpdateTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -132,7 +132,7 @@ struct WriteRouteUpdateTests {
     @Test func updateReflectsPostWriteState() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -161,7 +161,7 @@ struct WriteRouteUpdateTests {
     @Test func pageReadPlanNotLoadedPreApply() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -187,10 +187,10 @@ struct WriteRouteUpdateTests {
     @Test func cacheInvalidatedNoStaleRead() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
             // The pre-write prime reads through BerthListRequest, so register it as a read too —
             // a write now derives only its OWN response plan, not a separate refresh request's.
-            try app.register(request: BerthListRequest.self)
+            try app.register(request: BerthListRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -216,7 +216,7 @@ struct WriteRouteUpdateTests {
     @Test func grantMemoSurvivesTheWrite() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -239,7 +239,7 @@ struct WriteRouteUpdateTests {
     @Test func saveConstraintViolationPropagates() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app, uniqueBerthNumber: true)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -271,7 +271,7 @@ struct WriteRouteCreateTests {
     @Test func createAddsRecordVisibleInRefresh() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self)
+            try app.register(request: CreateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .createRecords])])
@@ -308,7 +308,7 @@ struct WriteRouteDeleteTests {
     @Test func deleteRemovesRecordFromRefresh() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: DeleteBerthRequest.self)
+            try app.register(request: DeleteBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .deleteRecords])])
@@ -337,7 +337,7 @@ struct WriteRouteValidationTests {
     @Test func failingValidationNeverReachesApply() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -369,7 +369,7 @@ struct WriteRouteRetargetTests {
     @Test func targetOutsideCandidateSetIsNotFound() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, dock2) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -394,7 +394,7 @@ struct WriteRouteRetargetTests {
     @Test func candidateHonorsWriteVerbInGrantChecks() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords])]) // NO write grant
@@ -458,7 +458,7 @@ struct WriteRouteBootTests {
     @Test func fullyConstrainedWriteRequestBindsWriteDoor() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, _ in
             #expect(app.candidatePlan(for: UpdateBerthRequest.self) != nil)
             #expect(app.recordLoadPlan(for: UpdateBerthRequest.self) != nil) // its own response plan too
@@ -469,7 +469,7 @@ struct WriteRouteBootTests {
     @Test func replaceRequestNotYetSupported() async throws {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
-                try app.register(request: EchoReplaceRequest.self)
+                try app.register(request: EchoReplaceRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -479,7 +479,7 @@ struct WriteRouteBootTests {
     @Test func writeConformerAtReadDoorFailsFast() async throws {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
-                try app.register(request: SelfRefreshUpdateRequest.self)
+                try app.register(request: SelfRefreshUpdateRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -490,7 +490,7 @@ struct WriteRouteBootTests {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: NoRootUpdateRequest.self)
+                try app.register(request: NoRootUpdateRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -501,7 +501,7 @@ struct WriteRouteBootTests {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: ApexUpdateRequest.self)
+                try app.register(request: ApexUpdateRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -511,7 +511,7 @@ struct WriteRouteBootTests {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: ComputedCandidatesUpdateRequest.self)
+                try app.register(request: ComputedCandidatesUpdateRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -521,7 +521,7 @@ struct WriteRouteBootTests {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: ComputedReadRequest.self)
+                try app.register(request: ComputedReadRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -537,7 +537,7 @@ struct WriteRouteResponseParityTests {
     @Test func writeResponseMatchesDirectServe() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
@@ -627,7 +627,7 @@ struct WriteRouteCreateGateTests {
     @Test func unauthorizedCreateWithZeroGrantsIsNotFound() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self)
+            try app.register(request: CreateBerthRequest.self, app: app)
         } _: { app, db in
             _ = try await seedHarbor(on: db)
             let dock = try await makeEmptyDock(named: "Zero Grant Dock", on: db)
@@ -655,7 +655,7 @@ struct WriteRouteCreateGateTests {
     @Test func unauthorizedCreateWithReadOnlyGrantIsNotFound() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self)
+            try app.register(request: CreateBerthRequest.self, app: app)
         } _: { app, db in
             _ = try await seedHarbor(on: db)
             let dock = try await makeEmptyDock(named: "Read Only Dock", on: db)
@@ -684,7 +684,7 @@ struct WriteRouteCreateGateTests {
     @Test func authorizedCreateIntoEmptyContainerSucceeds() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self)
+            try app.register(request: CreateBerthRequest.self, app: app)
         } _: { app, db in
             _ = try await seedHarbor(on: db)
             let dock = try await makeEmptyDock(named: "Empty Granted Dock", on: db)
@@ -710,7 +710,7 @@ struct WriteRouteCreateGateTests {
     @Test func deniedCreateMatchesMissingContainerShape() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self)
+            try app.register(request: CreateBerthRequest.self, app: app)
         } _: { app, db in
             _ = try await seedHarbor(on: db)
 
@@ -775,7 +775,7 @@ struct WriteRouteVerbDoorTests {
         do {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: WrongVerbDeleteRequest.self)
+                try app.register(request: WrongVerbDeleteRequest.self, app: app)
             } _: { _, _ in }
             Issue.record("expected a boot throw for a .write candidate at the delete door")
         } catch let error as ContainmentError {
@@ -794,7 +794,7 @@ struct WriteRouteVerbDoorTests {
         do {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: RefinedCandidatesUpdateRequest.self)
+                try app.register(request: RefinedCandidatesUpdateRequest.self, app: app)
             } _: { _, _ in }
             Issue.record("expected a boot throw for .refinedByRequest candidates")
         } catch let error as ContainmentError {
@@ -833,7 +833,7 @@ struct WriteRouteVerbDoorTests {
     @Test func destroyRequestNotYetSupported() async throws {
         do {
             try await withFluentTestApp { app in
-                try app.register(request: EchoDestroyRequest.self)
+                try app.register(request: EchoDestroyRequest.self, app: app)
             } _: { _, _ in }
             Issue.record("expected a boot throw for a DestroyRequest at the read door")
         } catch let error as ContainmentError {
@@ -975,7 +975,7 @@ struct WriteRouteHTTPPipelineTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self)
+            try app.register(request: CreateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .createRecords])])
@@ -1009,7 +1009,7 @@ struct WriteRouteHTTPPipelineTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureWriteContainers(app)
-            try app.register(request: DeleteBerthRequest.self)
+            try app.register(request: DeleteBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [berthGrant(dock1, [.readRecords, .deleteRecords])])

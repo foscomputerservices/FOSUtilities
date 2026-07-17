@@ -478,7 +478,7 @@ struct ProjectionContextTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureContainers(app)
-            try app.register(request: DockPageRequest.self)
+            try app.register(request: DockPageRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try grantDockReads(app, dock: dock1)

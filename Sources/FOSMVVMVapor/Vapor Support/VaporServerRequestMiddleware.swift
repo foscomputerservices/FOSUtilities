@@ -25,7 +25,7 @@ enum VaporServerRequestMiddlewareError: Error, CustomDebugStringConvertible {
     var debugDescription: String {
         switch self {
         case .missingRequest:
-            "requireServerRequest() found no bound ServerRequest on this Vapor.Request. The typed request is bound during routing by VaporServerRequestMiddleware, which is installed only when the route is registered through the FOS path — app.register(request:), or routes.register(collection:) on a ServerRequestController. A hand-rolled route that calls requireServerRequest() without that middleware always lands here; register it through one of those instead."
+            "requireServerRequest() found no bound ServerRequest on this Vapor.Request. The typed request is bound during routing by VaporServerRequestMiddleware, which is installed only when the route is registered through the FOS path — register(request:app:), or routes.register(collection:) on a ServerRequestController. A hand-rolled route that calls requireServerRequest() without that middleware always lands here; register it through one of those instead."
         }
     }
 }

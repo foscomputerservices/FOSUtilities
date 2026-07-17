@@ -227,7 +227,7 @@ struct RegisterDependencyTests {
         try await withFluentTestApp { app in
             try configureServe(app)
             try registerApexHarborResolver(app)
-            try app.register(request: HarborStatusRequest.self)
+            try app.register(request: HarborStatusRequest.self, app: app)
         } _: { app, db in
             let (dock1, dock2) = try await seedHarbor(on: db)
             let harbor = try #require(try await Harbor.query(on: db).first())
@@ -259,7 +259,7 @@ struct RegisterDependencyTests {
     @Test func zeroDataBodyRegisters() async throws {
         try await withFluentTestApp { app in
             try configureServe(app)
-            try app.register(request: StatusDashboardRequest.self)
+            try app.register(request: StatusDashboardRequest.self, app: app)
         } _: { app, _ in
             let res = try await getResponse(app, for: StatusDashboardRequest())
             #expect(res.status == .ok)
@@ -275,7 +275,7 @@ struct RegisterDependencyTests {
     @Test func nilIdSurfacesError() async throws {
         try await withFluentTestApp { app in
             try configureServe(app)
-            try app.register(request: NilSnapshotRequest.self)
+            try app.register(request: NilSnapshotRequest.self, app: app)
         } _: { app, _ in
             var sawFailure = false
             do {
@@ -296,7 +296,7 @@ struct RegisterDependencyTests {
     @Test func registerAndInvalidateNameTheSameValue() async throws {
         try await withFluentTestApp { app in
             try configureLiveServe(app)
-            try app.register(request: StatusDashboardRequest.self)
+            try app.register(request: StatusDashboardRequest.self, app: app)
         } _: { app, _ in
             let res = try await getResponse(app, for: StatusDashboardRequest())
             #expect(res.status == .ok)

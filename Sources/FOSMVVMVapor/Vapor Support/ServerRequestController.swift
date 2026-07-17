@@ -39,7 +39,7 @@ import Vapor
 /// try app.routes.register(collection: ReplaceBerthController())
 /// ```
 ///
-/// Prefer ``Vapor/Application/register(request:)`` — it instantiates this mechanism
+/// Prefer ``Vapor/RoutesBuilder/register(request:app:)`` — it instantiates this mechanism
 /// pre-specialized with the framework's guarded pipelines (declared loads, write
 /// gates, the refresh fall-through). Reach for a hand-written controller when an
 /// operation falls outside the guarded verbs (e.g. `ReplaceRequest`, multi-record

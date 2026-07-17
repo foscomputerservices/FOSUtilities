@@ -77,7 +77,7 @@ package extension Vapor.Request {
     /// Resolves the projection's `AppState` value. `Void` is the zero-ceremony default (no builder,
     /// no registration). For a non-`Void` `AppState`, the builder registered with
     /// `useAppState(_:builder:)` runs here — in the load phase, with full request power — and its
-    /// value is handed to the projection. The boot check in `register(request:)` guarantees a
+    /// value is handed to the projection. The boot check in `register(request:app:)` guarantees a
     /// builder exists and produces this exact type, so a missing or mistyped builder here is a
     /// framework-invariant breakage, never an app misconfiguration.
     private func resolveAppState<AppState: Sendable>(_: AppState.Type, request: Any.Type) async throws -> AppState {

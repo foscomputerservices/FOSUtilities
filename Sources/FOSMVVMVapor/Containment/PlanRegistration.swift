@@ -59,7 +59,7 @@ extension Application {
 
     /// The stored plan for a request type. `nil` means EITHER the ResponseBody is
     /// non-composable (legacy — expected, correct) OR the request was never registered.
-    /// Registration is Application-only (`register(request:)`) and always derives a composable
+    /// Registration (`register(request:app:)`) always derives a composable
     /// body's plan, so a composable body reaching the executor with no stored plan is a
     /// never-registered configuration error: the executor throws typed
     /// (`ContainmentError.invalidLoadPlan`) rather than silently loading nothing.

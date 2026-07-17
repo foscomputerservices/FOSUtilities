@@ -35,7 +35,7 @@ struct VaporResponseBodyFactoryTests {
     @Test func zeroDataScreenServesWithoutTrait() async throws {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
-            try app.register(request: TestViewModelRequest.self)
+            try app.register(request: TestViewModelRequest.self, app: app)
         } _: { app, _ in
             let prefix = "http://localhost"
             let base = try #require(URL(string: prefix))
@@ -68,7 +68,7 @@ struct VaporResponseBodyFactoryTests {
     @Test func servedResponseCarriesExactlyOneVersionHeader() async throws {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
-            try app.register(request: TestViewModelRequest.self)
+            try app.register(request: TestViewModelRequest.self, app: app)
         } _: { app, _ in
             let prefix = "http://localhost"
             let base = try #require(URL(string: prefix))

@@ -49,7 +49,7 @@ public protocol VaporResponseBodyFactory: ResponseBodyFactory, Vapor.AsyncRespon
 public extension VaporResponseBodyFactory {
     /// Serves the body *localized to the request's* [Accept-Language](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Accept-Language).
     ///
-    /// The server route registered by ``Vapor/Application/register(request:)`` returns the
+    /// The server route registered by ``Vapor/RoutesBuilder/register(request:app:)`` returns the
     /// *unlocalized* body straight from its processor and hands it to the shared
     /// ``ServerRequestBody/buildResponse(_:)`` to build the HTTP `Response`. That is the single
     /// point where localization-on-serve happens — the request-binding

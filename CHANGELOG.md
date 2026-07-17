@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **`register(request:)` moves to `RoutesBuilder`** (FOSMVVMVapor, **BREAKING**). The four
+  registration doors (read, create, update, delete) are now `RoutesBuilder` methods taking
+  an `app:` parameter; the `Vapor.Application`-sited versions are removed. Register a request
+  on the route group whose middleware you want guarding it — mount privileged requests behind
+  your credential group, public ones on the `Application` itself (an `Application` is a
+  `RoutesBuilder`). The old siting also deviated from standard Vapor practice, where routing
+  surfaces are where processing mounts and the `Application` receiver is for app-wide
+  configuration. Where a request mounts is your decision; that its plan is derived is not —
+  every door still derives and validates the request's load plan.
+  **Migration:** `try app.register(request: X.self)` → `try app.register(request: X.self, app: app)`,
+  or mount on a middleware group: `try authed.register(request: X.self, app: app)`. A
+  path-prefixing group (`app.grouped("admin")`) is now rejected at boot, because clients derive
+  the served URL from the request type; mount only on middleware-only groups.
 
 ## [0.8.0] - 2026-07-17
 
