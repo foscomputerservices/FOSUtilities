@@ -17,7 +17,7 @@
 import FOSMVVM
 import Vapor
 
-/// The pre-specialized controller register(request:) instantiates: the general
+/// The pre-specialized controller register(request:app:) instantiates: the general
 /// dispatch mechanism carrying the framework's guarded pipelines as its processors.
 /// Guards live in the processors (and the register-door boot checks) — never in
 /// which door was walked through.

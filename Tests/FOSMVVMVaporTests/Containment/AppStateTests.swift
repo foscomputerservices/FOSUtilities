@@ -117,7 +117,7 @@ struct AppStateTests {
             try app.useAppState(SessionBanner.self) { req in
                 SessionBanner(userName: req.headers.first(name: signedInHeader) ?? "anonymous")
             }
-            try app.register(request: BannerRequest.self)
+            try app.register(request: BannerRequest.self, app: app)
         } _: { app, _ in
             let first = try await serveBanner(on: app, signedInAs: "Captain Ahab")
             #expect(first == "Captain Ahab")
@@ -133,7 +133,7 @@ struct AppStateTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             // No useAppState call — TestViewModel's AppState is Void.
-            try app.register(request: TestViewModelRequest.self)
+            try app.register(request: TestViewModelRequest.self, app: app)
         } _: { app, _ in
             let prefix = "http://localhost"
             let base = try #require(URL(string: prefix))
@@ -160,7 +160,7 @@ struct AppStateTests {
     @Test func nonVoidAppStateWithoutBuilderFailsAtBoot() async throws {
         do {
             try await withFluentTestApp { app in
-                try app.register(request: BannerRequest.self) // no useAppState registered
+                try app.register(request: BannerRequest.self, app: app) // no useAppState registered
             } _: { _, _ in }
             Issue.record("expected register(request:) to throw at boot for a non-Void AppState with no builder")
         } catch let error as ContainmentError {
@@ -198,7 +198,7 @@ struct AppStateTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try app.useAppState(SessionBanner.self) { _ in SessionBanner(userName: "David") }
-            try app.register(request: BannerRequest.self)
+            try app.register(request: BannerRequest.self, app: app)
         } _: { app, _ in
             let signedInAs = try await serveBanner(on: app, signedInAs: "ignored-header")
             #expect(signedInAs == "David")

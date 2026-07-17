@@ -139,9 +139,13 @@ import Vapor
 import ViewModels
 
 func routes(_ app: Application) throws {
-    try app.register(request: LandingPageRequest.self)
+    try app.register(request: LandingPageRequest.self, app: app)
 }
 ```
+
+Register on the route group whose middleware you want guarding the route — mount a public request on the
+`Application` itself (an `Application` is a `RoutesBuilder`), a privileged one behind your credential
+group: `try app.grouped(ClientCredentialMiddleware(verifier: myVerifier)).register(request: DashboardPageRequest.self, app: app)`.
 
 ## Display-Only vs Interactive ViewModels
 

@@ -56,7 +56,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`
 - Booting a Vapor server for MVVM — YAML localization store, environment, locale, Leaf rendering → `FOSMVVMVapor.md § Extensions`
-- Registering request routes (reads and CRUD writes), or serving a request outside the guarded verbs → `FOSMVVMVapor.md § Vapor Support`
+- Registering request routes (reads and CRUD writes) — including mounting one behind a credential/middleware group — or serving a request outside the guarded verbs → `FOSMVVMVapor.md § Vapor Support`
 - Projecting loaded records into a response body, or reading them through the projection context → `FOSMVVMVapor.md § Containment`, `§ Protocols`
 - Declaring Fluent containers and their relations, or mapping sort meanings to database columns → `FOSMVVMVapor.md § Containment`
 - Registering the container authorization provider, apex resolver, per-request app state, or a container migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`

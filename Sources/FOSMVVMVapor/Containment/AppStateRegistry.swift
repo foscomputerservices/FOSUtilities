@@ -29,7 +29,7 @@ public extension Vapor.Application {
     /// ```
     ///
     /// Register the builder **before** the requests that project it — a request whose `ResponseBody`
-    /// declares a non-`Void` `AppState` with no builder registered fails at ``register(request:)``.
+    /// declares a non-`Void` `AppState` with no builder registered fails at ``Vapor/RoutesBuilder/register(request:app:)``.
     ///
     /// The builder is keyed by the `AppState` type: everything the projection needs about the session
     /// arrives through the value it returns. Capturing the request's power in the closure is
@@ -54,7 +54,7 @@ public extension Vapor.Application {
 }
 
 extension Application {
-    /// Read side of the seam — consumed by the ``register(request:)`` boot check and by
+    /// Read side of the seam — consumed by the ``Vapor/RoutesBuilder/register(request:app:)`` boot check and by
     /// Request.resolveAppState at request time (same module).
     func appStateBuilder(forTypeIdentifier id: ObjectIdentifier) -> AppStateBuilder? {
         storage[AppStateBuilderStore.self]?[id]

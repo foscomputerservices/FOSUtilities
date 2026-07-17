@@ -176,7 +176,7 @@ struct RegistrationHeaderTests {
         try await withFluentTestApp { app in
             try configureHarbor(app)
             try registerApexHarborResolver(app)
-            try app.register(request: HarborBerthsRequest.self)
+            try app.register(request: HarborBerthsRequest.self, app: app)
         } _: { app, db in
             let (dock1, dock2) = try await seedHarbor(on: db)
             let harbor = try #require(try await Harbor.query(on: db).first())
@@ -206,7 +206,7 @@ struct RegistrationHeaderTests {
     @Test func writeDoorCarriesRefreshedSet() async throws {
         try await withFluentTestApp { app in
             try configureHarbor(app)
-            try app.register(request: UpdateBerthRequest.self)
+            try app.register(request: UpdateBerthRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [
@@ -247,7 +247,7 @@ struct RegistrationHeaderTests {
     @Test func headerValueRoundTrips() async throws {
         try await withFluentTestApp { app in
             try configureHarbor(app)
-            try app.register(request: BerthListRequest.self)
+            try app.register(request: BerthListRequest.self, app: app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
             try setGrants(app, [
@@ -275,7 +275,7 @@ struct RegistrationHeaderTests {
     @Test func noPlanCarriesNoHeader() async throws {
         try await withFluentTestApp { app in
             try configureHarbor(app)
-            try app.register(request: PlainRequest.self)
+            try app.register(request: PlainRequest.self, app: app)
         } _: { app, _ in
             let response = try await getResponse(app, for: PlainRequest())
             #expect(response.status == .ok)

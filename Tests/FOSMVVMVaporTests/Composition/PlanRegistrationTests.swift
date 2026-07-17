@@ -142,6 +142,14 @@ private struct DockRootedQuery: RootedQuery {
     let rootIdentity: ModelIdentity
 }
 
+/// A no-op middleware — grouping on it proves the registration door works on a middleware group
+/// (not only the `Application`) while changing nothing about the served path.
+private struct PassthroughMiddleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+        try await next.respond(to: request)
+    }
+}
+
 // MARK: - The positive pair: hop-validated plan through the REAL registration seam
 
 /// Conforms to VaporResponseBodyFactory (not RegistrationFixture) so `register(request:)` —
@@ -480,8 +488,28 @@ struct PlanRegistrationTests {
     @Test func routeRegistrationSeamDerivesThePlan() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.register(request: DockPageRequest.self)
+            try app.register(request: DockPageRequest.self, app: app)
             #expect(app.recordLoadPlan(for: DockPageRequest.self) != nil)
+        } _: { _, _ in }
+    }
+
+    /// Contract 5: registering on a middleware group derives and validates the plan exactly as the
+    /// root form does — a composable body mounted on a group WITHOUT its containers registered
+    /// throws the same boot error as `try app.register(request:app:)`. Where a request mounts is the
+    /// caller's decision; that its plan is derived is not.
+    @Test func groupMountDerivesPlanAndFailsFastWithoutContainers() async throws {
+        try await withFluentTestApp { app in
+            let grouped = app.grouped(PassthroughMiddleware())
+            do {
+                try grouped.register(request: DockPageRequest.self, app: app) // no configureContainers
+                Issue.record("expected ContainmentError.invalidLoadPlan on a group mount without containers")
+            } catch let error as ContainmentError {
+                guard case .invalidLoadPlan = error else {
+                    Issue.record("wrong case: \(error)")
+                    return
+                }
+            }
+            #expect(app.recordLoadPlan(for: DockPageRequest.self) == nil)
         } _: { _, _ in }
     }
 
@@ -689,9 +717,10 @@ struct PlanRegistrationTests {
         } _: { _, _ in }
     }
 
-    // compile-audit: registration is Application-only. `register(request:)` is declared on
-    // `Vapor.Application` alone — there is no `RoutesBuilder`/grouped overload, so a composable
-    // body can never be registered through a path that skips plan derivation. Uncommenting the
-    // next line must fail to compile (no such member on RoutesBuilder):
-    // try app.grouped("api").register(request: DockPageRequest.self)
+    // contract: `register(request:app:)` is a `RoutesBuilder` method, so grouped mounting compiles —
+    // it is how a request mounts behind its guarding middleware. Plan derivation runs inside the door
+    // regardless of the builder, so no mount path can skip it. A path-prefixing group is caught at
+    // boot, not compile time: `try app.grouped("api").register(request: DockPageRequest.self, app: app)`
+    // compiles and throws `ContainmentError.pathPrefixedMount`, because the client derives the served
+    // URL from the request type.
 }

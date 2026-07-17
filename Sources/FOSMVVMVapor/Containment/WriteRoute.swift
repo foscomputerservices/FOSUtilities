@@ -141,7 +141,7 @@ extension Vapor.Request {
         guard let plan = application.candidatePlan(for: SR.self) else {
             throw ContainmentError.invalidLoadPlan(
                 request: String(describing: SR.self),
-                reason: "no candidate plan was derived — register the request as a write via try app.register(request:), which derives and validates the candidate plan at boot"
+                reason: "no candidate plan was derived — register the request as a write via try app.register(request: SR.self, app: app), which derives and validates the candidate plan at boot"
             )
         }
         let resolved = try await resolveRecordLoadPlan(plan, for: boundRequest)

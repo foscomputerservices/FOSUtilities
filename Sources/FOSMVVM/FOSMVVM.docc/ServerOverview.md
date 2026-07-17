@@ -32,22 +32,29 @@ public func configure(_ app: Application) async throws {
 
 #### Initializing Routes
 
-Register each ``ServerRequest`` whose `ResponseBody` is a `VaporResponseBodyFactory`. Registration is
-**Application-only** — one door for every request:
+Register each ``ServerRequest`` whose `ResponseBody` is a `VaporResponseBodyFactory` on a route group,
+passing the `Application` — one door for every request. The group you register on decides the middleware
+that guards the route: mount privileged requests behind your credential group, public ones on the
+`Application` itself (an `Application` is a `RoutesBuilder`):
 
 ```swift
 func routes(_ app: Application) throws {
-    try app.register(request: LandingPageRequest.self)
-    try app.register(request: DashboardPageRequest.self)
+    let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
+    try authed.register(request: DashboardPageRequest.self, app: app)
+    try app.register(request: LandingPageRequest.self, app: app)
 }
 ```
 
 Registration derives and validates each composable request's data-load plan at boot, so a forgotten or
 unresolvable data need fails fast at startup rather than at request time. Write requests
 (`CreateRequest`/`UpdateRequest`/`DeleteRequest`) register the same way — Swift selects the write door.
+Where a request mounts is your decision; that its plan is derived is not.
 
-There is no grouped/`Routes`-level registration and no per-route auth middleware for data access.
-**Authorization is by data-scoping:** the framework loads only the records the current subject is
+Mount only on **middleware-only** groups (`app.grouped(middleware)`): a path-prefixing group
+(`app.grouped("admin")`) would change the served URL while clients derive it from the request type, so
+registration rejects that at boot.
+
+**Data-scoping still applies:** the framework loads only the records the current subject is
 authorized for, through the app's registered `ContainerAuthorizationProvider` — the projection is handed
 an already-auth-scoped, read-only cache and cannot load anything else. Register the provider (and the
 app's containers) before registering requests.

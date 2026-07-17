@@ -23,7 +23,9 @@ import Foundation
 /// `.duplicateAppStateBuilder` (useAppState registry validation at route registration),
 /// `.unstableRequirementTokens` (`dataRequirements`/`candidates` mints requirements inline
 /// instead of returning stored handles), `.writeRequestAtReadDoor` / `.unsupportedWriteProtocol` (a
-/// write-protocol conformer reaching the read door / a not-yet-supported write protocol).
+/// write-protocol conformer reaching the read door / a not-yet-supported write protocol),
+/// `.pathPrefixedMount` (a request registered on a path-prefixing group, whose served path would
+/// diverge from the type-derived path clients fetch).
 /// REQUEST-TIME:
 /// `.unregisteredNamespace` (registry lookup for a stored identity found no registered type),
 /// `.noAuthorizationProvider` (first authorized load with no provider registered),
@@ -54,6 +56,7 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
     case unstableRequirementTokens(request: String, handle: String)
     case writeRequestAtReadDoor(request: String)
     case unsupportedWriteProtocol(request: String)
+    case pathPrefixedMount(request: String, mountedPath: String)
     case invalidCreateScope(container: String, recordType: String)
 
     var debugDescription: String {
@@ -81,7 +84,7 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
         case .ambiguousRequirement(let recordType, let request, let matchCount):
             "A projection of \(request) read \(recordType) through a requirement handle that matched \(matchCount) declared loads — the handle is ambiguous. The same declaration was composed onto multiple paths — give each composition its own declaration so the handle names exactly one load; the framework never guesses which set to return."
         case .missingAppStateBuilder(let request, let appStateType):
-            "No AppState builder is registered for \(appStateType), which \(request)'s ResponseBody projects. Register one in configure(_:) via useAppState(\(appStateType).self) { req in ... } — call it BEFORE register(request:). A non-Void AppState with no builder is a boot-time configuration bug, never a first-request surprise."
+            "No AppState builder is registered for \(appStateType), which \(request)'s ResponseBody projects. Register one in configure(_:) via useAppState(\(appStateType).self) { req in ... } — call it BEFORE register(request:app:). A non-Void AppState with no builder is a boot-time configuration bug, never a first-request surprise."
         case .duplicateAppStateBuilder(let appStateType):
             "Duplicate AppState builder registration: a builder for \(appStateType) is already registered, so this one was rejected. Exactly one builder per AppState type (useAppState(_:builder:)); compose multiple sources inside that single closure."
         case .appStateInconsistency(let request, let appStateType, let reason):
@@ -89,9 +92,11 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
         case .unstableRequirementTokens(let request, let handle):
             "\(request)'s \(handle) is not stable across evaluations: two reads minted different declaration identities. Mint each requirement in a stored static let handle and return those handles — a computed dataRequirements (or candidates) RETURNING stored handles is fine and canonical; minting inline in the getter allocates a fresh declaration identity on each access, which breaks the handle→load resolution."
         case .writeRequestAtReadDoor(let request):
-            "\(request) is a write-protocol request (Create/Update/Delete) but reached the read door (register(request:) for a plain read). Its Query/RequestBody do not satisfy the write overload's constraints (Query: TargetedQuery, RequestBody: DataModelWriter/WriteTargetProviding), so overload resolution fell through to the read door. Registering it read-only would be a silent write-drop — fix the Query/RequestBody so the write overload binds."
+            "\(request) is a write-protocol request (Create/Update/Delete) but reached the read door (register(request:app:) for a plain read). Its Query/RequestBody do not satisfy the write overload's constraints (Query: TargetedQuery, RequestBody: DataModelWriter/WriteTargetProviding), so overload resolution fell through to the read door. Registering it read-only would be a silent write-drop — fix the Query/RequestBody so the write overload binds."
         case .unsupportedWriteProtocol(let request):
             "\(request) speaks a write protocol that is not yet supported (ReplaceRequest/DestroyRequest). Only Create, Update, and Delete are wired. Registering it read-only would be a silent write-drop — this write protocol has no route yet."
+        case .pathPrefixedMount(let request, let mountedPath):
+            "\(request) was registered on a path-prefixing group — its served path became \(mountedPath), but clients derive the route from the request type, so the two would silently disagree (runtime 404s). Mount composable requests on middleware-only groups (app.grouped(middleware)) to guard them; a path prefix changes the served URL out from under the client. A deliberate, client-visible prefix is its own feature, not this door."
         case .invalidCreateScope(let container, let recordType):
             "Cannot create a \(recordType) into \(container): the containment relation for \(recordType) is a to-one parent relation, which is not a create scope. Create is defined only into a container's .children or .siblings relations, where the container owns the new record."
         }

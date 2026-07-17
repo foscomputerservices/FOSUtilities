@@ -328,7 +328,7 @@ as…") that isn't a loaded record. Register one builder per `AppState` type in
 `configure(_:)`; it runs in the load phase with full request power and is handed to the
 synchronous `body(context:)` as a plain value (read via `ProjectionContext.appState`).
 Register it **before** the requests that project it — a non-`Void` `AppState` with no
-builder fails fast at `register(request:)`. `Void` (the default) needs no registration.
+builder fails fast at `register(request:app:)`. `Void` (the default) needs no registration.
 
 ```swift
 try app.useAppState(SessionBanner.self) { req in
@@ -452,7 +452,7 @@ factory's declared requirements — see FOSMVVM's `ComposableFactory` /
 `LoadRequirement`), so projection reads them, never loads them. The factory is
 handed a `ProjectionContext` (see Containment) — never a `Vapor.Request`, never a
 `Database`. A zero-data body conforms to the factory alone (no
-`ComposableFactory`). Registered with `register(request:)` (see Vapor Support);
+`ComposableFactory`). Registered with `register(request:app:)` (see Vapor Support);
 the default `encodeResponse` serves the body *localized* to the request's
 Accept-Language via `buildResponse()`. Data the factory can't declare as tuples
 loads through `SupplementalRecordLoading` (see Protocols).
@@ -576,7 +576,7 @@ extension DockPageViewModel: SupplementalRecordLoading {
 ## Vapor Support
 
 The routing layer that turns request types into live routes: the one
-Application-only registration door for every request (reads and the guarded CRUD
+`RoutesBuilder` registration door for every request (reads and the guarded CRUD
 writes), and the general dispatch controller for operations outside the guarded
 verbs (the request-binding host and middleware behind them are internal).
 
@@ -586,25 +586,31 @@ in `routes(_:)`. Its `ResponseBody` must be a `VaporResponseBodyFactory` (see
 Protocols); the route's path derives from the request type, so client and server can
 never disagree on it. A read registers GET; write requests (CreateRequest /
 UpdateRequest / DeleteRequest, FOSMVVM's Protocols) have their own overloads Swift
-picks by their Query/RequestBody constraints. Registration is Application-only by
-construction — there is no grouped/`Routes`-level door, so a composable body can never
-register without its plan. Register the app's containers
+picks by their Query/RequestBody constraints. It is a `RoutesBuilder` method taking
+the `Application` as a parameter: register on the route group whose middleware you want
+guarding the route — a credential group for privileged requests, the `Application`
+itself (which is a `RoutesBuilder`) for public ones. Where a request mounts is your
+decision; that its plan is derived is not. Register the app's containers
 (`register(_:migration:)`, see Extensions) **before** calling this: a composable
-body's load plan is derived and validated here, at boot.
-Don't reach for a removed `register(viewModel:)` — there is one `register(request:)`
+body's load plan is derived and validated here, at boot. Mount only on
+middleware-only groups — a path-prefixing group (`app.grouped("admin")`) is rejected
+at boot, because the client derives the served URL from the request type.
+Don't reach for a removed `register(viewModel:)` — there is one `register(request:app:)`
 door; a `ReplaceRequest`/`DestroyRequest`, or a write request that reaches the read
 door, fails fast at boot rather than registering GET-only.
 
 ```swift
 func routes(_ app: Application) throws {
-    try app.register(request: DockPageRequest.self)      // read (GET)
-    try app.register(request: UpdateBerthRequest.self)   // write door, picked by Swift
+    let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
+    try authed.register(request: DockPageRequest.self, app: app)   // guarded read (GET)
+    try authed.register(request: UpdateBerthRequest.self, app: app) // write door, picked by Swift
+    try app.register(request: LandingPageRequest.self, app: app)   // public (Application is a RoutesBuilder)
 }
 ```
 
 ### General request dispatch — `ServerRequestController` / `ServerRequestControllerError`
 Reach for this when: an operation falls outside the guarded verbs
-`register(request:)` covers (e.g. a `ReplaceRequest`, multi-record operations) —
+`register(request:app:)` covers (e.g. a `ReplaceRequest`, multi-record operations) —
 conform, supply one processor per `ServerRequestAction`, and register the controller
 as a route collection. Grouping, HTTP-method mapping (`.show` GET · `.create` POST ·
 `.replace` PUT · `.update` PATCH · `.delete`/`.destroy` DELETE), body decoding
@@ -614,7 +620,7 @@ typed request (query and sort parsed; `requestBody` decoded on a body verb). `.d
 and `.destroy` both ride DELETE at one URL, so a controller registers only one —
 the other throws `ServerRequestControllerError.invalidAction`; a body verb whose body
 is absent throws `.missingRequestBody`.
-Prefer `register(request:)` — it instantiates this same mechanism pre-specialized
+Prefer `register(request:app:)` — it instantiates this same mechanism pre-specialized
 with the framework's guarded pipelines (declared loads, write gates, refresh
 fall-through). Scaffolded by `fosmvvm-serverrequest-generator`.
 
