@@ -450,9 +450,10 @@ complement is `ClientCredentialMiddleware` (see `FOSMVVMVapor.md § Middleware`)
 To recover from a *server-side* rotation — the credential you presented was
 refused — implement `credentialHeaders(afterRejection:)` on your own conforming
 type: refresh, return replacement headers, and the request is retried exactly
-once (the live-invalidation channel nudges the same seam on an SSE 401);
-returning `nil` — the default — rethrows the `CredentialRejectedError` to the
-caller. Persist the refreshed credential — the retry headers apply once; every
+once (the live-invalidation channel nudges the same seam on an SSE 401 — there
+it always reports `.invalid` and may nudge once per failed reconnect, not just
+once); returning `nil` — the default — rethrows the `CredentialRejectedError`
+to the caller. Persist the refreshed credential — the retry headers apply once; every
 later request and every reconnect consults `credentialHeaders()` again.
 `BearerCredentialProvider` does not refresh (a refused token throws).
 Don't bake a token into the static `requestHeaders` — a rotating credential

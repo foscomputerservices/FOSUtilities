@@ -86,7 +86,10 @@ public protocol ClientCredentialProvider: Sendable {
     ///     refreshes (single-flight) inside your provider; this method may be called
     ///     several times in quick succession with the same rejection.
     /// - Parameter afterRejection: The rejection the server returned, so a provider
-    ///     can distinguish a missing credential from an invalid one
+    ///     can distinguish a missing credential from an invalid one. A refused
+    ///     ServerRequest carries the server's actual code; a refused live-channel
+    ///     reconnect cannot read it and always presents `.invalid`, and may call
+    ///     this once per failed reconnect rather than only once.
     /// - Returns: Headers to retry the request with once, or `nil` when no fresh
     ///     credential is available — the rejection then throws to the caller
     func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]?
