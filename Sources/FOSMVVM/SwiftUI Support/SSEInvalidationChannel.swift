@@ -128,6 +128,15 @@ struct SSEInvalidationChannel: InvalidationChannel {
         // credential. Treat non-2xx as a drop: back-off grows, and the next open re-consults the
         // credential provider (rotation still self-heals).
         if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            // A 401 is the credential being refused. Tell the provider so it can refresh and
+            // persist; the return is discarded because the reconnect below re-consults
+            // `credentialHeaders()` — the channel carries no credential state of its own.
+            if http.statusCode == 401 {
+                _ = await credentialProvider?.credentialHeaders(
+                    afterRejection: CredentialRejectedError(code: .invalid)
+                )
+            }
+
             throw SSEStreamOpenError.badStatus(http.statusCode)
         }
         onOpen()
