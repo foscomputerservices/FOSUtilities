@@ -447,6 +447,14 @@ token, an API key) without per-call header plumbing — set a provider once on
 so a credential that rotates mid-session is picked up on the next call. A `nil`
 token sends no header (the request proceeds unauthenticated). The server-side
 complement is `ClientCredentialMiddleware` (see `FOSMVVMVapor.md § Middleware`).
+To recover from a *server-side* rotation — the credential you presented was
+refused — implement `credentialHeaders(afterRejection:)` on your own conforming
+type: refresh, return replacement headers, and the request is retried exactly
+once (the live-invalidation channel nudges the same seam on an SSE 401);
+returning `nil` — the default — rethrows the `CredentialRejectedError` to the
+caller. Persist the refreshed credential — the retry headers apply once; every
+later request and every reconnect consults `credentialHeaders()` again.
+`BearerCredentialProvider` does not refresh (a refused token throws).
 Don't bake a token into the static `requestHeaders` — a rotating credential
 goes stale there; the provider is the dynamic sibling.
 

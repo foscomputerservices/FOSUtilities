@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **`ClientCredentialProvider.credentialHeaders(afterRejection:)`** (FOSMVVM) — a refresh
+  seam that lets a client recover from a server-side credential rotation. When a request is
+  refused with `CredentialRejectedError`, the provider may supply replacement headers and the
+  request is retried exactly once; returning `nil` (the default) preserves the previous
+  behavior of throwing the rejection to the caller. The live-invalidation channel nudges the
+  same seam when an SSE open is refused with 401. Providers must persist the refreshed
+  credential — later requests and reconnects consult `credentialHeaders()`.
 
 ## [0.9.0] - 2026-07-17
 
