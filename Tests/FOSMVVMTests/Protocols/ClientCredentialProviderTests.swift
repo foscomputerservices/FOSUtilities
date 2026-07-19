@@ -54,6 +54,30 @@ struct ClientCredentialProviderTests {
         let second = try await provider.credentialHeaders()
         #expect(second.first?.value == "Bearer second")
     }
+
+    @Test("A provider that does not override the refresh seam declines to refresh")
+    func refreshSeamDefaultsToDeclining() async {
+        let provider = BearerCredentialProvider { "abc" }
+
+        let refreshed = await provider.credentialHeaders(
+            afterRejection: CredentialRejectedError(code: .invalid)
+        )
+
+        #expect(refreshed == nil)
+    }
+
+    @Test("An overriding provider supplies replacement headers")
+    func refreshSeamOverrideSuppliesHeaders() async {
+        let provider = RefreshingProvider(refreshedTo: "fresh")
+
+        let refreshed = await provider.credentialHeaders(
+            afterRejection: CredentialRejectedError(code: .invalid)
+        )
+
+        #expect(refreshed?.count == 1)
+        #expect(refreshed?.first?.field == "Authorization")
+        #expect(refreshed?.first?.value == "Bearer fresh")
+    }
 }
 
 /// A mutable token source — models an app session whose credential rotates between requests.
@@ -66,5 +90,21 @@ private actor TokenVault {
 
     func rotate(to newToken: String?) {
         token = newToken
+    }
+}
+
+/// A provider that returns fresh replacement headers when asked after a rejection.
+private struct RefreshingProvider: ClientCredentialProvider {
+    let vault = TokenVault(token: nil)
+    let refreshedTo: String
+
+    func credentialHeaders() async throws -> [(field: String, value: String)] {
+        guard let token = await vault.token else { return [] }
+        return [(field: "Authorization", value: "Bearer \(token)")]
+    }
+
+    func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]? {
+        await vault.rotate(to: refreshedTo)
+        return [(field: "Authorization", value: "Bearer \(refreshedTo)")]
     }
 }

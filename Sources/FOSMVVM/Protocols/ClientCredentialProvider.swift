@@ -60,6 +60,45 @@ public protocol ClientCredentialProvider: Sendable {
     ///     ``MVVMEnvironment/requestErrorHandler`` handles only typed
     ///     `ServerRequestError`s
     func credentialHeaders() async throws -> [(field: String, value: String)]
+
+    /// The replacement headers to retry with after the server refused the last set
+    ///
+    /// Called when a request fails with ``CredentialRejectedError``. Refresh your
+    /// credential and return its headers to have the request retried once with
+    /// them; return `nil` — the default — and the rejection throws to the caller
+    /// unchanged.
+    ///
+    /// ```swift
+    /// func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]? {
+    ///     guard afterRejection.code == .invalid else { return nil }
+    ///     guard let token = await SessionStore.shared.refreshAccessToken() else { return nil }
+    ///     return [(field: "Authorization", value: "Bearer \(token)")]
+    /// }
+    /// ```
+    ///
+    /// - Important: **Persist the refreshed credential** — returning it is not enough.
+    ///     The returned headers are used for this one retry; every later request, and
+    ///     every live-channel reconnect, calls ``credentialHeaders()`` instead. A
+    ///     provider that returns a fresh credential without storing it keeps handing
+    ///     out the refused one.
+    /// - Important: Several screens can be refused at once — each bound ViewModel
+    ///     issues its own request and is refused independently. Coalesce concurrent
+    ///     refreshes (single-flight) inside your provider; this method may be called
+    ///     several times in quick succession with the same rejection.
+    /// - Parameter afterRejection: The rejection the server returned, so a provider
+    ///     can distinguish a missing credential from an invalid one
+    /// - Returns: Headers to retry the request with once, or `nil` when no fresh
+    ///     credential is available — the rejection then throws to the caller
+    func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]?
+}
+
+public extension ClientCredentialProvider {
+    func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]? {
+        // A *requirement* with a default, not an extension-only method: `MVVMEnvironment`
+        // holds the provider as `(any ClientCredentialProvider)?`, and an extension-only
+        // method binds to the default through the existential — the override would never run.
+        nil
+    }
 }
 
 /// The stock ``ClientCredentialProvider`` for `Authorization: Bearer` authentication
@@ -71,6 +110,10 @@ public protocol ClientCredentialProvider: Sendable {
 ///
 /// When the closure yields `nil` — the user is signed out, no token has been
 /// issued yet — no headers are produced and the request proceeds unauthenticated.
+///
+/// This provider never refreshes on rejection: a refused credential throws to the
+/// caller. To recover from server-side rotation, conform your own type and implement
+/// ``ClientCredentialProvider/credentialHeaders(afterRejection:)``.
 ///
 /// ## Example
 ///
