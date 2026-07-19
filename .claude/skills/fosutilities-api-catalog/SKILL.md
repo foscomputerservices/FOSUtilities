@@ -51,7 +51,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Container-scoped authorization — declaring containers, grant verbs, who may touch which records → `FOSMVVM.md § Protocols`
 - Client-chosen sort or pagination on a request → `FOSMVVM.md § Protocols`
 - Live-updating screens that refresh when server data changes (`@ViewModel(options: [.live])`), or replacing the invalidation transport → `FOSMVVM.md § Protocols`, `FOSMVVMVapor.md § Live Invalidation`
-- Attaching auth headers (bearer token, API key) to every client request, rotation-safe → `FOSMVVM.md § Protocols`
+- Attaching auth headers (bearer token, API key) to every client request, rotation-safe — or recovering when the server refuses one (refresh the credential and retry the request once) → `FOSMVVM.md § Protocols`
 - Declaring the data a server-rendered body needs — composable factory, load requirements, rooted scopes → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`

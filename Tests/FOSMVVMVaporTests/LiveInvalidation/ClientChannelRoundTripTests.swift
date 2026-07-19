@@ -144,6 +144,100 @@ struct ClientChannelRoundTripTests {
             #expect(await log.events.isEmpty)
         }
     }
+
+    /// A 401 open is the credential being refused: the channel consults the seam
+    /// (`credentialHeaders(afterRejection:)`) so the provider can refresh and persist. The channel
+    /// carries no credential state; the reconnect below re-consults `credentialHeaders()`.
+    @Test func openRefusedWith401ConsultsCredentialSeam() async throws {
+        try await withServedFluentTestApp { app in
+            app.invalidationHeartbeatInterval = .milliseconds(200)
+            let denied = app.grouped(DenyAllMiddleware())
+            try configureLiveHarbor(app, on: denied)
+        } _: { _, baseURL in
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+
+            let sleeps = SleepRecorder()
+            let refreshes = RequestTally()
+            let channel = SSEInvalidationChannel(
+                baseURL: { baseURL },
+                credentialProvider: RefreshingCredentialProvider(
+                    vault: TokenVault(token: "stale"),
+                    refreshedTo: "rotated",
+                    refreshTally: refreshes
+                ),
+                session: session,
+                sleep: { await sleeps.record($0) },
+                initialBackoff: .milliseconds(1),
+                maxBackoff: .milliseconds(8)
+            )
+
+            let log = EventLog()
+            let consumer = Task {
+                for await event in channel.events() {
+                    await log.record(event)
+                }
+            }
+
+            // Wait until several real 401 opens have happened (each drives a back-off), then stop.
+            try await withTimeout(.seconds(15)) {
+                while await sleeps.durations.count < 3 {
+                    try await Task.sleep(for: .milliseconds(10))
+                }
+            }
+            consumer.cancel()
+
+            // Each 401 open consults the seam; the reconnect loop runs indefinitely, so assert a
+            // lower bound, never equality (the count keeps climbing while the channel lives).
+            #expect(await refreshes.count >= 1)
+        }
+    }
+
+    /// A 500 open is a server error, NOT a credential refusal: the channel still reconnects
+    /// (back-off) but never consults the credential seam.
+    @Test func openRefusedWith500DoesNotConsultCredentialSeam() async throws {
+        try await withServedFluentTestApp { app in
+            app.invalidationHeartbeatInterval = .milliseconds(200)
+            let denied = app.grouped(Deny500Middleware())
+            try configureLiveHarbor(app, on: denied)
+        } _: { _, baseURL in
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+
+            let sleeps = SleepRecorder()
+            let refreshes = RequestTally()
+            let channel = SSEInvalidationChannel(
+                baseURL: { baseURL },
+                credentialProvider: RefreshingCredentialProvider(
+                    vault: TokenVault(token: "stale"),
+                    refreshedTo: "rotated",
+                    refreshTally: refreshes
+                ),
+                session: session,
+                sleep: { await sleeps.record($0) },
+                initialBackoff: .milliseconds(1),
+                maxBackoff: .milliseconds(8)
+            )
+
+            let log = EventLog()
+            let consumer = Task {
+                for await event in channel.events() {
+                    await log.record(event)
+                }
+            }
+
+            // Reconnects still happen on 500 (back-off), so wait for a few to prove the channel is
+            // actively retrying — THEN assert the seam was never consulted.
+            try await withTimeout(.seconds(15)) {
+                while await sleeps.durations.count < 3 {
+                    try await Task.sleep(for: .milliseconds(10))
+                }
+            }
+            consumer.cancel()
+
+            #expect(await refreshes.count == 0)
+        }
+    }
 }
 
 // MARK: - Helpers
@@ -177,6 +271,13 @@ private struct CapturingMiddleware: AsyncMiddleware {
 private struct DenyAllMiddleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         Response(status: .unauthorized)
+    }
+}
+
+/// Answers every request 500 — a server-error stand-in that must NOT be read as a credential refusal.
+private struct Deny500Middleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+        Response(status: .internalServerError)
     }
 }
 
