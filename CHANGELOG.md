@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.10.0] - 2026-07-19
+
 ### Added
 
 - **`ClientCredentialProvider.credentialHeaders(afterRejection:)`** (FOSMVVM) — a refresh
@@ -457,7 +461,8 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.9.0...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.0...HEAD
+[0.10.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.6.0...0.7.0
