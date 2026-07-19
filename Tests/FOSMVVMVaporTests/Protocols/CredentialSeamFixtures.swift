@@ -78,3 +78,60 @@ final class ShowOperationFailureRequest: ServerRequest, @unchecked Sendable {
         self.responseBody = responseBody
     }
 }
+
+/// A mutable token source — models an app session whose credential rotates between requests.
+/// (Mirrors the helper in `ClientCredentialProviderTests` — separate test targets, same shape.)
+actor TokenVault {
+    var token: String?
+
+    init(token: String?) {
+        self.token = token
+    }
+
+    func rotate(to newToken: String?) {
+        token = newToken
+    }
+}
+
+/// Counts the requests the server actually served.
+actor RequestTally {
+    private(set) var count = 0
+
+    func increment() {
+        count += 1
+    }
+}
+
+/// The server's current good credential — rotates to model a server restart.
+actor ServerCredential {
+    private var current: String
+
+    init(current: String) {
+        self.current = current
+    }
+
+    func isCurrent(_ token: String) -> Bool {
+        token == current
+    }
+}
+
+/// A client provider that refreshes on rejection and **persists** the refreshed value,
+/// so a later `credentialHeaders()` yields it too (spec §4.1).
+struct RefreshingCredentialProvider: ClientCredentialProvider {
+    let vault: TokenVault
+    let refreshedTo: String?
+    let refreshTally: RequestTally
+
+    func credentialHeaders() async throws -> [(field: String, value: String)] {
+        guard let token = await vault.token else { return [] }
+        return [(field: "Authorization", value: "Bearer \(token)")]
+    }
+
+    func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]? {
+        await refreshTally.increment()
+        guard let refreshedTo else { return nil }
+        await vault.rotate(to: refreshedTo)
+
+        return [(field: "Authorization", value: "Bearer \(refreshedTo)")]
+    }
+}

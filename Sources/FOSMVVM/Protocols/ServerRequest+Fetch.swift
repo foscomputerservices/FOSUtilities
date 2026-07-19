@@ -178,9 +178,29 @@ public extension ServerRequest {
     @discardableResult
     internal func processRequestCapturingRegistrations(mvvmEnv: MVVMEnvironment) async throws -> [ModelIdentity] {
         do {
+            // Composition sits outside the retry-aware `do`: a rejection thrown by the provider
+            // itself is a client-side failure, not a server refusal, and must not open the
+            // refresh seam.
             let headers = try await credentialedRequestHeaders(mvvmEnv: mvvmEnv)
 
-            return try await sendCapturingRegistrations(headers: headers, mvvmEnv: mvvmEnv)
+            do {
+                return try await sendCapturingRegistrations(headers: headers, mvvmEnv: mvvmEnv)
+            } catch let rejection as CredentialRejectedError {
+                guard
+                    let provider = mvvmEnv.clientCredentialProvider,
+                    let refreshed = await provider.credentialHeaders(afterRejection: rejection)
+                else {
+                    throw rejection
+                }
+
+                // Exactly one retry. A second rejection falls to the outer arm and reaches the
+                // caller; a non-rejection `ServerRequestError` falls to the outer arm, which
+                // `catch` clauses cannot do on their own (they do not chain).
+                return try await sendCapturingRegistrations(
+                    headers: staticRequestHeaders(mvvmEnv: mvvmEnv) + refreshed,
+                    mvvmEnv: mvvmEnv
+                )
+            }
         } catch let rejection as CredentialRejectedError {
             // A surface rejection always reaches the caller — recovery
             // (refresh credential, retry) is a call-site decision.
