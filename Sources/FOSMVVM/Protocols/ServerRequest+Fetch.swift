@@ -178,26 +178,9 @@ public extension ServerRequest {
     @discardableResult
     internal func processRequestCapturingRegistrations(mvvmEnv: MVVMEnvironment) async throws -> [ModelIdentity] {
         do {
-            var headers = [(field: String, value: String)]()
-            if ResponseBody.self == EmptyBody.self {
-                headers.append((field: "Accept", value: "text/plain"))
-            }
-            for (key, value) in mvvmEnv.requestHeaders {
-                headers.append((field: key, value: value))
-            }
+            let headers = try await credentialedRequestHeaders(mvvmEnv: mvvmEnv)
 
-            // Credential headers append AFTER the static requestHeaders: headers apply to the
-            // URLRequest in order (setValue), so on a duplicate field the per-request
-            // credential wins.
-            if let credentialProvider = mvvmEnv.clientCredentialProvider {
-                headers += try await credentialProvider.credentialHeaders()
-            }
-
-            return try await processRequestCapturingRegistrations(
-                baseURL: mvvmEnv.serverBaseURL,
-                headers: headers,
-                session: mvvmEnv.session
-            ).registrations
+            return try await sendCapturingRegistrations(headers: headers, mvvmEnv: mvvmEnv)
         } catch let rejection as CredentialRejectedError {
             // A surface rejection always reaches the caller — recovery
             // (refresh credential, retry) is a call-site decision.
@@ -210,6 +193,47 @@ public extension ServerRequest {
                 throw error
             }
         }
+    }
+}
+
+private extension ServerRequest {
+    /// The static headers: `Accept` (when the response carries no body) followed by
+    /// `MVVMEnvironment.requestHeaders`.
+    func staticRequestHeaders(mvvmEnv: MVVMEnvironment) -> [(field: String, value: String)] {
+        var headers = [(field: String, value: String)]()
+        if ResponseBody.self == EmptyBody.self {
+            headers.append((field: "Accept", value: "text/plain"))
+        }
+        for (key, value) in mvvmEnv.requestHeaders {
+            headers.append((field: key, value: value))
+        }
+
+        return headers
+    }
+
+    /// The static headers with the provider's credential appended.
+    func credentialedRequestHeaders(mvvmEnv: MVVMEnvironment) async throws -> [(field: String, value: String)] {
+        var headers = staticRequestHeaders(mvvmEnv: mvvmEnv)
+        // Credential headers append AFTER the static requestHeaders: headers apply to the
+        // URLRequest in order (setValue), so on a duplicate field the per-request
+        // credential wins.
+        if let credentialProvider = mvvmEnv.clientCredentialProvider {
+            headers += try await credentialProvider.credentialHeaders()
+        }
+
+        return headers
+    }
+
+    /// One send of this request with exactly these headers.
+    func sendCapturingRegistrations(
+        headers: [(field: String, value: String)],
+        mvvmEnv: MVVMEnvironment
+    ) async throws -> [ModelIdentity] {
+        try await processRequestCapturingRegistrations(
+            baseURL: mvvmEnv.serverBaseURL,
+            headers: headers,
+            session: mvvmEnv.session
+        ).registrations
     }
 }
 
