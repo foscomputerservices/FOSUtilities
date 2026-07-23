@@ -1,7 +1,7 @@
 {
   "name": "fosmvvm-generators",
   "description": "FOSMVVM architecture generators for ViewModels, Fields, DataModels, ServerRequests, Leaf Views, and ViewModel Tests",
-  "version": "2.17.0",
+  "version": "2.18.0",
   "author": {
     "name": "FOS Computer Services"
   },

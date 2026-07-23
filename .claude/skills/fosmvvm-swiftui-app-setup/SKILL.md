@@ -1,6 +1,6 @@
 ---
 name: fosmvvm-swiftui-app-setup
-description: Set up the @main App struct for FOSMVVM SwiftUI apps. Configures MVVMEnvironment, deployment URLs, and test infrastructure.
+description: Set up the @main App struct for FOSMVVM SwiftUI apps. Configures MVVMEnvironment, deployment URLs, client-hosted localization (resourceBundles, missingLocalizationStore/noResourcePaths symptoms), and test infrastructure.
 homepage: https://github.com/foscomputerservices/FOSUtilities
 metadata: {"clawdbot": {"emoji": "🚀", "os": ["darwin"]}}
 ---
@@ -559,6 +559,9 @@ deploymentURLs: [Deployment: MVVMEnvironment.URLPackage]()
 
 Do not invent placeholder URLs. An empty dictionary is the correct expression of "this app talks to no server."
 
+Any app with client-hosted ViewModels — wholly client-hosted or mixed — must also wire up
+client-side localization resources; see "Client-Hosted Localization" below.
+
 ### Canonical app-target imports
 
 The App struct file's import set is small and stable:
@@ -572,6 +575,113 @@ import {SharedModule}              // typically `ViewModels`
 ```
 
 If the App struct references types from `Models` or other implementation-side targets at top level, that is a smell — App-level wiring should go through the shared module.
+
+## Client-Hosted Localization
+
+**Read this before adding the app's FIRST `@ViewModel(options: [.clientHostedFactory])`
+ViewModel** — whether the app is wholly client-hosted or a server-hosted app gaining one
+client-hosted screen. Every failure below compiles clean and breaks at runtime, far from
+the missing configuration.
+
+### The concept — who resolves the strings
+
+- A **server-hosted** ViewModel is localized **on encode**: the client receives an
+  already-localized ViewModel and needs **no** localization resources at all.
+- A **client-hosted** ViewModel resolves its `@LocalizedString`s **on the client, at bind
+  time**, via `MVVMEnvironment.clientLocalizationStore` — which is built lazily from the
+  environment's `resourceBundles`
+  ([MVVMEnvironment.swift:170-178](../../../Sources/FOSMVVM/SwiftUI%20Support/MVVMEnvironment.swift)).
+  If no configured bundle carries the ViewModel's YAML, resolution fails.
+
+**Symptoms when the YAML isn't reachable:**
+- **App at runtime:** `ViewModelViewError.missingLocalizationStore` /
+  `YamlStoreError.noResourcePaths` surfaces on the client-hosted bind path
+  ([ViewModelView.swift:588-589](../../../Sources/FOSMVVM/SwiftUI%20Support/ViewModelView.swift))
+  — printed as `ViewModel Bind Error:`, after which the view silently falls back to `.stub()`.
+- **Tests:** `YamlStoreError.noResourcePaths` from `loadLocalizationStore`.
+
+A server-hosted app has needed none of this, so its `MVVMEnvironment` legitimately has no
+`resourceBundles` — the first client-hosted ViewModel is exactly when the gap fires.
+
+### The resource-carrying framework (overlay-based Xcode apps)
+
+`Bundle.main` works for a fresh SwiftUI app (YAML in the app target); `Bundle.module` works
+for SPM. **Neither applies when the app overlays shared source** via synchronized folders
+(`PBXFileSystemSynchronizedRootGroup`) from a directory outside the app project. There, the
+client YAML must ride a **framework target** that ships the `.yml` files and exposes its own
+bundle via the `ResourceAccess` pattern (`Bundle(for:)` form — see "ResourceAccess.swift —
+the two forms" above), fed to the environment:
+
+```swift
+MVVMEnvironment(
+    appBundle: .main,
+    resourceBundles: [ClientViewModelsResourceAccess.localizationBundle],
+    // no resourceDirectoryName — see the flattening gotcha below
+    ...
+)
+```
+
+**Naming:** call the accessor `localizationBundle` (the established convention). Never name
+it `clientLocalizationStore` — that collides with FOSMVVM's
+`MVVMEnvironment.clientLocalizationStore: LocalizationStore?` (different type, same name →
+confusing call sites).
+
+### New-framework-target checklist (Xcode template defaults are wrong)
+
+When client-hosted ViewModels live in their own Xcode **framework** target, Xcode's template
+leaves it mis-configured in ways the compiler won't catch. Set all five:
+
+1. **`DEVELOPMENT_TEAM`** — the template leaves it **empty** (does not inherit the app's
+   team) → ad-hoc signing → the FOS frameworks it embeds carry a **different Team ID** than
+   the app → macOS hardened-runtime library validation refuses the load at test time:
+   `"…FOSFoundation.framework … not valid for use in process: … different Team IDs"`.
+   **The error blames the FOS framework, not the mis-signed framework target** — hours lost
+   if you don't know. Set it to the app's team.
+2. **`BUILD_LIBRARY_FOR_DISTRIBUTION = NO`** — with `YES`, `@ViewModel`/`@LocalizedString`
+   macro expansions can't be represented in the generated `.swiftinterface`:
+   `unknown attribute 'MyVM.LocalizedString'`.
+3. **Deployment targets** aligned to the app (template defaults lower).
+4. **`SWIFT_VERSION = 6.0`** (template defaults to Swift 5).
+5. **Link and embed `SPMLibraries` only** — never add FOSFoundation/FOSMVVM to the framework
+   directly; that compiles a second copy of the FOS types → `TypeA != TypeA` across target
+   boundaries (see "The SPMLibraries umbrella" — this is the LSP/type-identity rule).
+
+### The resource-flattening gotcha (`resourceDirectoryName`)
+
+Xcode **flattens** a framework target's grouped resources into the bundle's resource
+**root** — on-disk `Resources/ViewModels/Foo.yml` lands at `…/Resources/Foo.yml`, not under
+a `ViewModels/` subdirectory. Consequences:
+
+- **In `MVVMEnvironment`, pass NO `resourceDirectoryName`.** `nil` coalesces to `""`
+  ([MVVMEnvironment.swift:174-176](../../../Sources/FOSMVVM/SwiftUI%20Support/MVVMEnvironment.swift)),
+  and the YAML search **recurses** from the bundle's resource roots
+  (`findFiles` walks the whole tree —
+  [URL+Files.swift:23-37](../../../Sources/FOSFoundation/Networking/URL%2BFiles.swift);
+  roots at
+  [YamlLocalizationStore.swift:103-113](../../../Sources/FOSMVVM/Localization/YamlLocalizationStore.swift)).
+  Passing the on-disk subfolder name (`"ViewModels"`) silently searches a path that does not
+  exist in the built bundle → zero files → `.noResourcePaths`.
+- **In tests, pass the empty string explicitly:**
+  `loadLocalizationStore(bundle: …, resourceDirectoryName: "")`. The parameter **defaults to
+  `"Resources"`**
+  ([LocalizableTestCase.swift:54](../../../Sources/FOSTesting/LocalizableTestCase.swift)),
+  which works on macOS (`Contents/Resources/Resources` exists for SPM test bundles) but
+  throws `.noResourcePaths` on iOS's **flat** bundles. `""` recurses and is correct on
+  **both** platforms.
+
+### Testing reality: run client-VM-framework tests on the iOS Simulator
+
+`xcodebuild build-for-testing` on **macOS** fails at link time (`Ld <framework>`) when a
+framework target links the SPM package products: with test targets in the graph, the FOS
+products build as separate dynamic `PackageFrameworks/*.framework`s, `SPMLibraries` no
+longer *contains* the FOS symbols, and the framework can't resolve them (undefined FOS
+symbols). This is a **shared Xcode limitation** — it reproduces identically across multiple
+independent FOSMVVM projects, so do not debug it as a project bug. The **iOS Simulator**
+builds, links, loads, and passes cleanly (including `expectTranslations`); the macOS **app**
+still builds — only *build-for-testing* is affected.
+
+**Default the test plans/schemes for client-VM frameworks to an iOS Simulator destination**
+and note why in the scheme or test docs.
 
 ## Server-Hosted ViewModel Contract Wiring (Both Sides)
 
@@ -840,3 +950,4 @@ Expect `Signature=adhoc`, `TeamIdentifier=not set` — that is the trigger condi
 | 1.7 | 2026-07-02 | Fold in the build-verified [`fosmvvm-app-project-template.md`](../../docs/work/fosmvvm-app-project-template.md) (copied into this repo): Option-A source inclusion, singular `BUILD_LIBRARY_FOR_DISTRIBUTION` (fixed the plural no-op typo throughout), `{Base}UnitTests`/`{Base}UITests` naming, `TEST_HOST` pin, app-hosted tests, `supportedDestinations`, `.xctestplan` caveat (C3). `.testHost()` no-arg baseline + `underTest` detection via `launchEnvironment` (`__FOS_ViewModel`) not `arguments.count` — verified against `ViewModelViewTestCase.presentView` (C4). "Lifecycle: scaffolds not maintains" — synchronized folders, commit the `.xcodeproj`, keep strict-concurrency (C5). Reinforced `SystemVersion+<App>.swift` naming (C6). |
 | 1.8 | 2026-07-02 | Add "Seed the App's `CLAUDE.md`": recommend the scaffolded app repo adopt a "SOLID Is the Foundation" project-conventions entry (drop-in template) so downstream apps inherit FOSMVVM's SOLID discipline and point future sessions at the `fosmvvm-*` skills. |
 | 1.9 | 2026-07-03 | Wire in the FOSUtilities API catalog: pointer to `../shared/api-catalog/FOSMVVM.md` (§ SwiftUI Support, § Versioning) near the top, and an "API Discovery" drop-in for the seeded app `CLAUDE.md` referencing the `fosutilities-api-catalog` skill by name only (never a filesystem path — the catalog lives in the installed plugin). |
+| 1.10 | 2026-07-23 | Add "Client-Hosted Localization" (field feedback from standing up a first `.clientHostedFactory` VM in an overlay-based Xcode app): encode-time vs bind-time localization concept + `missingLocalizationStore`/`noResourcePaths` symptoms; the resource-carrying framework pattern for overlay projects; the five framework-target settings (`DEVELOPMENT_TEAM`, `BUILD_LIBRARY_FOR_DISTRIBUTION`, deployment targets, `SWIFT_VERSION`, SPMLibraries-only linking); the Xcode resource-flattening gotcha (`resourceDirectoryName` nil ⇒ `""` recurses; tests must pass `""`, not the `"Resources"` default); client-VM-framework tests default to the iOS Simulator (macOS build-for-testing PackageFrameworks link failure); `localizationBundle` naming (never `clientLocalizationStore`). All claims verified against `MVVMEnvironment.swift` / `YamlLocalizationStore.swift` / `URL+Files.swift` / `LocalizableTestCase.swift` / `ViewModelView.swift`. |
