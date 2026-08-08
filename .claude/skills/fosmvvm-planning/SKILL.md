@@ -5,6 +5,10 @@ description: Plan FOSMVVM implementation work with a design-first, DocC-first ga
 
 # FOSMVVM Planning
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+>
+> **This skill is the front-end of [`shared/execution-model.md`](../shared/execution-model.md)** — the plan you emit is a traversal of that rule set: which arguments changed, which subtree is stale, which generator skills run in which order.
+
 Plan FOSMVVM work in the order that catches the expensive mistakes **before** they reach code.
 
 ## Conceptual Foundation

@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "🗄️", "os": ["darwin", "linux"]}}
 
 # FOSMVVM Fluent DataModel Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate Fluent DataModels for server-side persistence following FOSMVVM architecture.
 
 > **Dependency:** This skill uses [fosmvvm-fields-generator](../fosmvvm-fields-generator/SKILL.md) for the Fields layer (protocol, messages, YAML). Run that skill first for form-backed models.

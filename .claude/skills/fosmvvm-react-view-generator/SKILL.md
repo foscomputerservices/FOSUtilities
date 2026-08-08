@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "⚛️", "os": ["darwin", "linux"]}}
 
 # FOSMVVM React View Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate React components that render FOSMVVM ViewModels.
 
 ## Conceptual Foundation

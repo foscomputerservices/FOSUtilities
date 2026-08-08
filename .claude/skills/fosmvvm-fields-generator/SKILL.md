@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "📋", "os": ["darwin", "linux"]}}
 
 # FOSMVVM Fields Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate Form Specifications following FOSMVVM patterns.
 
 ## Conceptual Foundation
@@ -37,6 +39,8 @@ This ensures:
 - **Consistent validation** - Same rules on client and server
 - **Shared localization** - One YAML file, used everywhere
 - **Single source of truth** - Change once, applies everywhere
+
+> ← **Functional discipline:** one input, three projections; duplicating the definition forks the input layer.
 
 ### Connection to FOSMVVM
 

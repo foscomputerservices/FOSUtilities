@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "🔌", "os": ["darwin", "linux"]}}
 
 # FOSMVVM ServerRequest Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate ServerRequest types for client-server communication.
 
 > **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)
@@ -38,6 +40,8 @@ Generate ServerRequest types for client-server communication.
 ```
 
 ### What You Must NEVER Do
+
+> ← **Functional discipline:** the transport is part of the projection function, not per-call-site output — hand-rolling HTTP re-implements the function at every call site.
 
 ```swift
 // ❌ WRONG - hardcoded URL

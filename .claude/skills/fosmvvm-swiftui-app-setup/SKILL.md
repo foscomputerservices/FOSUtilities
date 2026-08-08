@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "🚀", "os": ["darwin"]}}
 
 # FOSMVVM SwiftUI App Setup
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate the main App struct for a SwiftUI application using FOSMVVM architecture.
 
 ## Conceptual Foundation

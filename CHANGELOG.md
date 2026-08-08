@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **Functional-discipline layer** (fosmvvm-generators plugin, 2.19.0) — a SessionStart
+  hook injects the FOSMVVM axiom — *f(requirements, architecture, ui design) → Source
+  Code* — at token zero of every consuming session, so adopting projects hold the frame
+  from 'go'. The ratified discipline preamble ships at `shared/functional-discipline.md`;
+  all 13 `fosmvvm-*` skills open with its read-imperative and carry per-rule derivation
+  lines. `shared/execution-model.md` maps the composition of f — the rule set
+  (artifact ← inputs [skill]), the dispatch table (change type → stale subtree), halt
+  states, and the dual-channel test rule with coverage closure — with six owner-ratified
+  rulings recorded in `.claude/docs/execution-model-rulings.md`. A frozen litmus suite
+  (`shared/litmus/`, scenarios A–D, with recorded baselines) qualifies the axiom and
+  skills per engine generation.
+- **`fosmvvm-behavioral-test-generator`** (fosmvvm-generators plugin, 2.20.0) — generates
+  behavioral test suites projected from requirements + ratified design by an **isolated**
+  writer subagent that has never seen the implementation (the second channel of f);
+  ambiguities return as UNRATIFIED clarifications for the owner instead of silent
+  decisions. Qualified by an executed two-seed litmus: a dropped requirement and a
+  mishandled failure mode both went red, and the suite went all-green against a corrected
+  implementation. `fosmvvm-review` gains `stub-vocabulary` and `stub-leakage` blocker
+  checks: stub data draws exclusively from the reserved-fake vocabulary (Flintstones
+  names/data, numbers at/near ±42, dates around 1914) — self-marking fiction, never
+  plausible-real placeholders, and never the answer to a requirements gap.
 
 ## [0.10.1] - 2026-08-08
 

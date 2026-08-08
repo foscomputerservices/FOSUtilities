@@ -6,6 +6,8 @@ homepage: https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documen
 
 # FOSMVVM Code Review
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Reviews FOSMVVM-area Swift files against per-area check files in `checks/`. Designed for both interactive use and CI integration.
 
 ## When to Use This Skill

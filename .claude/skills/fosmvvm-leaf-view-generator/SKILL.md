@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "🍃", "os": ["darwin", "linux"]}}
 
 # FOSMVVM Leaf View Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate Leaf templates that render ViewModels for web clients.
 
 > **Architecture context:** See [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) | [OpenClaw reference]({baseDir}/references/FOSMVVMArchitecture.md)

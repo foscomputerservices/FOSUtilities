@@ -4,6 +4,8 @@ generator-skill: none
 where:
   - "Sources/**/*.swift"
   - "Tests/**/*.swift"
+  - "**/*.yml"
+  - "**/*.yaml"
 ---
 
 # Cross-Cutting Checks
@@ -75,3 +77,31 @@ catch DataFetchError.badStatus(401) {
 #expect(encoded == #"{"namespace":"User","id":"…"}"#)       // asserts exact encode bytes
 ```
 **Detection:** Find `#expect`/`XCTAssert` comparing an encoded value or a derived token against an exact literal string/JSON shape. Flag unless it is a *decode* forward-compat fixture (decode a committed blob → round-trips) rather than an *encode*-shape assertion.
+
+## Check: stub-vocabulary
+**Severity:** blocker
+**What:** `stub()` / `Stubbable` placeholder data must come from the reserved-fake vocabulary — Flintstones names and data ("Fred Flintstone", "Bedrock"), numbers at or near ±42, dates around 1914. Stub data must be SELF-MARKING: obviously fiction, implausible as production data. Plausible-real placeholders are the failure — once committed, a tester cannot discern them from real data, and they acquire de facto ratification by persistence.
+**Anti-pattern:**
+```swift
+static func stub() -> Self {
+    .init(userName: "Test User", memberSinceYear: 2020, projectCount: 3)
+}
+```
+"Test User" and 2020 are plausible; nothing marks them as fiction.
+**Correct:**
+```swift
+static func stub() -> Self {
+    .init(userName: "Fred Flintstone", memberSinceYear: 1914, projectCount: 42)
+}
+```
+**Detection:** In `stub()` implementations and `Stubbable` conformances, flag placeholder values that read as plausible-real: names outside the vocabulary, contemporary dates, realistic emails/phones/addresses, sample data copied from a ratified design (design sample data never becomes a value — anywhere).
+
+## Check: stub-leakage
+**Severity:** blocker
+**What:** `stub()` call sites, or reserved-vocabulary values, appearing outside preview/test contexts — production code paths, localization YAML values, migration defaults, Factory fallbacks. Either a stub call leaked, or a fabricated value was hand-copied to where real or ratified data belongs. The most common source: a stub value silently answering a requirements gap — that situation requires an UNRATIFIED candidate to the owner, never a placeholder (a stub value at a missing argument is silent substitution wearing framework syntax).
+**Anti-pattern:**
+```swift
+// Production Factory fallback
+let name = user?.displayName ?? "Fred Flintstone"
+```
+**Detection:** Find `.stub()` call sites outside `#Preview` bodies, preview providers, and test targets. Grep scoped production sources, localization YAML values, and migrations for vocabulary markers — Flintstones names ("Flintstone", "Rubble", "Bedrock", "Slate") and 1914-era dates are strong signals anywhere; ±42 numbers are a signal only in defaults/fallbacks (42 alone is too common to flag bare). Flag each hit with which artifact it contaminates.

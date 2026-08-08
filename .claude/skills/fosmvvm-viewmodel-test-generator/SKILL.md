@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "🔬", "os": ["darwin", "linux"]}}
 
 # FOSMVVM ViewModel Test Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate test files for ViewModels following FOSMVVM testing patterns.
 
 ## Conceptual Foundation

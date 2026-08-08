@@ -2,6 +2,8 @@
 
 Mental models for working with FOSMVVM. Reference this when you find yourself creating abstractions or over-engineering.
 
+> **Governing frame:** [`functional-discipline.md`](functional-discipline.md) — every pattern below is a corollary of it.
+
 ---
 
 ## Trust the Type System

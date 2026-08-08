@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "🏗️", "os": ["darwin", "linux"]}}
 
 # FOSMVVM ViewModel Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate ViewModels following FOSMVVM architecture patterns.
 
 ## Conceptual Foundation
@@ -663,6 +665,8 @@ This asymmetry with server-backed stubs (which expose `Called` + `CalledWith` ac
 
 **Note on the AppState/scalar split.** The ViewModel holds scalars (`notificationsEnabled: Bool`, `theme: Theme`), **not** a reference to `UserSettings`. At the call site the View holds `@Environment(UserSettings.self)` and hands the reference directly to the op — the reference never passes through the VM. See [Architecture Patterns → VMs Hold Scalars](../shared/architecture-patterns.md) for why.
 
+> ← **Functional discipline:** a captured mutable reference inside a "value" breaks referential transparency — the projection becomes a function of WHEN YOU LOOK, so equality, memoization, and serialization all quietly lie: a closure masquerading as data. A cache that references the thing it caches is not a cache.
+
 ---
 
 ## When to Use This Skill
@@ -1159,6 +1163,8 @@ public struct ProjectListViewModel {
 ### Codable and Computed Properties
 
 Swift's synthesized `Codable` only encodes **stored properties**. Since ViewModels are serialized (for JSON transport, Leaf rendering, etc.), computed properties won't be available.
+
+> ← **Functional discipline:** derived values are projected INTO the artifact at projection time; the wire carries the function's output, not the function.
 
 ```swift
 // Computed - NOT encoded, invisible after serialization

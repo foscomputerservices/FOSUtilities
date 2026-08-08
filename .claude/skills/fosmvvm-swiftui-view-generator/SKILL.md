@@ -7,6 +7,8 @@ metadata: {"clawdbot": {"emoji": "📱", "os": ["darwin"]}}
 
 # FOSMVVM SwiftUI View Generator
 
+> **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
+
 Generate SwiftUI views that render FOSMVVM ViewModels.
 
 ## Conceptual Foundation
@@ -39,6 +41,8 @@ In FOSMVVM, **Views are thin rendering layers** that display ViewModels:
 ```
 
 **Key principle:** Views don't transform or compute data. They render what the ViewModel provides.
+
+> ← **Functional discipline:** the View has TWO inputs: the ViewModel (data, localized text) and the ratified design (layout, interaction — which also shapes WHICH VM properties exist, never their values); requirements project the operations that bind them. The sin is projecting content from the design, or projecting anything from an artifact without truth-layer standing.
 
 ---
 
