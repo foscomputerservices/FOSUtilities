@@ -51,14 +51,12 @@ public extension View {
     ///
     /// - Parameters:
     ///   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
-    @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
+    @MainActor @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
         #if DEBUG
         decorator(
             ProcessInfo.processInfo.testConfiguration,
             AnyView(
-                TestingView(
-                    baseView: self
-                )
+                TestingView(baseView: self)
             )
         )
         #else
@@ -83,7 +81,7 @@ public extension View {
     ///    }
     /// }
     /// ```
-    func testHost() -> some View {
+    @MainActor func testHost() -> some View {
         testHost(decorator: { _, view in view })
     }
 }
@@ -138,22 +136,18 @@ extension ViewModelView {
 }
 
 #if DEBUG
+@MainActor
 private struct TestingView<BaseView: View>: View {
-    let baseView: BaseView
-    @State private var testView: AnyView?
-    @Environment(MVVMEnvironment.self) private var mvvmEnvironment
+    private let testView: AnyView
 
     var body: some View {
-        if let testView {
-            testView
-        } else {
-            baseView
-                .onAppear { // Provided by the test harness
-                    testView = ProcessInfo.processInfo.view(
-                        registeredTypes: mvvmEnvironment.registeredTestTypes
-                    )
-                }
-        }
+        testView
+    }
+
+    init(baseView: BaseView) {
+        testView = ProcessInfo.processInfo.view(
+            registeredTypes: MVVMEnvironment.registeredTestTypes
+        ) ?? AnyView(baseView)
     }
 }
 #endif
