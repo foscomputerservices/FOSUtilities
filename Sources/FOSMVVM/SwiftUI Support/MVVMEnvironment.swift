@@ -127,12 +127,12 @@ public final class MVVMEnvironment: @unchecked Sendable {
     typealias ViewFactory = @MainActor (Data) throws -> AnyView
 
     #if DEBUG
-    var registeredTestTypes: [String: ViewFactory] = [:]
+    @MainActor static var registeredTestTypes: [String: ViewFactory] = [:]
     #endif
 
-    public func registerTestView<V: ViewModelView>(_ type: V.Type) {
+    @MainActor public func registerTestView<V: ViewModelView>(_ type: V.Type) {
         #if DEBUG
-        registeredTestTypes[String(describing: V.VM.self)] = { @MainActor data in
+        Self.registeredTestTypes[String(describing: V.VM.self)] = { @MainActor data in
             try AnyView(V(viewModel: data.fromJSON()))
         }
         #endif

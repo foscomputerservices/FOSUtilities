@@ -148,7 +148,7 @@ struct {AppName}App: App {
 }
 
 private extension {AppName}App {
-    var mvvmEnv: MVVMEnvironment {
+    @MainActor var mvvmEnv: MVVMEnvironment {
         MVVMEnvironment(
             appBundle: Bundle.main,
             resourceBundles: [
@@ -251,7 +251,7 @@ struct {AppName}App: App {
 }
 
 private extension {AppName}App {
-    var mvvmEnv: MVVMEnvironment {
+    @MainActor var mvvmEnv: MVVMEnvironment {
         MVVMEnvironment(
             appBundle: Bundle.main,
             resourceBundles: [
@@ -425,8 +425,8 @@ struct MyApp: App {
 }
 
 private extension MyApp {
-    var mvvmEnv: MVVMEnvironment {
-        let env = MVVMEnvironment(
+    @MainActor var mvvmEnv: MVVMEnvironment {
+        MVVMEnvironment(
             appBundle: Bundle.main,
             resourceBundles: [
                 MyAppViewModelsResourceAccess.localizationBundle,
@@ -437,12 +437,6 @@ private extension MyApp {
                 .debug: .init(serverBaseURL: URL(string: "http://localhost:8080")!)
             ]
         )
-
-        #if DEBUG
-        env.registerTestingViews()
-        #endif
-
-        return env
     }
 }
 
@@ -954,12 +948,20 @@ React to app lifecycle events:
 }
 ```
 
-## Pattern 3: Conditional Environment Configuration
+## Pattern 3: Inline Registration (Alternative to `registerTestingViews()`)
 
-Customize MVVMEnvironment based on build configuration:
+Consolidate test view registration directly inside `mvvmEnv` instead of a separate helper.
+Because `registerTestView` writes to a `@MainActor` static, the instance doesn't matter —
+any `MVVMEnvironment` call suffices. Use this pattern when you prefer to keep all env
+configuration in one place.
+
+> **Timing requirement:** `registeredTestTypes` must be populated before `TestingView.init`
+> runs during the first `body` call. When using this pattern, access `mvvmEnv` from `init()`
+> to prime the static — for example, replace `registerTestingViews()` in `init()` with
+> `_ = mvvmEnv`.
 
 ```swift
-var mvvmEnv: MVVMEnvironment {
+@MainActor var mvvmEnv: MVVMEnvironment {
     let env = MVVMEnvironment(
         appBundle: Bundle.main,
         resourceBundles: [...],
@@ -967,7 +969,11 @@ var mvvmEnv: MVVMEnvironment {
     )
 
     #if DEBUG
-    env.registerTestingViews()
+    env.registerTestView(LandingPageView.self)
+    env.registerTestView(DashboardView.self)
+    env.registerTestView(CardView.self)
+    env.registerTestView(SettingsView.self)
+    env.registerTestView(ProfileView.self)
     #endif
 
     return env

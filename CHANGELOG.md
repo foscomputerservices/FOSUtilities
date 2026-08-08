@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **`TestingView` race condition** (FOSMVVM) — `TestingView` no longer uses `.onAppear` to
+  switch from the base view to the registered test view. The test view is now resolved in
+  `init`, before the first render, eliminating the window where XCTest could query the
+  accessibility tree and find the base view's elements instead of the test view's.
+
+### Changed
+
+- **`MVVMEnvironment.registerTestView(_:)`** (FOSMVVM, **`@MainActor`**) — the method is
+  now `@MainActor` to match the actor isolation of the underlying registry. Callers outside
+  an implicit `@MainActor` context (e.g. a free helper function that is not on the `App`
+  struct) must add `@MainActor` to the enclosing function. App-struct `init()` and helper
+  methods already annotated `@MainActor` are unaffected.
 
 ## [0.10.0] - 2026-07-19
 
