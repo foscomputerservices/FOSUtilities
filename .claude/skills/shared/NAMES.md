@@ -83,8 +83,8 @@ A DataModel/wire type and a ViewModel display type **may share a name**. Do **no
 contort a display type's name to avoid colliding with its domain counterpart.
 
 ```swift
-HarborChannel.Tier      // the wire/DataModel type (domain module)
-HarborViewModels.Tier   // the display projection (ViewModel module) — distinct type, fine
+CatalogChannel.Tier      // the wire/DataModel type (domain module)
+CatalogViewModels.Tier   // the display projection (ViewModel module) — distinct type, fine
 ```
 
 Each module *is* a Swift namespace, and the Data-vs-View context is part of the
@@ -112,7 +112,7 @@ it for *meaning* — not out of fear of the collision, which is harmless.
 | Semantic-action request | `<Noun><Action>Request` | `IdeaMoveRequest` |
 | Screen/page ViewModel read request | `<Noun>Request` | `DocksRequest` |
 | Raw-entity read request | `<Entity>ShowRequest` | `UserShowRequest` |
-| Display type colliding with a domain type | name for meaning; collision is fine | `HarborViewModels.Tier` |
+| Display type colliding with a domain type | name for meaning; collision is fine | `CatalogViewModels.Tier` |
 
 ## Red flags — STOP
 

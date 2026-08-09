@@ -4,7 +4,7 @@
 **Date:** 2026-07-03
 **Author:** David Hunt (design), with Claude (reconciliation)
 **Scope:** FOSFoundation, FOSMVVM, FOSMVVMVapor, FOSMacros
-**Related:** Port-Authority `fosutilities-improvements.md` "three architecture design passes" (this subsumes pass #1 *live `.bind()`* and pass #2 *server-hosted `ViewModelOperations` refresh-after-write*).
+**Related:** prior-art improvement notes "three architecture design passes" (this subsumes pass #1 *live `.bind()`* and pass #2 *server-hosted `ViewModelOperations` refresh-after-write*).
 
 > This is the **Architecture-is-Truth** artifact for the whole effort. It captures the full
 > vision and the decisions locked during design so the three layer-specs share one context.

@@ -1206,7 +1206,7 @@ verb (`UserCreateRequest`). Full rules: [Naming Dictionary](../shared/NAMES.md).
 
 **Duplicate type names across modules are fine — the module *is* the namespace.** Don't
 contort a ViewModel display type's name to avoid colliding with a same-named domain type.
-`HarborChannel.Tier` (domain) and a ViewModel `Tier` (display projection) coexist as
+`CatalogChannel.Tier` (domain) and a ViewModel `Tier` (display projection) coexist as
 distinct types; the `ViewModelFactory` maps between them. The display type is a
 *projection of* the data, not the data — a same-named-but-distinct type is correct, not a
 smell. Name a display type for what it **means**, not to dodge a collision. (This is the

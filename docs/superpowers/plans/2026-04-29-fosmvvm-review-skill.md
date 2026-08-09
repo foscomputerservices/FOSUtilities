@@ -819,7 +819,7 @@ Final state is the cumulative result of Tasks 1–8.
 - Auto-fix for findings (explicitly excluded by spec).
 - Canonical-pattern files in generator skills (separate follow-up against generator skills).
 - "Elevated findings" threshold tuning for the Generator Skill Signals section (planner left to use a sensible default — e.g., top-2 areas or any area with ≥3 findings).
-- Subagent parallelism cap tuning (current cap of 4 chosen to match `cirtec-arch-review`; revisit if performance dictates).
+- Subagent parallelism cap tuning (current cap of 4 chosen to match an external arch-review skill; revisit if performance dictates).
 
 ## Definition of Done
 
