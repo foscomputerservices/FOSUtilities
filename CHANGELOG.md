@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-08-10
+
 ### Added
 
 - **Functional-discipline layer** (fosmvvm-generators plugin, 2.19.0) — a SessionStart
@@ -30,6 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checks: stub data draws exclusively from the reserved-fake vocabulary (Flintstones
   names/data, numbers at/near ±42, dates around 1914) — self-marking fiction, never
   plausible-real placeholders, and never the answer to a requirements gap.
+
+### Fixed
+
+- **Per-test eager `terminate()` removed** (FOSTestingUI) — `ViewModelDisplayTestCase.setUp`
+  no longer calls `XCUIApplication.terminate()` before each test. The call duplicated
+  `XCUIApplication.launch()`'s documented contract — a launch always replaces a running
+  instance to guarantee a clean state — and a termination-confirmation hiccup under
+  distributed-CI load was recorded as an intermittent `Failed to terminate` failure
+  against the next product test to run, misattributing harness noise to consumer suites.
+  `presentView()` now solely owns and documents the fresh-instance guarantee. No API change.
 
 ## [0.10.1] - 2026-08-08
 
@@ -500,7 +512,8 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.1...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.2...HEAD
+[0.10.2]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.1...0.10.2
 [0.10.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.0...0.10.1
 [0.10.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.9.0...0.10.0
 [0.9.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.8.0...0.9.0
