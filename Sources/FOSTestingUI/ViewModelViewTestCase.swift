@@ -101,6 +101,10 @@ import XCTest
 
     /// Presents a *ViewModelView* associated with the given *ViewModel*
     ///
+    /// Each call launches a fresh instance of the application under test; if the application
+    /// is still running from a previous test, the launch replaces it
+    /// (`XCUIApplication.launch()` semantics), so no view state survives between test passes.
+    ///
     /// The *testConfiguration* name is passed to the application under test via the *testHost* function.
     /// ## Example - XCUITestCase
     ///
@@ -210,11 +214,6 @@ import XCTest
         self.locales = locales ?? [Self.en]
 
         let app = XCUIApplication(bundleIdentifier: appBundleIdentifier)
-
-        // Shutdown the application on each pass.  It is re-launched
-        // when presentView() is called so that a fresh view and
-        // view state is used on each test pass.
-        app.terminate()
         self.app = app
     }
 
