@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-11
+
 ### Changed
 
 - **`MVVMEnvironment.registerTestView(_:)` is now `static`** (FOSMVVM, **breaking**) — call it
