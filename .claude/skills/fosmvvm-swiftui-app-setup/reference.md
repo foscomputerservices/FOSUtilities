@@ -141,9 +141,7 @@ struct {AppName}App: App {
     }
 
     init() {
-        #if DEBUG
-        registerTestingViews()
-        #endif
+        MVVMEnvironment.registerTestingViews()
     }
 }
 
@@ -163,21 +161,21 @@ private extension {AppName}App {
     }
 }
 
-#if DEBUG
-private extension {AppName}App {
+private extension MVVMEnvironment {
     // Every ViewModelView is listed here to enable individualized
     // testing of each view
-    @MainActor func registerTestingViews() {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
         // Landing Page
-        mvvmEnv.registerTestView(LandingPageView.self)
+        registerTestView(LandingPageView.self)
 
         // Add all your ViewModelViews here
         // Example:
-        // mvvmEnv.registerTestView(SettingsView.self)
-        // mvvmEnv.registerTestView(DashboardView.self)
+        // registerTestView(SettingsView.self)
+        // registerTestView(DashboardView.self)
+        #endif
     }
 }
-#endif
 ```
 
 ---
@@ -244,9 +242,7 @@ struct {AppName}App: App {
     init() {
         self.appState = AppState()
 
-        #if DEBUG
-        registerTestingViews()
-        #endif
+        MVVMEnvironment.registerTestingViews()
     }
 }
 
@@ -265,13 +261,13 @@ private extension {AppName}App {
     }
 }
 
-#if DEBUG
-private extension {AppName}App {
-    @MainActor func registerTestingViews() {
-        mvvmEnv.registerTestView(LandingPageView.self)
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(LandingPageView.self)
+        #endif
     }
 }
-#endif
 ```
 
 ---
@@ -414,9 +410,7 @@ struct MyApp: App {
     init() {
         self.appState = MyAppState()
 
-        #if DEBUG
-        registerTestingViews()
-        #endif
+        MVVMEnvironment.registerTestingViews()
     }
 
     private func loadAppState() {
@@ -440,24 +434,24 @@ private extension MyApp {
     }
 }
 
-#if DEBUG
-private extension MyApp {
+private extension MVVMEnvironment {
     // Every ViewModelView is listed here to enable individualized
     // testing of each view
-    @MainActor func registerTestingViews() {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
         // Landing Page
-        mvvmEnv.registerTestView(LandingPageView.self)
+        registerTestView(LandingPageView.self)
 
         // Dashboard
-        mvvmEnv.registerTestView(DashboardView.self)
-        mvvmEnv.registerTestView(CardView.self)
+        registerTestView(DashboardView.self)
+        registerTestView(CardView.self)
 
         // Settings
-        mvvmEnv.registerTestView(SettingsView.self)
-        mvvmEnv.registerTestView(ProfileView.self)
+        registerTestView(SettingsView.self)
+        registerTestView(ProfileView.self)
+        #endif
     }
 }
-#endif
 ```
 
 ---
@@ -512,9 +506,7 @@ struct {AppName}App: App {
     #endif
 
     init() {
-        #if DEBUG
-        registerTestingViews()
-        #endif
+        MVVMEnvironment.registerTestingViews()
     }
 
     private var mvvmEnv: MVVMEnvironment {
@@ -552,14 +544,14 @@ struct {AppName}App: App {
     }
 }
 
-#if DEBUG
-private extension {AppName}App {
-    @MainActor func registerTestingViews() {
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
         // Register every ViewModelView as it is added.
-        // mvvmEnv.registerTestView(LandingPageView.self)
+        // registerTestView(LandingPageView.self)
+        #endif
     }
 }
-#endif
 ```
 
 **`Sources/{AppTarget}/{AppName}.entitlements`** — typical client-hosted contents (CloudKit + push for own-data sync only; **no** `disable-library-validation`):
@@ -809,8 +801,8 @@ MVVMEnvironment(
 |-----------|------|---------|
 | `@State private var underTest` | Property | Flag for test mode |
 | `.testHost { }` | Modifier | Test configuration handler |
-| `registerTestingViews()` | Method | Register views for testing |
-| `mvvmEnv.registerTestView()` | Method | Register individual view |
+| `MVVMEnvironment.registerTestingViews()` | Your static extension | Lists every testable view; call it from `App.init()` |
+| `MVVMEnvironment.registerTestView()` | Framework static method | Register individual view — reachable unqualified from inside the extension above (see Pattern 3) |
 
 **Important:** The `.testHost { }` modifier must be applied to the **top-level view** in your WindowGroup (the outermost view in the hierarchy). This ensures it wraps the entire view hierarchy and can properly intercept test configurations. Commonly this is a ZStack, VStack, or your root navigation view.
 
@@ -860,18 +852,22 @@ deploymentURLs: [
 ### Group Test View Registration
 
 ```swift
-@MainActor func registerTestingViews() {
-    // Landing
-    mvvmEnv.registerTestView(LandingPageView.self)
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        // Landing
+        registerTestView(LandingPageView.self)
 
-    // Dashboard
-    mvvmEnv.registerTestView(DashboardView.self)
-    mvvmEnv.registerTestView(DashboardCardView.self)
-    mvvmEnv.registerTestView(DashboardHeaderView.self)
+        // Dashboard
+        registerTestView(DashboardView.self)
+        registerTestView(DashboardCardView.self)
+        registerTestView(DashboardHeaderView.self)
 
-    // Settings
-    mvvmEnv.registerTestView(SettingsView.self)
-    mvvmEnv.registerTestView(SettingsRowView.self)
+        // Settings
+        registerTestView(SettingsView.self)
+        registerTestView(SettingsRowView.self)
+        #endif
+    }
 }
 ```
 
@@ -893,8 +889,9 @@ deploymentURLs: [
 - [ ] `.testHost { }` modifier on main view
 - [ ] Default case with `underTest` detection
 - [ ] `init()` method created
-- [ ] `registerTestingViews()` extension created
-- [ ] `registerTestingViews()` called from `init()`
+- [ ] `registerTestingViews()` created as a `static` extension on **`MVVMEnvironment`** (not on the App struct)
+- [ ] `registerTestingViews()` called from `init()` — **and from nowhere else** (not from `mvvmEnv`, `.onAppear`, or `.task`; see Pattern 3)
+- [ ] `#if DEBUG` sits **inside** `registerTestingViews()`, so the call site in `init()` stays unguarded
 - [ ] All ViewModelViews registered
 
 ## Deployment Configuration:
@@ -920,9 +917,7 @@ init() {
     // Initialize state
     self.appState = MyAppState()
 
-    #if DEBUG
-    registerTestingViews()
-    #endif
+    MVVMEnvironment.registerTestingViews()
 }
 ```
 
@@ -948,34 +943,50 @@ React to app lifecycle events:
 }
 ```
 
-## Pattern 3: Inline Registration (Alternative to `registerTestingViews()`)
+## Pattern 3: Test View Registration — `init()` Only
 
-Consolidate test view registration directly inside `mvvmEnv` instead of a separate helper.
-Because `registerTestView` writes to a `@MainActor` static, the instance doesn't matter —
-any `MVVMEnvironment` call suffices. Use this pattern when you prefer to keep all env
-configuration in one place.
+`MVVMEnvironment.registerTestView(_:)` is a **static** method, and `App.init()` is the **only** supported place to call it.
 
-> **Timing requirement:** `registeredTestTypes` must be populated before `TestingView.init`
-> runs during the first `body` call. When using this pattern, access `mvvmEnv` from `init()`
-> to prime the static — for example, replace `registerTestingViews()` in `init()` with
-> `_ = mvvmEnv`.
+`testHost()` resolves the view under test during `TestingView.init`, before the first render. Anything that registers later never arrives in time.
+
+**Correct** — gather the calls into a static extension on `MVVMEnvironment`, where they read unqualified, and call it from `init()`:
 
 ```swift
-@MainActor var mvvmEnv: MVVMEnvironment {
-    let env = MVVMEnvironment(
-        appBundle: Bundle.main,
-        resourceBundles: [...],
-        deploymentURLs: [...]
-    )
+@main struct MyApp: App {
+    init() {
+        MVVMEnvironment.registerTestingViews()
+    }
+}
 
-    #if DEBUG
-    env.registerTestView(LandingPageView.self)
-    env.registerTestView(DashboardView.self)
-    env.registerTestView(CardView.self)
-    env.registerTestView(SettingsView.self)
-    env.registerTestView(ProfileView.self)
-    #endif
-
-    return env
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(LandingPageView.self)
+        registerTestView(DashboardView.self)
+        #endif
+    }
 }
 ```
+
+**Wrong — all of these register too late:**
+
+```swift
+// ✗ inside a computed property: `mvvmEnv` is evaluated on the Scene,
+//   after the content view (and its testHost()) has been constructed
+@MainActor var mvvmEnv: MVVMEnvironment {
+    MVVMEnvironment.registerTestView(LandingPageView.self)   // never runs in time
+    return MVVMEnvironment(...)
+}
+
+// ✗ in a view lifecycle callback: the resolution already happened
+.onAppear { MVVMEnvironment.registerTestView(LandingPageView.self) }
+.task { MVVMEnvironment.registerTestView(LandingPageView.self) }
+```
+
+Only the *body* of `registerTestView(_:)` is `#if DEBUG`, so the whole helper compiles away to a no-op in release builds. Keeping the `#if DEBUG` inside the helper — rather than around the call in `init()` — leaves the call site clean; hoisting it up to `init()` is equally correct if you prefer it there.
+
+### The failure is loud
+
+If the requested view is not registered by the time `testHost()` resolves, the application **stops immediately** and writes a diagnostic to stderr (so it appears in `xcodebuild` test logs, not only in a crash report). It names the ViewModel the harness asked for, lists every ViewModel that *is* registered, states which of the two causes applies (nothing registered at all vs. this one missing), and shows the `init()` fix.
+
+Never "work around" that diagnostic by moving registration later or by catching it — it is reporting a real misconfiguration that would otherwise present the base view and fail the test somewhere far from the cause.

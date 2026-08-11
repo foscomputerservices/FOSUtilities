@@ -933,17 +933,35 @@ bindings from the bundle's YAML, and can set `@State` via `setStates:`.
 Reach for this when: wiring an app target for FOSTestingUI's
 ViewModelViewTestCase — wrap the root view in `testHost()` (optionally
 decorating the view under test with test bindings) and register each testable
-view type on the `MVVMEnvironment`. DEBUG-only; release builds compile it away.
-Scaffolded by `fosmvvm-ui-tests-generator`.
+view type with the static `MVVMEnvironment.registerTestView(_:)` — gathered into a
+static extension on `MVVMEnvironment` and called from the App's `init()`.
+`testHost()` resolves the view under test before the first render, so registering
+from a computed property, `.onAppear`, or `.task` is too late and stops the app
+with a diagnostic. Only `registerTestView(_:)`'s body is DEBUG-only, so the helper
+compiles away to a no-op in release. Scaffolded by `fosmvvm-ui-tests-generator`.
 
 ```swift
-WindowGroup {
-    RootView()
-    #if DEBUG
-    .testHost()
-    #endif
+var body: some Scene {
+    WindowGroup {
+        RootView()
+        #if DEBUG
+        .testHost()
+        #endif
+    }
 }
-// at startup: mvvmEnv.registerTestView(UserView.self)
+
+init() {
+    MVVMEnvironment.registerTestingViews()
+}
+
+// elsewhere
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(UserView.self)
+        #endif
+    }
+}
 ```
 
 ### Assert operations from XCUITests — `TestDataTransporter` / `testDataTransporter()` <!-- apple-only -->

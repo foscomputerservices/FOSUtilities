@@ -130,9 +130,58 @@ public final class MVVMEnvironment: @unchecked Sendable {
     @MainActor static var registeredTestTypes: [String: ViewFactory] = [:]
     #endif
 
-    @MainActor public func registerTestView<V: ViewModelView>(_ type: V.Type) {
+    /// Registers a *ViewModelView* so that `testHost()` can present it under test
+    ///
+    /// Gather the calls into a static extension on ``MVVMEnvironment`` — where they can be
+    /// made unqualified — and call that from your application's `init()`:
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @main struct MyApp: App {
+    ///
+    ///    var body: some Scene {
+    ///      WindowGroup {
+    ///        LandingPageView()
+    ///        #if DEBUG
+    ///        .testHost()
+    ///        #endif
+    ///      }
+    ///      .environment(mvvmEnv)
+    ///    }
+    ///
+    ///    init() {
+    ///      MVVMEnvironment.registerTestingViews()
+    ///    }
+    /// }
+    ///
+    /// private extension MVVMEnvironment {
+    ///    // Every ViewModelView is listed here to enable individualized testing of each view
+    ///    @MainActor static func registerTestingViews() {
+    ///      #if DEBUG
+    ///      registerTestView(LandingPageView.self)
+    ///      registerTestView(SettingsView.self)
+    ///      #endif
+    ///    }
+    /// }
+    /// ```
+    ///
+    /// Only the *body* of this function is `#if DEBUG`, so the call compiles away to a no-op in
+    /// release builds and the `#if DEBUG` can stay inside your helper. Hoisting it up to the
+    /// call site in `init()` is equally correct if you prefer it there.
+    ///
+    /// > Important: `init()` is the only supported home for these calls. `testHost()`
+    /// > resolves the view under test *before the first render*, so registration performed
+    /// > later — from a computed property such as `mvvmEnv`, from `.onAppear`, or from
+    /// > `.task` — arrives too late and the application stops with a diagnostic naming
+    /// > the view it could not find.
+    ///
+    /// > Note: Registration is a no-op in release builds.
+    ///
+    /// - Parameter type: The *ViewModelView* to make available to *ViewModelDisplayTestCase*
+    @MainActor public static func registerTestView<V: ViewModelView>(_ type: V.Type) {
         #if DEBUG
-        Self.registeredTestTypes[String(describing: V.VM.self)] = { @MainActor data in
+        registeredTestTypes[String(describing: V.VM.self)] = { @MainActor data in
             try AnyView(V(viewModel: data.fromJSON()))
         }
         #endif

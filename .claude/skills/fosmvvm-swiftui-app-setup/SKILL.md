@@ -152,22 +152,30 @@ var body: some Scene {
 
 **`registerTestingViews()` function:**
 ```swift
-#if DEBUG
-private extension MyApp {
-    @MainActor func registerTestingViews() {
-        mvvmEnv.registerTestView(LandingPageView.self)
-        mvvmEnv.registerTestView(SettingsView.self)
-        // ... register all ViewModelViews for individual testing
+@main struct MyApp: App {
+    init() {
+        MVVMEnvironment.registerTestingViews()
     }
 }
-#endif
+
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(LandingPageView.self)
+        registerTestView(SettingsView.self)
+        // ... register all ViewModelViews for individual testing
+        #endif
+    }
+}
 ```
 
 **Key points:**
-- Extension on the **App struct** (not MVVMEnvironment)
-- Called from `init()`
+- A `static` extension on **`MVVMEnvironment`** — `registerTestView(_:)` is static, so no instance is involved and the calls read unqualified
+- Called from `init()`, and **only** from `init()`
 - Registers every ViewModelView for isolated testing
-- DEBUG only
+- `#if DEBUG` goes **inside** the helper, not around the call — only `registerTestView(_:)`'s body is DEBUG-only, so the whole helper compiles away to a no-op in release and `init()` stays unguarded
+
+**Timing is load-bearing.** `testHost()` resolves the view under test before the first render, so registration from a computed property (`var mvvmEnv`), from `.onAppear`, or from `.task` arrives too late. When that happens the app stops with a diagnostic on stderr naming the missing ViewModel, listing what *is* registered, and showing the `init()` fix — do not work around it by registering later. See `reference.md` → Pattern 3.
 
 ## When to Use This Skill
 
@@ -297,7 +305,7 @@ If test support needed:
 2. MVVMEnvironment computed property
 3. WindowGroup with environment injection
 4. Test infrastructure (if requested, DEBUG-only)
-5. registerTestingViews() extension (if test support)
+5. `MVVMEnvironment.registerTestingViews()` static extension, called from `init()` (if test support)
 
 ### Context Sources
 
@@ -353,17 +361,21 @@ testView
 Every ViewModelView should be registered for testing:
 
 ```swift
-@MainActor func registerTestingViews() {
-    // Landing Page
-    mvvmEnv.registerTestView(LandingPageView.self)
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        // Landing Page
+        registerTestView(LandingPageView.self)
 
-    // Settings
-    mvvmEnv.registerTestView(SettingsView.self)
-    mvvmEnv.registerTestView(ProfileView.self)
+        // Settings
+        registerTestView(SettingsView.self)
+        registerTestView(ProfileView.self)
 
-    // Dashboard
-    mvvmEnv.registerTestView(DashboardView.self)
-    mvvmEnv.registerTestView(CardView.self)
+        // Dashboard
+        registerTestView(DashboardView.self)
+        registerTestView(CardView.self)
+        #endif
+    }
 }
 ```
 
@@ -395,15 +407,17 @@ var body: some Scene {
 You can conditionally register views based on build configuration:
 
 ```swift
-#if DEBUG
-@MainActor func registerTestingViews() {
-    mvvmEnv.registerTestView(LandingPageView.self)
+private extension MVVMEnvironment {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(LandingPageView.self)
 
-    #if INCLUDE_ADMIN_FEATURES
-    mvvmEnv.registerTestView(AdminPanelView.self)
-    #endif
+        #if INCLUDE_ADMIN_FEATURES
+        registerTestView(AdminPanelView.self)
+        #endif
+        #endif
+    }
 }
-#endif
 ```
 
 ### Advanced Test Configurations

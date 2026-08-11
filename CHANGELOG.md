@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`MVVMEnvironment.registerTestView(_:)` is now `static`** (FOSMVVM, **breaking**) — call it
+  as `MVVMEnvironment.registerTestView(MyView.self)` from your `App`'s `init()`. The instance
+  method has been **removed**, not deprecated. It had taken `self` and never used it since the
+  registry became a `@MainActor` static in 0.10.1, which let registration hide inside a computed
+  `mvvmEnv` and land *after* `testHost()` had already resolved the view under test. With no
+  instance in the call there is no longer a plausible-looking wrong home for it.
+  **Migration:** keep your `registerTestingViews()` helper but make it a `static` extension on
+  `MVVMEnvironment` (where the `registerTestView(_:)` calls read unqualified), move the
+  `#if DEBUG` inside it, and call it from `init()` — not from `var mvvmEnv`, `.onAppear`, or
+  `.task`. Only the *body* of `registerTestView(_:)` is DEBUG-only, so the helper compiles away
+  to a no-op in release and the call site in `init()` needs no guard:
+
+  ```swift
+  @main struct MyApp: App {
+      init() {
+          MVVMEnvironment.registerTestingViews()
+      }
+  }
+
+  private extension MVVMEnvironment {
+      @MainActor static func registerTestingViews() {
+          #if DEBUG
+          registerTestView(LandingPageView.self)
+          #endif
+      }
+  }
+  ```
+
+### Fixed
+
+- **`testHost()` misconfiguration now fails loudly and actionably** (FOSMVVM) — an unregistered
+  view under test previously trapped on `fatalError("Unknown testing view: …")`, whose message
+  reaches only the crash report. The diagnostic is now written to stderr as well, so it appears
+  in `xcodebuild` and CI test logs, and it states the ViewModel the harness requested, every
+  ViewModel that *is* registered, which of the two causes applies (nothing registered at all vs.
+  this one missing), and the `init()` registration that fixes it.
+- **ViewModel decode failures under `testHost()` are no longer silent** (FOSMVVM) — the
+  `try?` that discarded decoding errors (and its `no-silent-failure` suppression) is gone.
+  A payload that does not decode into the registered view's `VM` now reports the requested
+  ViewModel type and the underlying error through the same diagnostic path.
+
+### Documentation
+
+- **`MVVMEnvironment.registerTestView(_:)` gains DocC** — it had none. States the `init()`-only
+  contract, the reason (resolution happens before the first render), and the call site.
+  `testHost()` / `testHost(decorator:)` now cross-reference it.
+- **Test view registration documented for app authors** (fosmvvm-generators plugin, 2.22.0) —
+  `fosmvvm-swiftui-app-setup` templates and checklist move to the static call; its Pattern 3 is
+  replaced by "Test View Registration — `init()` Only", which shows the correct call site, the
+  three wrong ones, and what the loud failure reports. The API catalog entries in
+  `shared/api-catalog/FOSMVVM.md` and `FOSTesting.md` match. The previous timing caveat lived
+  only in this skill file, where no framework consumer would ever see it.
+
 ## [0.10.2] - 2026-08-10
 
 ### Added
