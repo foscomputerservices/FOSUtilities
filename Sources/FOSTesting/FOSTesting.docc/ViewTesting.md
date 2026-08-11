@@ -63,8 +63,15 @@ each view's data and state are specified declaratively (See also [Getting Starte
 the test client to display each view with a provided ``ViewModel`` for testing.
 This view modifier should be added at the top of the the application's view hierarchy.
 
-Finally, each View that inherits from ViewModelView must be registered by implementing
-the *registerTestingViews* function of *MVVMEnvironment*.
+Finally, each View that inherits from ViewModelView must be registered with
+``MVVMEnvironment/registerTestView(_:)`` from the application's `init()`.
+
+> Important: `init()` is the only supported place for these calls. ``testHost``
+> resolves the view under test *before the first render*, so registering from a
+> computed property, from `.onAppear`, or from `.task` arrives too late. When that
+> happens the application stops with a diagnostic — written to stderr so it shows up
+> in `xcodebuild` and CI logs — naming the ViewModel the test asked for, listing the
+> ViewModels that are registered, and showing the `init()` call that fixes it.
 
 > Future work will provide a macro that will eliminate the need for this
 > boiler plate code.
@@ -85,37 +92,39 @@ This setup applies to **both** the display-only and interactive paths.
         }
         .environment(mvvmEnv)
     }
-}
 
-private extension MyApp {
-    var mvvmEnv: MVVMEnvironment {
-        let env = MVVMEnvironment(
-            appBundle: Bundle.main,
-            deploymentURLs: [ /* ... */ ]
-        )
-
-        #if DEBUG
-        env.registerTestingView()
-        #endif
-
-        return env
+    init() {
+        MVVMEnvironment.registerTestingViews()
     }
 }
 
-#if DEBUG
+private extension MyApp {
+    @MainActor var mvvmEnv: MVVMEnvironment {
+        MVVMEnvironment(
+            appBundle: Bundle.main,
+            deploymentURLs: [ /* ... */ ]
+        )
+    }
+}
+
 private extension MVVMEnvironment {
     // *Every* ViewModelView is listed here to enable individualized
     // testing of each view
-    @MainActor func registerTestingViews() {
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
         registerTestView(MyMainView.self)
         registerTestView(View2.self)
 
         // ...
         registerTestView(ViewN.self)
+        #endif
     }
 }
-#endif
 ```
+
+Only the *body* of ``MVVMEnvironment/registerTestView(_:)`` is `#if DEBUG`, so the whole
+helper compiles away to a no-op in release builds — keeping the `#if DEBUG` inside it, rather
+than around the call in `init()`, is the tidier of the two. Either is correct.
 
 ## Display-Only Path
 

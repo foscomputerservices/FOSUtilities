@@ -125,9 +125,9 @@ The XCTest exception to the repo's Swift Testing convention: two open base
 classes that launch the application under test via XCUITest, inject a localized
 ViewModel through the launch environment, and — for interactive views — read
 the recorded operations back out; plus the harness error enum they throw.
-Requires app-side wiring: `testHost()` and `registerTestView()` from FOSMVVM
-(catalogued there). The `fosmvvm-ui-tests-generator` skill scaffolds both
-sides.
+Requires app-side wiring: `testHost()` and the static `registerTestView()` from
+FOSMVVM (catalogued there), the latter called from the App's `init()`. The
+`fosmvvm-ui-tests-generator` skill scaffolds both sides.
 
 ### UI-test a display-only view — `ViewModelDisplayTestCase` / `presentView()` / `localizedViewModel()` <!-- apple-only -->
 Reach for this when: XCUITest-driving a ViewModelView that only displays data —
