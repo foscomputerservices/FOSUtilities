@@ -65,53 +65,6 @@ class {ProjectName}ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations
 
 ---
 
-# Template 2: XCUIElement Extensions
-
-**One per project** - Helper methods for XCUIElement interactions.
-
-**Location:** `Tests/UITests/Support/XCUIElement.swift`
-
-```swift
-// XCUIElement.swift
-//
-// Copyright (c) 2026 Your Organization. All rights reserved.
-// License: Your License
-
-import XCTest
-
-extension XCUIElement {
-    /// Get the text value of the element
-    var text: String? {
-        value as? String
-    }
-
-    /// Type text and wait for it to appear
-    func typeTextAndWait(_ string: String, timeout: TimeInterval = 2) {
-        typeText(string)
-        _ = wait(for: \.text, toEqual: string, timeout: timeout)
-    }
-
-    /// Tap, then type text and wait
-    func selectTypeTextAndWait(_ string: String, timeout: TimeInterval = 2) {
-        tap()
-        typeTextAndWait(string, timeout: timeout)
-    }
-
-    /// Tap SwiftUI Menu elements
-    ///
-    /// SwiftUI Menu elements are often not marked as 'isHittable', so tap() will not work.
-    /// This method taps the coordinate of the menu to skip the 'isHittable' test.
-    func tapMenu() {
-        if isHittable {
-            tap()
-        } else {
-            coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-    }
-}
-```
-
----
 
 # ViewModelOperations: When to Use
 
@@ -129,11 +82,11 @@ Not all views need ViewModelOperations. The decision depends on whether the view
 - Pure navigation containers
 - Server-hosted views that just render data
 
-**For views without operations**, no scaffolding exists — no protocol, no stub class, no `ViewModelOperations` subtype. Tests subclass `ViewModelDisplayTestCase<VM>` (via your project-level display base class), which takes no Operations generic parameter. See **Template 3: Display-Only View Test** below for the test structure.
+**For views without operations**, no scaffolding exists — no protocol, no stub class, no `ViewModelOperations` subtype. Tests subclass `ViewModelDisplayTestCase<VM>` (via your project-level display base class), which takes no Operations generic parameter. See **Template 2: Display-Only View Test** below for the test structure.
 
 ---
 
-# Template 3: Display-Only View Test (No Operations)
+# Template 2: Display-Only View Test (No Operations)
 
 **For views that don't have ViewModelOperations** - Display-only, no user interactions.
 
@@ -162,7 +115,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelDisplayTestCase<
             viewModel: .stub(title: "Test Title")
         )
 
-        XCTAssertTrue(app.titleLabel.exists)
+        XCTAssertTrue(app.uiTestingElement("titleLabel").exists)
     }
 
     func testDisplaysContent() async throws {
@@ -170,13 +123,13 @@ final class {ViewName}UITests: {ProjectName}ViewModelDisplayTestCase<
             viewModel: .stub(content: "Test Content")
         )
 
-        XCTAssertTrue(app.contentText.exists)
+        XCTAssertTrue(app.uiTestingElement("contentText").exists)
     }
 
     func testDisplaysImage() async throws {
         let app = try presentView()
 
-        XCTAssertTrue(app.mainImage.exists)
+        XCTAssertTrue(app.uiTestingElement("mainImage").exists)
     }
 
     // MARK: Setup
@@ -190,26 +143,11 @@ final class {ViewName}UITests: {ProjectName}ViewModelDisplayTestCase<
     }
 }
 
-// MARK: - XCUIApplication Extensions
-
-private extension XCUIApplication {
-    var titleLabel: XCUIElement {
-        staticTexts["titleLabel"]
-    }
-
-    var contentText: XCUIElement {
-        staticTexts["contentText"]
-    }
-
-    var mainImage: XCUIElement {
-        images["mainImage"]
-    }
-}
 ```
 
 ---
 
-# Template 4: Basic UI Test File (With Operations)
+# Template 3: Basic UI Test File (With Operations)
 
 **One per ViewModelView** - Tests for a simple interactive view.
 
@@ -237,7 +175,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     func testInitialState() async throws {
         let app = try presentView()
 
-        XCTAssertTrue(app.mainContent.exists)
+        XCTAssertTrue(app.uiTestingElement("mainContent").exists)
     }
 
     func testButtonEnabled() async throws {
@@ -245,7 +183,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             viewModel: .stub(enabled: true)
         )
 
-        XCTAssertTrue(app.actionButton.isEnabled)
+        XCTAssertTrue(app.uiTestingElement("actionButton").isEnabled)
     }
 
     func testButtonDisabled() async throws {
@@ -253,7 +191,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             viewModel: .stub(enabled: false)
         )
 
-        XCTAssertFalse(app.actionButton.isEnabled)
+        XCTAssertFalse(app.uiTestingElement("actionButton").isEnabled)
     }
 
     // MARK: Operation Tests
@@ -263,7 +201,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             configuration: .default
         )
 
-        app.actionButton.tap()
+        app.uiTestingElement("actionButton").tap()
 
         let stubOps = try viewModelOperations()
         XCTAssertTrue(stubOps.actionCalled)
@@ -280,22 +218,11 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     }
 }
 
-// MARK: - XCUIApplication Extensions
-
-private extension XCUIApplication {
-    var mainContent: XCUIElement {
-        otherElements["mainContent"]
-    }
-
-    var actionButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "actionButton")
-    }
-}
 ```
 
 ---
 
-# Template 5: Advanced UI Test File (With Operations)
+# Template 4: Advanced UI Test File (With Operations)
 
 **For views with multiple interactions** - Comprehensive test coverage.
 
@@ -325,8 +252,8 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             viewModel: .stub(items: [])
         )
 
-        XCTAssertTrue(app.emptyStateMessage.exists)
-        XCTAssertFalse(app.itemList.exists)
+        XCTAssertTrue(app.uiTestingElement("emptyStateMessage").exists)
+        XCTAssertFalse(app.uiTestingElement("itemList").exists)
     }
 
     func testItemsDisplayed() async throws {
@@ -339,8 +266,8 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             )
         )
 
-        XCTAssertFalse(app.emptyStateMessage.exists)
-        XCTAssertTrue(app.itemList.exists)
+        XCTAssertFalse(app.uiTestingElement("emptyStateMessage").exists)
+        XCTAssertTrue(app.uiTestingElement("itemList").exists)
     }
 
     func testLoadingState() async throws {
@@ -348,7 +275,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             viewModel: .stub(isLoading: true)
         )
 
-        XCTAssertTrue(app.loadingIndicator.exists)
+        XCTAssertTrue(app.uiTestingElement("loadingIndicator").exists)
     }
 
     // MARK: Interaction Tests
@@ -356,23 +283,21 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     func testSelectItem() async throws {
         let app = try presentView()
 
-        XCTAssertFalse(app.detailButton.isEnabled)
+        XCTAssertFalse(app.uiTestingElement("detailButton").isEnabled)
 
-        app.firstItemButton.tap()
+        app.uiTestingElement("itemButton").tap()
 
-        XCTAssertTrue(app.detailButton.isEnabled)
+        XCTAssertTrue(app.uiTestingElement("detailButton").isEnabled)
     }
 
     func testFormInput() async throws {
         let app = try presentView()
 
-        app.nameTextField.tap()
-        app.nameTextField.typeTextAndWait("Test Name")
+        app.uiTestingElement("nameTextField").type("Test Name")
 
-        app.emailTextField.tap()
-        app.emailTextField.typeTextAndWait("test@example.com")
+        app.uiTestingElement("emailTextField").type("test@example.com")
 
-        app.submitButton.tap()
+        app.uiTestingElement("submitButton").tap()
 
         let stubOps = try viewModelOperations()
         XCTAssertTrue(stubOps.submitCalled)
@@ -385,7 +310,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             configuration: .requireAuth()
         )
 
-        app.refreshButton.tap()
+        app.uiTestingElement("refreshButton").tap()
 
         let stubOps = try viewModelOperations()
         XCTAssertTrue(stubOps.refreshCalled)
@@ -396,8 +321,8 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             configuration: .requireAuth()
         )
 
-        app.firstItemButton.tap()
-        app.deleteButton.tap()
+        app.uiTestingElement("itemButton").tap()
+        app.uiTestingElement("deleteButton").tap()
 
         let stubOps = try viewModelOperations()
         XCTAssertTrue(stubOps.deleteCalled)
@@ -407,7 +332,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     func testCancel() async throws {
         let app = try presentView()
 
-        app.cancelButton.tap()
+        app.uiTestingElement("cancelButton").tap()
 
         let stubOps = try viewModelOperations()
         XCTAssertTrue(stubOps.cancelCalled)
@@ -418,10 +343,10 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     func testNavigationToDetail() async throws {
         let app = try presentView()
 
-        app.firstItemButton.tap()
-        app.viewDetailButton.tap()
+        app.uiTestingElement("itemButton").tap()
+        app.uiTestingElement("viewDetailButton").tap()
 
-        XCTAssertTrue(app.detailView.exists)
+        XCTAssertTrue(app.uiTestingElement("detailView").exists)
     }
 
     // MARK: Error Handling Tests
@@ -431,7 +356,7 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             viewModel: .stub(hasError: true)
         )
 
-        XCTAssertTrue(app.errorAlert.exists)
+        XCTAssertTrue(app.alerts["errorAlert"].exists)
     }
 
     func testErrorDismissal() async throws {
@@ -439,9 +364,9 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
             viewModel: .stub(hasError: true)
         )
 
-        app.dismissErrorButton.tap()
+        app.uiTestingElement("dismissErrorButton").tap()
 
-        XCTAssertFalse(app.errorAlert.exists)
+        XCTAssertFalse(app.alerts["errorAlert"].exists)
     }
 
     // MARK: Setup
@@ -459,79 +384,11 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     }
 }
 
-// MARK: - XCUIApplication Extensions
-
-private extension XCUIApplication {
-    // Main Content
-    var itemList: XCUIElement {
-        tables["itemList"]
-    }
-
-    var emptyStateMessage: XCUIElement {
-        staticTexts["emptyStateMessage"]
-    }
-
-    var loadingIndicator: XCUIElement {
-        activityIndicators["loadingIndicator"]
-    }
-
-    // Buttons
-    var refreshButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "refreshButton")
-    }
-
-    var submitButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "submitButton")
-    }
-
-    var cancelButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "cancelButton")
-    }
-
-    var deleteButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "deleteButton")
-    }
-
-    var detailButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "detailButton")
-    }
-
-    var viewDetailButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "viewDetailButton")
-    }
-
-    var dismissErrorButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "dismissErrorButton")
-    }
-
-    // Items
-    var firstItemButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "itemButton").firstMatch
-    }
-
-    // Text Fields
-    var nameTextField: XCUIElement {
-        textFields["nameTextField"]
-    }
-
-    var emailTextField: XCUIElement {
-        textFields["emailTextField"]
-    }
-
-    // Views
-    var detailView: XCUIElement {
-        otherElements["detailView"]
-    }
-
-    var errorAlert: XCUIElement {
-        alerts["errorAlert"]
-    }
-}
 ```
 
 ---
 
-# Template 6: Display-Only View (No Operations)
+# Template 5: Display-Only View (No Operations)
 
 **For views that only display data** - No user interactions, no operations.
 
@@ -585,7 +442,7 @@ public struct {ViewName}View: ViewModelView {
 
 ---
 
-# Template 7: View with Test Infrastructure (With Operations)
+# Template 6: View with Test Infrastructure (With Operations)
 
 **The view being tested** - Includes test support for operations.
 
@@ -666,7 +523,7 @@ private extension {ViewName}View {
 
 ---
 
-# Template 8: View with Async Operations
+# Template 7: View with Async Operations
 
 **For views with async operations** - Includes error handling.
 
@@ -766,7 +623,7 @@ private extension {ViewName}View {
 
 ---
 
-# Template 9: View with Form and List
+# Template 8: View with Form and List
 
 **Complex view example** - Form input and list display.
 
@@ -910,7 +767,7 @@ private extension {ViewName}View {
 
 ---
 
-# Template 10: ViewModelOperations File (Reference Shape)
+# Template 9: ViewModelOperations File (Reference Shape)
 
 **The Operations file is generated by [fosmvvm-viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md)**, not by this skill. It exists only for interactive ViewModels — display-only ViewModels have no Operations file. The template below is shown here for reference so tests can see the shape of the `StubOps` they will instantiate via `viewModelOperations()`.
 
@@ -983,7 +840,7 @@ public final class {ViewName}StubOps: {ViewName}ViewModelOperations, @unchecked 
 
 ### Note for display-only ViewModels
 
-There is no "empty Operations file" template. Display-only ViewModels have no Operations file at all. Their tests subclass `ViewModelDisplayTestCase<VM>` via the project's display-only base class — see **Template 3: Display-Only View Test** above.
+There is no "empty Operations file" template. Display-only ViewModels have no Operations file at all. Their tests subclass `ViewModelDisplayTestCase<VM>` via the project's display-only base class — see **Template 2: Display-Only View Test** above.
 
 ---
 
@@ -1009,40 +866,62 @@ There is no "empty Operations file" template. Display-only ViewModels have no Op
 
 ## UI Testing Identifier Conventions
 
-| Element Type | Accessor Pattern | Identifier Example |
-|--------------|------------------|-------------------|
-| Button | `buttons.element(matching: .button, identifier: "...")` | `"submitButton"` |
-| Text Field | `textFields["..."]` | `"emailTextField"` |
-| Static Text | `staticTexts["..."]` | `"errorMessage"` |
-| Activity Indicator | `activityIndicators["..."]` | `"loadingIndicator"` |
-| Table | `tables["..."]` | `"itemList"` |
-| Alert | `alerts["..."]` | `"errorAlert"` |
-| Other Elements | `otherElements["..."]` | `"mainContent"` |
-
-## Common XCUIElement Patterns
+The identifier is the entire contract. A test never names an XCUITest element type, because
+there is one accessor for every kind of view:
 
 ```swift
-// First match in a list
-var firstItem: XCUIElement {
-    buttons.element(matching: .button, identifier: "itemButton").firstMatch
+app.uiTestingElement("submitButton")
+```
+
+Name an identifier for the **role the view plays**, never for the control that renders it —
+`submitButton`, `emailTextField`, `errorMessage`, `loadingIndicator`, `itemList`,
+`mainContent`. A name that encodes the control has to change when the control does, which is
+exactly the coupling the tag removes.
+
+## Common Patterns
+
+```swift
+// Wait for a view to appear
+XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+
+// Wait for a view to go away — not `exists`, which answers before it has
+XCTAssertTrue(app.uiTestingElement("errorBanner").waitForDisappearance())
+
+// A view that was never there at all — no wait
+XCTAssertFalse(app.uiTestingElement("errorBanner").exists)
+
+// In the hierarchy vs. on screen
+XCTAssertTrue(app.uiTestingElement("itemList").exists)
+XCTAssertTrue(app.uiTestingElement("itemList").isVisible)
+
+// Enabled state
+XCTAssertFalse(app.uiTestingElement("submitButton").isEnabled)
+
+// Displayed text — against the localized ViewModel, never a literal
+XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)
+
+// Field contents
+app.uiTestingElement("emailTextField").type("test@example.com")
+XCTAssertEqual(app.uiTestingElement("emailTextField").value, "test@example.com")
+
+// A tag repeated by a ForEach resolves to the first match
+app.uiTestingElement("itemButton").tap()
+
+// A Picker's options are taggable, and that is how a selection is asserted
+Picker(viewModel.programLabel, selection: $selection) {
+    Text(viewModel.optionA).uiTestingIdentifier("optionA").tag(0)
+    Text(viewModel.optionB).uiTestingIdentifier("optionB").tag(1)
 }
+.uiTestingIdentifier("programPicker")
 
-// Wait for existence
-XCTAssertTrue(app.someElement.waitForExistence(timeout: 3))
+app.uiTestingElement("programPicker").tap()   // opens the menu
+app.uiTestingElement("optionB").tap()         // selects the option
 
-// Check enabled state
-XCTAssertTrue(app.submitButton.isEnabled)
-XCTAssertFalse(app.submitButton.isEnabled)
+// A system-presented alert is not a tagged view — query it directly
+XCTAssertTrue(app.alerts["errorAlert"].exists)
 
-// Check existence
-XCTAssertTrue(app.errorAlert.exists)
-XCTAssertFalse(app.errorAlert.exists)
-
-// Get text value
-XCTAssertEqual(app.label.text, "Expected Text")
-
-// Tap menu (for non-hittable SwiftUI menus)
-app.menuButton.tapMenu()
+// Anything this doesn't cover — the escape hatch
+app.uiTestingElement("photo").xcuiElement.press(forDuration: 1.0)
 ```
 
 ## Operation Verification Pattern
@@ -1052,7 +931,7 @@ func testSomeOperation() async throws {
     let app = try presentView(configuration: .default)
 
     // Perform UI interaction
-    app.actionButton.tap()
+    app.uiTestingElement("actionButton").tap()
 
     // Verify operation was called
     let stubOps = try viewModelOperations()
@@ -1090,7 +969,6 @@ let app = try presentView(
 
 ## Base Setup (Once Per Project):
 - [ ] Base test case class created
-- [ ] XCUIElement extensions created
 - [ ] App bundle identifier configured
 - [ ] Test target created in Xcode
 
@@ -1098,9 +976,8 @@ let app = try presentView(
 - [ ] Test file created with correct generic parameters
 - [ ] UI state tests added
 - [ ] Operation tests added
-- [ ] XCUIApplication extension with element accessors
 - [ ] setUp() method configured if needed
-- [ ] All interactive elements have corresponding accessors
+- [ ] Every element the test touches is tagged with `.uiTestingIdentifier()` and found with `app.uiTestingElement()`
 
 ## View Preparation:
 - [ ] `@State private var repaintToggle` property
@@ -1119,15 +996,15 @@ let app = try presentView(
 ```swift
 func testButtonDisabledInitially() async throws {
     let app = try presentView()
-    XCTAssertFalse(app.submitButton.isEnabled)
+    XCTAssertFalse(app.uiTestingElement("submitButton").isEnabled)
 }
 
 func testButtonEnabledAfterInput() async throws {
     let app = try presentView()
 
-    app.nameField.typeTextAndWait("Test")
+    app.uiTestingElement("nameField").type("Test")
 
-    XCTAssertTrue(app.submitButton.isEnabled)
+    XCTAssertTrue(app.uiTestingElement("submitButton").isEnabled)
 }
 ```
 
@@ -1153,9 +1030,9 @@ func testErrorHandling() async throws {
         viewModel: .stub(hasError: true)
     )
 
-    XCTAssertTrue(app.errorAlert.exists)
-    app.dismissButton.tap()
-    XCTAssertFalse(app.errorAlert.exists)
+    XCTAssertTrue(app.alerts["errorAlert"].exists)
+    app.uiTestingElement("dismissButton").tap()
+    XCTAssertFalse(app.alerts["errorAlert"].exists)
 }
 ```
 
@@ -1165,10 +1042,10 @@ func testErrorHandling() async throws {
 func testNavigation() async throws {
     let app = try presentView()
 
-    app.itemRow.tap()
-    XCTAssertTrue(app.detailView.waitForExistence(timeout: 2))
+    app.uiTestingElement("itemRow").tap()
+    XCTAssertTrue(app.uiTestingElement("detailView").waitForExistence())
 
-    app.backButton.tap()
-    XCTAssertTrue(app.listView.waitForExistence(timeout: 2))
+    app.uiTestingElement("backButton").tap()
+    XCTAssertTrue(app.uiTestingElement("listView").waitForExistence())
 }
 ```

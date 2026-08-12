@@ -143,9 +143,9 @@ struct MyDetailView: ViewModelView {
     var body: some View {
         VStack {
             Text(viewModel.title)
-                .accessibilityIdentifier("titleLabel")
+                .uiTestingIdentifier("titleLabel")
             Text(viewModel.summary)
-                .accessibilityIdentifier("summaryLabel")
+                .uiTestingIdentifier("summaryLabel")
         }
     }
 }
@@ -183,21 +183,30 @@ Tests then verify UI state only:
 
 ```swift
 func testShowsTitle() async throws {
-    let app = try presentView(viewModel: .stub(title: "Hello"))
+    let viewModel: MyDetailViewModel = try localizedViewModel(.stub())
+    let app = try presentView(viewModel: viewModel)
 
-    XCTAssertTrue(app.titleLabel.exists)
+    XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)
 }
 
 func testShowsSummary() async throws {
     let app = try presentView(viewModel: .stub(summary: "A summary"))
 
-    XCTAssertTrue(app.summaryLabel.exists)
+    XCTAssertTrue(app.uiTestingElement("summaryLabel").exists)
 }
+```
 
-private extension XCUIApplication {
-    var titleLabel: XCUIElement { staticTexts["titleLabel"] }
-    var summaryLabel: XCUIElement { staticTexts["summaryLabel"] }
-}
+Views are tagged with `uiTestingIdentifier(_:)` (**FOSMVVM**) and found with
+`XCUIApplication.uiTestingElement(_:)` (**FOSTestingUI**). The identifier is all a
+test names — there is no XCUITest element type to choose, and no `XCUIApplication`
+accessor extension to write and keep in step. Compare displayed text against the
+localized *ViewModel*, never a literal, so the test holds in every locale —
+`XCTAssertEqual` takes a `Localizable` directly:
+
+```swift
+XCTAssertEqual(app.uiTestingElement("emailField").value, viewModel.email)
+XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled)
+XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
 ```
 
 ## Interactive Path
@@ -225,12 +234,12 @@ struct MyView: ViewModelView {
   var body: some View {
     VStack {
       TextField("", text: $data)
-        .accessibilityIdentifier("dataTextField")
+        .uiTestingIdentifier("dataTextField")
 
       Button(action: save) {
         Text("Tap Me")
       }
-      .accessibilityIdentifier("saveButton")
+      .uiTestingIdentifier("saveButton")
     }
     #if DEBUG
     .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
@@ -299,26 +308,15 @@ operation method:
 
 ```swift
 func testSomething() async throws {
-    let app = try await presentView()
+    let app = try presentView()
 
-    app.dataTextField.tap()
-    app.dataTextField.typeText("some text")
+    app.uiTestingElement("dataTextField").type("some text")
 
-    app.saveButton.tap()
+    app.uiTestingElement("saveButton").tap()
 
     let stubOps = try viewModelOperations()
 
     XCTAssertTrue(stubOps.saveDataCalled)
     XCTAssertEqual(stubOps.data, "some text")
-}
-
-private extension XCUIApplication {
-    var dataTextField: XCUIElement {
-        textFields.element(matching: .textField, identifier: "dataTextField")
-    }
-
-    var saveButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "saveButton")
-    }
 }
 ```

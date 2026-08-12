@@ -58,7 +58,7 @@ import XCTest
 ///     func testShowsTitle() async throws {
 ///         let app = try presentView(viewModel: .stub(title: "Hello"))
 ///
-///         XCTAssertTrue(app.staticTexts["titleLabel"].exists)
+///         XCTAssertTrue(app.uiTestingElement("titleLabel").exists)
 ///     }
 /// }
 /// ```
@@ -309,12 +309,11 @@ import XCTest
 ///
 /// final class MyViewUITests: MyViewModelViewTestCase<MyViewModel, MyViewModelStubOps>, @unchecked Sendable {
 ///     func testSomething() async throws {
-///         let app = try await presentView()
+///         let app = try presentView()
 ///
-///         app.aField.tap()
-///         app.aField.typeText("some text")
+///         app.uiTestingElement("aField").type("some text")
 ///
-///         app.saveButton.tap()
+///         app.uiTestingElement("saveButton").tap()
 ///
 ///         let stubOps = try viewModelOperations()
 ///

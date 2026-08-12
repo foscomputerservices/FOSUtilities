@@ -138,14 +138,14 @@ suite's `localizationStore` and locale shorthands are available) and asserts on
 the returned XCUIApplication. `presentView(testConfiguration:)` names a
 configuration the app's `testHost` closure can decorate the view with;
 `localizedViewModel()` localizes a ViewModel without launching.
-Don't locate elements by display text — tag them with `uiTestingIdentifier()`
-(FOSMVVM) and match the identifier.
+Don't locate elements by display text, or by XCUITest element type — tag them
+with `uiTestingIdentifier()` (FOSMVVM) and find them with `uiTestingElement()`.
 
 ```swift
 final class MyDisplayViewUITests: AppDisplayTestCase<MyDisplayViewModel>, @unchecked Sendable {
     func testShowsTitle() throws {
         let app = try presentView(viewModel: .stub())
-        XCTAssertTrue(app.staticTexts["titleLabel"].exists)
+        XCTAssertTrue(app.uiTestingElement("titleLabel").exists)
     }
 }
 ```
@@ -162,11 +162,43 @@ parameter.
 final class MyViewUITests: AppViewTestCase<MyViewModel, MyViewModelStubOps>, @unchecked Sendable {
     func testSave() throws {
         let app = try presentView()
-        app.buttons["saveButton"].tap()
+        app.uiTestingElement("saveButton").tap()
         let ops = try viewModelOperations()
         XCTAssertTrue(ops.dataSaved)
     }
 }
+```
+
+### Find a tagged view — `uiTestingElement()` / `UITestingElement` <!-- apple-only -->
+Reach for this when: a UI test needs any element the view tagged with
+`uiTestingIdentifier()` (FOSMVVM) — `exists` (in the hierarchy, on screen or
+not), `isVisible` (on screen and tappable), `waitForExistence()`,
+`waitForDisappearance()` (wait for it to go — `exists` answers before it has),
+`tap()`, `type(_:)`, `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
+Don't hand-write `buttons.element(matching:identifier:)` accessors or name
+XCUITest element types — the identifier is the whole contract, so a test
+survives a `Button` becoming a `Menu`. An identifier no view carries fails
+`tap()`/`type(_:)` naming that identifier. Each state read queries the running
+app, so assert the property that carries the meaning rather than all three.
+
+```swift
+app.uiTestingElement("nameField").type("Fern")
+app.uiTestingElement("saveButton").tap()
+XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+```
+
+### Assert displayed text — `XCTAssertEqual()` / `XCTAssertNotEqual()` <!-- apple-only -->
+Reach for this when: asserting what a view displays — compares an element's `label` or
+`value` against a ViewModel's `Localizable` property directly, with no `try` and no
+`localizedString`, so the test stays non-throwing. Overloads cover `String` and `String?`,
+equal and not-equal.
+Don't compare against a string literal — it passes in one locale and fails in the next. A
+`Localizable` that was never localized cannot match, and the failure says so rather than
+looking like a wrong label.
+
+```swift
+XCTAssertEqual(app.uiTestingElement("dashboardTitle").label, viewModel.title)
+XCTAssertEqual(app.uiTestingElement("emailField").value, viewModel.email)
 ```
 
 ### Diagnose harness failures — `RunError` <!-- apple-only -->

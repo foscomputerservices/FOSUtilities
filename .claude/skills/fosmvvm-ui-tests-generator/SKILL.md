@@ -54,31 +54,66 @@ UI tests must follow a strict hierarchy for finding and matching elements. **Nev
 
 ### Tier 1: Accessibility Identifiers (Preferred)
 
-Use `.uiTestingIdentifier()` on the view and match via `XCUIApplication` extension accessors:
+Tag the view with `.uiTestingIdentifier()` and find it with `.uiTestingElement()`:
 
 > **`.uiTestingIdentifier(_:)` is a FOSMVVM `View` modifier — `import FOSMVVM`.** It ships
 > in FOSMVVM (`SwiftUI Support/View+Testing.swift`); you do **not** define it yourself and
 > you must **not** copy a private version into your app. It is **DEBUG-only** — in a
 > release build it compiles to a no-op (`self`), so tagging carries **no** test scaffolding
 > into shipping binaries. Because it self-gates, apply it **unconditionally** (do not wrap
-> it in `#if DEBUG` — only `.testDataTransporter` needs that guard). Pair each identifier
-> with an `XCUIApplication` accessor keyed on the **same** string.
+> it in `#if DEBUG` — only `.testDataTransporter` needs that guard).
+>
+> **`app.uiTestingElement(_:)` is its counterpart — `import FOSTestingUI`.** The identifier
+> is the entire contract on both sides.
 
 ```swift
 // View  (import FOSMVVM)
 Text(viewModel.title)
     .uiTestingIdentifier("dashboardTitle")
 
-// Test — accessor uses identifier
-private extension XCUIApplication {
-    var dashboardTitle: XCUIElement {
-        staticTexts.element(matching: .staticText, identifier: "dashboardTitle")
-    }
-}
-
-// Test — usage
-XCTAssertTrue(app.dashboardTitle.exists)
+// Test  (import FOSTestingUI)
+XCTAssertTrue(app.uiTestingElement("dashboardTitle").exists)
 ```
+
+**Do not write `XCUIApplication` accessor extensions**, and do not name XCUITest element
+types (`buttons`, `staticTexts`, `otherElements`) for tagged views. An accessor keyed on
+an element type bakes a rendering detail into the test, so the test breaks when a `Button`
+becoming a `Menu` — and it is exactly the boilerplate `uiTestingElement()` exists to delete.
+
+A tap or a `type(_:)` against an identifier no view carries fails the test naming that
+identifier, so a typo reads as a typo rather than as an XCUITest snapshot error.
+
+`uiTestingElement(_:)` offers `exists` (present in the hierarchy, on screen or not),
+`isVisible` (on screen and tappable), `waitForExistence()`, `waitForDisappearance()`,
+`tap()`, `type(_:)`, `isEnabled`,
+`label`, `value`, and `xcuiElement` as the escape hatch for anything else:
+
+```swift
+app.uiTestingElement("nameField").type("Fern")
+app.uiTestingElement("saveButton").tap()
+
+XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+```
+
+**Assert displayed text against the ViewModel, never a literal.** `XCTAssertEqual` accepts a
+`Localizable` directly, so there is no `try`, no `localizedString`, and no throwing test:
+
+```swift
+let viewModel: DashboardViewModel = try localizedViewModel()
+let app = try presentView(viewModel: viewModel)
+
+XCTAssertEqual(app.uiTestingElement("dashboardTitle").label, viewModel.title)
+XCTAssertEqual(app.uiTestingElement("emailField").value, viewModel.email)
+```
+
+A `Localizable` whose translation was never realized cannot match any displayed text, so the
+assertion fails and names that as the cause instead of reading as a wrong label.
+
+**Tag whatever you need, wherever you need it.** The tag holds on controls that bridge to a
+native element (`Picker`, `DatePicker`, `TextField`, `ColorPicker`), on a container whose
+sub-views carry their own tags, at any nesting depth, and at any position in the modifier
+chain. A composed view and each of its sub-views can each carry their own tag and each be
+verified by their own test suite.
 
 ### Tier 2: Localized ViewModel Text (When Identifiers Are Insufficient)
 
@@ -90,7 +125,7 @@ let app = try presentView(viewModel: viewModel)
 
 // Match against ViewModel's resolved localized text — never a hardcoded string
 XCTAssertTrue(try app.staticTexts[viewModel.amplitudeLabel.localizedString].exists)
-XCTAssertEqual(app.stepperValueText.label, try viewModel.value.localizedString)
+XCTAssertEqual(app.uiTestingElement("stepperValueText").label, viewModel.value)
 ```
 
 This keeps tests locale-correct and refactor-safe — if the YAML translation changes, the test still passes because it reads from the same source of truth.
@@ -103,7 +138,7 @@ XCTAssertTrue(app.staticTexts["Settings"].exists)
 XCTAssertEqual(app.label.text, "Welcome back!")
 
 // ✅ RIGHT — Tier 1: identifier
-XCTAssertTrue(app.settingsLabel.exists)
+XCTAssertTrue(app.uiTestingElement("settingsLabel").exists)
 
 // ✅ RIGHT — Tier 2: localized ViewModel
 XCTAssertTrue(try app.staticTexts[viewModel.settingsLabel.localizedString].exists)
@@ -208,22 +243,16 @@ final class MyViewUITests: MyAppViewModelViewTestCase<MyViewModel, MyViewOps> {
     // UI Tests - verify UI state
     func testButtonEnabled() async throws {
         let app = try presentView(viewModel: .stub(enabled: true))
-        XCTAssertTrue(app.myButton.isEnabled)
+        XCTAssertTrue(app.uiTestingElement("myButtonIdentifier").isVisible)
     }
 
     // Operation Tests - verify operations were called
     func testButtonTap() async throws {
         let app = try presentView(configuration: .requireSomeState())
-        app.myButton.tap()
+        app.uiTestingElement("myButtonIdentifier").tap()
 
         let stubOps = try viewModelOperations()
         XCTAssertTrue(stubOps.myOperationCalled)
-    }
-}
-
-private extension XCUIApplication {
-    var myButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "myButtonIdentifier")
     }
 }
 ```
@@ -237,7 +266,7 @@ final class MyViewUITests: MyAppViewModelDisplayTestCase<MyViewModel> {
     // UI Tests only - no operation verification
     func testDisplaysCorrectly() async throws {
         let app = try presentView(viewModel: .stub(title: "Test"))
-        XCTAssertTrue(app.titleLabel.exists)
+        XCTAssertTrue(app.uiTestingElement("titleLabel").exists)
     }
 }
 ```
@@ -248,30 +277,17 @@ Do not invent an empty `ViewModelOperations` protocol for display-only views. Th
 - **With operations**: Interactive views that perform actions (forms, buttons that call APIs, toggles, etc.) — use `MyAppViewModelViewTestCase<VM, VMO>`.
 - **Without operations**: Display-only views (cards, detail views, static content) — use `MyAppViewModelDisplayTestCase<VM>`.
 
-### 3. XCUIElement Helper Extensions
+### 3. Element Helpers — Not Needed
 
-Common helpers for interacting with UI elements:
+Do **not** write `XCUIElement` extensions for typing, reading text, or tapping menus.
+`uiTestingElement(_:)` already covers them:
 
-```swift
-extension XCUIElement {
-    var text: String? {
-        value as? String
-    }
+| Hand-rolled helper | Use instead |
+|---|---|
+| `var text: String?` | `.value` |
+| `typeTextAndWait(_:)` / `selectTypeTextAndWait(_:)` | `.type(_:)` |
+| `tapMenu()` | `.tap()` — it falls back to a coordinate tap for menus that report themselves as not hittable |
 
-    func typeTextAndWait(_ string: String, timeout: TimeInterval = 2) {
-        typeText(string)
-        _ = wait(for: \.text, toEqual: string, timeout: timeout)
-    }
-
-    func tapMenu() {
-        if isHittable {
-            tap()
-        } else {
-            coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        }
-    }
-}
-```
 
 ### 4. View Requirements
 
@@ -368,7 +384,7 @@ final class MyDisplayViewUITests: MyAppViewModelDisplayTestCase<MyDisplayViewMod
     // Only test UI state, no operation verification
     func testDisplaysTitle() async throws {
         let app = try presentView(viewModel: .stub(title: "Test"))
-        XCTAssertTrue(app.titleLabel.exists)
+        XCTAssertTrue(app.uiTestingElement("titleLabel").exists)
     }
 }
 ```
@@ -392,12 +408,12 @@ Verify that the UI displays correctly based on ViewModel state:
 ```swift
 func testButtonDisabledWhenNotReady() async throws {
     let app = try presentView(viewModel: .stub(ready: false))
-    XCTAssertFalse(app.submitButton.isEnabled)
+    XCTAssertFalse(app.uiTestingElement("submitButton").isEnabled)
 }
 
 func testButtonEnabledWhenReady() async throws {
     let app = try presentView(viewModel: .stub(ready: true))
-    XCTAssertTrue(app.submitButton.isEnabled)
+    XCTAssertTrue(app.uiTestingElement("submitButton").isEnabled)
 }
 ```
 
@@ -408,7 +424,7 @@ Verify that user interactions invoke the correct operations:
 ```swift
 func testSubmitButtonInvokesOperation() async throws {
     let app = try presentView(configuration: .requireAuth())
-    app.submitButton.tap()
+    app.uiTestingElement("submitButton").tap()
 
     let stubOps = try viewModelOperations()
     XCTAssertTrue(stubOps.submitCalled)
@@ -423,9 +439,9 @@ Verify navigation flows work correctly:
 ```swift
 func testNavigationToDetailView() async throws {
     let app = try presentView()
-    app.itemRow.tap()
+    app.uiTestingElement("itemRow").tap()
 
-    XCTAssertTrue(app.detailView.exists)
+    XCTAssertTrue(app.uiTestingElement("detailView").exists)
 }
 ```
 
@@ -443,7 +459,6 @@ func testNavigationToDetailView() async throws {
 | File | Location | Purpose |
 |------|----------|---------|
 | `{ProjectName}ViewModelViewTestCase.swift` | `Tests/UITests/Support/` | Base test case for all UI tests |
-| `XCUIElement.swift` | `Tests/UITests/Support/` | Helper extensions for XCUIElement |
 
 ### Per ViewModelView
 
@@ -521,7 +536,6 @@ From requirements already in context:
 
 Based on project state:
 - **Base test case** (create if first test, reuse if exists)
-- **XCUIElement extensions** (helper methods for common interactions)
 - **App bundle identifier** (for launching test host)
 
 ### Test File Generation
@@ -530,7 +544,6 @@ For the specific view:
 1. Test class inheriting from base test case
 2. UI state tests (verify display based on ViewModel)
 3. Operation tests (verify user interactions invoke operations)
-4. XCUIApplication extension with element accessors
 
 ### View Requirements
 
@@ -562,25 +575,20 @@ func testWithSpecificState() async throws {
 }
 ```
 
-### Element Accessor Pattern
+### Element Lookup Pattern
 
-Define element accessors in a private extension:
+Find each tagged view by its identifier, at the point of use:
 
 ```swift
-private extension XCUIApplication {
-    var submitButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "submitButton")
-    }
+app.uiTestingElement("submitButton").tap()
+app.uiTestingElement("cancelButton").tap()
 
-    var cancelButton: XCUIElement {
-        buttons.element(matching: .button, identifier: "cancelButton")
-    }
-
-    var firstItem: XCUIElement {
-        buttons.element(matching: .button, identifier: "itemButton").firstMatch
-    }
-}
+XCTAssertTrue(app.uiTestingElement("emptyStateMessage").isVisible)
 ```
+
+Do **not** define `XCUIApplication` accessor extensions for tagged views. They add a second
+name for every element, and they name an XCUITest element type — which is a rendering
+detail, not a contract. `uiTestingElement(_:)` takes the identifier and nothing else.
 
 ### Operation Verification Pattern
 
@@ -589,7 +597,7 @@ After user interactions, verify operations were called:
 ```swift
 func testDecrementButton() async throws {
     let app = try presentView(configuration: .requireDevice())
-    app.decrementButton.tap()
+    app.uiTestingElement("decrementButton").tap()
 
     let stubOps = try viewModelOperations()
     XCTAssertTrue(stubOps.decrementCalled)
@@ -636,7 +644,7 @@ override func setUp() async throws {
 ```swift
 func testAsyncOperation() async throws {
     let app = try presentView()
-    app.loadButton.tap()
+    app.uiTestingElement("loadButton").tap()
 
     // Wait for UI to update
     _ = app.waitForExistence(timeout: 3)
@@ -652,11 +660,9 @@ func testAsyncOperation() async throws {
 func testFormInput() async throws {
     let app = try presentView()
 
-    let emailField = app.emailTextField
-    emailField.tap()
-    emailField.typeTextAndWait("user@example.com")
+    app.uiTestingElement("emailTextField").type("user@example.com")
 
-    app.submitButton.tap()
+    app.uiTestingElement("submitButton").tap()
 
     let stubOps = try viewModelOperations()
     XCTAssertTrue(stubOps.submitCalled)
@@ -670,8 +676,8 @@ func testErrorDisplay() async throws {
     let viewModel: MyViewModel = try localizedViewModel(.stub(hasError: true))
     let app = try presentView(viewModel: viewModel)
 
-    XCTAssertTrue(app.errorAlert.exists)
-    XCTAssertEqual(app.errorMessage.text, try viewModel.errorMessage.localizedString)
+    XCTAssertTrue(app.alerts["errorAlert"].exists)
+    XCTAssertEqual(app.uiTestingElement("errorMessage").label, viewModel.errorMessage)
 }
 ```
 
@@ -687,8 +693,7 @@ See [reference.md](reference.md) for complete file templates.
 | UI test file | `{ViewName}UITests` | `TaskListViewUITests` |
 | Test method (UI state) | `test{Condition}` | `testButtonEnabled` |
 | Test method (operation) | `test{Action}` | `testSubmitButton` |
-| Element accessor | `{elementName}` | `submitButton`, `emailTextField` |
-| UI testing identifier | `{elementName}Identifier` or `{elementName}` | `"submitButton"`, `"emailTextField"` |
+| UI testing identifier | `{elementName}` — the view's role, not its control | `"submitButton"`, `"emailTextField"` |
 
 ## See Also
 
@@ -707,3 +712,4 @@ See [reference.md](reference.md) for complete file templates.
 | 1.2 | 2026-03-30 | Add Element Matching Rules section (identifier > localizedViewModel > never hardcoded strings). Fix hardcoded string in error state example. |
 | 1.3 | 2026-07-02 | Note that `.uiTestingIdentifier(_:)` is a FOSMVVM `View` modifier (`import FOSMVVM`, `SwiftUI Support/View+Testing.swift`), DEBUG-only (no-op in release), applied unconditionally; don't define/copy it yourself. (backlog D1) |
 | 1.4 | 2026-07-02 | Version-floor note for `ViewModelDisplayTestCase<VM>` (recent FOSTestingUI where `ViewModelViewTestCase` inherits it) + older-ref no-op-ops fallback (D2). Added "UI-Test Target Wiring (Xcode project)": link FOS directly NOT via `SPMLibraries` (separate process — trap doesn't apply), source-include the shared contract module, copy the localization tree + `resourceDirectoryName:` (D3). Fixed a copy-paste bug in the View Testing Checklist (display-only list wrongly required `operations` stored from `viewModel.operations`). |
+| 1.5 | 2026-08-12 | `.uiTestingIdentifier(_:)` reworked so a tag holds on bridged controls (`Picker`, `DatePicker`, `TextField`, `ColorPicker`), on containers whose sub-views carry their own tags, at any depth, and at any position in the modifier chain. Tests now find tagged views with `app.uiTestingElement(_:)` (FOSTestingUI): `XCUIApplication` accessor extensions, XCUITest element-type queries, and the hand-rolled `typeTextAndWait`/`tapMenu`/`text` helpers are all removed in favour of it. |

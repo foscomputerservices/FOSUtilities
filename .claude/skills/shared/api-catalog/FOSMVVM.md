@@ -977,9 +977,12 @@ VStack { /* fields and buttons */ }
 ```
 
 ### Tag elements for XCUITest — `uiTestingIdentifier()` <!-- apple-only -->
-Reach for this when: an XCUITest must locate an element — sets the
-accessibility identifier in DEBUG builds only, on both View and (iOS 18/
-macOS 15) TabContent.
+Reach for this when: an XCUITest must locate an element — tags the view in
+DEBUG builds only, on both View and (iOS 18/macOS 15) TabContent. Find the
+tagged view with `uiTestingElement()` (FOSTestingUI). Holds on any view:
+bridged controls (`Picker`, `DatePicker`, `TextField`, `ColorPicker`),
+containers whose sub-views carry their own tags, any nesting depth, any
+position in the modifier chain.
 Don't localize-and-match on display text in tests — it breaks every
 translation run.
 
