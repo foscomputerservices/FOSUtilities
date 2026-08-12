@@ -81,7 +81,7 @@ struct DeviceView: View {
 
     var body: some View {
         Text(viewModel.deviceTitle) // Displays: "Device Id: device-123"
-            .accessibilityIdentifier("deviceText", isEnabled: true)
+            .uiTestingIdentifier("deviceText")
     }
 }
 
@@ -196,10 +196,10 @@ rather than `ViewModelViewTestCase<VM, VMO>`. No ``ViewModelOperations`` type is
 final class MyViewUITests: MyViewModelDisplayTestCase<DeviceViewModel>, @unchecked Sendable {
     func testShowDeviceId() async throws {
         let testId = "test-abc-1234"
-        let app = try await presentView(viewModel: .stub(deviceId: testId))
+        let app = try presentView(viewModel: .stub(deviceId: testId))
 
-        let text = app.staticTexts.element(matching: .staticText, identifier: "deviceText")
-        XCTAssertEqual(text.value as? String, testId)
+        let text = app.uiTestingElement("deviceText")
+        XCTAssertEqual(text.value, testId)
     }
 }
 ```

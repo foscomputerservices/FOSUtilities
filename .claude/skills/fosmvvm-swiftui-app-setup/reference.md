@@ -9,7 +9,7 @@ Complete file templates for setting up a FOSMVVM SwiftUI application.
 
 | Placeholder | Replace With | Example |
 |-------------|--------------|---------|
-| `{AppName}` | Your app name (without "App" suffix) | `MyApp`, `Accel` |
+| `{AppName}` | Your app name (without "App" suffix) | `MyApp`, `Store` |
 | `{AppTarget}` | Main app target name | `App` |
 | `{ResourceBundle1}`, `{ResourceBundle2}` | Module names containing localization | `MyAppViewModels`, `SharedResources` |
 | `{ProductionURL}` | Production server URL | `https://api.example.com` |

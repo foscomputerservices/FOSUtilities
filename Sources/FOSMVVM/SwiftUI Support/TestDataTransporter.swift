@@ -46,12 +46,12 @@ import SwiftUI
 ///
 ///     VStack {
 ///       TextField("", text: $data)
-///         .accessibilityIdentifier("dataTextField")
+///         .uiTestingIdentifier("dataTextField")
 ///
 ///       Button(action: save) {
 ///         Text("Tap Me")
 ///       }
-///       .accessibilityIdentifier("saveButton")
+///       .uiTestingIdentifier("saveButton")
 ///     }
 ///     #if DEBUG
 ///     .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
@@ -88,17 +88,17 @@ import SwiftUI
 ///
 /// ### UITests
 /// ```swift
-/// @testable import AccelViewModels
+/// @testable import MyViewModels
 /// import FOSFoundation
 /// import FOSMVVM
 /// import FOSTesting
 /// import Foundation
-/// @testable import NewAccelPlus
+/// @testable import MyApp
 /// import XCTest
 ///
 /// final class LandingPageViewUITests: MyViewModelViewTestCase<MyViewModel, MyViewModelStubOps> {
 ///     func testSomething() async throws {
-///         let app = try await presentView()
+///         let app = try presentView()
 ///
 ///         app.dataTextField.tap()
 ///         app.dataTextField.typeText("some text")

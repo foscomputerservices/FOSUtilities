@@ -254,7 +254,7 @@ Prefer the catalogued API over hand-rolled code.
 
 | Placeholder | Description | Example |
 |-------------|-------------|---------|
-| `{AppName}` | Your app name | `MyApp`, `AccelApp` |
+| `{AppName}` | Your app name | `MyApp`, `StoreApp` |
 | `{AppTarget}` | Main app target | `App` |
 | `{ResourceBundles}` | Module names with localization | `MyAppViewModels`, `SharedResources` |
 
@@ -892,7 +892,7 @@ See [reference.md](reference.md) for complete file templates.
 
 | Concept | Convention | Example |
 |---------|------------|---------|
-| App struct | `{Name}App` | `MyApp`, `AccelApp` |
+| App struct | `{Name}App` | `MyApp`, `StoreApp` |
 | Main file | `{Name}App.swift` | `MyApp.swift` |
 | MVVMEnvironment property | `mvvmEnv` | Always `mvvmEnv` |
 | Test flag | `underTest` | Always `underTest` |

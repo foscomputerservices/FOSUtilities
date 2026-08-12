@@ -7,6 +7,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`uiTestingElement(_:)` and `UITestingElement`** (FOSTestingUI) — find the view an XCUITest
+  is looking for by the identifier it was tagged with, and nothing else:
+
+  ```swift
+  app.uiTestingElement("nameField").type("Fern")
+  app.uiTestingElement("saveButton").tap()
+
+  XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+  ```
+
+  It offers `exists` (present in the view hierarchy, on screen or not), `isVisible` (on screen
+  and tappable), `waitForExistence()`, `waitForDisappearance()`, `tap()`, `type(_:)`, `label`,
+  `value`,
+  `isEnabled`, and `xcuiElement` as an escape hatch. A `tap()` or `type(_:)` against an
+  identifier no view carries fails the test naming the identifier it looked for, rather than
+  surfacing as an opaque XCUITest snapshot error. `tap()` falls back to a coordinate tap for
+  menus that report themselves as not hittable, and `type(_:)` handles focus, so the
+  `XCUIApplication` accessor extensions and the hand-rolled `typeTextAndWait` / `tapMenu` /
+  `text` helpers that every project grew are no longer needed.
+
+- **`XCTAssertEqual` / `XCTAssertNotEqual` accept a `Localizable`** (FOSTestingUI) — assert what
+  a view displays against the ViewModel it was given, without `try` or `localizedString`:
+
+  ```swift
+  XCTAssertEqual(app.uiTestingElement("dashboardTitle").label, viewModel.title)
+  XCTAssertEqual(app.uiTestingElement("emailField").value, viewModel.email)
+  ```
+
+  Overloads cover `String` and `String?`. A `Localizable` whose translation was never realized
+  cannot match displayed text, so the assertion fails and names that as the cause rather than
+  reading as a wrong label — and it fails at the assertion instead of throwing, so one
+  unrealized translation no longer hides every later assertion in the test.
+
+- **`waitForDisappearance(timeout:)`** (FOSTestingUI) — waits for a tagged view to leave the
+  view hierarchy, the counterpart to `waitForExistence(timeout:)`. Asserting `exists == false`
+  straight after the action that dismisses a view answers before the view has gone; the
+  alternative was an `XCTNSPredicateExpectation` written by hand at each site.
+
+- **Both waits default to `timeout: 3`**, matching `presentView(timeout:)`. The number is a
+  property of the machine running the tests, not of any one assertion, and every call site
+  restating it was noise.
+
+### Fixed
+
+- **`uiTestingIdentifier(_:isEnabled:)` now holds where it previously did not** (FOSMVVM) — a
+  tag applied to a control that bridges to a native element (`Picker`, `DatePicker`,
+  `TextField`, `ColorPicker`) was silently discarded, and the surrounding subtree was left
+  unhittable: XCUITest could not find the control by any query, and a test that tried spun
+  until the runner aborted. A tag applied to a container also overwrote the tags of the
+  sub-views composed inside it, so a sub-view's own test suite passed in isolation and failed
+  once the sub-view was composed into a screen. Both are resolved: a tag now holds on any view,
+  at any nesting depth, and at any position in the modifier chain, and a composed view and each
+  of its sub-views can each carry their own tag.
+
+- **`uiTestingIdentifier(_:)` gains `isEnabled:`** (FOSMVVM) — matching the `TabContent`
+  overload, which has always had it. Defaulted, so existing call sites are unaffected.
+
+### Changed
+
+- **Tagged views are no longer located by XCUITest element type** (FOSMVVM/FOSTestingUI,
+  **breaking for UI tests**). Queries such as `app.buttons["saveButton"]`,
+  `app.staticTexts["titleLabel"]`, or `buttons.element(matching: .button, identifier:)` no
+  longer match a view tagged with `uiTestingIdentifier(_:)`. Views need no edit — the call
+  sites that tag them are unchanged.
+  **Migration:** replace each element-type query with `app.uiTestingElement("<identifier>")`
+  and delete the `private extension XCUIApplication` accessors that wrapped them.
+
+  ```swift
+  // Before
+  private extension XCUIApplication {
+      var saveButton: XCUIElement {
+          buttons.element(matching: .button, identifier: "saveButton")
+      }
+  }
+  app.saveButton.tap()
+
+  // After
+  app.uiTestingElement("saveButton").tap()
+  ```
+
+  Do not assume an element type for a tagged view — the identifier is the whole contract, which
+  is what lets a test survive a `Button` becoming a `Menu`. Views located by *displayed text*
+  (the `localizedViewModel()` path) are unaffected.
+
 ## [0.11.0] - 2026-08-11
 
 ### Changed
