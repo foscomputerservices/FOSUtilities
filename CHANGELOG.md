@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-12
+
 ### Added
 
 - **`uiTestingElement(_:)` and `UITestingElement`** (FOSTestingUI) — find the view an XCUITest
