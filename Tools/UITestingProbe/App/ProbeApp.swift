@@ -111,6 +111,42 @@ struct ProbeView: View {
     }
 }
 
+/// A toolbar, which bridges to a native bar item the way a tab bar item does. Three ways of
+/// writing a tagged toolbar control sit side by side: our tag on the control inside a
+/// `ToolbarItem`, Apple's modifier raw in the same position, and a bare control in the builder
+/// with no `ToolbarItem` around it.
+struct ToolbarProbe: View {
+    @State private var toolbarTaps = 0
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 8) {
+                Text(verbatim: "toolbar-taps-\(toolbarTaps)")
+                    .uiTestingIdentifier("toolbarCounter")
+
+                ProbeView()
+            }
+            .navigationTitle(Text(verbatim: "probe-title"))
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: { toolbarTaps += 1 }) { Text(verbatim: "save") }
+                        .uiTestingIdentifier("saveToolbarButton")
+                }
+
+                ToolbarItem(placement: .automatic) {
+                    Button(action: {}) { Text(verbatim: "raw") }
+                        .accessibilityIdentifier("rawToolbarButton")
+                }
+
+                ToolbarItemGroup(placement: .automatic) {
+                    Button(action: {}) { Text(verbatim: "plain") }
+                        .uiTestingIdentifier("plainToolbarButton")
+                }
+            }
+        }
+    }
+}
+
 /// Three ways of writing a tagged tab, side by side: the closure-based initializer and the
 /// convenience one, both tagged through TabContent, and a tab whose label carries the View tag
 /// instead. A tab bar reaches the accessibility tree later than the views on screen, which is what
@@ -123,7 +159,7 @@ struct ProbeTabs: View {
     var body: some View {
         TabView {
             Tab {
-                ProbeView()
+                ToolbarProbe()
             } label: {
                 Label("probe", systemImage: "1.square")
             }
@@ -150,7 +186,7 @@ struct UITestingProbeApp: App {
             if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
                 ProbeTabs()
             } else {
-                ProbeView()
+                ToolbarProbe()
             }
         }
     }

@@ -61,13 +61,24 @@ import XCTest
         XCTAssertEqual(app.uiTestingElement("tapCounter").label, "taps-1")
     }
 
-    func testTapOpensABridgedControl() {
+    func testTapOpensABridgedControl() async throws {
         app.uiTestingElement("innerPicker").tap()
 
         XCTAssertTrue(app.uiTestingElement("optionB").waitForExistence())
         app.uiTestingElement("optionB").tap()
 
-        XCTAssertEqual(app.uiTestingElement("innerPicker").label, "program, optB")
+        // The menu's dismissal is animated and the picker reports no label while it runs, so the
+        // selection is waited for rather than read on the next line. `label` answers about the
+        // screen as it is now — settling is the test's job, as it is anywhere else.
+        // A picker's options stay in the tree while the menu is closed, so there is nothing to
+        // wait for the disappearance of.
+        var label = ""
+        for _ in 0..<40 where label != "program, optB" {
+            label = app.uiTestingElement("innerPicker").label
+            try await Task.sleep(for: .milliseconds(250))
+        }
+
+        XCTAssertEqual(label, "program, optB")
     }
 
     /// Displayed text is compared against a Localizable, not a literal.
