@@ -94,6 +94,14 @@ public extension XCUIApplication {
     ///
     /// A view that is part of the hierarchy but scrolled out of sight is not visible; ``exists``
     /// reports that case.
+    ///
+    /// This answers about the screen as it is now, and a view the application has not finished
+    /// presenting is not on it yet — a tab bar item is not there for the first moments after
+    /// launch.  Wait for a view that is still arriving:
+    ///
+    /// ```swift
+    /// XCTAssertTrue(app.uiTestingElement("settingsTab").waitForExistence())
+    /// ```
     public var isVisible: Bool {
         let element = xcuiElement
 
@@ -214,7 +222,7 @@ public extension XCUIApplication {
     ///
     /// - Parameter timeout: How long to wait, in seconds.
     /// - Returns: `true` if the view exists before the timeout elapses.
-    @discardableResult public func waitForExistence(timeout: TimeInterval = 3) -> Bool {
+    @discardableResult public func waitForExistence(timeout: TimeInterval = 10) -> Bool {
         xcuiElement.waitForExistence(timeout: timeout)
     }
 
@@ -231,7 +239,7 @@ public extension XCUIApplication {
     ///
     /// - Parameter timeout: How long to wait, in seconds.
     /// - Returns: `true` if the view is gone before the timeout elapses.
-    @discardableResult public func waitForDisappearance(timeout: TimeInterval = 3) -> Bool {
+    @discardableResult public func waitForDisappearance(timeout: TimeInterval = 10) -> Bool {
         let departed = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "exists == false"),
             object: xcuiElement
@@ -243,14 +251,20 @@ public extension XCUIApplication {
     /// Taps the tagged view
     ///
     /// ```swift
-    /// app.uiTestingElement("saveButton").tap()
+    /// app.uiTestingElement("settingsTab").tap()
     /// ```
+    ///
+    /// The view is waited for, so a tap lands on a view the application is still presenting — a
+    /// tab bar item in the first moments after launch, a screen mid-transition — rather than
+    /// racing it, and the test does not open with a wait of its own.
     public func tap(file: StaticString = #filePath, line: UInt = #line) {
-        let element = xcuiElement
-        guard element.exists else {
+        // Waiting through the public wait keeps one default governing both it and the call site.
+        guard waitForExistence() else {
             XCTFail(Self.notFound(identifier), file: file, line: line)
             return
         }
+
+        let element = xcuiElement
 
         if element.isHittable {
             element.tap()
@@ -285,9 +299,11 @@ public extension XCUIApplication {
     /// app.uiTestingElement("nameField").type("Fern")
     /// ```
     ///
+    /// The field is waited for, as it is for ``tap()``.
+    ///
     /// - Parameter text: The text to type.
     public func type(_ text: String, file: StaticString = #filePath, line: UInt = #line) {
-        guard xcuiElement.exists else {
+        guard waitForExistence() else {
             XCTFail(Self.notFound(identifier), file: file, line: line)
             return
         }

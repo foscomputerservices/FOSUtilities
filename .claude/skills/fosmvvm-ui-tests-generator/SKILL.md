@@ -175,7 +175,7 @@ class MyAppViewModelDisplayTestCase<VM: ViewModel>:
     @MainActor func presentView(
         configuration: TestConfiguration,
         viewModel: VM = .stub(),
-        timeout: TimeInterval = 3
+        timeout: TimeInterval = 10
     ) throws -> XCUIApplication {
         try presentView(
             testConfiguration: configuration.toJSON(),
@@ -205,7 +205,7 @@ class MyAppViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>:
     @MainActor func presentView(
         configuration: TestConfiguration,
         viewModel: VM = .stub(),
-        timeout: TimeInterval = 3
+        timeout: TimeInterval = 10
     ) throws -> XCUIApplication {
         try presentView(
             testConfiguration: configuration.toJSON(),
