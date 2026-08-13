@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-08-13
+
+### Fixed
+
+- **`tap()` and `type(_:)` wait for the view** (FOSTestingUI) — both asked once whether the view
+  existed and failed the test if it did not, which made every tap a race against the application
+  finishing what it was presenting. A tab bar reaches the accessibility tree a few hundred
+  milliseconds after launch, so it lost that race every time and a test could not tap a tab at
+  all ([#126](https://github.com/foscomputerservices/FOSUtilities/issues/126)):
+
+  ```swift
+  app.uiTestingElement("settingsTab").tap()   // the first thing the test does
+  ```
+
+  Both now wait as long as `waitForExistence()` does, and fail with the same message naming the
+  identifier when the view never arrives. `exists` and `isVisible` are unchanged — they answer
+  about the screen as it is now, so a test that *opens* by asking about a tab still wants
+  `waitForExistence()` first.
+
+- **The wait defaults are `timeout: 10`**, raised from `3` — `waitForExistence(timeout:)`,
+  `waitForDisappearance(timeout:)` and `presentView(timeout:)` together (FOSTestingUI). Measured
+  on an idle machine, a tab bar reached the accessibility tree between 0.6 and 2.1 seconds after
+  the application came to the foreground, which left a 3 second wait no headroom on a loaded one.
+  A wait that succeeds returns the moment it can, so the number only costs anything on a test
+  that was going to fail anyway.
+
+  `Tools/UITestingProbe` now covers a live `TabView`, which is what had been missing.
+
+### Changed
+
+- **`TabContent.uiTestingIdentifier(_:isEnabled:)` now requires iOS 27** (FOSMVVM), raised from
+  iOS 18. **An iOS project with a lower deployment target will no longer compile a call to it**,
+  and that is the point: Apple's `TabContent.accessibilityIdentifier` is declared from iOS 18 but
+  puts no identifier on the tab bar item until iOS 27 — on any Xcode, measured one variable at a
+  time in `Tools/UITestingProbe/README.md`. Below that floor the call compiled and silently did
+  nothing, and the test failed saying no view carried the tag.
+
+  Other platforms are unchanged and unaffected — macOS and tvOS were measured tagging the tab at
+  their existing floors. Tagging is also unaffected everywhere else on iOS, including views
+  *inside* a tab. An iOS project that cannot raise its floor yet finds the tab bar item by the
+  title it displays, resolved from the same ViewModel property that builds the tab's label so the
+  lookup holds in every locale:
+
+  ```swift
+  let title = try viewModel.settingsTabTitle.localizedString
+
+  app.tabBars.buttons[title].firstMatch.tap()
+  ```
+
 ## [0.12.0] - 2026-08-12
 
 ### Added
@@ -657,7 +706,10 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.2...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.1...HEAD
+[0.12.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.0...0.12.1
+[0.12.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.11.0...0.12.0
+[0.11.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.2...0.11.0
 [0.10.2]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.1...0.10.2
 [0.10.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.0...0.10.1
 [0.10.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.9.0...0.10.0
