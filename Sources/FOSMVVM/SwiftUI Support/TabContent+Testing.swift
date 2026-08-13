@@ -78,20 +78,41 @@ public extension TabContent {
     /// The other platforms tag the tab at their own floors and need nothing said: macOS and
     /// tvOS were measured directly, and a tagged tab is found there exactly as a tagged view is.
     ///
-    /// An iOS project that cannot raise its floor yet finds the tab by the title it displays,
-    /// resolved from the same ViewModel property the tab's label is built from, so the lookup
-    /// holds in every locale:
+    /// ### Working Around It, and Deleting the Workaround
+    ///
+    /// **What follows is a workaround for a defect, not a pattern.**  It finds the tab by the
+    /// text it displays — the very thing ``uiTestingIdentifier(_:isEnabled:)`` exists to stop a
+    /// test doing — and it earns its place only for as long as Apple's identifier is inert.
+    ///
+    /// Resolve the title from the same ViewModel property the tab's label is built from, never a
+    /// literal, so the lookup holds in every locale; and scope it to `tabBars`, or it matches any
+    /// button on screen displaying that title:
     ///
     /// ```swift
-    /// let title = try viewModel.settingsTabTitle.localizedString
-    ///
-    /// app.tabBars.buttons[title].firstMatch.tap()
+    /// app.tabBars.buttons[try viewModel.settingsTabTitle.localizedString].firstMatch.tap()
     /// ```
     ///
-    /// Scope it to `tabBars` rather than asking the application for `buttons`, or the lookup
-    /// matches any button on screen that happens to display the same title.  Tag the tab anyway
-    /// where the floor allows: everything the tab *contains* is found by its own tag on every
-    /// platform, and only the tab bar item itself needs this.
+    /// A project that ships below iOS 27 but *runs tests* on iOS 27 can have the real thing
+    /// today, with the workaround quarantined where it deletes in one edit — in the test:
+    ///
+    /// ```swift
+    /// if #available(iOS 27, *) {
+    ///     app.uiTestingElement("settingsTab").tap()
+    /// } else {
+    ///     app.tabBars.buttons[try viewModel.settingsTabTitle.localizedString].firstMatch.tap()
+    /// }
+    /// ```
+    ///
+    /// and the matching `#available` branch around the tagged `Tab` in the view.  That branch
+    /// costs a duplicated `Tab` declaration, because the tag chains onto the whole value — weigh
+    /// that against having the tag path exercised on every iOS 27 machine you own rather than
+    /// on the day you raise the floor.
+    ///
+    /// **Delete the `else` branch when the deployment target reaches iOS 27.**  That is the
+    /// trigger; nothing else about the workaround expires on its own.
+    ///
+    /// Tag the tab anyway where the floor allows: everything the tab *contains* is found by its
+    /// own tag on every platform, and only the tab bar item itself needs any of this.
     ///
     /// ## Release Builds
     ///

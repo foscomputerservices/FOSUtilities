@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`label` answers with the control's text on every platform** (FOSTestingUI) — AppKit carries a
+  static text's string as its accessibility *value* where UIKit carries it as its *label*, so
+  `XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)` — the documented
+  pattern — silently returned `""` on macOS. It reads as a missing view rather than a platform
+  difference. `label` now falls through to the value when there is no label, which changes only
+  the case that returned an empty string; no control that has a label answers differently, and no
+  new API was added to paper over it.
+
+### Changed
+
+- **The iOS tab workaround is documented as a workaround** (FOSMVVM) — 0.12.1 described finding a
+  tab by its displayed title in the same voice as the API itself, and it was read as an
+  endorsement: the label lookup matches on displayed text, which is precisely what
+  `uiTestingIdentifier(_:isEnabled:)` exists to stop a test doing. The DocC now says what it is
+  (a workaround for an Apple defect), when it dies (**delete it when the deployment target
+  reaches iOS 27**), and how to quarantine it behind `#available` so a project shipping below
+  iOS 27 can still exercise the real tag path on the iOS 27 machines it already owns.
+
+- **`Tools/UITestingProbe` covers a toolbar**, on iOS and macOS. A `ToolbarItem` bridges to a
+  native bar item the way a tab bar item does, so it was the obvious next suspect after #126 —
+  measured on iOS 26.5, iOS 18.6 and macOS 26.4, a tag on a control inside a `ToolbarItem` or a
+  `ToolbarItemGroup` holds, and the tap reaches the control. No change was needed; the coverage
+  is there so the next platform release is measured rather than assumed.
+
 ## [0.12.1] - 2026-08-13
 
 ### Fixed

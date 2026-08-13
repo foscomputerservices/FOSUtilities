@@ -108,11 +108,14 @@ public extension XCUIApplication {
         return element.exists && (element.isHittable || isOnScreen(element))
     }
 
-    /// The tagged view's accessibility label
+    /// What the tagged control reads as
     ///
     /// ```swift
     /// XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)
     /// ```
+    ///
+    /// The same assertion holds on every platform: where a control's text lives differs between
+    /// them, and this answers with the text either way.
     ///
     /// Each read of ``label``, ``value`` or ``isEnabled`` asks the running application, so assert
     /// the one that carries the meaning rather than sweeping all three.
@@ -121,7 +124,13 @@ public extension XCUIApplication {
     /// control itself to assert its state: tagging a stack that groups other tagged views and
     /// asking that stack for a label reports one of the controls within it.
     public var label: String {
-        taggedControl?.label ?? xcuiElement.label
+        let control = taggedControl
+        let label = control?.label ?? xcuiElement.label
+        guard label.isEmpty else { return label }
+
+        // AppKit carries a static text's string as its value, UIKit as its label. Only the
+        // otherwise-empty answer falls through, so no control that has a label is affected.
+        return (control?.value ?? xcuiElement.value) as? String ?? ""
     }
 
     /// The tagged view's accessibility value, if it has one
