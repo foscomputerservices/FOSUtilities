@@ -37,6 +37,40 @@ tests the working tree.
   and asserted through the tag
 - displayed text compares against a `Localizable`, and a `Localizable` that was never localized
   cannot match
+- a `Tab` holds its tag — through either initializer, and on the label as well as on the `Tab`
+  — and tapping one as the first thing a test does switches tabs
+
+## What the tab bar taught us
+
+Two separate things, and #126 reported them as one.
+
+**A tab bar item carries no identifier before iOS 27, and the defect is iOS-only.** Apple's
+`TabContent.accessibilityIdentifier` is declared from iOS 18 and does nothing on iOS until 27.
+Measured one variable at a time, tagging the `Tab` (either initializer), tagging its label, and
+applying Apple's modifier raw all behave identically — the tab bar buttons come back with `id=""`:
+
+- Xcode 27 → iOS 27.0 — **identifier present**
+- Xcode 27 → iOS 26.5 — absent
+- Xcode 27 → iOS 18.5 — absent
+- Xcode 26.5 → iOS 26.5 — absent
+- Xcode 26.5 → iOS 18.6 — absent
+- Xcode 26.5 → macOS 26.4 — **present** (a tab is a radio button here, not a `UITabBarItem`)
+- Xcode 26.5 → tvOS 26.5 — **present**
+
+The runtime decides and the SDK does not, which is why `TabContent.uiTestingIdentifier` raises its
+floor for **iOS only** and `TabTaggingTests` skips below iOS 27. Re-run this matrix against a new
+OS before widening that floor. Everything a tab *contains* is found by its own tag on every
+runtime; only the iOS bar item is affected.
+
+Not measured: **visionOS** (the run was lost when the VM hosting it was recycled) and **watchOS**
+(no XCUITest). Both keep Apple's declared floors rather than a guessed one — measure before
+changing that.
+
+**On iOS 27, where the tag does land, it lands late** — a few hundred milliseconds after launch,
+whereas every tagged view on screen resolves on the first query. `tap()` asked once and gave up,
+so it raced the tab bar and lost. Actions wait now; questions still answer about the screen as it
+is, so a test that *opens* by asking about a tab (`isVisible`, `exists`) still wants
+`waitForExistence()` first.
 
 Every assertion goes through `uiTestingElement(_:)`. The harness contains no XCUITest
 element-type queries — if one appears, it is either a gap in the strategy that needs stating
