@@ -111,9 +111,47 @@ struct ProbeView: View {
     }
 }
 
+/// Three ways of writing a tagged tab, side by side: the closure-based initializer and the
+/// convenience one, both tagged through TabContent, and a tab whose label carries the View tag
+/// instead. A tab bar reaches the accessibility tree later than the views on screen, which is what
+/// the tab tests are really about.
+///
+/// Floors match `TabContent.uiTestingIdentifier`: iOS 27, where Apple starts putting an
+/// identifier on a tab bar item, and macOS and visionOS at their own floors.
+@available(iOS 27.0, macOS 15.0, visionOS 2.0, *)
+struct ProbeTabs: View {
+    var body: some View {
+        TabView {
+            Tab {
+                ProbeView()
+            } label: {
+                Label("probe", systemImage: "1.square")
+            }
+            .uiTestingIdentifier("probeTab")
+
+            Tab("second", systemImage: "2.square") {
+                Text(verbatim: "second-content").uiTestingIdentifier("secondContent")
+            }
+            .uiTestingIdentifier("secondTab")
+
+            Tab {
+                Text(verbatim: "third-content").uiTestingIdentifier("thirdContent")
+            } label: {
+                Label("third", systemImage: "3.square").uiTestingIdentifier("thirdLabel")
+            }
+        }
+    }
+}
+
 @main
 struct UITestingProbeApp: App {
     var body: some Scene {
-        WindowGroup { ProbeView() }
+        WindowGroup {
+            if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
+                ProbeTabs()
+            } else {
+                ProbeView()
+            }
+        }
     }
 }

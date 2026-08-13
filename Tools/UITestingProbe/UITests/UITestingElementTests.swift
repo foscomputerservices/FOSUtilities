@@ -90,8 +90,8 @@ import XCTest
         )
     }
 
-    /// A view whose identifier is on the control itself — TabContent, or a raw
-    /// accessibilityIdentifier — reports its own state, not a neighbour's.
+    /// A view whose identifier is on the control itself — a raw accessibilityIdentifier here, a
+    /// tagged `Tab` in `TabTaggingTests` — reports its own state, not a neighbour's.
     func testStateOfADirectlyIdentifiedView() {
         let raw = app.uiTestingElement("rawTaggedButton")
 

@@ -22,37 +22,84 @@ import SwiftUI
 // package floor — TabContent itself is tvOS 18 / watchOS 11 / visionOS 2, so
 // omitting those platforms is a floor-level lie that only an honest
 // device-platform compile exposes.
+//
+// iOS alone is raised above TabContent's own floor. Apple's
+// TabContent.accessibilityIdentifier is declared from iOS 18 but reaches the
+// tab bar item only from iOS 27; macOS and tvOS tag the tab at their declared
+// floors. Measured one platform at a time — the matrix is in
+// Tools/UITestingProbe/README.md. Declaring what Apple declares would compile
+// on the broken runtime and silently do nothing, which is the failure mode the
+// customer reported, so availability is the compile-time gate for iOS only.
 // swiftformat:enable docComments
-@available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
+@available(iOS 27.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
 public extension TabContent {
-    /// Adds an identifier that can be used to identify the element in an XCUITest
+    /// Tags the tab so that an XCUITest can find it
+    ///
+    /// Tag the tab with ``uiTestingIdentifier(_:isEnabled:)``, then find it in the test with
+    /// `XCUIApplication.uiTestingElement(_:)` (**FOSTestingUI**), exactly as for a view.
     ///
     /// ## Example
     ///
     /// ### View
     ///
     /// ```swift
-    /// Tab("MyTab", image: "MyTabImage") { Text("Hello World") }
-    ///   .uiTestingIdentifier("myTabButton")
+    /// Tab("Settings", systemImage: "gear") { SettingsView() }
+    ///   .uiTestingIdentifier("settingsTab")
     /// ```
     ///
     /// ### XCUITest
     ///
     /// ```swift
-    /// private extension XCUIApplication {
-    ///   var myTab: XCUIElement {
-    ///       buttons.element(matching: .button, identifier: "myTabButton")
+    /// func testShowsSettings() async throws {
+    ///     let app = try presentView()
     ///
-    ///       // Or possibly if button matching won't work -- breaks localization tests, however
-    ///       buttons["MyTab"].firstMatch
-    ///   }
+    ///     app.uiTestingElement("settingsTab").tap()
+    ///
+    ///     XCTAssertTrue(app.uiTestingElement("settingsTitle").waitForExistence())
     /// }
     /// ```
     ///
+    /// The tag holds for either initializer, and for a tab whose label is built in a closure.
+    ///
+    /// A tab bar reaches the accessibility tree a moment after the application launches, later
+    /// than the views on screen.  `tap()` and `type(_:)` wait, so they need nothing said; a test
+    /// that opens by *asking* about a tab —  ``UITestingElement/isVisible`` or
+    /// ``UITestingElement/exists`` — asks before the tab bar is there, and wants
+    /// ``UITestingElement/waitForExistence(timeout:)`` first.
+    ///
+    /// ## On iOS, Tagging a Tab Requires iOS 27
+    ///
+    /// This method is unavailable below iOS 27, so an iOS project whose deployment target is
+    /// lower will not compile a call to it.  That is deliberate.  Apple's underlying
+    /// `TabContent.accessibilityIdentifier` is declared from iOS 18 but puts no identifier on
+    /// the tab bar item until iOS 27, on any Xcode — so below that floor the call would compile
+    /// and do nothing, and the test would fail saying no view carries the tag.
+    ///
+    /// The other platforms tag the tab at their own floors and need nothing said: macOS and
+    /// tvOS were measured directly, and a tagged tab is found there exactly as a tagged view is.
+    ///
+    /// An iOS project that cannot raise its floor yet finds the tab by the title it displays,
+    /// resolved from the same ViewModel property the tab's label is built from, so the lookup
+    /// holds in every locale:
+    ///
+    /// ```swift
+    /// let title = try viewModel.settingsTabTitle.localizedString
+    ///
+    /// app.tabBars.buttons[title].firstMatch.tap()
+    /// ```
+    ///
+    /// Scope it to `tabBars` rather than asking the application for `buttons`, or the lookup
+    /// matches any button on screen that happens to display the same title.  Tag the tab anyway
+    /// where the floor allows: everything the tab *contains* is found by its own tag on every
+    /// platform, and only the tab bar item itself needs this.
+    ///
+    /// ## Release Builds
+    ///
+    /// The tag is applied in `DEBUG` builds only, as it is for a view.
+    ///
     /// - Parameters:
-    ///   - identifier: The accessibility identifier to apply.
-    ///   - isEnabled: If true the accessibility identifier is applied;
-    ///     otherwise the accessibility identifier is unchanged.
+    ///   - string: The identifier used to find the tab in an XCUITest.
+    ///   - isEnabled: If `true` the tab is tagged; otherwise the tab is left untagged.
     func uiTestingIdentifier(_ string: String, isEnabled: Bool = true) -> some TabContent<Self.TabValue> {
         #if DEBUG
         accessibilityIdentifier(string, isEnabled: isEnabled)

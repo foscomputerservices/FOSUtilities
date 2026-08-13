@@ -146,13 +146,13 @@ import XCTest
     ///   - testConfiguration: A name for the configuration under test
     ///   - viewModel: A *ViewModel* instance to use to populate a corresponding *ViewModelView* (default: .stub())
     ///   - locale: The *Locale* to use to encode the *ViewModel* (default: Self.en)
-    ///   - timeout: The number of seconds to wait for the application to respond (default: 3)
+    ///   - timeout: The number of seconds to wait for the application to respond (default: 10)
     /// - Returns: The *XCUIApplication* that proxies the *ViewModelView*
     @MainActor public func presentView(
         testConfiguration: String = "",
         viewModel: VM = .stub(),
         locale: Locale? = nil,
-        timeout: TimeInterval = 3
+        timeout: TimeInterval = 10
     ) throws -> XCUIApplication {
         guard let app else {
             throw RunError.setupNotCalled

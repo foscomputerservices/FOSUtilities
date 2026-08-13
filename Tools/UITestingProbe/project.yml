@@ -32,6 +32,31 @@ targets:
         product: FOSTestingUI
       - package: FOSUtilities
         product: FOSMVVM
+  UITestingProbeMac:
+    type: application
+    platform: macOS
+    sources: [App]
+    settings:
+      base:
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+    dependencies:
+      - package: FOSUtilities
+        product: FOSMVVM
+  UITestingProbeMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [MacUITests]
+    settings:
+      base:
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+    dependencies:
+      - target: UITestingProbeMac
+      - package: FOSUtilities
+        product: FOSTestingUI
+      - package: FOSUtilities
+        product: FOSMVVM
 schemes:
   UITestingProbe:
     build:
@@ -40,3 +65,10 @@ schemes:
         UITestingProbeUITests: [test]
     test:
       targets: [UITestingProbeUITests]
+  UITestingProbeMac:
+    build:
+      targets:
+        UITestingProbeMac: all
+        UITestingProbeMacUITests: [test]
+    test:
+      targets: [UITestingProbeMacUITests]

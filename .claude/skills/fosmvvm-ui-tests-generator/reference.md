@@ -42,7 +42,7 @@ class {ProjectName}ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations
     @MainActor func presentView(
         configuration: TestConfiguration,
         viewModel: VM = .stub(),
-        timeout: TimeInterval = 3
+        timeout: TimeInterval = 10
     ) throws -> XCUIApplication {
         try presentView(
             testConfiguration: configuration.toJSON(),
