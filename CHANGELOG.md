@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-08-17
+
 ### Fixed
 
 - **The keyboard-dismissal control survives keyboard avoidance** (FOSMVVM's `testHost()`, which
@@ -770,7 +772,8 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.2...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.3...HEAD
+[0.12.3]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.2...0.12.3
 [0.12.2]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.11.0...0.12.0
