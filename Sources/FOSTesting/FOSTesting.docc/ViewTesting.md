@@ -246,6 +246,36 @@ XCTAssertTrue(banner.waitForDisappearance())  // departing — wait
 Gestures synchronize themselves — `tap()` and `type(_:)` wait for the view to
 arrive before acting, so no explicit wait precedes them.
 
+## Dismissing the Keyboard
+
+Typing raises the software keyboard, and a raised keyboard covers the lower
+part of the screen — a tap aimed at a covered control lands on the keyboard
+instead, and the test fails downstream with no visible error at the tap.
+XCUITest offers no way to put the keyboard away, and a `.numberPad` keyboard
+has no Return key to tap.
+
+`dismissKeyboard()` is the way down. Call it after typing, before tapping
+anything the keyboard might cover:
+
+```swift
+app.uiTestingElement("quantityField").type("42")
+app.dismissKeyboard()
+app.uiTestingElement("saveButton").tap()
+```
+
+With no keyboard up the call is a no-op, so call sites stay unconditional —
+no platform or keyboard-type checks. It rides an invisible control that
+``testHost`` plants, so it works for every keyboard type and needs nothing
+from the application beyond the `.testHost()` this article already
+configured. If the keyboard cannot be dismissed, the test fails naming the
+cause rather than carrying on.
+
+> Important: Tapping a neutral view — a title, some empty space — does *not*
+> dismiss the keyboard, however much the idiom looks like it should. A static
+> `Text` is not interactive, so the tap resigns nothing and the keyboard
+> stays up; the workaround reads as correct and silently does nothing. Use
+> `dismissKeyboard()`.
+
 ## Interactive Path
 
 Use this path when the view has buttons, forms, toggles, or other user-initiated

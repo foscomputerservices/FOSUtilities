@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`XCUIApplication.dismissKeyboard()` puts the software keyboard away** (FOSTestingUI, with
+  FOSMVVM's `testHost()`) — XCUITest offers no way to dismiss the keyboard, and a `.numberPad`
+  keyboard has no Return key, so once a test typed into one the keyboard stayed up: a tap aimed
+  at a control the keyboard covers lands on the keyboard instead, and the test fails downstream
+  with no visible error at the tap. The workaround in circulation — tapping a neutral view —
+  resigns nothing and silently does not work.
+
+  ```swift
+  app.uiTestingElement("quantityField").type("42")
+  app.dismissKeyboard()
+  app.uiTestingElement("saveButton").tap()
+  ```
+
+  On iOS, `testHost()` now plants an invisible, always-reachable control that resigns first
+  responder; `dismissKeyboard()` taps it and waits for the keyboard to leave. With no keyboard
+  up the call is a no-op, so call sites stay unconditional. If the keyboard cannot be dismissed
+  — the application is not wrapped in `.testHost()`, or the keyboard stays up — the test fails
+  naming the cause. The control hit-tests only while the keyboard is up, ships nothing outside
+  DEBUG builds, and changes no production behavior.
+
 ### Fixed
 
 - **`label` answers with the control's text on every platform** (FOSTestingUI) — AppKit carries a

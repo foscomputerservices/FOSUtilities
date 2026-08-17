@@ -18,6 +18,9 @@ import FOSFoundation
 import Foundation
 
 #if canImport(SwiftUI)
+#if canImport(Combine)
+import Combine
+#endif
 import SwiftUI
 
 public extension View {
@@ -53,6 +56,10 @@ public extension View {
     /// Every view to be tested individually must be registered from the application's `init()`
     /// with ``MVVMEnvironment/registerTestView(_:)``; this function resolves the view under test
     /// before the first render, and stops with a diagnostic if it is not registered by then.
+    ///
+    /// On iOS the wrapper also plants the invisible control that
+    /// `XCUIApplication.dismissKeyboard()` (**FOSTestingUI**) taps to put the software keyboard
+    /// away — nothing to configure, and nothing ships in release builds.
     ///
     /// - Parameters:
     ///   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
@@ -176,6 +183,11 @@ private struct TestingView<BaseView: View>: View {
 
     var body: some View {
         testView
+        #if os(iOS)
+        .overlay(alignment: .topLeading) {
+            DismissKeyboardControl()
+        }
+        #endif
     }
 
     init(baseView: BaseView) {
@@ -184,6 +196,45 @@ private struct TestingView<BaseView: View>: View {
         ) ?? AnyView(baseView)
     }
 }
+
+#if os(iOS)
+/// The tap target for XCUIApplication.dismissKeyboard() (FOSTestingUI). XCUITest has no API to
+/// put the software keyboard away, and a .numberPad keyboard offers no Return key to tap, so the
+/// test process's only route is something tappable that resigns first responder. This control is
+/// that route: invisible, pinned top-leading where the keyboard cannot cover it, and outside the
+/// keyboard safe-area so keyboard avoidance cannot move it (the hosted content shifts; this must
+/// not). It hit-tests only while the keyboard is up, so with the keyboard down the corner belongs
+/// entirely to the view under test.
+private struct DismissKeyboardControl: View {
+    @State private var keyboardIsUp = false
+
+    var body: some View {
+        Button {
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil, from: nil, for: nil
+            )
+        } label: {
+            Color.clear
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // Mirrors the literal in FOSTestingUI's XCUIApplication.dismissKeyboard(); the two
+        // modules share no target, so the name is tethered by comment, as the __FOS_ launch
+        // environment keys are.
+        .accessibilityIdentifier("__FOS_DismissKeyboard")
+        .allowsHitTesting(keyboardIsUp)
+        .ignoresSafeArea(.keyboard)
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillShowNotification
+        )) { _ in keyboardIsUp = true }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillHideNotification
+        )) { _ in keyboardIsUp = false }
+    }
+}
+#endif
 #endif
 #endif
 

@@ -68,7 +68,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Serving typed/localized errors, gating routes on client app version → `FOSMVVMVapor.md § Middleware`
 - Verifying a caller's bearer token / protecting route groups with app-owned credential rules → `FOSMVVMVapor.md § Middleware`
 - Testing ViewModels — Codable round-trip, version stability, translation coverage → `FOSTesting.md § FOSTesting`
-- UI-testing SwiftUI ViewModel views (XCUITest hosting, operations, identifiers) → `FOSTesting.md § FOSTestingUI`, `FOSMVVM.md § SwiftUI Support`
+- UI-testing SwiftUI ViewModel views (XCUITest hosting, operations, identifiers, keyboard dismissal) → `FOSTesting.md § FOSTestingUI`, `FOSMVVM.md § SwiftUI Support`
 - Testing Vapor ServerRequests end to end, or Fluent-backed code against a fresh in-memory database → `FOSTesting.md § FOSTestingVapor`
 - Testing a streaming / SSE endpoint over a real socket → `FOSTesting.md § FOSTestingVapor`
 - Generating PDFs from SwiftUI views, choosing page size/orientation → `FOSReporting.md § PDF Rendering`

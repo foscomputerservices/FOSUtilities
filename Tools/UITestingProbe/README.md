@@ -39,6 +39,9 @@ tests the working tree.
   cannot match
 - a `Tab` holds its tag — through either initializer, and on the label as well as on the `Tab`
   — and tapping one as the first thing a test does switches tabs
+- `dismissKeyboard()` puts away a `.numberPad` keyboard — which has no Return key — and a tap
+  then reaches a control instead of the keyboard; with no keyboard up the call is a no-op
+  (the app is wrapped in `.testHost()`, which is what plants the dismissal control)
 
 ## What the tab bar taught us
 
@@ -55,6 +58,9 @@ applying Apple's modifier raw all behave identically — the tab bar buttons com
 - Xcode 26.5 → iOS 26.5 — absent
 - Xcode 26.5 → iOS 18.6 — absent
 - Xcode 26.5 → macOS 26.4 — **present** (a tab is a radio button here, not a `UITabBarItem`)
+- Xcode 27 → macOS 27.0 beta (26A5406e) — **present**, but **taps on bar items do not land**
+  (tab bar and toolbar buttons; every in-window control still taps fine) — see the macOS 27
+  note below
 - Xcode 26.5 → tvOS 26.5 — **present**
 
 The runtime decides and the SDK does not, which is why `TabContent.uiTestingIdentifier` raises its
@@ -71,6 +77,18 @@ whereas every tagged view on screen resolves on the first query. `tap()` asked o
 so it raced the tab bar and lost. Actions wait now; questions still answer about the screen as it
 is, so a test that *opens* by asking about a tab (`isVisible`, `exists`) still wants
 `waitForExistence()` first.
+
+**macOS 27.0 beta (26A5406e, Xcode 27.0/27A5237l, measured 2026-08-17):** two distinct
+regressions, both deterministic across repeated runs on an idle desktop. First, with the app's
+`WindowGroup` root being a bare `if #available` conditional, XCUITest finds **nothing in the
+window at all** — all eight tab and toolbar tests fail, including plain on-screen label reads
+that pass everywhere else. Wrapping the root in `Group { ... }.testHost()` (an `AnyView` root)
+restores discovery; why an `AnyView` root re-anchors the accessibility tree on this beta is not
+yet root-caused. Second, with discovery restored, **synthesized taps on native-bridged bar
+items do not land** — a tab bar button or toolbar button receives the tap and nothing happens
+(the tag is present and the elements are found; only the tap is lost). Every in-window control
+taps normally. Re-measure both on the next beta before treating either as the platform's
+behaviour.
 
 Every assertion goes through `uiTestingElement(_:)`. The harness contains no XCUITest
 element-type queries — if one appears, it is either a gap in the strategy that needs stating
