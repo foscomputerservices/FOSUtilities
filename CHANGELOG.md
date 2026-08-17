@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-08-17
+
 ### Added
 
 - **`XCUIApplication.dismissKeyboard()` puts the software keyboard away** (FOSTestingUI, with
@@ -754,7 +756,8 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.1...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.2...HEAD
+[0.12.2]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.11.0...0.12.0
 [0.11.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.10.2...0.11.0
