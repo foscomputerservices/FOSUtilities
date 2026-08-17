@@ -57,7 +57,7 @@ public extension XCUIApplication {
 /// ```swift
 /// let saveButton = app.uiTestingElement("saveButton")
 ///
-/// XCTAssertTrue(saveButton.isVisible)
+/// XCTAssertTrue(saveButton.waitForExistence())
 /// saveButton.tap()
 /// ```
 ///
@@ -73,12 +73,35 @@ public extension XCUIApplication {
 /// XCTAssertFalse(banner.exists)
 /// app.uiTestingElement("saveButton").tap()
 /// XCTAssertTrue(banner.waitForExistence())
+/// app.uiTestingElement("dismissBanner").tap()
+/// XCTAssertTrue(banner.waitForDisappearance())
 /// ```
 @MainActor public struct UITestingElement {
     private let app: XCUIApplication
     private let identifier: String
 
     /// Whether the tagged view is part of the view hierarchy
+    ///
+    /// `exists` answers about the hierarchy as it is *now* — assert with it only when
+    /// nothing is in flight, such as a view that was never presented:
+    ///
+    /// ```swift
+    /// XCTAssertFalse(app.uiTestingElement("errorBanner").exists)
+    /// ```
+    ///
+    /// A view that is still *arriving* is not there yet — asserting `exists` right after a
+    /// launch or a tap races the presentation. Wait instead:
+    ///
+    /// ```swift
+    /// XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+    /// ```
+    ///
+    /// A view that is *departing* races the same way — and mind the polarity: a departure
+    /// is proven with `XCTAssertTrue`, not the instinctive `XCTAssertFalse`:
+    ///
+    /// ```swift
+    /// XCTAssertTrue(app.uiTestingElement("errorBanner").waitForDisappearance())
+    /// ```
     ///
     /// A view that is present but scrolled off screen *exists*; ask ``isVisible`` to
     /// distinguish the two.
@@ -245,6 +268,10 @@ public extension XCUIApplication {
     ///
     /// Wait for a view that goes away in response to something the test did; for a view that
     /// was never there at all, ask ``exists``.
+    ///
+    /// Mind the polarity: the result is `true` when the view **left**, so a disappearance
+    /// is proven with `XCTAssertTrue` — the opposite of the instinctive
+    /// `XCTAssertFalse(...exists)`, which races a view that is still dismissing.
     ///
     /// - Parameter timeout: How long to wait, in seconds.
     /// - Returns: `true` if the view is gone before the timeout elapses.

@@ -938,7 +938,9 @@ static extension on `MVVMEnvironment` and called from the App's `init()`.
 `testHost()` resolves the view under test before the first render, so registering
 from a computed property, `.onAppear`, or `.task` is too late and stops the app
 with a diagnostic. Only `registerTestView(_:)`'s body is DEBUG-only, so the helper
-compiles away to a no-op in release. Scaffolded by `fosmvvm-ui-tests-generator`.
+compiles away to a no-op in release. On iOS the wrapper also plants the invisible
+control that `dismissKeyboard()` (FOSTesting.md § FOSTestingUI) taps — nothing to
+configure. Scaffolded by `fosmvvm-ui-tests-generator`.
 
 ```swift
 var body: some Scene {

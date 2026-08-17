@@ -58,7 +58,7 @@ import XCTest
 ///     func testShowsTitle() async throws {
 ///         let app = try presentView(viewModel: .stub(title: "Hello"))
 ///
-///         XCTAssertTrue(app.uiTestingElement("titleLabel").exists)
+///         XCTAssertTrue(app.uiTestingElement("titleLabel").waitForExistence())
 ///     }
 /// }
 /// ```
@@ -289,7 +289,8 @@ import XCTest
 ///     override func setUp() async throws {
 ///         try await super.setUp(
 ///             bundle: Bundle.main,
-///             resourceDirectoryName: ""
+///             resourceDirectoryName: "",
+///             appBundleIdentifier: "com.mycompany.myapp"
 ///         )
 ///
 ///         continueAfterFailure = false

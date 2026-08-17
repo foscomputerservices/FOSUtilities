@@ -43,6 +43,16 @@ struct ProbeView: View {
     @State private var date = Date(timeIntervalSince1970: 0)
     @State private var color = Color.red
     @State private var showsBanner = false
+    @State private var amount = ""
+
+    private var numberField: some View {
+        #if os(iOS)
+        TextField("amount", text: $amount)
+            .keyboardType(.numberPad)
+        #else
+        TextField("amount", text: $amount)
+        #endif
+    }
 
     var body: some View {
         ScrollView {
@@ -56,6 +66,12 @@ struct ProbeView: View {
                 TextField("name", text: $name)
                     .textFieldStyle(.roundedBorder)
                     .uiTestingIdentifier("nameField")
+
+                // A .numberPad keyboard has no Return key, so once a test types here the
+                // keyboard stays up until dismissKeyboard() puts it away.
+                numberField
+                    .textFieldStyle(.roundedBorder)
+                    .uiTestingIdentifier("amountField")
 
                 DatePicker("date", selection: $date, displayedComponents: .date)
                     .uiTestingIdentifier("datePicker")
@@ -183,11 +199,17 @@ struct ProbeTabs: View {
 struct UITestingProbeApp: App {
     var body: some Scene {
         WindowGroup {
-            if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
-                ProbeTabs()
-            } else {
-                ToolbarProbe()
+            // testHost() is what plants the keyboard-dismissal control the
+            // KeyboardDismissalTests ride; the probe never sets the launch environment, so the
+            // host presents this view tree unchanged.
+            Group {
+                if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
+                    ProbeTabs()
+                } else {
+                    ToolbarProbe()
+                }
             }
+            .testHost()
         }
     }
 }

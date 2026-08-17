@@ -186,13 +186,16 @@ func testShowsTitle() async throws {
     let viewModel: MyDetailViewModel = try localizedViewModel(.stub())
     let app = try presentView(viewModel: viewModel)
 
-    XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)
+    let titleLabel = app.uiTestingElement("titleLabel")
+
+    XCTAssertTrue(titleLabel.waitForExistence())
+    XCTAssertEqual(titleLabel.label, viewModel.title)
 }
 
 func testShowsSummary() async throws {
     let app = try presentView(viewModel: .stub(summary: "A summary"))
 
-    XCTAssertTrue(app.uiTestingElement("summaryLabel").exists)
+    XCTAssertTrue(app.uiTestingElement("summaryLabel").waitForExistence())
 }
 ```
 
@@ -204,10 +207,74 @@ localized *ViewModel*, never a literal, so the test holds in every locale —
 `XCTAssertEqual` takes a `Localizable` directly:
 
 ```swift
-XCTAssertEqual(app.uiTestingElement("emailField").value, viewModel.email)
+let emailField = app.uiTestingElement("emailField")
+
+XCTAssertTrue(emailField.waitForExistence())
+XCTAssertEqual(emailField.value, viewModel.email)
 XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled)
-XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
 ```
+
+## Synchronizing With the Screen
+
+`presentView` launches the application fresh, and gestures push views on and
+off the screen — the view a test asks about may still be *arriving* or
+*departing*. `UITestingElement` separates its API into **questions** that
+answer about the screen as it is *now* (`exists`, `isVisible`, `label`,
+`value`, `isEnabled`) and **waits** that synchronize with it
+(`waitForExistence()`, `waitForDisappearance()`).
+
+The first assertion after a launch or a gesture is a wait; once one element
+has arrived, the screen is synchronized and questions answer reliably:
+
+```swift
+let banner = app.uiTestingElement("savedBanner")
+
+XCTAssertFalse(banner.exists)                 // never presented — nothing in flight
+app.uiTestingElement("saveButton").tap()
+XCTAssertTrue(banner.waitForExistence())      // arriving — wait
+app.uiTestingElement("dismissBanner").tap()
+XCTAssertTrue(banner.waitForDisappearance())  // departing — wait
+```
+
+> Important: Mind the polarity on departure. `waitForDisappearance()` returns
+> `true` when the view **left**, so a disappearance is proven with
+> `XCTAssertTrue` — the opposite of the instinctive
+> `XCTAssertFalse(...exists)`, which races a view that is still dismissing.
+> `XCTAssertFalse(...exists)` is only for a view that was never presented at
+> all.
+
+Gestures synchronize themselves — `tap()` and `type(_:)` wait for the view to
+arrive before acting, so no explicit wait precedes them.
+
+## Dismissing the Keyboard
+
+Typing raises the software keyboard, and a raised keyboard covers the lower
+part of the screen — a tap aimed at a covered control lands on the keyboard
+instead, and the test fails downstream with no visible error at the tap.
+XCUITest offers no way to put the keyboard away, and a `.numberPad` keyboard
+has no Return key to tap.
+
+`dismissKeyboard()` is the way down. Call it after typing, before tapping
+anything the keyboard might cover:
+
+```swift
+app.uiTestingElement("quantityField").type("42")
+app.dismissKeyboard()
+app.uiTestingElement("saveButton").tap()
+```
+
+With no keyboard up the call is a no-op, so call sites stay unconditional —
+no platform or keyboard-type checks. It rides an invisible control that
+``testHost`` plants, so it works for every keyboard type and needs nothing
+from the application beyond the `.testHost()` this article already
+configured. If the keyboard cannot be dismissed, the test fails naming the
+cause rather than carrying on.
+
+> Important: Tapping a neutral view — a title, some empty space — does *not*
+> dismiss the keyboard, however much the idiom looks like it should. A static
+> `Text` is not interactive, so the tap resigns nothing and the keyboard
+> stays up; the workaround reads as correct and silently does nothing. Use
+> `dismissKeyboard()`.
 
 ## Interactive Path
 

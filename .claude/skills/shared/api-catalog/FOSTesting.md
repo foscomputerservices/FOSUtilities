@@ -187,6 +187,23 @@ app.uiTestingElement("saveButton").tap()
 XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
 ```
 
+### Put the software keyboard away — `dismissKeyboard()` <!-- apple-only -->
+Reach for this when: a test typed into a field and must now tap something the
+raised keyboard might cover — XCUITest has no dismiss API, a `.numberPad`
+keyboard has no Return key, and a tap aimed at a covered control lands on the
+keyboard instead. Rides an invisible control `testHost()` (FOSMVVM) plants, so
+it works for every keyboard type; a no-op when no keyboard is up, so call
+sites stay unconditional; fails the test naming the cause when the keyboard
+cannot be dismissed.
+Don't tap a neutral view to dismiss — a static `Text` resigns nothing and the
+idiom silently does not work.
+
+```swift
+app.uiTestingElement("quantityField").type("42")
+app.dismissKeyboard()
+app.uiTestingElement("saveButton").tap()
+```
+
 ### Assert displayed text — `XCTAssertEqual()` / `XCTAssertNotEqual()` <!-- apple-only -->
 Reach for this when: asserting what a view displays — compares an element's `label` or
 `value` against a ViewModel's `Localizable` property directly, with no `try` and no
