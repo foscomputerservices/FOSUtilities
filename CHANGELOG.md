@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The keyboard-dismissal control survives keyboard avoidance** (FOSMVVM's `testHost()`, which
+  `dismissKeyboard()` (FOSTestingUI) rides) — when the focused field would be covered and no
+  scroll container absorbs it, SwiftUI shifts the application's whole content upward, and
+  0.12.2's top-leading overlay rode that shift off screen (measured at y = -48 in a consuming
+  app): the coordinate tap landed on nothing, the keyboard stayed up, and `dismissKeyboard()`
+  failed at its own second gate blaming corner occlusion it could not have. The control now
+  lives in its own tiny window above the application's — outside the application's layout
+  entirely, so nothing the content does can displace or cover it — and the failure message
+  names the causes that remain. Reproduced in `Tools/UITestingProbe`'s new keyboard-shift
+  scenario (tall filler, `.numberPad` field near the bottom, no scroll container), which is
+  the regression test 0.12.2 was missing.
+
 ## [0.12.2] - 2026-08-17
 
 ### Added

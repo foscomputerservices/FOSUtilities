@@ -61,8 +61,8 @@ public extension XCUIApplication {
             return
         }
 
-        // The control renders nothing, so XCUITest may report it as not hittable; its frame is
-        // pinned and outside the keyboard safe-area, so a coordinate tap is exact.
+        // The control renders nothing, so XCUITest may report it as not hittable; it is hosted
+        // in its own fixed-frame window above the application, so a coordinate tap is exact.
         control.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
 
         let departed = XCTNSPredicateExpectation(
@@ -73,8 +73,9 @@ public extension XCUIApplication {
             XCTFail(
                 """
                 The keyboard did not dismiss after tapping the dismissal control \
-                ("__FOS_DismissKeyboard"). Check that the view under test does not occlude the \
-                top-leading corner of the screen with a hit-testing view of its own.
+                ("__FOS_DismissKeyboard"). The control is hosted in its own window above the \
+                application, so the tap reached it; check for a first responder that refuses \
+                to resign, such as a custom input view that re-takes focus.
                 """,
                 file: file,
                 line: line

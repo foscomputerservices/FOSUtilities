@@ -18,9 +18,6 @@ import FOSFoundation
 import Foundation
 
 #if canImport(SwiftUI)
-#if canImport(Combine)
-import Combine
-#endif
 import SwiftUI
 
 public extension View {
@@ -184,8 +181,8 @@ private struct TestingView<BaseView: View>: View {
     var body: some View {
         testView
         #if os(iOS)
-        .overlay(alignment: .topLeading) {
-            DismissKeyboardControl()
+        .onAppear {
+            DismissKeyboardWindow.install()
         }
         #endif
     }
@@ -199,39 +196,84 @@ private struct TestingView<BaseView: View>: View {
 
 #if os(iOS)
 /// The tap target for XCUIApplication.dismissKeyboard() (FOSTestingUI). XCUITest has no API to
-/// put the software keyboard away, and a .numberPad keyboard offers no Return key to tap, so the
-/// test process's only route is something tappable that resigns first responder. This control is
-/// that route: invisible, pinned top-leading where the keyboard cannot cover it, and outside the
-/// keyboard safe-area so keyboard avoidance cannot move it (the hosted content shifts; this must
-/// not). It hit-tests only while the keyboard is up, so with the keyboard down the corner belongs
-/// entirely to the view under test.
-private struct DismissKeyboardControl: View {
-    @State private var keyboardIsUp = false
+/// put the software keyboard away, and a .numberPad keyboard offers no Return key to tap, so
+/// the test process's only route is something tappable that resigns first responder.
+///
+/// The control lives in its own tiny window above the application's, not in the view tree:
+/// when the focused field would be covered and no scroll container absorbs it, keyboard
+/// avoidance shifts the application's whole content upward, and no modifier opts a child out
+/// of an ancestor's offset — a top-leading overlay was measured riding that shift to y = -48,
+/// off screen. A separate window sits outside the application's layout entirely, so nothing
+/// the content does can displace or cover it. The window is only up while the keyboard is, so
+/// with the keyboard down its corner belongs to the application.
+@MainActor
+private enum DismissKeyboardWindow {
+    private static var window: UIWindow?
+    private static var installed = false
 
-    var body: some View {
-        Button {
-            UIApplication.shared.sendAction(
-                #selector(UIResponder.resignFirstResponder),
-                to: nil, from: nil, for: nil
-            )
-        } label: {
-            Color.clear
-                .frame(width: 24, height: 24)
-                .contentShape(Rectangle())
+    static func install() {
+        guard !installed else { return }
+        installed = true
+
+        let center = NotificationCenter.default
+        center.addObserver(
+            forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main
+        ) { _ in MainActor.assumeIsolated { show() } }
+        center.addObserver(
+            forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main
+        ) { _ in MainActor.assumeIsolated { hide() } }
+    }
+
+    private static func show() {
+        if window == nil {
+            window = makeWindow()
         }
-        .buttonStyle(.plain)
+        window?.isHidden = false
+    }
+
+    private static func hide() {
+        window?.isHidden = true
+    }
+
+    private static func makeWindow() -> UIWindow? {
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+        else {
+            return nil // Retried on the next keyboardWillShow
+        }
+
+        let window = UIWindow(windowScene: scene)
+        // Below the status-bar region, so a synthesized tap cannot be read as a status-bar
+        // gesture; the top of the screen is the one place a keyboard can never reach.
+        let topInset = scene.windows.first?.safeAreaInsets.top ?? 0
+        window.frame = CGRect(x: 0, y: topInset, width: 24, height: 24)
+        window.windowLevel = .alert + 1
+
+        let controller = UIViewController()
+        controller.view.backgroundColor = .clear
+
+        let button = UIButton(type: .custom)
+        button.frame = controller.view.bounds
+        button.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        button.backgroundColor = .clear
         // Mirrors the literal in FOSTestingUI's XCUIApplication.dismissKeyboard(); the two
         // modules share no target, so the name is tethered by comment, as the __FOS_ launch
         // environment keys are.
-        .accessibilityIdentifier("__FOS_DismissKeyboard")
-        .allowsHitTesting(keyboardIsUp)
-        .ignoresSafeArea(.keyboard)
-        .onReceive(NotificationCenter.default.publisher(
-            for: UIResponder.keyboardWillShowNotification
-        )) { _ in keyboardIsUp = true }
-        .onReceive(NotificationCenter.default.publisher(
-            for: UIResponder.keyboardWillHideNotification
-        )) { _ in keyboardIsUp = false }
+        button.accessibilityIdentifier = "__FOS_DismissKeyboard"
+        button.addAction(
+            UIAction { _ in
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder),
+                    to: nil, from: nil, for: nil
+                )
+            },
+            for: .touchUpInside
+        )
+        controller.view.addSubview(button)
+
+        window.rootViewController = controller
+        return window
     }
 }
 #endif

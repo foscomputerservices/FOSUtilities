@@ -52,3 +52,43 @@ import XCTest
         app.dismissKeyboard()
     }
 }
+
+/// The KeyboardShiftProbe scene: keyboard avoidance shifts the whole content up when the
+/// focused field would be covered, and the dismissal control must stay on screen through
+/// that shift — 0.12.2's overlay rode the shift off-screen (measured at y = -48) and the
+/// coordinate tap fired into nothing.
+@MainActor final class KeyboardShiftDismissalTests: XCTestCase {
+    private var app: XCUIApplication!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchEnvironment["PROBE_SCENE"] = "keyboardShift"
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
+    }
+
+    func testDismissesWhileAvoidanceShiftsTheContent() {
+        app.uiTestingElement("shiftAmountField").type("42")
+        XCTAssertTrue(
+            app.keyboards.firstMatch.waitForExistence(timeout: 10),
+            "The software keyboard never appeared — on a simulator, check that the hardware keyboard is disconnected (I/O > Keyboard > Connect Hardware Keyboard off)"
+        )
+
+        // The regression 0.12.2 shipped with: the control displaced out of the app frame
+        // while the keyboard is up, where a tap cannot reach it.
+        let control = app.uiTestingElement("__FOS_DismissKeyboard")
+        XCTAssertTrue(control.exists)
+        XCTAssertTrue(
+            app.frame.contains(control.xcuiElement.frame),
+            "dismissal control is outside the app frame: \(control.xcuiElement.frame)"
+        )
+
+        app.dismissKeyboard()
+
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.uiTestingElement("shiftTapButton").tap()
+        XCTAssertEqual(app.uiTestingElement("shiftTapCounter").label, "shift-taps-1")
+    }
+}
