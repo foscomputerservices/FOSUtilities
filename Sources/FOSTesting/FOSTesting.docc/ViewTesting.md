@@ -186,13 +186,16 @@ func testShowsTitle() async throws {
     let viewModel: MyDetailViewModel = try localizedViewModel(.stub())
     let app = try presentView(viewModel: viewModel)
 
-    XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)
+    let titleLabel = app.uiTestingElement("titleLabel")
+
+    XCTAssertTrue(titleLabel.waitForExistence())
+    XCTAssertEqual(titleLabel.label, viewModel.title)
 }
 
 func testShowsSummary() async throws {
     let app = try presentView(viewModel: .stub(summary: "A summary"))
 
-    XCTAssertTrue(app.uiTestingElement("summaryLabel").exists)
+    XCTAssertTrue(app.uiTestingElement("summaryLabel").waitForExistence())
 }
 ```
 
@@ -204,10 +207,44 @@ localized *ViewModel*, never a literal, so the test holds in every locale —
 `XCTAssertEqual` takes a `Localizable` directly:
 
 ```swift
-XCTAssertEqual(app.uiTestingElement("emailField").value, viewModel.email)
+let emailField = app.uiTestingElement("emailField")
+
+XCTAssertTrue(emailField.waitForExistence())
+XCTAssertEqual(emailField.value, viewModel.email)
 XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled)
-XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
 ```
+
+## Synchronizing With the Screen
+
+`presentView` launches the application fresh, and gestures push views on and
+off the screen — the view a test asks about may still be *arriving* or
+*departing*. `UITestingElement` separates its API into **questions** that
+answer about the screen as it is *now* (`exists`, `isVisible`, `label`,
+`value`, `isEnabled`) and **waits** that synchronize with it
+(`waitForExistence()`, `waitForDisappearance()`).
+
+The first assertion after a launch or a gesture is a wait; once one element
+has arrived, the screen is synchronized and questions answer reliably:
+
+```swift
+let banner = app.uiTestingElement("savedBanner")
+
+XCTAssertFalse(banner.exists)                 // never presented — nothing in flight
+app.uiTestingElement("saveButton").tap()
+XCTAssertTrue(banner.waitForExistence())      // arriving — wait
+app.uiTestingElement("dismissBanner").tap()
+XCTAssertTrue(banner.waitForDisappearance())  // departing — wait
+```
+
+> Important: Mind the polarity on departure. `waitForDisappearance()` returns
+> `true` when the view **left**, so a disappearance is proven with
+> `XCTAssertTrue` — the opposite of the instinctive
+> `XCTAssertFalse(...exists)`, which races a view that is still dismissing.
+> `XCTAssertFalse(...exists)` is only for a view that was never presented at
+> all.
+
+Gestures synchronize themselves — `tap()` and `type(_:)` wait for the view to
+arrive before acting, so no explicit wait precedes them.
 
 ## Interactive Path
 
