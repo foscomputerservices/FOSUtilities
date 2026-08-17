@@ -35,6 +35,48 @@ struct InnerPanel: View {
     }
 }
 
+/// A `.numberPad` field on iOS — no Return key, so once a test types here the keyboard stays
+/// up until dismissKeyboard() puts it away. Plain text on the other platforms.
+struct NumberPadField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        #if os(iOS)
+        TextField(title, text: $text)
+            .keyboardType(.numberPad)
+        #else
+        TextField(title, text: $text)
+        #endif
+    }
+}
+
+/// Reproduces keyboard-avoidance displacement: no scroll container, tall filler above a
+/// `.numberPad` field near the bottom, so raising the keyboard would cover the focused field
+/// and SwiftUI shifts the whole content upward. The dismissal control must stay on screen
+/// through that shift — the geometry 0.12.2 got wrong.
+struct KeyboardShiftProbe: View {
+    @State private var taps = 0
+    @State private var amount = ""
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text(verbatim: "shift-taps-\(taps)")
+                .uiTestingIdentifier("shiftTapCounter")
+
+            Spacer(minLength: 420)
+
+            NumberPadField(title: "amount", text: $amount)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("shiftAmountField")
+
+            Button(action: { taps += 1 }) { Text(verbatim: "tap me") }
+                .uiTestingIdentifier("shiftTapButton")
+        }
+        .padding()
+    }
+}
+
 struct ProbeView: View {
     @State private var taps = 0
     @State private var selection = 0
@@ -44,15 +86,6 @@ struct ProbeView: View {
     @State private var color = Color.red
     @State private var showsBanner = false
     @State private var amount = ""
-
-    private var numberField: some View {
-        #if os(iOS)
-        TextField("amount", text: $amount)
-            .keyboardType(.numberPad)
-        #else
-        TextField("amount", text: $amount)
-        #endif
-    }
 
     var body: some View {
         ScrollView {
@@ -67,9 +100,7 @@ struct ProbeView: View {
                     .textFieldStyle(.roundedBorder)
                     .uiTestingIdentifier("nameField")
 
-                // A .numberPad keyboard has no Return key, so once a test types here the
-                // keyboard stays up until dismissKeyboard() puts it away.
-                numberField
+                NumberPadField(title: "amount", text: $amount)
                     .textFieldStyle(.roundedBorder)
                     .uiTestingIdentifier("amountField")
 
@@ -200,10 +231,13 @@ struct UITestingProbeApp: App {
     var body: some Scene {
         WindowGroup {
             // testHost() is what plants the keyboard-dismissal control the
-            // KeyboardDismissalTests ride; the probe never sets the launch environment, so the
-            // host presents this view tree unchanged.
+            // KeyboardDismissalTests ride; the probe never sets the __FOS_ launch environment,
+            // so the host presents this view tree unchanged. PROBE_SCENE is the probe's own
+            // switch for scenarios that need a different geometry than the main tree.
             Group {
-                if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
+                if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "keyboardShift" {
+                    KeyboardShiftProbe()
+                } else if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
                     ProbeTabs()
                 } else {
                     ToolbarProbe()

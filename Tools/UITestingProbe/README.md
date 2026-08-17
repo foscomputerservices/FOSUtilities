@@ -42,6 +42,10 @@ tests the working tree.
 - `dismissKeyboard()` puts away a `.numberPad` keyboard — which has no Return key — and a tap
   then reaches a control instead of the keyboard; with no keyboard up the call is a no-op
   (the app is wrapped in `.testHost()`, which is what plants the dismissal control)
+- `dismissKeyboard()` still works while keyboard avoidance has shifted the whole content up —
+  the `KeyboardShiftProbe` scene (`PROBE_SCENE=keyboardShift`: tall filler, `.numberPad` field
+  near the bottom, no scroll container) forces the shift that displaced 0.12.2's overlay
+  control off screen
 
 ## What the tab bar taught us
 
