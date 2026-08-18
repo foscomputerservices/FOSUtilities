@@ -448,6 +448,86 @@ public extension XCUIApplication {
     // that never settles.
     private static let settleSamplingInterval: TimeInterval = 0.15
     private static let coordinateSettleBudget: TimeInterval = 2
+    private static let selectionCommitBudget: TimeInterval = 4
+
+    /// Selects an item in a `Picker` and does not return until the selection committed
+    ///
+    /// ```swift
+    /// app.uiTestingElement("programPicker").selectPickerItem("optionB")
+    ///
+    /// XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+    /// ```
+    ///
+    /// `self` is the tagged `Picker`; `itemIdentifier` is the `uiTestingIdentifier` of the
+    /// item inside the Picker's content. Opening the menu, waiting out its presentation,
+    /// tapping the item, and verifying the collapsed control reports the selection are all
+    /// internal — any state SwiftUI derives from the selection is committed by the time this
+    /// returns, so the very next read is safe without a wait. A missed gesture is retried
+    /// once and re-verified; the retry cannot mask a wrong selection because the
+    /// postcondition, not the tap, is what lets this return.
+    ///
+    /// Serves `Picker` only: a `Menu` of action buttons has no selection to verify — drive
+    /// one with ``tap()`` and assert the action's effect instead. An item that exists but
+    /// sits scrolled out of the presented menu is not reachable in this version; the failure
+    /// names the item so the case is diagnosable.
+    public func selectPickerItem(
+        _ itemIdentifier: String,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        #if os(iOS)
+        var itemAppeared = false
+
+        for _ in 0..<2 {
+            // tap() settles the menu opener; the item row, mid-presentation, is settled by
+            // its own tap() below. A retried attempt re-opens the menu the same way — if the
+            // failed attempt left it open, this tap lands on the presented menu's scrim and
+            // closes it, and the attempt burns; bounded, and the postcondition stays honest.
+            tap(file: file, line: line)
+
+            let item = app.uiTestingElement(itemIdentifier)
+            guard item.waitForExistence() else { continue }
+            itemAppeared = true
+
+            item.tap(file: file, line: line)
+
+            // The commit signal, pinned by fixture: the collapsed Picker's native control
+            // carries the selected item's tag as its identifier.
+            let deadline = Date(timeIntervalSinceNow: Self.selectionCommitBudget)
+            while Date() < deadline {
+                if taggedControl()?.identifier == itemIdentifier {
+                    return
+                }
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.settleSamplingInterval))
+            }
+        }
+
+        XCTFail(
+            itemAppeared
+                ? """
+                The control tagged "\(identifier)" never reported "\(itemIdentifier)" as its \
+                selection. If the tagged view is a Menu of action buttons rather than a Picker, \
+                this API cannot verify it — a Menu has no selection; drive it with tap() and \
+                assert the action's effect instead.
+                """
+                : """
+                No item tagged "\(itemIdentifier)" appeared in the menu presented by \
+                "\(identifier)". Check the uiTestingIdentifier on the Picker's items, and that \
+                the item is not scrolled out of the presented menu — in-menu scrolling is not \
+                supported in this version.
+                """,
+            file: file, line: line
+        )
+        #else
+        XCTFail(
+            """
+            selectPickerItem(_:) is not yet certified on this platform — its selection-commit \
+            signal is pinned by fixture on iOS only. Drive the picker with tap() and assert \
+            the selection's effect, or bring the platform evidence to FOSUtilities.
+            """,
+            file: file, line: line
+        )
+        #endif
+    }
 
     // swiftformat:disable docComments
     // isHittable is false for a SwiftUI menu that is on screen and perfectly tappable, so

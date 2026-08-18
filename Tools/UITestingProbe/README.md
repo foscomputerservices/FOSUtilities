@@ -42,6 +42,10 @@ tests the working tree.
 - `dismissKeyboard()` puts away a `.numberPad` keyboard — which has no Return key — and a tap
   then reaches a control instead of the keyboard; with no keyboard up the call is a no-op
   (the app is wrapped in `.testHost()`, which is what plants the dismissal control)
+- `selectPickerItem(_:)` returns only after the selection committed: a six-round cycle
+  through distinct menu items reads selection-derived state immediately after each call,
+  with no wait — and a nonexistent item identifier fails loudly naming the item
+  (`PickerSelectionTests`)
 - a view registered `scrollable: true` is presented inside a vertical `ScrollView`: a field
   buried past the window's bottom is reachable (tap auto-scrolls, keyboard arrives, typing
   reads back), while the unregistered twin presents bare — the field exists but is not

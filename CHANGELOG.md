@@ -30,6 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Tools/UITestingProbe` by a card taller than any window: its buried field is reachable
   when registered scrollable and provably off-screen when not.
 
+- **`UITestingElement.selectPickerItem(_:)` selects and verifies** (FOSTestingUI) — driving a
+  menu-style `Picker` by hand is a five-step ceremony (open, wait for the row, settle, tap,
+  verify the selection committed), and skipping the last step is a race: state SwiftUI derives
+  from the selection is not yet readable when the tap returns. `selectPickerItem` owns the
+  whole ceremony and does not return until the collapsed control reports the selection, so
+  the very next read of selection-derived state needs no wait. A missed gesture is retried
+  once and re-verified — the postcondition, not the tap, is what lets it return, so the retry
+  cannot mask a wrong selection. Serves `Picker` only (a `Menu` of actions has no selection
+  to verify; the failure message teaches the distinction), certified by fixture on iOS —
+  other platforms fail loudly naming the gap until a fixture pins them. Pinned in
+  `Tools/UITestingProbe` by a six-round selection cycle whose derived-state reads are
+  deliberately un-waited.
+
 ### Fixed
 
 - **A tag spanning a composite resolves to the control it contains** (FOSTestingUI) — a tag on

@@ -175,7 +175,8 @@ Reach for this when: a UI test needs any element the view tagged with
 not), `isVisible` (on screen and tappable), `waitForExistence()`,
 `waitForDisappearance()` (wait for it to go — `exists` answers before it has),
 `waitForStableFrame()` (wait for it to stop moving — see the next entry),
-`tap()`, `type(_:)`, `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
+`tap()`, `type(_:)`, `selectPickerItem(_:)` (verified Picker selection — see below),
+`label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
 Don't hand-write `buttons.element(matching:identifier:)` accessors or name
 XCUITest element types — the identifier is the whole contract, so a test
 survives a `Button` becoming a `Menu`. An identifier no view carries fails
@@ -200,6 +201,19 @@ Don't call it before `tap()` — `tap()` settles on its own before coordinate ta
 let amount = app.uiTestingElement("amountField")
 XCTAssertTrue(amount.waitForStableFrame())
 amount.xcuiElement.doubleTap()
+```
+
+### Select a Picker item, verified — `selectPickerItem()` <!-- apple-only -->
+Reach for this when: a test drives a menu-style `Picker` and then reads state derived
+from the selection. The call does not return until the collapsed control reports the
+selection committed, so the next read needs no wait; a missed gesture is retried once
+and re-verified. iOS-certified; other platforms fail loudly until a fixture pins them.
+Don't use it on a `Menu` of action buttons — an action has no selection to verify;
+drive a Menu with `tap()` and assert the action's effect.
+
+```swift
+app.uiTestingElement("programPicker").selectPickerItem("optionB")
+XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
 ```
 
 ### Put the software keyboard away — `dismissKeyboard()` <!-- apple-only -->

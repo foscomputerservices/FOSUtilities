@@ -307,6 +307,29 @@ XCTAssertEqual(app.uiTestingElement("durationRow").value, viewModel.duration)
 When a composite holds several controls, the first in document order answers —
 tag the control itself to address one precisely.
 
+## Selecting a Picker Item
+
+Driving a menu-style `Picker` by hand is a ceremony — open the menu, wait for the
+row, tap it, and *verify the selection committed* — and skipping the verification is
+a race: state SwiftUI derives from the selection is not yet readable when the tap
+returns. `selectPickerItem(_:)` owns the whole ceremony and does not return until
+the selection is observably committed, so the very next read needs no wait:
+
+```swift
+app.uiTestingElement("programPicker").selectPickerItem("optionB")
+
+XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+```
+
+The receiver is the tagged `Picker`; the argument is the `uiTestingIdentifier` of
+the item inside the Picker's content. A missed gesture is retried once and
+re-verified — the postcondition, not the tap, is what lets the call return.
+
+> Important: This serves `Picker` only. A `Menu` of action buttons has no selection
+> to verify — the menu departs whether the tap hit the row or the scrim, so there is
+> no generic commit signal. Drive a `Menu` with `tap()` and assert the action's
+> effect instead.
+
 ## Dismissing the Keyboard
 
 Typing raises the software keyboard, and a raised keyboard covers the lower
