@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-08-18
+
 ### Added
 
 - **`UITestingElement.waitForStableFrame()` waits out a moving frame** (FOSTestingUI) — a view
