@@ -152,6 +152,7 @@ struct ProbeView: View {
     @State private var taps = 0
     @State private var selection = 0
     @State private var settleSelection = 0
+    @State private var overflowSelection = 0
     @State private var name = ""
     @State private var flag = false
     @State private var date = Date(timeIntervalSince1970: 0)
@@ -201,6 +202,24 @@ struct ProbeView: View {
                     }
                 }
                 .uiTestingIdentifier("settlePicker")
+                .pickerStyle(.menu)
+
+                // In-menu scrolling: more rows than the presented menu's card can show, so
+                // part of the list is clipped behind the menu's internal scroll — while the
+                // accessibility tree reports clipped rows with on-screen frames at the
+                // positions they would occupy, so a midpoint tap lands on the scrim. The
+                // menu anchors its scroll at the checked item, so cycling selections moves
+                // the clipped region to either side of the anchor.
+                Text(verbatim: "overflow-sel-\(overflowSelection)")
+                    .uiTestingIdentifier("overflowSelectionLabel")
+                Picker("overflow", selection: $overflowSelection) {
+                    ForEach(0..<24, id: \.self) { option in
+                        Text(verbatim: "overflow-\(option)")
+                            .tag(option)
+                            .uiTestingIdentifier("overflowOption-\(option)")
+                    }
+                }
+                .uiTestingIdentifier("overflowPicker")
                 .pickerStyle(.menu)
 
                 // The tag is applied after other modifiers, which must not matter

@@ -463,85 +463,6 @@ public extension XCUIApplication {
     private static let textCommitBudget: TimeInterval = 4
     private static let focusProofBudget: TimeInterval = 2
 
-    /// Selects an item in a `Picker` and does not return until the selection committed
-    ///
-    /// ```swift
-    /// app.uiTestingElement("programPicker").selectPickerItem("optionB")
-    ///
-    /// XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
-    /// ```
-    ///
-    /// `self` is the tagged `Picker`; `itemIdentifier` is the `uiTestingIdentifier` of the
-    /// item inside the Picker's content. Opening the menu, waiting out its presentation,
-    /// tapping the item, and verifying the collapsed control reports the selection are all
-    /// internal — any state SwiftUI derives from the selection is committed by the time this
-    /// returns, so the very next read is safe without a wait. A missed gesture is retried
-    /// once and re-verified; the retry cannot mask a wrong selection because the
-    /// postcondition, not the tap, is what lets this return.
-    ///
-    /// Serves `Picker` only: a `Menu` of action buttons has no selection to verify — drive
-    /// one with ``tap()`` and assert the action's effect instead. An item that exists but
-    /// sits scrolled out of the presented menu is not reachable in this version; the failure
-    /// names the item so the case is diagnosable.
-    public func selectPickerItem(
-        _ itemIdentifier: String,
-        file: StaticString = #filePath, line: UInt = #line
-    ) {
-        #if os(iOS)
-        var itemAppeared = false
-
-        for _ in 0..<2 {
-            // tap() settles the menu opener; the item row, mid-presentation, is settled by
-            // its own tap() below. A retried attempt re-opens the menu the same way — if the
-            // failed attempt left it open, this tap lands on the presented menu's scrim and
-            // closes it, and the attempt burns; bounded, and the postcondition stays honest.
-            tap(file: file, line: line)
-
-            let item = app.uiTestingElement(itemIdentifier)
-            guard item.waitForExistence() else { continue }
-            itemAppeared = true
-
-            item.tap(file: file, line: line)
-
-            // The commit signal, pinned by fixture: the collapsed Picker's native control
-            // carries the selected item's tag as its identifier.
-            let deadline = Date(timeIntervalSinceNow: Self.selectionCommitBudget)
-            while Date() < deadline {
-                if taggedControl()?.identifier == itemIdentifier {
-                    return
-                }
-                RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.settleSamplingInterval))
-            }
-        }
-
-        XCTFail(
-            itemAppeared
-                ? """
-                The control tagged "\(identifier)" never reported "\(itemIdentifier)" as its \
-                selection. If the tagged view is a Menu of action buttons rather than a Picker, \
-                this API cannot verify it — a Menu has no selection; drive it with tap() and \
-                assert the action's effect instead.
-                """
-                : """
-                No item tagged "\(itemIdentifier)" appeared in the menu presented by \
-                "\(identifier)". Check the uiTestingIdentifier on the Picker's items, and that \
-                the item is not scrolled out of the presented menu — in-menu scrolling is not \
-                supported in this version.
-                """,
-            file: file, line: line
-        )
-        #else
-        XCTFail(
-            """
-            selectPickerItem(_:) is not yet certified on this platform — its selection-commit \
-            signal is pinned by fixture on iOS only. Drive the picker with tap() and assert \
-            the selection's effect, or bring the platform evidence to FOSUtilities.
-            """,
-            file: file, line: line
-        )
-        #endif
-    }
-
     // swiftformat:disable docComments
     // isHittable is false for a SwiftUI menu that is on screen and perfectly tappable, so
     // geometry answers when it says no. Shared by isVisible and tap() so that the two cannot
@@ -781,4 +702,154 @@ public extension XCUIApplication {
         self.identifier = identifier
     }
 }
+
+// MARK: Verified Picker selection
+
+public extension UITestingElement {
+    /// Selects an item in a `Picker` and does not return until the selection committed
+    ///
+    /// ```swift
+    /// app.uiTestingElement("programPicker").selectPickerItem("optionB")
+    ///
+    /// XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+    /// ```
+    ///
+    /// `self` is the tagged `Picker`; `itemIdentifier` is the `uiTestingIdentifier` of the
+    /// item inside the Picker's content. Opening the menu, waiting out its presentation,
+    /// tapping the item, and verifying the collapsed control reports the selection are all
+    /// internal — any state SwiftUI derives from the selection is committed by the time this
+    /// returns, so the very next read is safe without a wait. A missed gesture is retried
+    /// once and re-verified; the retry cannot mask a wrong selection because the
+    /// postcondition, not the tap, is what lets this return.
+    ///
+    /// Serves `Picker` only: a `Menu` of action buttons has no selection to verify — drive
+    /// one with ``tap()`` and assert the action's effect instead. An item clipped behind a
+    /// long menu's internal scroll is reached by scrolling within the presented menu, bounded
+    /// in both directions from the checked item — the postcondition, not any gesture, is
+    /// still what lets this return.
+    func selectPickerItem(
+        _ itemIdentifier: String,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        #if os(iOS)
+        var itemAppeared = false
+
+        for _ in 0..<2 {
+            // tap() settles the menu opener; the item row, mid-presentation, is settled by
+            // its own tap() below. A retried attempt re-opens the menu the same way — if the
+            // failed attempt left it open, this tap lands on the presented menu's scrim and
+            // closes it, and the attempt burns; bounded, and the postcondition stays honest.
+            tap(file: file, line: line)
+
+            let item = app.uiTestingElement(itemIdentifier)
+            guard item.waitForExistence() else { continue }
+            itemAppeared = true
+
+            item.tap(file: file, line: line)
+
+            if selectionCommitted(itemIdentifier) {
+                return
+            }
+        }
+
+        // The fold: a menu longer than its presented card clips rows behind the menu's
+        // internal scroll, but the accessibility tree keeps reporting the clipped rows with
+        // on-screen frames at the positions they would occupy — every frame-based visibility
+        // signal passes and the plain tap above lands on the scrim, dismissing the menu
+        // without selecting. Rows clipped deep enough leave the tree entirely. What is
+        // honest here, measured on the overflow fixture: a menu row's isHittable, and
+        // app-level flings, which scroll the open menu without dismissing it or committing
+        // a selection. (Element-scoped swipes on rows can commit one — never swipe those.)
+        for _ in 0..<2 {
+            // Re-opening re-anchors the menu's scroll at the checked item, so each attempt
+            // scans from a known origin: up-leg first (tail clipped below the anchor), then
+            // a doubled down-leg that undoes the up-leg and reaches above the anchor.
+            tap(file: file, line: line)
+
+            let item = app.uiTestingElement(itemIdentifier)
+            var tapped = false
+            for step in 0..<(Self.menuSwipesPerDirection * 3) {
+                if item.exists, item.xcuiElement.isHittable {
+                    itemAppeared = true
+                    item.tap(file: file, line: line)
+                    tapped = true
+                    break
+                }
+                if step < Self.menuSwipesPerDirection {
+                    app.swipeUp()
+                } else {
+                    app.swipeDown()
+                }
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.menuScrollSettle))
+            }
+
+            // isHittable steered the scan; it does not gate the tap. If the hint never
+            // fired but the row exists, tap() decides how to reach it — the postcondition
+            // cannot be fooled either way.
+            if !tapped, item.exists {
+                itemAppeared = true
+                item.tap(file: file, line: line)
+            }
+
+            if selectionCommitted(itemIdentifier) {
+                return
+            }
+        }
+
+        XCTFail(
+            itemAppeared
+                ? """
+                The control tagged "\(identifier)" never reported "\(itemIdentifier)" as its \
+                selection, including after scrolling within the presented menu \
+                (\(Self.menuSwipesPerDirection) flings in each direction from the checked \
+                item — a deeper item is out of this API's bounded reach). If the tagged view \
+                is a Menu of action buttons rather than a Picker, this API cannot verify it — \
+                a Menu has no selection; drive it with tap() and assert the action's effect \
+                instead.
+                """
+                : """
+                No item tagged "\(itemIdentifier)" appeared in the menu presented by \
+                "\(identifier)", including after scrolling within the presented menu \
+                (\(Self.menuSwipesPerDirection) flings in each direction from the checked \
+                item). Check the uiTestingIdentifier on the Picker's items.
+                """,
+            file: file, line: line
+        )
+        #else
+        XCTFail(
+            """
+            selectPickerItem(_:) is not yet certified on this platform — its selection-commit \
+            signal is pinned by fixture on iOS only. Drive the picker with tap() and assert \
+            the selection's effect, or bring the platform evidence to FOSUtilities.
+            """,
+            file: file, line: line
+        )
+        #endif
+    }
+}
+
+#if os(iOS)
+private extension UITestingElement {
+    // One app-level fling scrolls a menu's list by roughly a card height (~12 rows measured);
+    // two per direction reaches ~24 rows past the checked anchor, and the down leg doubles to
+    // first undo the up leg. Deeper menus fail loudly through the fold-teaching message.
+    static let menuSwipesPerDirection = 2
+    static let menuScrollSettle: TimeInterval = 0.4
+
+    // swiftformat:disable docComments
+    // The commit signal, pinned by fixture: the collapsed Picker's native control carries
+    // the selected item's tag as its identifier.
+    // swiftformat:enable docComments
+    func selectionCommitted(_ itemIdentifier: String) -> Bool {
+        let deadline = Date(timeIntervalSinceNow: Self.selectionCommitBudget)
+        while Date() < deadline {
+            if taggedControl()?.identifier == itemIdentifier {
+                return true
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.settleSamplingInterval))
+        }
+        return false
+    }
+}
+#endif
 #endif
