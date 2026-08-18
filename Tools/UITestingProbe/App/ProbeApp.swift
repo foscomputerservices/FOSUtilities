@@ -77,6 +77,43 @@ struct KeyboardShiftProbe: View {
     }
 }
 
+/// Tags spanning caption + field composites, in their own scene so the rows' geometry is
+/// deterministic and the main tree's is undisturbed. In gapRow the tag's midpoint falls in
+/// the caption/field gap (no leaf contains it); in captionRow it falls inside the caption.
+/// First-stage resolution answers with a container, or the caption; the second stage must
+/// find the field either way. gapRow's field is deliberately untagged — the row tag is its
+/// only route.
+struct RowResolutionProbe: View {
+    @State private var gapAmount = "45"
+    @State private var captionAmount = ""
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 0) {
+                Text(verbatim: "Gap")
+                    .frame(width: 80, alignment: .leading)
+                Spacer().frame(width: 60)
+                TextField("gap amount", text: $gapAmount)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 80)
+            }
+            .uiTestingIdentifier("gapRow")
+
+            HStack(spacing: 0) {
+                Text(verbatim: "A much longer caption")
+                    .lineLimit(1)
+                    .frame(width: 140, alignment: .leading)
+                TextField("caption amount", text: $captionAmount)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 80)
+                    .uiTestingIdentifier("captionField")
+            }
+            .uiTestingIdentifier("captionRow")
+        }
+        .padding()
+    }
+}
+
 struct ProbeView: View {
     @State private var taps = 0
     @State private var selection = 0
@@ -252,6 +289,8 @@ struct UITestingProbeApp: App {
             Group {
                 if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "keyboardShift" {
                     KeyboardShiftProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "rowResolution" {
+                    RowResolutionProbe()
                 } else if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
                     ProbeTabs()
                 } else {

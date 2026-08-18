@@ -143,11 +143,12 @@ public extension XCUIApplication {
     /// Each read of ``label``, ``value`` or ``isEnabled`` asks the running application, so assert
     /// the one that carries the meaning rather than sweeping all three.
     ///
-    /// ``label``, ``value`` and ``isEnabled`` report the state of the tagged *control*.  Tag the
-    /// control itself to assert its state: tagging a stack that groups other tagged views and
-    /// asking that stack for a label reports one of the controls within it.
+    /// ``label``, ``value`` and ``isEnabled`` report the state of the tagged *control*.  A tag
+    /// that spans a composite — a row holding a caption and a field — answers with the control
+    /// the composite contains; when it holds several, the first in document order answers, so
+    /// tag the control itself to address one precisely.
     public var label: String {
-        let control = taggedControl
+        let control = taggedControl()
         let label = control?.label ?? xcuiElement.label
         guard label.isEmpty else { return label }
 
@@ -158,7 +159,7 @@ public extension XCUIApplication {
 
     /// The tagged view's accessibility value, if it has one
     public var value: String? {
-        (taggedControl?.value ?? xcuiElement.value) as? String
+        (taggedControl()?.value ?? xcuiElement.value) as? String
     }
 
     /// Whether the tagged view accepts user interaction
@@ -167,11 +168,20 @@ public extension XCUIApplication {
     /// XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled)
     /// ```
     public var isEnabled: Bool {
-        taggedControl?.isEnabled ?? xcuiElement.isEnabled
+        taggedControl()?.isEnabled ?? xcuiElement.isEnabled
+    }
+
+    /// What a resolution is for. Reads pass `none` and keep stage 1's answer unless it is a
+    /// container; a hinted resolution also lets stage 2 reject a stage-1 winner that cannot
+    /// serve the interaction — a StaticText cannot receive a tap meant for the field beside it.
+    private enum ResolutionHint {
+        case none
+        case interactive
     }
 
     // swiftformat:disable docComments
-    // Not a doc comment — the customer's contract is on `label`, `value` and `isEnabled`.
+    // Not a doc comment — the customer's contract is on `label`, `value`, `isEnabled` and
+    // `tap()`.
     //
     // Two kinds of element carry an identifier. `TabContent.uiTestingIdentifier(_:)`, and any
     // view tagged with `accessibilityIdentifier` directly, put it on the element itself, which
@@ -179,10 +189,22 @@ public extension XCUIApplication {
     // element with no type and no label of its own, and the view has to be recovered from the
     // frame they share. Resolving the first kind by frame would answer with a neighbour.
     //
+    // Recovery is two-stage. Stage 1 keeps the original match: the candidate containing the
+    // tag's centre with the closest frame. A tag spanning a composite row defeats it — the
+    // centre can fall in the gap between caption and field (no leaf contains it; the row's
+    // container wins with the same midpoint), or inside the caption (measured 7pt from that
+    // gap). Stage 2 fires when stage 1 answers with a container, or with an element the hint
+    // rules out, and takes the first element in document order of an accepted type whose own
+    // centre lies within the tag's bounds — stage 1 inverted: it asked who contains the tag's
+    // centre; stage 2 asks whose centre the tag contains, which is what keeps a scrim or
+    // full-screen overlay, which merely intersects, from qualifying. Stage 1's answer stands
+    // when nothing does.
+    //
     // Children are walked in document order so that a repeated identifier resolves to the same
-    // element `xcuiElement` returns, which takes XCUITest's `firstMatch`.
+    // element `xcuiElement` returns, which takes XCUITest's `firstMatch`; document order also
+    // picks among several controls under one tag.
     // swiftformat:enable docComments
-    private var taggedControl: XCUIElementSnapshot? {
+    private func taggedControl(hint: ResolutionHint = .none) -> XCUIElementSnapshot? {
         guard let root = try? app.snapshot() else { return nil }
 
         var elements: [XCUIElementSnapshot] = []
@@ -224,8 +246,46 @@ public extension XCUIApplication {
             }
         }
 
-        return match
+        let descends: Bool = switch match {
+        case .none:
+            true
+        case .some(let match) where match.elementType == .other && match.label.isEmpty:
+            true
+        case .some(let match) where Self.containerTypes.contains(match.elementType):
+            true
+        case .some(let match):
+            hint == .interactive && !Self.interactiveTypes.contains(match.elementType)
+        }
+
+        guard descends else { return match }
+
+        let control = elements.first { candidate in
+            candidate.identifier != identifier &&
+                Self.interactiveTypes.contains(candidate.elementType) &&
+                bounds.contains(CGPoint(x: candidate.frame.midX, y: candidate.frame.midY))
+        }
+
+        return control ?? match
     }
+
+    /// The types stage 2 accepts: controls a synthesized interaction can land on. XCUITest
+    /// offers no "is interactive" bit, so the set is curated.
+    private static let interactiveTypes: Set<XCUIElement.ElementType> = [
+        .button, .checkBox, .comboBox, .datePicker, .link, .menuButton, .menuItem,
+        .picker, .pickerWheel, .popUpButton, .radioButton, .searchField,
+        .secureTextField, .segmentedControl, .slider, .stepper, .switch,
+        .textField, .textView
+    ]
+
+    /// Types that enclose content rather than being it. Stage 1 answers with one when nothing
+    /// contains the tag's centre — a row tag whose centre falls in the caption/field gap
+    /// resolves the scroll view, window, or application above it (measured: the application
+    /// element, which even carries a label, so `.other`-with-empty-label cannot be the whole
+    /// container test). Never the tagged control; always worth descending from.
+    private static let containerTypes: Set<XCUIElement.ElementType> = [
+        .application, .browser, .collectionView, .group, .navigationBar, .outline,
+        .scrollView, .table, .tabGroup, .toolbar, .window
+    ]
 
     /// The element carrying the tag, for test operations this type does not offer
     ///
@@ -332,6 +392,10 @@ public extension XCUIApplication {
     /// The view is waited for, so a tap lands on a view the application is still presenting — a
     /// tab bar item in the first moments after launch, a screen mid-transition — rather than
     /// racing it, and the test does not open with a wait of its own.
+    ///
+    /// A tag that spans a composite — a row holding a caption and a field — taps the control
+    /// within it rather than the row's midpoint, which can fall on the caption or in the gap
+    /// between the two.
     public func tap(file: StaticString = #filePath, line: UInt = #line) {
         // Waiting through the public wait keeps one default governing both it and the call site.
         guard waitForExistence() else {
@@ -341,7 +405,29 @@ public extension XCUIApplication {
 
         let element = xcuiElement
 
-        if element.isHittable {
+        // A tag spanning a composite covers caption and control alike, and the tag's midpoint
+        // can miss the control entirely (measured: 1pt into the caption/field gap). The miss
+        // is the same whether the tap is native — a hittable overlay's hit point IS the tag
+        // midpoint — or a synthesized coordinate, so the aim decision precedes the branch
+        // choice: only a resolved control that is genuinely a control, and genuinely
+        // elsewhere, redirects the tap.
+        let control = taggedControl(hint: .interactive)
+        let aimsElsewhere = control.map { control in
+            Self.interactiveTypes.contains(control.elementType) &&
+                (abs(control.frame.midX - element.frame.midX) > 1 ||
+                    abs(control.frame.midY - element.frame.midY) > 1)
+        } ?? false
+
+        if aimsElsewhere, let control {
+            // Settle (temporal) before re-resolving to aim (spatial) — aiming from an
+            // in-flight frame reintroduces the miss through the side door.
+            _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+            let target = taggedControl(hint: .interactive) ?? control
+            let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: centre.x, dy: centre.y))
+                .tap()
+        } else if element.isHittable {
             element.tap()
         } else if isOnScreen(element) {
             // A not-hittable element is often one SwiftUI is still presenting, and a coordinate

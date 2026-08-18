@@ -19,6 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Returns `false` immediately for a view that left the hierarchy — a gone view can never settle.
   Pinned in `Tools/UITestingProbe` by a menu-row selection loop that allows zero missed taps.
 
+### Fixed
+
+- **A tag spanning a composite resolves to the control it contains** (FOSTestingUI) — a tag on
+  a row holding a caption and a field covers both, and the row's midpoint can miss the field
+  entirely (measured: 1pt into the caption/field gap on one device width, inside the caption on
+  another). Resolution now descends into such a composite: `tap()` aims at the control's own
+  midpoint instead of the row's, and `label`/`value`/`isEnabled` answer with the control's
+  state where they previously answered from the row's container — empty. When a composite
+  holds several controls, the first in document order answers; tag the control itself to
+  address one precisely. Tags placed directly on controls are unaffected. Pinned in
+  `Tools/UITestingProbe` by caption + field rows with the midpoint in the gap and inside the
+  caption.
+
 ## [0.12.3] - 2026-08-17
 
 ### Fixed
