@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`UITestingElement.waitForStableFrame()` waits out a moving frame** (FOSTestingUI) — a view
+  that is still being presented (a menu row while the menu animates in) already *exists*, so an
+  existence wait passes, yet a coordinate computed from its in-flight frame lands where the view
+  *was* and the tap silently misses. `tap()` now settles automatically before its coordinate
+  taps (under a short internal budget, so a frame that never settles — a repeating animation —
+  costs ~2s, not a stall); call `waitForStableFrame()` yourself only before interactions that
+  bypass `tap()`: a native double-tap, addressing a control's child elements, asserting a frame.
+  Returns `false` immediately for a view that left the hierarchy — a gone view can never settle.
+  Pinned in `Tools/UITestingProbe` by a menu-row selection loop that allows zero missed taps.
+
 ## [0.12.3] - 2026-08-17
 
 ### Fixed

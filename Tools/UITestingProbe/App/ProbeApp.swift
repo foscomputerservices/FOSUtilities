@@ -80,6 +80,7 @@ struct KeyboardShiftProbe: View {
 struct ProbeView: View {
     @State private var taps = 0
     @State private var selection = 0
+    @State private var settleSelection = 0
     @State private var name = ""
     @State private var flag = false
     @State private var date = Date(timeIntervalSince1970: 0)
@@ -116,6 +117,20 @@ struct ProbeView: View {
                 // Tagged container wrapping a sub-view that carries its own tags
                 HStack { InnerPanel(selection: $selection) }
                     .uiTestingIdentifier("outerPanel")
+
+                // Frame settling: a menu with enough rows to animate a real presentation.
+                // FrameSettlingTests loops open/select against it and allows zero misses.
+                Text(verbatim: "settle-sel-\(settleSelection)")
+                    .uiTestingIdentifier("settleSelectionLabel")
+                Picker("settle", selection: $settleSelection) {
+                    ForEach(0..<8, id: \.self) { option in
+                        Text(verbatim: "settle-\(option)")
+                            .tag(option)
+                            .uiTestingIdentifier("settleOption-\(option)")
+                    }
+                }
+                .uiTestingIdentifier("settlePicker")
+                .pickerStyle(.menu)
 
                 // The tag is applied after other modifiers, which must not matter
                 Button(action: {}) { Text(verbatim: "styled") }

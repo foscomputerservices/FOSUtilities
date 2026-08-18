@@ -174,6 +174,7 @@ Reach for this when: a UI test needs any element the view tagged with
 `uiTestingIdentifier()` (FOSMVVM) — `exists` (in the hierarchy, on screen or
 not), `isVisible` (on screen and tappable), `waitForExistence()`,
 `waitForDisappearance()` (wait for it to go — `exists` answers before it has),
+`waitForStableFrame()` (wait for it to stop moving — see the next entry),
 `tap()`, `type(_:)`, `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
 Don't hand-write `buttons.element(matching:identifier:)` accessors or name
 XCUITest element types — the identifier is the whole contract, so a test
@@ -185,6 +186,20 @@ app, so assert the property that carries the meaning rather than all three.
 app.uiTestingElement("nameField").type("Fern")
 app.uiTestingElement("saveButton").tap()
 XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+```
+
+### Wait out a moving frame — `waitForStableFrame()` <!-- apple-only -->
+Reach for this when: an interaction bypasses `tap()` — a native double-tap, addressing a
+control's child elements, asserting a frame — on a view that may still be animating in. A
+mid-presentation view already *exists* (existence waits pass), but a coordinate computed from
+its in-flight frame lands where the view *was* and the gesture silently misses. Returns `false`
+immediately for a view that left the hierarchy.
+Don't call it before `tap()` — `tap()` settles on its own before coordinate taps.
+
+```swift
+let amount = app.uiTestingElement("amountField")
+XCTAssertTrue(amount.waitForStableFrame())
+amount.xcuiElement.doubleTap()
 ```
 
 ### Put the software keyboard away — `dismissKeyboard()` <!-- apple-only -->

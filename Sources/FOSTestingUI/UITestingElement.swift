@@ -284,6 +284,45 @@ public extension XCUIApplication {
         return XCTWaiter().wait(for: [departed], timeout: timeout) == .completed
     }
 
+    /// Waits for the tagged view's frame to stop moving
+    ///
+    /// ```swift
+    /// let amount = app.uiTestingElement("amountField")
+    ///
+    /// XCTAssertTrue(amount.waitForStableFrame())
+    /// amount.xcuiElement.doubleTap()
+    /// ```
+    ///
+    /// A view that is still being presented — a menu row while the menu animates in, a control
+    /// mid-re-render — already *exists*, so an existence wait passes, yet a coordinate computed
+    /// from its in-flight frame lands where the view *was*. ``tap()`` settles on its own; call
+    /// this before interactions that bypass it: a native double-tap, addressing a control's
+    /// child elements, asserting a frame.
+    ///
+    /// - Parameter timeout: How long to wait, in seconds.
+    /// - Returns: `true` once two consecutive frame reads agree; `false` when the timeout
+    ///   elapses first, or immediately when the view left the hierarchy — a view that is gone
+    ///   can never settle.
+    @discardableResult public func waitForStableFrame(timeout: TimeInterval = 10) -> Bool {
+        let element = xcuiElement
+        let deadline = Date(timeIntervalSinceNow: timeout)
+        var previous: CGRect?
+
+        repeat {
+            guard element.exists else { return false }
+
+            let frame = element.frame
+            if frame == previous, !frame.isEmpty {
+                return true
+            }
+            previous = frame
+
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.settleSamplingInterval))
+        } while Date() < deadline
+
+        return false
+    }
+
     /// Taps the tagged view
     ///
     /// ```swift
@@ -305,12 +344,24 @@ public extension XCUIApplication {
         if element.isHittable {
             element.tap()
         } else if isOnScreen(element) {
+            // A not-hittable element is often one SwiftUI is still presenting, and a coordinate
+            // computed from an in-flight frame taps where the element *was*. On timeout the tap
+            // still goes to the last-known frame — a frame that never settles (a repeating
+            // animation) must not become a new failure mode — under a budget deliberately
+            // shorter than waitForStableFrame's default so it stalls a tap by ~2s, not 10s.
+            _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
             element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         } else {
             // Off screen: left to tap(), which reports it, rather than tapping nothing.
             element.tap()
         }
     }
+
+    // Two consecutive agreeing samples ~150ms apart is the settled criterion the design
+    // validated in the field; the ~2s budget is the coordinate branch's cap on a frame
+    // that never settles.
+    private static let settleSamplingInterval: TimeInterval = 0.15
+    private static let coordinateSettleBudget: TimeInterval = 2
 
     // swiftformat:disable docComments
     // isHittable is false for a SwiftUI menu that is on screen and perfectly tappable, so
