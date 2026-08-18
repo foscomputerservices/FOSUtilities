@@ -77,9 +77,81 @@ struct KeyboardShiftProbe: View {
     }
 }
 
+/// Tags spanning caption + field composites, in their own scene so the rows' geometry is
+/// deterministic and the main tree's is undisturbed. In gapRow the tag's midpoint falls in
+/// the caption/field gap (no leaf contains it); in captionRow it falls inside the caption.
+/// First-stage resolution answers with a container, or the caption; the second stage must
+/// find the field either way. gapRow's field is deliberately untagged — the row tag is its
+/// only route.
+struct RowResolutionProbe: View {
+    @State private var gapAmount = "45"
+    @State private var captionAmount = ""
+    @State private var price = 0.0
+    @State private var trailing = ""
+    @State private var padAmount = "45"
+    @State private var secret = ""
+
+    /// Renders at commit time: "45" typed reads back "45.00" once the entry commits —
+    /// the normalization setText's expecting: exists for.
+    private static let twoDecimals: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 0) {
+                Text(verbatim: "Gap")
+                    .frame(width: 80, alignment: .leading)
+                Spacer().frame(width: 60)
+                TextField("gap amount", text: $gapAmount)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 80)
+            }
+            .uiTestingIdentifier("gapRow")
+
+            HStack(spacing: 0) {
+                Text(verbatim: "A much longer caption")
+                    .lineLimit(1)
+                    .frame(width: 140, alignment: .leading)
+                TextField("caption amount", text: $captionAmount)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 80)
+                    .uiTestingIdentifier("captionField")
+            }
+            .uiTestingIdentifier("captionRow")
+
+            // setText's fixture matrix: formatter-backed, trailing-aligned, number pad
+            // (prefilled, so replace must select-all on a keyboard with no text menu
+            // shortcuts), and a SecureField for the teaching rejection.
+            TextField("price", value: $price, formatter: Self.twoDecimals)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("priceField")
+
+            TextField("trailing", text: $trailing)
+                .multilineTextAlignment(.trailing)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("trailingField")
+
+            NumberPadField(title: "pad", text: $padAmount)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("padField")
+
+            SecureField("secret", text: $secret)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("secretField")
+        }
+        .padding()
+    }
+}
+
 struct ProbeView: View {
     @State private var taps = 0
     @State private var selection = 0
+    @State private var settleSelection = 0
     @State private var name = ""
     @State private var flag = false
     @State private var date = Date(timeIntervalSince1970: 0)
@@ -116,6 +188,20 @@ struct ProbeView: View {
                 // Tagged container wrapping a sub-view that carries its own tags
                 HStack { InnerPanel(selection: $selection) }
                     .uiTestingIdentifier("outerPanel")
+
+                // Frame settling: a menu with enough rows to animate a real presentation.
+                // FrameSettlingTests loops open/select against it and allows zero misses.
+                Text(verbatim: "settle-sel-\(settleSelection)")
+                    .uiTestingIdentifier("settleSelectionLabel")
+                Picker("settle", selection: $settleSelection) {
+                    ForEach(0..<8, id: \.self) { option in
+                        Text(verbatim: "settle-\(option)")
+                            .tag(option)
+                            .uiTestingIdentifier("settleOption-\(option)")
+                    }
+                }
+                .uiTestingIdentifier("settlePicker")
+                .pickerStyle(.menu)
 
                 // The tag is applied after other modifiers, which must not matter
                 Button(action: {}) { Text(verbatim: "styled") }
@@ -226,8 +312,57 @@ struct ProbeTabs: View {
     }
 }
 
+/// A card taller than any window: filler above a field and a button row at the bottom.
+/// TallCardView registers it scrollable — the harness supplies the scrolling parent the
+/// card is designed for; BareCardView registers the default and pins today's bare
+/// presentation, where the bottom controls overflow past the window with nothing to scroll.
+struct CardContent: View {
+    let idPrefix: String
+    @State private var amount = ""
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text(verbatim: "card-top")
+                .uiTestingIdentifier("\(idPrefix)Top")
+
+            Spacer(minLength: 1100)
+
+            TextField("amount", text: $amount)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("\(idPrefix)Field")
+
+            Button(action: {}) { Text(verbatim: "set") }
+                .uiTestingIdentifier("\(idPrefix)Button")
+        }
+        .padding()
+    }
+}
+
+struct TallCardView: ViewModelView {
+    let viewModel: TallCardViewModel
+
+    var body: some View {
+        CardContent(idPrefix: "scrollCard")
+    }
+}
+
+struct BareCardView: ViewModelView {
+    let viewModel: BareCardViewModel
+
+    var body: some View {
+        CardContent(idPrefix: "bareCard")
+    }
+}
+
 @main
 struct UITestingProbeApp: App {
+    init() {
+        #if DEBUG
+        MVVMEnvironment.registerTestView(TallCardView.self, scrollable: true)
+        MVVMEnvironment.registerTestView(BareCardView.self)
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             // testHost() is what plants the keyboard-dismissal control the
@@ -237,6 +372,8 @@ struct UITestingProbeApp: App {
             Group {
                 if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "keyboardShift" {
                     KeyboardShiftProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "rowResolution" {
+                    RowResolutionProbe()
                 } else if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
                     ProbeTabs()
                 } else {

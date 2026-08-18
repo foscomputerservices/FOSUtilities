@@ -64,7 +64,7 @@ the test client to display each view with a provided ``ViewModel`` for testing.
 This view modifier should be added at the top of the the application's view hierarchy.
 
 Finally, each View that inherits from ViewModelView must be registered with
-``MVVMEnvironment/registerTestView(_:)`` from the application's `init()`.
+``MVVMEnvironment/registerTestView(_:scrollable:)`` from the application's `init()`.
 
 > Important: `init()` is the only supported place for these calls. ``testHost``
 > resolves the view under test *before the first render*, so registering from a
@@ -122,9 +122,30 @@ private extension MVVMEnvironment {
 }
 ```
 
-Only the *body* of ``MVVMEnvironment/registerTestView(_:)`` is `#if DEBUG`, so the whole
-helper compiles away to a no-op in release builds — keeping the `#if DEBUG` inside it, rather
-than around the call in `init()`, is the tidier of the two. Either is correct.
+Only the *body* of ``MVVMEnvironment/registerTestView(_:scrollable:)`` is `#if DEBUG`, so the
+whole helper compiles away to a no-op in release builds — keeping the `#if DEBUG` inside it,
+rather than around the call in `init()`, is the tidier of the two. Either is correct.
+
+### Views Designed for a Scrolling Parent
+
+A view that lives inside a scrolling parent in production — a form card inside a
+`ScrollView`, a section of a longer page — is taller than any window when presented
+bare: content compresses and overlaps, controls end up buried where no tap can reach
+them, and keyboard avoidance displaces the whole content instead of scrolling. Declare
+the design fact where the view is registered, and the harness presents it inside a
+vertical `ScrollView`, as production does:
+
+```swift
+registerTestView(DeviceCardView.self, scrollable: true)
+```
+
+The declaration also restores XCUITest's automatic scroll-to-visible — the harness
+finally has something to scroll — so off-screen elements come to a tap on their own.
+Views registered without it present bare, exactly as before.
+
+> Important: `scrollable: true` states the view's *designed* production environment. It
+> is not an escape hatch for a view that overflows its production container too — that
+> is a layout bug the harness should keep surfacing.
 
 ## Display-Only Path
 
@@ -221,7 +242,7 @@ off the screen — the view a test asks about may still be *arriving* or
 *departing*. `UITestingElement` separates its API into **questions** that
 answer about the screen as it is *now* (`exists`, `isVisible`, `label`,
 `value`, `isEnabled`) and **waits** that synchronize with it
-(`waitForExistence()`, `waitForDisappearance()`).
+(`waitForExistence()`, `waitForDisappearance()`, `waitForStableFrame()`).
 
 The first assertion after a launch or a gesture is a wait; once one element
 has arrived, the screen is synchronized and questions answer reliably:
@@ -244,7 +265,97 @@ XCTAssertTrue(banner.waitForDisappearance())  // departing — wait
 > all.
 
 Gestures synchronize themselves — `tap()` and `type(_:)` wait for the view to
-arrive before acting, so no explicit wait precedes them.
+arrive before acting, so no explicit wait precedes them. `tap()` also waits
+for a moving frame to stop: a menu row mid-presentation already *exists*, so
+an existence wait passes, but a tap computed from its in-flight frame lands
+where the row *was*.
+
+`waitForStableFrame()` is that same settling for interactions that bypass
+`tap()` — a native double-tap through `xcuiElement`, addressing a control's
+child elements, asserting a frame:
+
+```swift
+let amount = app.uiTestingElement("amountField")
+
+XCTAssertTrue(amount.waitForStableFrame())
+amount.xcuiElement.doubleTap()
+```
+
+## Tagging a Composite
+
+A tag often spans a row rather than a single control — a caption beside a
+field is a natural authoring unit:
+
+```swift
+HStack {
+    Text(duration.label)
+    TextField("seconds", text: $duration.value)
+}
+.uiTestingIdentifier("durationRow")
+```
+
+Reading and tapping both resolve to the control the composite contains:
+`value` answers with the field's value, and `tap()` lands on the field rather
+than the row's midpoint — which can fall on the caption, or in the gap
+between the two, depending on nothing more than the device's width.
+
+```swift
+app.uiTestingElement("durationRow").tap()                    // taps the field
+XCTAssertEqual(app.uiTestingElement("durationRow").value, viewModel.duration)
+```
+
+When a composite holds several controls, the first in document order answers —
+tag the control itself to address one precisely.
+
+## Selecting a Picker Item
+
+Driving a menu-style `Picker` by hand is a ceremony — open the menu, wait for the
+row, tap it, and *verify the selection committed* — and skipping the verification is
+a race: state SwiftUI derives from the selection is not yet readable when the tap
+returns. `selectPickerItem(_:)` owns the whole ceremony and does not return until
+the selection is observably committed, so the very next read needs no wait:
+
+```swift
+app.uiTestingElement("programPicker").selectPickerItem("optionB")
+
+XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+```
+
+The receiver is the tagged `Picker`; the argument is the `uiTestingIdentifier` of
+the item inside the Picker's content. A missed gesture is retried once and
+re-verified — the postcondition, not the tap, is what lets the call return.
+
+> Important: This serves `Picker` only. A `Menu` of action buttons has no selection
+> to verify — the menu departs whether the tap hit the row or the scrim, so there is
+> no generic commit signal. Drive a `Menu` with `tap()` and assert the action's
+> effect instead.
+
+## Entering Text
+
+`type(_:)` appends at the caret — fine for typing into a fresh field, but when the
+test's intent is *the field ending up with an exact value*, appending is the wrong
+contract: what the field held, and where the caret sat, leak into the result.
+`setText(_:expecting:)` replaces and verifies — it resolves the real text control
+(a row-spanning tag finds the field), focuses it, proves the focus, replaces the
+value with no caret or selection assumptions, and does not return until the field
+reads back exactly the expected text:
+
+```swift
+app.uiTestingElement("quantityField").setText("42")
+```
+
+A field that normalizes what it displays — a formatter-backed field renders "45" as
+"45.00" when the entry commits — declares its rendering with `expecting:`, which also
+commits the entry before verifying:
+
+```swift
+app.uiTestingElement("priceField").setText("45", expecting: "45.00")
+```
+
+On a miss the whole sequence retries once with a different gesture strategy, and the
+failure is loud: the identifier, the entered text, and what the field actually reads.
+`SecureField`s are not served — bullets defeat any honest read-back, and the failure
+says so.
 
 ## Dismissing the Keyboard
 

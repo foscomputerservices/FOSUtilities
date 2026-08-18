@@ -293,9 +293,9 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
     func testFormInput() async throws {
         let app = try presentView()
 
-        app.uiTestingElement("nameTextField").type("Test Name")
+        app.uiTestingElement("nameTextField").setText("Test Name")
 
-        app.uiTestingElement("emailTextField").type("test@example.com")
+        app.uiTestingElement("emailTextField").setText("test@example.com")
 
         app.uiTestingElement("submitButton").tap()
 
@@ -900,22 +900,23 @@ XCTAssertFalse(app.uiTestingElement("submitButton").isEnabled)
 // Displayed text — against the localized ViewModel, never a literal
 XCTAssertEqual(app.uiTestingElement("titleLabel").label, viewModel.title)
 
-// Field contents
-app.uiTestingElement("emailTextField").type("test@example.com")
-XCTAssertEqual(app.uiTestingElement("emailTextField").value, "test@example.com")
+// Field contents — setText replaces and verifies the read-back itself; assert the
+// state the entry *drives*, not the entry again
+app.uiTestingElement("emailTextField").setText("test@example.com")
+XCTAssertTrue(app.uiTestingElement("submitButton").isEnabled)
 
 // A tag repeated by a ForEach resolves to the first match
 app.uiTestingElement("itemButton").tap()
 
-// A Picker's options are taggable, and that is how a selection is asserted
+// A Picker's options are taggable, and selectPickerItem drives the whole selection —
+// open, tap the row, verify the selection committed — so the next read needs no wait
 Picker(viewModel.programLabel, selection: $selection) {
     Text(viewModel.optionA).uiTestingIdentifier("optionA").tag(0)
     Text(viewModel.optionB).uiTestingIdentifier("optionB").tag(1)
 }
 .uiTestingIdentifier("programPicker")
 
-app.uiTestingElement("programPicker").tap()   // opens the menu
-app.uiTestingElement("optionB").tap()         // selects the option
+app.uiTestingElement("programPicker").selectPickerItem("optionB")
 
 // A system-presented alert is not a tagged view — query it directly
 XCTAssertTrue(app.alerts["errorAlert"].exists)
@@ -1002,7 +1003,7 @@ func testButtonDisabledInitially() async throws {
 func testButtonEnabledAfterInput() async throws {
     let app = try presentView()
 
-    app.uiTestingElement("nameField").type("Test")
+    app.uiTestingElement("nameField").setText("Test")
 
     XCTAssertTrue(app.uiTestingElement("submitButton").isEnabled)
 }

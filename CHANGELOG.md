@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`UITestingElement.waitForStableFrame()` waits out a moving frame** (FOSTestingUI) — a view
+  that is still being presented (a menu row while the menu animates in) already *exists*, so an
+  existence wait passes, yet a coordinate computed from its in-flight frame lands where the view
+  *was* and the tap silently misses. `tap()` now settles automatically before its coordinate
+  taps (under a short internal budget, so a frame that never settles — a repeating animation —
+  costs ~2s, not a stall); call `waitForStableFrame()` yourself only before interactions that
+  bypass `tap()`: a native double-tap, addressing a control's child elements, asserting a frame.
+  Returns `false` immediately for a view that left the hierarchy — a gone view can never settle.
+  Pinned in `Tools/UITestingProbe` by a menu-row selection loop that allows zero missed taps.
+
+- **Views designed for a scrolling parent declare it at registration** (FOSMVVM) —
+  `registerTestView(DeviceCardView.self, scrollable: true)` presents the view under test
+  inside a vertical `ScrollView`, as production does. Presented bare, a view designed for a
+  scrolling parent is taller than the window: content compresses and overlaps, bottom
+  controls get buried beyond any tap's reach, keyboard avoidance displaces the whole content
+  instead of scrolling, and XCUITest's scroll-to-visible has nothing to scroll. The
+  declaration is a design fact, not a per-test option — there is no override, and views
+  registered without it present bare, byte-for-byte as before. Pinned in
+  `Tools/UITestingProbe` by a card taller than any window: its buried field is reachable
+  when registered scrollable and provably off-screen when not.
+
+- **`UITestingElement.selectPickerItem(_:)` selects and verifies** (FOSTestingUI) — driving a
+  menu-style `Picker` by hand is a five-step ceremony (open, wait for the row, settle, tap,
+  verify the selection committed), and skipping the last step is a race: state SwiftUI derives
+  from the selection is not yet readable when the tap returns. `selectPickerItem` owns the
+  whole ceremony and does not return until the collapsed control reports the selection, so
+  the very next read of selection-derived state needs no wait. A missed gesture is retried
+  once and re-verified — the postcondition, not the tap, is what lets it return, so the retry
+  cannot mask a wrong selection. Serves `Picker` only (a `Menu` of actions has no selection
+  to verify; the failure message teaches the distinction), certified by fixture on iOS —
+  other platforms fail loudly naming the gap until a fixture pins them. Pinned in
+  `Tools/UITestingProbe` by a six-round selection cycle whose derived-state reads are
+  deliberately un-waited.
+
+- **`UITestingElement.setText(_:expecting:)` replaces and verifies** (FOSTestingUI) — every
+  hand-rolled text-entry helper walks the same road: taps aimed at row frames that miss the
+  field, select-all degrading to caret placement and prepending, typing racing focus, delete
+  counts depending on where the caret sat. `setText` owns the interaction: it resolves the
+  real text control the tag marks, focuses it, proves the focus, replaces the value with no
+  caret or selection assumptions, and does not return until the field reads back exactly the
+  expected text — retrying the whole sequence once with a different gesture strategy, and
+  failing loudly with the identifier, the entered text, and what the field actually reads.
+  `expecting:` serves formatter-backed fields ("45" renders "45.00"), committing the entry
+  before verifying; `SecureField`s are excluded with a teaching failure (bullets defeat any
+  honest read-back). iOS-certified; other platforms fail loudly until a fixture pins them.
+  Pinned in `Tools/UITestingProbe` across prefilled, empty, trailing-aligned, `.numberPad`,
+  and formatter-backed fields, through row-spanning and direct tags.
+
+- **`type(_:)` proves focus before typing** (FOSTestingUI) — it now rides the same
+  aim-and-focus machinery as `setText` and fails naming the tag when focus never arrives,
+  instead of XCTest's opaque "neither element nor any descendant has keyboard focus". Its
+  append-at-caret semantics stay deliberately unverified — appending has no general "what
+  should the value be now" — and its documentation now steers replacement intent to
+  `setText`.
+
+### Fixed
+
+- **A tag spanning a composite resolves to the control it contains** (FOSTestingUI) — a tag on
+  a row holding a caption and a field covers both, and the row's midpoint can miss the field
+  entirely (measured: 1pt into the caption/field gap on one device width, inside the caption on
+  another). Resolution now descends into such a composite: `tap()` aims at the control's own
+  midpoint instead of the row's, and `label`/`value`/`isEnabled` answer with the control's
+  state where they previously answered from the row's container — empty. When a composite
+  holds several controls, the first in document order answers; tag the control itself to
+  address one precisely. Tags placed directly on controls are unaffected. Pinned in
+  `Tools/UITestingProbe` by caption + field rows with the midpoint in the gap and inside the
+  caption.
+
 ## [0.12.3] - 2026-08-17
 
 ### Fixed

@@ -106,15 +106,34 @@ struct TestViewRegistrationTests {
             MVVMEnvironment.registeredTestTypes = [:]
 
             MVVMEnvironment.registerTestView(ProbeView.self)
-            let factory = try #require(
+            let registration = try #require(
                 MVVMEnvironment.registeredTestTypes[harnessKey(for: TestViewModel.self)]
             )
 
             // testHost() reports decode failures as a diagnostic, which is only possible because
             // the factory throws. If this ever trapped instead, that reporting path would be dead.
             #expect(throws: (any Error).self) {
-                _ = try factory(Data("not a ViewModel".utf8))
+                _ = try registration.factory(Data("not a ViewModel".utf8))
             }
+        }
+    }
+
+    @Test("The scrollable declaration reaches the registry — default false, declared true")
+    func scrollableDeclarationReachesTheRegistry() throws {
+        try withRestoredRegistry {
+            MVVMEnvironment.registeredTestTypes = [:]
+
+            MVVMEnvironment.registerTestView(ProbeView.self)
+            MVVMEnvironment.registerTestView(OtherProbeView.self, scrollable: true)
+
+            #expect(
+                MVVMEnvironment.registeredTestTypes[harnessKey(for: TestViewModel.self)]?
+                    .scrollable == false
+            )
+            #expect(
+                MVVMEnvironment.registeredTestTypes[harnessKey(for: OtherProbeViewModel.self)]?
+                    .scrollable == true
+            )
         }
     }
 }

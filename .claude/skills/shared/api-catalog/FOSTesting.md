@@ -174,7 +174,10 @@ Reach for this when: a UI test needs any element the view tagged with
 `uiTestingIdentifier()` (FOSMVVM) — `exists` (in the hierarchy, on screen or
 not), `isVisible` (on screen and tappable), `waitForExistence()`,
 `waitForDisappearance()` (wait for it to go — `exists` answers before it has),
-`tap()`, `type(_:)`, `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
+`waitForStableFrame()` (wait for it to stop moving — see the next entry),
+`tap()`, `type(_:)`, `setText(_:expecting:)` (verified replace — see below),
+`selectPickerItem(_:)` (verified Picker selection — see below),
+`label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
 Don't hand-write `buttons.element(matching:identifier:)` accessors or name
 XCUITest element types — the identifier is the whole contract, so a test
 survives a `Button` becoming a `Menu`. An identifier no view carries fails
@@ -185,6 +188,49 @@ app, so assert the property that carries the meaning rather than all three.
 app.uiTestingElement("nameField").type("Fern")
 app.uiTestingElement("saveButton").tap()
 XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
+```
+
+### Wait out a moving frame — `waitForStableFrame()` <!-- apple-only -->
+Reach for this when: an interaction bypasses `tap()` — a native double-tap, addressing a
+control's child elements, asserting a frame — on a view that may still be animating in. A
+mid-presentation view already *exists* (existence waits pass), but a coordinate computed from
+its in-flight frame lands where the view *was* and the gesture silently misses. Returns `false`
+immediately for a view that left the hierarchy.
+Don't call it before `tap()` — `tap()` settles on its own before coordinate taps.
+
+```swift
+let amount = app.uiTestingElement("amountField")
+XCTAssertTrue(amount.waitForStableFrame())
+amount.xcuiElement.doubleTap()
+```
+
+### Select a Picker item, verified — `selectPickerItem()` <!-- apple-only -->
+Reach for this when: a test drives a menu-style `Picker` and then reads state derived
+from the selection. The call does not return until the collapsed control reports the
+selection committed, so the next read needs no wait; a missed gesture is retried once
+and re-verified. iOS-certified; other platforms fail loudly until a fixture pins them.
+Don't use it on a `Menu` of action buttons — an action has no selection to verify;
+drive a Menu with `tap()` and assert the action's effect.
+
+```swift
+app.uiTestingElement("programPicker").selectPickerItem("optionB")
+XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+```
+
+### Enter text, verified — `setText()` <!-- apple-only -->
+Reach for this when: a test puts an exact value into a field. Resolves the real text
+control the tag marks (a row-spanning tag finds the field), focuses it, proves the
+focus, replaces without caret assumptions, and returns only when the field reads back
+the expected text — one gesture-strategy retry, then a loud failure naming identifier,
+entered text, and actual read-back. Formatter-backed fields normalize at commit: pass
+`expecting:` with the rendering (`setText("45", expecting: "45.00")`). SecureFields are
+excluded, teachably. iOS-certified; other platforms fail loudly until fixture-pinned.
+Don't hand-roll select-all/delete-count helpers — every geometry that breaks them is
+this API's fixture matrix. `type(_:)` remains for append-at-caret, honestly unverified.
+
+```swift
+app.uiTestingElement("quantityField").setText("42")
+app.uiTestingElement("priceField").setText("45", expecting: "45.00")
 ```
 
 ### Put the software keyboard away — `dismissKeyboard()` <!-- apple-only -->

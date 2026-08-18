@@ -1027,6 +1027,11 @@ See [reference.md](reference.md) for complete file templates.
 .uiTestingIdentifier("submitButton")
 ```
 
+A tag may span a composite — a row holding a caption and a field is a natural authoring
+unit, and tests read and tap the control the composite contains. When a composite holds
+several controls, the first in document order answers, so tag the control itself to
+address one precisely.
+
 ### Standard SwiftUI Modifiers
 
 Apply standard modifiers as needed for layout, styling, etc.

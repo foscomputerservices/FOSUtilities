@@ -442,9 +442,11 @@ private extension MVVMEnvironment {
         // Landing Page
         registerTestView(LandingPageView.self)
 
-        // Dashboard
+        // Dashboard — CardView lives inside a ScrollView in production, so the harness
+        // presents it inside one too; bare presentation would compress and overlap a view
+        // taller than the window, burying its bottom controls beyond any tap's reach
         registerTestView(DashboardView.self)
-        registerTestView(CardView.self)
+        registerTestView(CardView.self, scrollable: true)
 
         // Settings
         registerTestView(SettingsView.self)
@@ -453,6 +455,11 @@ private extension MVVMEnvironment {
     }
 }
 ```
+
+`scrollable: true` declares the view's *designed* production environment — stated once at
+registration, so no two tests can disagree about it, and deliberately without a per-test
+override. It is not an escape hatch for a view that also overflows its production
+container; that is a layout bug the harness should keep surfacing.
 
 ---
 
@@ -802,7 +809,7 @@ MVVMEnvironment(
 | `@State private var underTest` | Property | Flag for test mode |
 | `.testHost { }` | Modifier | Test configuration handler |
 | `MVVMEnvironment.registerTestingViews()` | Your static extension | Lists every testable view; call it from `App.init()` |
-| `MVVMEnvironment.registerTestView()` | Framework static method | Register individual view — reachable unqualified from inside the extension above (see Pattern 3) |
+| `MVVMEnvironment.registerTestView()` | Framework static method | Register individual view — reachable unqualified from inside the extension above (see Pattern 3); pass `scrollable: true` for a view designed to live inside a scrolling parent in production |
 
 **Important:** The `.testHost { }` modifier must be applied to the **top-level view** in your WindowGroup (the outermost view in the hierarchy). This ensures it wraps the entire view hierarchy and can properly intercept test configurations. Commonly this is a ZStack, VStack, or your root navigation view.
 

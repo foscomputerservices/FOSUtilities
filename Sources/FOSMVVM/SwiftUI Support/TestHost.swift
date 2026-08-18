@@ -51,7 +51,7 @@ public extension View {
     /// ```
     ///
     /// Every view to be tested individually must be registered from the application's `init()`
-    /// with ``MVVMEnvironment/registerTestView(_:)``; this function resolves the view under test
+    /// with ``MVVMEnvironment/registerTestView(_:scrollable:)``; this function resolves the view under test
     /// before the first render, and stops with a diagnostic if it is not registered by then.
     ///
     /// On iOS the wrapper also plants the invisible control that
@@ -104,7 +104,7 @@ public extension View {
     /// ```
     ///
     /// Every view to be tested individually must be registered from the application's `init()`
-    /// with ``MVVMEnvironment/registerTestView(_:)``; this function resolves the view under test
+    /// with ``MVVMEnvironment/registerTestView(_:scrollable:)``; this function resolves the view under test
     /// before the first render, and stops with a diagnostic if it is not registered by then.
     @MainActor func testHost() -> some View {
         testHost(decorator: { _, view in view })
@@ -137,7 +137,7 @@ private extension ProcessInfo {
         return str.data(using: .utf8)
     }
 
-    @MainActor func view(registeredTypes: [String: MVVMEnvironment.ViewFactory]) -> AnyView? {
+    @MainActor func view(registeredTypes: [String: MVVMEnvironment.TestViewRegistration]) -> AnyView? {
         guard
             let vmTypeStr = viewModelType,
             let viewModelData
@@ -145,7 +145,7 @@ private extension ProcessInfo {
             return nil
         }
 
-        guard let factory = registeredTypes[vmTypeStr] else {
+        guard let registration = registeredTypes[vmTypeStr] else {
             TestHostDiagnostic.reportAndStop(
                 TestHostDiagnostic.unregisteredView(
                     viewModelType: vmTypeStr,
@@ -155,7 +155,13 @@ private extension ProcessInfo {
         }
 
         do {
-            return try factory(viewModelData)
+            let view = try registration.factory(viewModelData)
+
+            // The registration declares the view is designed for a scrolling parent;
+            // the harness supplies the parent production would.
+            return registration.scrollable
+                ? AnyView(ScrollView(.vertical) { view })
+                : view
         } catch {
             TestHostDiagnostic.reportAndStop(
                 TestHostDiagnostic.undecodableViewModel(
