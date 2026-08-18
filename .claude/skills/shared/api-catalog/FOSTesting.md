@@ -177,6 +177,7 @@ not), `isVisible` (on screen and tappable), `waitForExistence()`,
 `waitForStableFrame()` (wait for it to stop moving — see the next entry),
 `tap()`, `type(_:)`, `setText(_:expecting:)` (verified replace — see below),
 `selectPickerItem(_:)` (verified Picker selection — see below),
+`setToggle(_:)` (verified Toggle flipping — see below),
 `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
 Don't hand-write `buttons.element(matching:identifier:)` accessors or name
 XCUITest element types — the identifier is the whole contract, so a test
@@ -218,6 +219,19 @@ drive a Menu with `tap()` and assert the action's effect.
 ```swift
 app.uiTestingElement("programPicker").selectPickerItem("optionB")
 XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+```
+
+### Flip a Toggle, verified — `setToggle()` <!-- apple-only -->
+Reach for this when: a test drives a `Toggle` and then reads state derived from it. A
+leading-label `Toggle` exposes one element spanning label and switch, so midpoint taps
+(XCUITest's default aim) land beside the switch and silently flip nothing; `setToggle`
+aims at the switch, does not return until the switch reports the requested state, and is
+an idempotent verified no-op when already there. Don't hand-roll trailing-edge coordinate
+taps. iOS-certified; other platforms fail loudly until a fixture pins them.
+
+```swift
+app.uiTestingElement("notificationsToggle").setToggle(true)
+XCTAssertTrue(app.uiTestingElement("saveButton").isEnabled) // no wait needed
 ```
 
 ### Enter text, verified — `setText()` <!-- apple-only -->

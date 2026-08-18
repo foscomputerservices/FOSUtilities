@@ -180,6 +180,11 @@ struct ProbeView: View {
                 DatePicker("date", selection: $date, displayedComponents: .date)
                     .uiTestingIdentifier("datePicker")
 
+                // A leading-label Toggle exposes one accessibility element spanning
+                // label + switch, so a midpoint tap lands on the label side and flips
+                // nothing. The derived label is the postcondition read.
+                Text(verbatim: "flag-\(flag ? "on" : "off")")
+                    .uiTestingIdentifier("flagStateLabel")
                 Toggle("flag", isOn: $flag)
                     .uiTestingIdentifier("flagToggle")
 

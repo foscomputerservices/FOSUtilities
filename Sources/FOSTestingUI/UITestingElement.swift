@@ -852,4 +852,111 @@ private extension UITestingElement {
     }
 }
 #endif
+
+// MARK: Verified Toggle flipping
+
+public extension UITestingElement {
+    /// Sets a `Toggle` and does not return until the switch reports the state
+    ///
+    /// ```swift
+    /// app.uiTestingElement("notificationsToggle").setToggle(true)
+    ///
+    /// XCTAssertTrue(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+    /// ```
+    ///
+    /// A `Toggle` with a leading label exposes one accessibility element spanning label and
+    /// switch, so a midpoint tap — XCUITest's default aim — lands beside the switch and
+    /// flips nothing. `setToggle` aims at the switch itself, verifies the reported state
+    /// before returning, and retries a missed gesture — the reported state, not the tap, is
+    /// what lets it return, so a retry can never mask a wrong flip. A `Toggle` already in
+    /// the requested state is a verified no-op, so the call is idempotent.
+    ///
+    /// Any state SwiftUI derives from the flip is committed by the time this returns, so
+    /// the very next read is safe without a wait.
+    func setToggle(
+        _ on: Bool,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        #if os(iOS)
+        guard waitForExistence() else {
+            XCTFail(Self.notFound(identifier), file: file, line: line)
+            return
+        }
+
+        let target = on ? "1" : "0"
+        if switchState() == target {
+            return
+        }
+
+        // Two proven aims, measured on the leading-label fixture: the switch element's own
+        // tap() lands on its activation point (the knob) even when the element spans the
+        // whole row; the trailing-edge coordinate is the fallback for a switch the query
+        // cannot resolve. Midpoint coordinates are exactly the miss this API exists to fix.
+        for attempt in 0..<3 {
+            if attempt < 2, let control = resolvedSwitch() {
+                control.tap()
+            } else {
+                _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+                xcuiElement.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+            }
+
+            let deadline = Date(timeIntervalSinceNow: Self.toggleCommitBudget)
+            while Date() < deadline {
+                if switchState() == target {
+                    return
+                }
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.settleSamplingInterval))
+            }
+        }
+
+        let lastRead = switchState().map { $0 == "1" ? "on" : "off" } ?? "no switch resolved"
+        XCTFail(
+            """
+            The switch tagged "\(identifier)" never reported \(on ? "on" : "off") \
+            (last read: \(lastRead)). Check that the Toggle is enabled and not covered; \
+            if the tagged view is not a Toggle, this API cannot verify it.
+            """,
+            file: file, line: line
+        )
+        #else
+        XCTFail(
+            """
+            setToggle(_:) is not yet certified on this platform — its aim and state signal \
+            are pinned by fixture on iOS only. Drive the toggle with tap() and assert the \
+            state's effect, or bring the platform evidence to FOSUtilities.
+            """,
+            file: file, line: line
+        )
+        #endif
+    }
+}
+
+#if os(iOS)
+private extension UITestingElement {
+    static let toggleCommitBudget: TimeInterval = 4
+
+    // swiftformat:disable docComments
+    // Stage-2 philosophy on the switch axis: the first switch whose own centre lies within
+    // the tag's bounds — containment of the candidate's centre keeps a scrim or unrelated
+    // switch from qualifying. A leading-label Toggle exposes two (the merged row and the
+    // knob); document order answers with the merged row, whose native tap is the proven aim.
+    // swiftformat:enable docComments
+    func resolvedSwitch() -> XCUIElement? {
+        let bounds = xcuiElement.frame
+        let switches = app.switches
+        for index in 0..<switches.count {
+            let candidate = switches.element(boundBy: index)
+            let frame = candidate.frame
+            if bounds.contains(CGPoint(x: frame.midX, y: frame.midY)) {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    func switchState() -> String? {
+        resolvedSwitch()?.value as? String
+    }
+}
+#endif
 #endif
