@@ -177,6 +177,7 @@ not), `isVisible` (on screen and tappable), `waitForExistence()`,
 `waitForStableFrame()` (wait for it to stop moving — see the next entry),
 `tap()`, `type(_:)`, `setText(_:expecting:)` (verified replace — see below),
 `selectPickerItem(_:)` (verified Picker selection — see below),
+`setToggle(_:)` (verified Toggle flipping — see below),
 `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
 Don't hand-write `buttons.element(matching:identifier:)` accessors or name
 XCUITest element types — the identifier is the whole contract, so a test
@@ -208,13 +209,29 @@ amount.xcuiElement.doubleTap()
 Reach for this when: a test drives a menu-style `Picker` and then reads state derived
 from the selection. The call does not return until the collapsed control reports the
 selection committed, so the next read needs no wait; a missed gesture is retried once
-and re-verified. iOS-certified; other platforms fail loudly until a fixture pins them.
+and re-verified. An item clipped behind a long menu's internal scroll is reached by
+scrolling within the presented menu (bounded, both directions from the checked item) —
+don't hand-roll swipe-until-exists loops. iOS-certified; other platforms fail loudly
+until a fixture pins them.
 Don't use it on a `Menu` of action buttons — an action has no selection to verify;
 drive a Menu with `tap()` and assert the action's effect.
 
 ```swift
 app.uiTestingElement("programPicker").selectPickerItem("optionB")
 XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+```
+
+### Flip a Toggle, verified — `setToggle()` <!-- apple-only -->
+Reach for this when: a test drives a `Toggle` and then reads state derived from it. A
+leading-label `Toggle` exposes one element spanning label and switch, so midpoint taps
+(XCUITest's default aim) land beside the switch and silently flip nothing; `setToggle`
+aims at the switch, does not return until the switch reports the requested state, and is
+an idempotent verified no-op when already there. Don't hand-roll trailing-edge coordinate
+taps. iOS-certified; other platforms fail loudly until a fixture pins them.
+
+```swift
+app.uiTestingElement("notificationsToggle").setToggle(true)
+XCTAssertTrue(app.uiTestingElement("saveButton").isEnabled) // no wait needed
 ```
 
 ### Enter text, verified — `setText()` <!-- apple-only -->

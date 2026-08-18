@@ -50,6 +50,15 @@ tests the working tree.
   through distinct menu items reads selection-derived state immediately after each call,
   with no wait — and a nonexistent item identifier fails loudly naming the item
   (`PickerSelectionTests`)
+- `selectPickerItem(_:)` reaches items clipped behind a long menu's internal scroll — a
+  24-row picker is selected into on both sides of the checked anchor, including a row so
+  deep it starts outside the accessibility tree (`PickerSelectionTests`)
+- `setToggle(_:)` flips a leading-label `Toggle` — the geometry whose merged accessibility
+  element defeats a midpoint tap — and returns only after the switch reports the state;
+  already-at-state is a verified, idempotent no-op (`ToggleFlippingTests`)
+- `FormFieldView` focus plumbing survives a real focus hand-off — two fields sharing the
+  owner's `@FocusState`: focus, edit, blur (validation-on-blur), refocus, with un-waited
+  value reads (`FormFocusProbeTests`, the `PROBE_SCENE=formFocus` scene)
 - a view registered `scrollable: true` is presented inside a vertical `ScrollView`: a field
   buried past the window's bottom is reachable (tap auto-scrolls, keyboard arrives, typing
   reads back), while the unregistered twin presents bare — the field exists but is not

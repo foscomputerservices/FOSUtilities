@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`UITestingElement.setToggle(_:)` flips and verifies** (FOSTestingUI) — a `Toggle` with a
+  leading label exposes one accessibility element spanning label and switch, so a midpoint
+  tap — XCUITest's default aim — lands beside the switch and flips nothing, and the miss is
+  silent. `setToggle(true)` aims at the switch itself, does not return until the switch
+  reports the requested state, and retries a missed gesture — the reported state, not the
+  tap, is what lets it return, so a retry can never mask a wrong flip. A `Toggle` already
+  in the requested state is a verified no-op, so the call is idempotent, and state SwiftUI
+  derives from the flip is readable immediately with no wait. iOS-certified; other
+  platforms fail loudly until a fixture pins them. Pinned in `Tools/UITestingProbe` on a
+  leading-label `Toggle` — the geometry whose merged element defeats the midpoint tap.
+
+### Fixed
+
+- **`selectPickerItem(_:)` reaches items clipped behind a long menu's internal scroll**
+  (FOSTestingUI) — a menu with more rows than its presented card can show clips part of the
+  list, but the accessibility tree keeps reporting the clipped rows with on-screen frames at
+  the positions they would occupy: every frame-based visibility signal passes, the tap lands
+  on the scrim below the card, and the menu dismisses without selecting. `selectPickerItem`
+  now scrolls within the presented menu when the plain tap does not commit — bounded flings
+  in both directions from the checked item (where the menu anchors its scroll), steered by
+  the row's hittability and still gated solely by the selection-committed postcondition, so
+  the scrolling can never mask a wrong selection. Items beyond the bounded reach fail loudly
+  with a message that names the fold. Pinned in `Tools/UITestingProbe` by an overflowing
+  menu selected into on both sides of the anchor, including a row so deep it starts outside
+  the accessibility tree.
+
 ## [0.12.4] - 2026-08-18
 
 ### Added

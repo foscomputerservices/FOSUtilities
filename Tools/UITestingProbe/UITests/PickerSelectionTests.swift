@@ -46,6 +46,32 @@ import XCTest
         }
     }
 
+    /// A menu with more rows than its presented card can show clips part of the list
+    /// behind the menu's internal scroll — while the accessibility tree reports clipped
+    /// rows with on-screen frames at the positions they would occupy, so a tap at such a
+    /// frame lands on the scrim and dismisses the menu without selecting (red-first on the
+    /// pre-ladder implementation). selectPickerItem must scroll within the menu; because
+    /// the menu re-anchors its scroll at the checked item, cycling targets on both sides
+    /// of the anchor proves both scroll directions.
+    func testOverflowingMenuReachesClippedItems() {
+        let picker = app.uiTestingElement("overflowPicker")
+
+        // 0 → 15: the target is clipped just past the fold with its would-be frame still
+        // inside the window — the frame every visibility signal believes, whose midpoint
+        // tap lands on the scrim (the field-failure class). 15 → 2: the menu re-anchors at
+        // the new selection and the target hides above the fold. 2 → 23: clipped so deep
+        // the row is not in the accessibility tree at all.
+        for target in [15, 2, 23] {
+            picker.selectPickerItem("overflowOption-\(target)")
+
+            XCTAssertEqual(
+                app.uiTestingElement("overflowSelectionLabel").label,
+                "overflow-sel-\(target)",
+                "the un-waited read after selecting item \(target) was stale"
+            )
+        }
+    }
+
     /// A nonexistent item identifier fails loudly at the call site, naming the item.
     func testNonexistentItemFailsLoudly() {
         XCTExpectFailure {
