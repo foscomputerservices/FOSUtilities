@@ -278,8 +278,57 @@ struct ProbeTabs: View {
     }
 }
 
+/// A card taller than any window: filler above a field and a button row at the bottom.
+/// TallCardView registers it scrollable — the harness supplies the scrolling parent the
+/// card is designed for; BareCardView registers the default and pins today's bare
+/// presentation, where the bottom controls overflow past the window with nothing to scroll.
+struct CardContent: View {
+    let idPrefix: String
+    @State private var amount = ""
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text(verbatim: "card-top")
+                .uiTestingIdentifier("\(idPrefix)Top")
+
+            Spacer(minLength: 1100)
+
+            TextField("amount", text: $amount)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("\(idPrefix)Field")
+
+            Button(action: {}) { Text(verbatim: "set") }
+                .uiTestingIdentifier("\(idPrefix)Button")
+        }
+        .padding()
+    }
+}
+
+struct TallCardView: ViewModelView {
+    let viewModel: TallCardViewModel
+
+    var body: some View {
+        CardContent(idPrefix: "scrollCard")
+    }
+}
+
+struct BareCardView: ViewModelView {
+    let viewModel: BareCardViewModel
+
+    var body: some View {
+        CardContent(idPrefix: "bareCard")
+    }
+}
+
 @main
 struct UITestingProbeApp: App {
+    init() {
+        #if DEBUG
+        MVVMEnvironment.registerTestView(TallCardView.self, scrollable: true)
+        MVVMEnvironment.registerTestView(BareCardView.self)
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             // testHost() is what plants the keyboard-dismissal control the

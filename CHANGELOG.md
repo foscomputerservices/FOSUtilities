@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Returns `false` immediately for a view that left the hierarchy — a gone view can never settle.
   Pinned in `Tools/UITestingProbe` by a menu-row selection loop that allows zero missed taps.
 
+- **Views designed for a scrolling parent declare it at registration** (FOSMVVM) —
+  `registerTestView(DeviceCardView.self, scrollable: true)` presents the view under test
+  inside a vertical `ScrollView`, as production does. Presented bare, a view designed for a
+  scrolling parent is taller than the window: content compresses and overlaps, bottom
+  controls get buried beyond any tap's reach, keyboard avoidance displaces the whole content
+  instead of scrolling, and XCUITest's scroll-to-visible has nothing to scroll. The
+  declaration is a design fact, not a per-test option — there is no override, and views
+  registered without it present bare, byte-for-byte as before. Pinned in
+  `Tools/UITestingProbe` by a card taller than any window: its buried field is reachable
+  when registered scrollable and provably off-screen when not.
+
 ### Fixed
 
 - **A tag spanning a composite resolves to the control it contains** (FOSTestingUI) — a tag on

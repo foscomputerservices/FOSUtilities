@@ -25,7 +25,15 @@ targets:
   UITestingProbeUITests:
     type: bundle.ui-testing
     platform: iOS
-    sources: [UITests]
+    # ScrollProbeShared.swift: presentView names the ViewModel type and ships an instance
+    # across, so the test bundle compiles the same ViewModel types the app registers.
+    # Resources/probe.yml: ViewModelDisplayTestCase.setUp builds a YAML localization store
+    # from this bundle and throws noResourcePaths when it holds no .yml at all.
+    sources:
+      - UITests
+      - App/ScrollProbeShared.swift
+      - path: UITests/Resources/probe.yml
+        buildPhase: resources
     dependencies:
       - target: UITestingProbe
       - package: FOSUtilities

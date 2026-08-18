@@ -940,7 +940,11 @@ from a computed property, `.onAppear`, or `.task` is too late and stops the app
 with a diagnostic. Only `registerTestView(_:)`'s body is DEBUG-only, so the helper
 compiles away to a no-op in release. On iOS the wrapper also plants the invisible
 control that `dismissKeyboard()` (FOSTesting.md § FOSTestingUI) taps — nothing to
-configure. Scaffolded by `fosmvvm-ui-tests-generator`.
+configure. A view designed to live inside a scrolling parent in production declares
+it at registration — `registerTestView(CardView.self, scrollable: true)` — and the
+harness presents it inside a vertical `ScrollView` as production does; presented
+bare, such a view compresses and buries its bottom controls beyond any tap's reach.
+Scaffolded by `fosmvvm-ui-tests-generator`.
 
 ```swift
 var body: some Scene {

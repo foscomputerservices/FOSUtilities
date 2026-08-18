@@ -127,7 +127,12 @@ public final class MVVMEnvironment: @unchecked Sendable {
     typealias ViewFactory = @MainActor (Data) throws -> AnyView
 
     #if DEBUG
-    @MainActor static var registeredTestTypes: [String: ViewFactory] = [:]
+    struct TestViewRegistration {
+        let factory: ViewFactory
+        let scrollable: Bool
+    }
+
+    @MainActor static var registeredTestTypes: [String: TestViewRegistration] = [:]
     #endif
 
     /// Registers a *ViewModelView* so that `testHost()` can present it under test
@@ -178,12 +183,46 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// > Note: Registration is a no-op in release builds.
     ///
-    /// - Parameter type: The *ViewModelView* to make available to *ViewModelDisplayTestCase*
-    @MainActor public static func registerTestView<V: ViewModelView>(_ type: V.Type) {
+    /// ## Views Designed for a Scrolling Parent
+    ///
+    /// A view that lives inside a scrolling parent in production — a form card inside a
+    /// `ScrollView`, a section of a longer page — is taller than any window when presented
+    /// bare: the harness compresses and overlaps its content, burying controls where no tap
+    /// can reach them. Declare the design fact at registration and the harness presents the
+    /// view inside a vertical `ScrollView`, as production does:
+    ///
+    /// ```swift
+    /// registerTestView(DeviceCardView.self, scrollable: true)
+    /// ```
+    ///
+    /// The declaration also restores what a missing scroll parent silently disables:
+    /// XCUITest's automatic scroll-to-visible for off-screen elements, and keyboard
+    /// avoidance that scrolls instead of displacing the whole content.
+    ///
+    /// > Important: `scrollable: true` states the view's *designed* production environment —
+    /// > it matches the harness to the design. It is not an escape hatch for a view that
+    /// > overflows its production container too; that is a layout bug the harness should
+    /// > keep surfacing. There is no per-test override: a suite that needs the same view
+    /// > presented both bare and scrolled is claiming the view has two designed
+    /// > environments — bring that evidence to FOSUtilities rather than working around
+    /// > the declaration.
+    ///
+    /// - Parameters:
+    ///   - type: The *ViewModelView* to make available to *ViewModelDisplayTestCase*
+    ///   - scrollable: Declare `true` for a view designed to live inside a scrolling parent
+    ///     in production; the harness then presents it inside a vertical `ScrollView`
+    ///     (default: `false` — the view is presented bare, exactly as before).
+    @MainActor public static func registerTestView<V: ViewModelView>(
+        _ type: V.Type,
+        scrollable: Bool = false
+    ) {
         #if DEBUG
-        registeredTestTypes[String(describing: V.VM.self)] = { @MainActor data in
-            try AnyView(V(viewModel: data.fromJSON()))
-        }
+        registeredTestTypes[String(describing: V.VM.self)] = TestViewRegistration(
+            factory: { @MainActor data in
+                try AnyView(V(viewModel: data.fromJSON()))
+            },
+            scrollable: scrollable
+        )
         #endif
     }
 
