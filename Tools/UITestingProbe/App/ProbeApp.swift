@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import FOSFoundation
 import FOSMVVM
 import SwiftUI
 
@@ -145,6 +146,54 @@ struct RowResolutionProbe: View {
                 .uiTestingIdentifier("secretField")
         }
         .padding()
+    }
+}
+
+/// Two FormFieldViews sharing the owner's `@FocusState`, so a tap in the second blurs the
+/// first and drives FormFieldView's focus plumbing (validation-on-blur) — the path under
+/// suspicion for SwiftUI's "Accessing FocusState's value outside of the body of a View"
+/// runtime warning. The probe asserts nothing about the warning itself; the harness reads
+/// the simulator's runtime-issue log around this scene.
+struct FormFocusProbe: View {
+    @FocusState private var focusedField: FormFieldIdentifier?
+    @State private var firstModel = FormFieldModel<String>(
+        FormField(
+            fieldId: .init(id: "focusProbeFirst"),
+            title: .constant("First"),
+            type: .text(inputType: .text)
+        ),
+        default: ""
+    )
+    @State private var secondModel = FormFieldModel<String>(
+        FormField(
+            fieldId: .init(id: "focusProbeSecond"),
+            title: .constant("Second"),
+            type: .text(inputType: .text)
+        ),
+        default: ""
+    )
+
+    /// Text(LocalizableString) requires an installed MVVMEnvironment (its @Environment
+    /// subscript traps without one); the titles here are constants, so empty stores serve.
+    @State private var mvvmEnv = MVVMEnvironment(
+        currentVersion: SystemVersion(major: 1, minor: 0, patch: 0),
+        appBundle: Bundle.main,
+        deploymentURLs: [.debug: .init(serverBaseURL: URL(string: "http://localhost:8080")!)]
+    )
+
+    /// FieldValidationsView (applied by FormFieldView unconditionally) requires an installed
+    /// Validations the same way — both are trap-on-missing environment objects.
+    @State private var validations = Validations()
+
+    var body: some View {
+        Form {
+            FormFieldView(fieldModel: firstModel, focusField: $focusedField)
+                .uiTestingIdentifier("focusFirstField")
+            FormFieldView(fieldModel: secondModel, focusField: $focusedField)
+                .uiTestingIdentifier("focusSecondField")
+        }
+        .environment(mvvmEnv)
+        .environment(validations)
     }
 }
 
@@ -398,6 +447,8 @@ struct UITestingProbeApp: App {
                     KeyboardShiftProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "rowResolution" {
                     RowResolutionProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "formFocus" {
+                    FormFocusProbe()
                 } else if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
                     ProbeTabs()
                 } else {
