@@ -221,7 +221,7 @@ off the screen — the view a test asks about may still be *arriving* or
 *departing*. `UITestingElement` separates its API into **questions** that
 answer about the screen as it is *now* (`exists`, `isVisible`, `label`,
 `value`, `isEnabled`) and **waits** that synchronize with it
-(`waitForExistence()`, `waitForDisappearance()`).
+(`waitForExistence()`, `waitForDisappearance()`, `waitForStableFrame()`).
 
 The first assertion after a launch or a gesture is a wait; once one element
 has arrived, the screen is synchronized and questions answer reliably:
@@ -244,7 +244,47 @@ XCTAssertTrue(banner.waitForDisappearance())  // departing — wait
 > all.
 
 Gestures synchronize themselves — `tap()` and `type(_:)` wait for the view to
-arrive before acting, so no explicit wait precedes them.
+arrive before acting, so no explicit wait precedes them. `tap()` also waits
+for a moving frame to stop: a menu row mid-presentation already *exists*, so
+an existence wait passes, but a tap computed from its in-flight frame lands
+where the row *was*.
+
+`waitForStableFrame()` is that same settling for interactions that bypass
+`tap()` — a native double-tap through `xcuiElement`, addressing a control's
+child elements, asserting a frame:
+
+```swift
+let amount = app.uiTestingElement("amountField")
+
+XCTAssertTrue(amount.waitForStableFrame())
+amount.xcuiElement.doubleTap()
+```
+
+## Tagging a Composite
+
+A tag often spans a row rather than a single control — a caption beside a
+field is a natural authoring unit:
+
+```swift
+HStack {
+    Text(duration.label)
+    TextField("seconds", text: $duration.value)
+}
+.uiTestingIdentifier("durationRow")
+```
+
+Reading and tapping both resolve to the control the composite contains:
+`value` answers with the field's value, and `tap()` lands on the field rather
+than the row's midpoint — which can fall on the caption, or in the gap
+between the two, depending on nothing more than the device's width.
+
+```swift
+app.uiTestingElement("durationRow").tap()                    // taps the field
+XCTAssertEqual(app.uiTestingElement("durationRow").value, viewModel.duration)
+```
+
+When a composite holds several controls, the first in document order answers —
+tag the control itself to address one precisely.
 
 ## Dismissing the Keyboard
 
