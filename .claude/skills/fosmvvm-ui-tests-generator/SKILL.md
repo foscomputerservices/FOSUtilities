@@ -80,20 +80,38 @@ types (`buttons`, `staticTexts`, `otherElements`) for tagged views. An accessor 
 an element type bakes a rendering detail into the test, so the test breaks when a `Button`
 becoming a `Menu` — and it is exactly the boilerplate `uiTestingElement()` exists to delete.
 
-A tap or a `type(_:)` against an identifier no view carries fails the test naming that
+A gesture against an identifier no view carries fails the test naming that
 identifier, so a typo reads as a typo rather than as an XCUITest snapshot error.
 
 `uiTestingElement(_:)` offers `exists` (present in the hierarchy, on screen or not),
 `isVisible` (on screen and tappable), `waitForExistence()`, `waitForDisappearance()`,
-`tap()`, `type(_:)`, `isEnabled`,
+`waitForStableFrame()`, `tap()`, `setText(_:expecting:)`, `type(_:)`,
+`selectPickerItem(_:)`, `isEnabled`,
 `label`, `value`, and `xcuiElement` as the escape hatch for anything else:
 
 ```swift
-app.uiTestingElement("nameField").type("Fern")
+app.uiTestingElement("nameField").setText("Fern")
 app.uiTestingElement("saveButton").tap()
 
 XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
 ```
+
+**Generate the verified interaction, not the gesture.** The verified APIs do not return
+until their effect is observable, which is what lets the very next assertion run without
+a wait — and what lets consuming suites delete retry heuristics instead of growing them
+(each verified postcondition is a race a generated test can no longer lose):
+
+- `setText(_:)` when the test's intent is *the field ending up with an exact value* —
+  it replaces (no caret assumptions) and verifies the read-back. Formatter-backed fields
+  declare their rendering: `setText("45", expecting: "45.00")`. `type(_:)` remains only
+  for genuine append-at-caret, which is honestly unverified.
+- `selectPickerItem(_:)` for a `Picker` — it returns only after the selection committed,
+  so selection-derived state (a dependent button's enablement) is readable immediately.
+  A `Menu` of action buttons has no selection to verify: drive it with `tap()` and assert
+  the action's effect.
+- `tap()` settles a mid-animation frame and aims at the control a composite tag spans on
+  its own; `waitForStableFrame()` is for interactions that bypass it (a native gesture
+  through `xcuiElement`, a frame assertion).
 
 **Assert displayed text against the ViewModel, never a literal.** `XCTAssertEqual` accepts a
 `Localizable` directly, so there is no `try`, no `localizedString`, and no throwing test:
@@ -113,7 +131,9 @@ assertion fails and names that as the cause instead of reading as a wrong label.
 native element (`Picker`, `DatePicker`, `TextField`, `ColorPicker`), on a container whose
 sub-views carry their own tags, at any nesting depth, and at any position in the modifier
 chain. A composed view and each of its sub-views can each carry their own tag and each be
-verified by their own test suite.
+verified by their own test suite. A tag that spans a composite — a row holding a caption
+and a field — reads and taps the control the composite contains; when it holds several,
+the first in document order answers, so tag the control itself to address one precisely.
 
 ### Tier 2: Localized ViewModel Text (When Identifiers Are Insufficient)
 
@@ -285,8 +305,10 @@ Do **not** write `XCUIElement` extensions for typing, reading text, or tapping m
 | Hand-rolled helper | Use instead |
 |---|---|
 | `var text: String?` | `.value` |
-| `typeTextAndWait(_:)` / `selectTypeTextAndWait(_:)` | `.type(_:)` |
+| `typeTextAndWait(_:)` / `selectTypeTextAndWait(_:)` / clear-then-type helpers | `.setText(_:)` — replaces and verifies the read-back; `.type(_:)` only for genuine append |
 | `tapMenu()` | `.tap()` — it falls back to a coordinate tap for menus that report themselves as not hittable |
+| open-menu → tap-row → poll-selection ceremonies | `.selectPickerItem(_:)` — returns only after the selection committed |
+| frame-settling / two-equal-samples polls | `.waitForStableFrame()` — and `tap()` settles on its own |
 
 
 ### 4. View Requirements
@@ -660,7 +682,7 @@ func testAsyncOperation() async throws {
 func testFormInput() async throws {
     let app = try presentView()
 
-    app.uiTestingElement("emailTextField").type("user@example.com")
+    app.uiTestingElement("emailTextField").setText("user@example.com")
 
     app.uiTestingElement("submitButton").tap()
 
@@ -713,3 +735,4 @@ See [reference.md](reference.md) for complete file templates.
 | 1.3 | 2026-07-02 | Note that `.uiTestingIdentifier(_:)` is a FOSMVVM `View` modifier (`import FOSMVVM`, `SwiftUI Support/View+Testing.swift`), DEBUG-only (no-op in release), applied unconditionally; don't define/copy it yourself. (backlog D1) |
 | 1.4 | 2026-07-02 | Version-floor note for `ViewModelDisplayTestCase<VM>` (recent FOSTestingUI where `ViewModelViewTestCase` inherits it) + older-ref no-op-ops fallback (D2). Added "UI-Test Target Wiring (Xcode project)": link FOS directly NOT via `SPMLibraries` (separate process — trap doesn't apply), source-include the shared contract module, copy the localization tree + `resourceDirectoryName:` (D3). Fixed a copy-paste bug in the View Testing Checklist (display-only list wrongly required `operations` stored from `viewModel.operations`). |
 | 1.5 | 2026-08-12 | `.uiTestingIdentifier(_:)` reworked so a tag holds on bridged controls (`Picker`, `DatePicker`, `TextField`, `ColorPicker`), on containers whose sub-views carry their own tags, at any depth, and at any position in the modifier chain. Tests now find tagged views with `app.uiTestingElement(_:)` (FOSTestingUI): `XCUIApplication` accessor extensions, XCUITest element-type queries, and the hand-rolled `typeTextAndWait`/`tapMenu`/`text` helpers are all removed in favour of it. |
+| 1.6 | 2026-08-18 | The verified-interaction layer: generate `setText(_:expecting:)` for exact-value text entry (replaces + verifies read-back; `type(_:)` only for genuine append), `selectPickerItem(_:)` for Picker selection (returns only after the selection committed — the next read needs no wait), `waitForStableFrame()` for interactions that bypass `tap()`. `tap()` now settles in-flight frames and aims at the control a composite tag spans; reads resolve the same way, so a row-spanning tag answers with its field. Legacy-helper table routes replacement intent to `setText`. |
