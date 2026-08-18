@@ -330,6 +330,33 @@ re-verified — the postcondition, not the tap, is what lets the call return.
 > no generic commit signal. Drive a `Menu` with `tap()` and assert the action's
 > effect instead.
 
+## Entering Text
+
+`type(_:)` appends at the caret — fine for typing into a fresh field, but when the
+test's intent is *the field ending up with an exact value*, appending is the wrong
+contract: what the field held, and where the caret sat, leak into the result.
+`setText(_:expecting:)` replaces and verifies — it resolves the real text control
+(a row-spanning tag finds the field), focuses it, proves the focus, replaces the
+value with no caret or selection assumptions, and does not return until the field
+reads back exactly the expected text:
+
+```swift
+app.uiTestingElement("quantityField").setText("42")
+```
+
+A field that normalizes what it displays — a formatter-backed field renders "45" as
+"45.00" when the entry commits — declares its rendering with `expecting:`, which also
+commits the entry before verifying:
+
+```swift
+app.uiTestingElement("priceField").setText("45", expecting: "45.00")
+```
+
+On a miss the whole sequence retries once with a different gesture strategy, and the
+failure is loud: the identifier, the entered text, and what the field actually reads.
+`SecureField`s are not served — bullets defeat any honest read-back, and the failure
+says so.
+
 ## Dismissing the Keyboard
 
 Typing raises the software keyboard, and a raised keyboard covers the lower

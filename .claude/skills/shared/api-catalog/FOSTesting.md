@@ -175,7 +175,8 @@ Reach for this when: a UI test needs any element the view tagged with
 not), `isVisible` (on screen and tappable), `waitForExistence()`,
 `waitForDisappearance()` (wait for it to go — `exists` answers before it has),
 `waitForStableFrame()` (wait for it to stop moving — see the next entry),
-`tap()`, `type(_:)`, `selectPickerItem(_:)` (verified Picker selection — see below),
+`tap()`, `type(_:)`, `setText(_:expecting:)` (verified replace — see below),
+`selectPickerItem(_:)` (verified Picker selection — see below),
 `label`, `value`, `isEnabled`, and `xcuiElement` for anything else.
 Don't hand-write `buttons.element(matching:identifier:)` accessors or name
 XCUITest element types — the identifier is the whole contract, so a test
@@ -214,6 +215,22 @@ drive a Menu with `tap()` and assert the action's effect.
 ```swift
 app.uiTestingElement("programPicker").selectPickerItem("optionB")
 XCTAssertFalse(app.uiTestingElement("saveButton").isEnabled) // no wait needed
+```
+
+### Enter text, verified — `setText()` <!-- apple-only -->
+Reach for this when: a test puts an exact value into a field. Resolves the real text
+control the tag marks (a row-spanning tag finds the field), focuses it, proves the
+focus, replaces without caret assumptions, and returns only when the field reads back
+the expected text — one gesture-strategy retry, then a loud failure naming identifier,
+entered text, and actual read-back. Formatter-backed fields normalize at commit: pass
+`expecting:` with the rendering (`setText("45", expecting: "45.00")`). SecureFields are
+excluded, teachably. iOS-certified; other platforms fail loudly until fixture-pinned.
+Don't hand-roll select-all/delete-count helpers — every geometry that breaks them is
+this API's fixture matrix. `type(_:)` remains for append-at-caret, honestly unverified.
+
+```swift
+app.uiTestingElement("quantityField").setText("42")
+app.uiTestingElement("priceField").setText("45", expecting: "45.00")
 ```
 
 ### Put the software keyboard away — `dismissKeyboard()` <!-- apple-only -->

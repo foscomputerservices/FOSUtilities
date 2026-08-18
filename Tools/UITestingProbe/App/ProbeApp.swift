@@ -86,6 +86,20 @@ struct KeyboardShiftProbe: View {
 struct RowResolutionProbe: View {
     @State private var gapAmount = "45"
     @State private var captionAmount = ""
+    @State private var price = 0.0
+    @State private var trailing = ""
+    @State private var padAmount = "45"
+    @State private var secret = ""
+
+    /// Renders at commit time: "45" typed reads back "45.00" once the entry commits —
+    /// the normalization setText's expecting: exists for.
+    private static let twoDecimals: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
 
     var body: some View {
         VStack(spacing: 14) {
@@ -109,6 +123,26 @@ struct RowResolutionProbe: View {
                     .uiTestingIdentifier("captionField")
             }
             .uiTestingIdentifier("captionRow")
+
+            // setText's fixture matrix: formatter-backed, trailing-aligned, number pad
+            // (prefilled, so replace must select-all on a keyboard with no text menu
+            // shortcuts), and a SecureField for the teaching rejection.
+            TextField("price", value: $price, formatter: Self.twoDecimals)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("priceField")
+
+            TextField("trailing", text: $trailing)
+                .multilineTextAlignment(.trailing)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("trailingField")
+
+            NumberPadField(title: "pad", text: $padAmount)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("padField")
+
+            SecureField("secret", text: $secret)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("secretField")
         }
         .padding()
     }

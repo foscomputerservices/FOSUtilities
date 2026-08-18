@@ -43,6 +43,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Tools/UITestingProbe` by a six-round selection cycle whose derived-state reads are
   deliberately un-waited.
 
+- **`UITestingElement.setText(_:expecting:)` replaces and verifies** (FOSTestingUI) — every
+  hand-rolled text-entry helper walks the same road: taps aimed at row frames that miss the
+  field, select-all degrading to caret placement and prepending, typing racing focus, delete
+  counts depending on where the caret sat. `setText` owns the interaction: it resolves the
+  real text control the tag marks, focuses it, proves the focus, replaces the value with no
+  caret or selection assumptions, and does not return until the field reads back exactly the
+  expected text — retrying the whole sequence once with a different gesture strategy, and
+  failing loudly with the identifier, the entered text, and what the field actually reads.
+  `expecting:` serves formatter-backed fields ("45" renders "45.00"), committing the entry
+  before verifying; `SecureField`s are excluded with a teaching failure (bullets defeat any
+  honest read-back). iOS-certified; other platforms fail loudly until a fixture pins them.
+  Pinned in `Tools/UITestingProbe` across prefilled, empty, trailing-aligned, `.numberPad`,
+  and formatter-backed fields, through row-spanning and direct tags.
+
+- **`type(_:)` proves focus before typing** (FOSTestingUI) — it now rides the same
+  aim-and-focus machinery as `setText` and fails naming the tag when focus never arrives,
+  instead of XCTest's opaque "neither element nor any descendant has keyboard focus". Its
+  append-at-caret semantics stay deliberately unverified — appending has no general "what
+  should the value be now" — and its documentation now steers replacement intent to
+  `setText`.
+
 ### Fixed
 
 - **A tag spanning a composite resolves to the control it contains** (FOSTestingUI) — a tag on

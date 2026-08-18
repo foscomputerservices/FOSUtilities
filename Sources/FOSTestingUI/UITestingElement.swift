@@ -177,6 +177,11 @@ public extension XCUIApplication {
     private enum ResolutionHint {
         case none
         case interactive
+        case textEntry
+
+        var acceptedTypes: Set<XCUIElement.ElementType> {
+            self == .textEntry ? UITestingElement.textEntryTypes : UITestingElement.interactiveTypes
+        }
     }
 
     // swiftformat:disable docComments
@@ -254,14 +259,14 @@ public extension XCUIApplication {
         case .some(let match) where Self.containerTypes.contains(match.elementType):
             true
         case .some(let match):
-            hint == .interactive && !Self.interactiveTypes.contains(match.elementType)
+            hint != .none && !hint.acceptedTypes.contains(match.elementType)
         }
 
         guard descends else { return match }
 
         let control = elements.first { candidate in
             candidate.identifier != identifier &&
-                Self.interactiveTypes.contains(candidate.elementType) &&
+                hint.acceptedTypes.contains(candidate.elementType) &&
                 bounds.contains(CGPoint(x: candidate.frame.midX, y: candidate.frame.midY))
         }
 
@@ -270,7 +275,7 @@ public extension XCUIApplication {
 
     /// The types stage 2 accepts: controls a synthesized interaction can land on. XCUITest
     /// offers no "is interactive" bit, so the set is curated.
-    private static let interactiveTypes: Set<XCUIElement.ElementType> = [
+    private nonisolated static let interactiveTypes: Set<XCUIElement.ElementType> = [
         .button, .checkBox, .comboBox, .datePicker, .link, .menuButton, .menuItem,
         .picker, .pickerWheel, .popUpButton, .radioButton, .searchField,
         .secureTextField, .segmentedControl, .slider, .stepper, .switch,
@@ -282,9 +287,15 @@ public extension XCUIApplication {
     /// resolves the scroll view, window, or application above it (measured: the application
     /// element, which even carries a label, so `.other`-with-empty-label cannot be the whole
     /// container test). Never the tagged control; always worth descending from.
-    private static let containerTypes: Set<XCUIElement.ElementType> = [
+    private nonisolated static let containerTypes: Set<XCUIElement.ElementType> = [
         .application, .browser, .collectionView, .group, .navigationBar, .outline,
         .scrollView, .table, .tabGroup, .toolbar, .window
+    ]
+
+    /// The types a text entry can land in. `secureTextField` is present so `setText` can
+    /// resolve one and *teach* — its read-back is bullets, so it is rejected, loudly.
+    private nonisolated static let textEntryTypes: Set<XCUIElement.ElementType> = [
+        .searchField, .secureTextField, .textField, .textView
     ]
 
     /// The element carrying the tag, for test operations this type does not offer
@@ -449,6 +460,8 @@ public extension XCUIApplication {
     private static let settleSamplingInterval: TimeInterval = 0.15
     private static let coordinateSettleBudget: TimeInterval = 2
     private static let selectionCommitBudget: TimeInterval = 4
+    private static let textCommitBudget: TimeInterval = 4
+    private static let focusProofBudget: TimeInterval = 2
 
     /// Selects an item in a `Picker` and does not return until the selection committed
     ///
@@ -544,7 +557,7 @@ public extension XCUIApplication {
         "No view is tagged \"\(identifier)\". Check the identifier given to uiTestingIdentifier(_:), and that the view is on screen."
     }
 
-    /// Types text into the tagged view
+    /// Types text into the tagged view, appending at the caret
     ///
     /// The view is given keyboard focus and then receives the text:
     ///
@@ -552,7 +565,11 @@ public extension XCUIApplication {
     /// app.uiTestingElement("nameField").type("Fern")
     /// ```
     ///
-    /// The field is waited for, as it is for ``tap()``.
+    /// The field is waited for, as it is for ``tap()``. What the field ends up reading is not
+    /// verified — appending has no general answer to "what should the value be now"; it
+    /// depends on what the field held and where the caret sat. When the intent is the field
+    /// ending up with an exact value, reach for ``setText(_:expecting:)``, which replaces and
+    /// verifies.
     ///
     /// - Parameter text: The text to type.
     public func type(_ text: String, file: StaticString = #filePath, line: UInt = #line) {
@@ -566,7 +583,197 @@ public extension XCUIApplication {
         // it directly fails. Tapping moves focus to the field, after which the application
         // routes typed text to whatever holds it.
         tap(file: file, line: line)
+
+        #if os(iOS)
+        // typeText's own no-focus failure is opaque; fail naming the tag instead.
+        guard waitForFocus() else {
+            XCTFail(
+                """
+                Tapping "\(identifier)" never established keyboard focus — the tap may have \
+                landed on a view that does not accept text.
+                """,
+                file: file, line: line
+            )
+            return
+        }
+        #endif
+
         app.typeText(text)
+    }
+
+    /// Replaces the tagged field's value with `text`, verifying the result
+    ///
+    /// ```swift
+    /// app.uiTestingElement("quantityField").setText("42")
+    /// app.uiTestingElement("priceField").setText("45", expecting: "45.00") // formatter-backed
+    /// ```
+    ///
+    /// Resolves the real text control the tag marks — a tag spanning a caption + field row
+    /// finds the field — focuses it, replaces the value with no caret or selection
+    /// assumptions, and does not return until the field reads back exactly the expected
+    /// text. A miss retries the whole sequence once with a different gesture strategy, and
+    /// failure is loud: the identifier, the entered text, and what the field actually reads.
+    ///
+    /// `expecting:` serves fields that normalize what they display — a formatter-backed
+    /// field renders "45" as "45.00", and the formatter runs when the entry commits, so
+    /// passing `expecting:` also commits the entry (via ``XCUIApplication/dismissKeyboard``)
+    /// before verifying. The default expects `text` verbatim and leaves the field focused.
+    ///
+    /// `SecureField`s are not served: bullets defeat any honest read-back, and the failure
+    /// says so rather than mystifying.
+    public func setText(
+        _ text: String,
+        expecting expectedValue: String? = nil,
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        #if os(iOS)
+        guard waitForExistence() else {
+            XCTFail(Self.notFound(identifier), file: file, line: line)
+            return
+        }
+
+        let expected = expectedValue ?? text
+
+        _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+        guard let control = taggedControl(hint: .textEntry),
+              Self.textEntryTypes.contains(control.elementType) else {
+            XCTFail(
+                """
+                No text control resolved for "\(identifier)". Tag a text field or text view — \
+                or a composite containing one — and if the control is buried under sibling \
+                views when presented bare, register its view as designed for a scrolling \
+                parent: registerTestView(_:scrollable:).
+                """,
+                file: file, line: line
+            )
+            return
+        }
+        guard control.elementType != .secureTextField else {
+            XCTFail(
+                """
+                "\(identifier)" resolves to a SecureField, whose value reads back as bullets — \
+                there is no honest way to verify the entry, so setText does not serve \
+                SecureFields.
+                """,
+                file: file, line: line
+            )
+            return
+        }
+
+        // Two gesture strategies, because field evidence shows each reaches fields the other
+        // cannot: the framework tap (native when hittable, aimed coordinate otherwise), then
+        // a direct coordinate tap at the resolved control's centre.
+        for useCoordinate in [false, true] {
+            if useCoordinate {
+                _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+                guard let focusTarget = taggedControl(hint: .textEntry) else { continue }
+
+                app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(
+                        dx: focusTarget.frame.midX,
+                        dy: focusTarget.frame.midY
+                    ))
+                    .tap()
+            } else {
+                tap(file: file, line: line)
+            }
+
+            guard waitForFocus() else { continue }
+
+            // Aim only AFTER focus is established: the keyboard's arrival reflows the
+            // layout (measured: a vertically centered scene shifts up 147pt), so any frame
+            // read before it is stale and every gesture from it lands rows away. The settle
+            // waits out that reflow — the same in-flight-frame contract as tap()'s.
+            _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+            guard let target = taggedControl(hint: .textEntry) else { continue }
+            let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
+
+            // Replace without caret arithmetic: a double-tap ON the text selects it and
+            // raises the edit menu — the menu is the proof a selection was made. Where the
+            // text sits depends on the field's width and alignment (measured: a full-width
+            // leading-aligned field has nothing under its midpoint, and the double-tap
+            // there selects nothing), so the double-tap probes leading, centre, trailing —
+            // stopping the moment a menu rises. "Select All" present means the selection
+            // is partial: take it; absent means the whole value is already selected. An
+            // empty field has nothing to select, and typing simply inserts.
+            if let existing = value, !existing.isEmpty {
+                let inset = min(20, target.frame.width / 4)
+
+                for x in [target.frame.minX + inset, centre.x, target.frame.maxX - inset] {
+                    app.coordinate(withNormalizedOffset: .zero)
+                        .withOffset(CGVector(dx: x, dy: centre.y))
+                        .doubleTap()
+
+                    guard app.menuItems.firstMatch.waitForExistence(timeout: 1) else { continue }
+
+                    let selectAll = app.menuItems["Select All"]
+                    if selectAll.exists {
+                        selectAll.tap()
+                    }
+                    break
+                }
+            }
+            app.typeText(text)
+
+            // A declared normalization runs when the entry commits, so commit before
+            // verifying; the verbatim default leaves the field focused. Committing means
+            // Return — a formatter-backed TextField parses on submit and DISCARDS the entry
+            // on plain focus loss (measured: dismissing reverted "45" to "0.00") — with
+            // dismissal only for keyboards that have no Return key at all (.numberPad).
+            if expectedValue != nil {
+                // The element-subscript match (identifier "Return", measured) is the form
+                // that resolves; a compound IN-predicate over the same attributes came back
+                // empty against the identical keyboard.
+                let returnKey = app.keyboards.buttons["Return"]
+                if returnKey.exists {
+                    returnKey.tap()
+                } else {
+                    app.dismissKeyboard(file: file, line: line)
+                }
+            }
+
+            let deadline = Date(timeIntervalSinceNow: Self.textCommitBudget)
+            while Date() < deadline {
+                if value == expected {
+                    return
+                }
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.settleSamplingInterval))
+            }
+        }
+
+        XCTFail(
+            """
+            The field tagged "\(identifier)" reads "\(value ?? "nil")" after entering \
+            "\(text)"; expected "\(expected)". A formatter-backed field normalizes its value \
+            when the entry commits — pass expecting: with the field's rendering \
+            ("45" → expecting: "45.00").
+            """,
+            file: file, line: line
+        )
+        #else
+        XCTFail(
+            """
+            setText(_:expecting:) is not yet certified on this platform — its focus proof and \
+            replace mechanics are pinned by fixture on iOS only. Use type(_:) with an explicit \
+            clear, or bring the platform evidence to FOSUtilities.
+            """,
+            file: file, line: line
+        )
+        #endif
+    }
+
+    /// Focus proof: the software keyboard arriving, or any element reporting keyboard focus.
+    /// The keyboard is waited for natively and first — the focused-element scan walks the
+    /// whole tree (expensive enough to eat a polling budget on its own; measured burning the
+    /// focus window on a scene of six fields) and serves only the simulator-with-hardware-
+    /// keyboard case, so it runs once, as the fallback.
+    private func waitForFocus() -> Bool {
+        if app.keyboards.firstMatch.waitForExistence(timeout: Self.focusProofBudget) {
+            return true
+        }
+
+        return app.descendants(matching: .any)
+            .matching(NSPredicate(format: "hasKeyboardFocus == true")).firstMatch.exists
     }
 
     init(app: XCUIApplication, identifier: String) {
