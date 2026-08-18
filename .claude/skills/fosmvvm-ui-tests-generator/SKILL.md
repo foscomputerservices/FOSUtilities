@@ -107,8 +107,10 @@ a wait — and what lets consuming suites delete retry heuristics instead of gro
   for genuine append-at-caret, which is honestly unverified.
 - `selectPickerItem(_:)` for a `Picker` — it returns only after the selection committed,
   so selection-derived state (a dependent button's enablement) is readable immediately.
-  A `Menu` of action buttons has no selection to verify: drive it with `tap()` and assert
-  the action's effect.
+  A long menu's clipped items are reached by scrolling within the presented menu
+  (bounded, both directions from the checked item), so never hand-roll a
+  swipe-until-the-row-exists loop. A `Menu` of action buttons has no selection to
+  verify: drive it with `tap()` and assert the action's effect.
 - `tap()` settles a mid-animation frame and aims at the control a composite tag spans on
   its own; `waitForStableFrame()` is for interactions that bypass it (a native gesture
   through `xcuiElement`, a frame assertion).
@@ -307,7 +309,7 @@ Do **not** write `XCUIElement` extensions for typing, reading text, or tapping m
 | `var text: String?` | `.value` |
 | `typeTextAndWait(_:)` / `selectTypeTextAndWait(_:)` / clear-then-type helpers | `.setText(_:)` — replaces and verifies the read-back; `.type(_:)` only for genuine append |
 | `tapMenu()` | `.tap()` — it falls back to a coordinate tap for menus that report themselves as not hittable |
-| open-menu → tap-row → poll-selection ceremonies | `.selectPickerItem(_:)` — returns only after the selection committed |
+| open-menu → tap-row → poll-selection ceremonies, incl. swipe-until-the-row-exists loops for long menus | `.selectPickerItem(_:)` — scrolls within the menu when needed and returns only after the selection committed |
 | frame-settling / two-equal-samples polls | `.waitForStableFrame()` — and `tap()` settles on its own |
 
 
