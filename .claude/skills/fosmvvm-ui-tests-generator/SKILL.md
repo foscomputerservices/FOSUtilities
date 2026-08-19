@@ -119,6 +119,13 @@ a wait — and what lets consuming suites delete retry heuristics instead of gro
 - `tap()` settles a mid-animation frame and aims at the control a composite tag spans on
   its own; `waitForStableFrame()` is for interactions that bypass it (a native gesture
   through `xcuiElement`, a frame assertion).
+- **Never generate scrolling or keyboard dismissal between an entry and a tap the
+  keyboard covers.** A raised keyboard occludes everything beneath it and no XCUITest
+  signal notices (the covered control exists, is hittable, and holds a stable frame);
+  `tap()` and `setText` scroll their own target clear before aiming, at every device
+  size. `setText("42")` then `tap()` on a button below the keyboard is complete as
+  written — a hand-rolled swipe or `dismissKeyboard()` in between is ceremony the
+  verified APIs already own (dismissal remains for asserting content the keyboard hides).
 
 **Assert displayed text against the ViewModel, never a literal.** `XCTAssertEqual` accepts a
 `Localizable` directly, so there is no `try`, no `localizedString`, and no throwing test:
@@ -744,3 +751,4 @@ See [reference.md](reference.md) for complete file templates.
 | 1.4 | 2026-07-02 | Version-floor note for `ViewModelDisplayTestCase<VM>` (recent FOSTestingUI where `ViewModelViewTestCase` inherits it) + older-ref no-op-ops fallback (D2). Added "UI-Test Target Wiring (Xcode project)": link FOS directly NOT via `SPMLibraries` (separate process — trap doesn't apply), source-include the shared contract module, copy the localization tree + `resourceDirectoryName:` (D3). Fixed a copy-paste bug in the View Testing Checklist (display-only list wrongly required `operations` stored from `viewModel.operations`). |
 | 1.5 | 2026-08-12 | `.uiTestingIdentifier(_:)` reworked so a tag holds on bridged controls (`Picker`, `DatePicker`, `TextField`, `ColorPicker`), on containers whose sub-views carry their own tags, at any depth, and at any position in the modifier chain. Tests now find tagged views with `app.uiTestingElement(_:)` (FOSTestingUI): `XCUIApplication` accessor extensions, XCUITest element-type queries, and the hand-rolled `typeTextAndWait`/`tapMenu`/`text` helpers are all removed in favour of it. |
 | 1.6 | 2026-08-18 | The verified-interaction layer: generate `setText(_:expecting:)` for exact-value text entry (replaces + verifies read-back; `type(_:)` only for genuine append), `selectPickerItem(_:)` for Picker selection (returns only after the selection committed — the next read needs no wait), `waitForStableFrame()` for interactions that bypass `tap()`. `tap()` now settles in-flight frames and aims at the control a composite tag spans; reads resolve the same way, so a row-spanning tag answers with its field. Legacy-helper table routes replacement intent to `setText`. |
+| 1.7 | 2026-08-19 | Keyboard occlusion is owned by the verified APIs: `tap()` and `setText` scroll a keyboard-covered target clear before aiming (a settled frame can still be an occluded frame — the covered control exists, is hittable, and holds a stable frame while every gesture lands on the keys). Never generate scrolling or `dismissKeyboard()` between an entry and a tap the keyboard covers; dismissal remains for asserting content the keyboard hides. |
