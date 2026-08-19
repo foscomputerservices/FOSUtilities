@@ -28,7 +28,14 @@ struct FieldValidationsView<Wrapped: View>: View {
     let fieldId: FormFieldIdentifier
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(Validations.self) private var validations
+    @Environment(Validations.self) private var installedValidations: Validations?
+
+    private var validations: Validations {
+        MissingEnvironmentDiagnostic.require(
+            installedValidations,
+            orStop: MissingEnvironmentDiagnostic.missingValidations(fieldId: fieldId.id)
+        )
+    }
 
     var body: some View {
         if let message = validationErrorMessage, !message.message.isEmpty {

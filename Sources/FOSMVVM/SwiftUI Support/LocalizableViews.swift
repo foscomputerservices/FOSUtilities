@@ -134,7 +134,7 @@ private struct LocalizableResolverView<L: Localizable>: View {
 
     @State private var value: String?
     @Environment(\.locale) private var locale
-    @Environment(MVVMEnvironment.self) private var mvvmEnv
+    @Environment(MVVMEnvironment.self) private var installedEnv: MVVMEnvironment?
 
     var body: some View {
         if let value = localizedString {
@@ -142,14 +142,32 @@ private struct LocalizableResolverView<L: Localizable>: View {
         } else {
             Text("")
                 .onAppear {
-                    // fosmvvm-review:disable:begin no-silent-failure -- Error handling is TBD
-                    if let store = try? mvvmEnv.clientLocalizationStore {
+                    let mvvmEnv = MissingEnvironmentDiagnostic.require(
+                        installedEnv,
+                        orStop: MissingEnvironmentDiagnostic.missingMVVMEnvironment(
+                            reader: "Localizable.text"
+                        )
+                    )
+
+                    do {
+                        guard let store = try mvvmEnv.clientLocalizationStore else {
+                            MissingEnvironmentDiagnostic.reportAndStop(
+                                MissingEnvironmentDiagnostic.missingLocalizationStore(
+                                    reader: "Localizable.text",
+                                    resolutionError: nil
+                                )
+                            )
+                        }
+
                         resolve(locale: locale, store: store)
-                    } else {
-                        // TODO: Error handling
-                        fatalError("Why no store???")
+                    } catch {
+                        MissingEnvironmentDiagnostic.reportAndStop(
+                            MissingEnvironmentDiagnostic.missingLocalizationStore(
+                                reader: "Localizable.text",
+                                resolutionError: "\(error)"
+                            )
+                        )
                     }
-                    // fosmvvm-review:disable:end no-silent-failure
                 }
         }
     }

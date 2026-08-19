@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Missing environment objects now stop with a teaching diagnostic instead of a bare trap**
+  (FOSMVVM) — a view reaching `Localizable.text`, `ViewModelView.bind()`, or a
+  `FormFieldView`'s validation display without the required `MVVMEnvironment` or
+  `Validations` installed in the SwiftUI environment used to stop with only
+  `EXC_BREAKPOINT` inside SwiftUI's `@Environment` read — no message, no named cause. Each
+  of those reads now reports, to stderr and the crash log, which API needed the object and
+  the exact `.environment(...)` installation that fixes it. The same treatment replaces the
+  placeholder failure when `Localizable.text` finds `MVVMEnvironment` installed but no
+  client localization store: the diagnostic now names both configuration doors
+  (`resourceBundles:` / `localizationStore:`) and surfaces the underlying resolution error.
+
 ## [0.12.5] - 2026-08-18
 
 ### Added
