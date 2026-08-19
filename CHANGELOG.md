@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.6] - 2026-08-19
+
 ### Fixed
 
 - **Missing environment objects now stop with a teaching diagnostic instead of a bare trap**
