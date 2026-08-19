@@ -33,7 +33,29 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: swift scripts/api-catalog-audit.swift
         shell: bash
- 
+
+  # Split from run_tests (rather than an extra step there) so it runs
+  # concurrently instead of after swift test — GitHub Actions only
+  # parallelizes at the job level, not between steps in the same job.
+  run_release_build:
+    name: Build (Release) Swift v${{ matrix.swift }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        swift: ["6.3.2"]
+      fail-fast: false
+    steps:
+      - uses: SwiftyLab/setup-swift@latest
+        with:
+          swift-version: ${{ matrix.swift }}
+
+      - uses: actions/checkout@v2
+
+      - name: Build (Release)
+        run: swift build -c release
+        shell: bash
+
   # Ensure that compilation succeeds via xcodebuild.
   #
   # Non-macOS destinations build the FOSMVVM scheme (the Apple-platform
@@ -48,11 +70,12 @@ jobs:
   # WITHOUT pipefail — these legs were false-green for failing xcodebuilds
   # until it was added.
   run_xcodebuild_tests:
-    name: Build ${{ matrix.ios_platform }} via Xcodebuild 'latest-stable'
+    name: Build ${{ matrix.ios_platform }} (${{ matrix.configuration }}) via Xcodebuild 'latest-stable'
     runs-on: macos-latest
     strategy:
       matrix:
         ios_platform: ["macOS", "iOS", "watchOS", "tvOS", "visionOS"]
+        configuration: ["Debug", "Release"]
       # Each platform's verdict is independent evidence — one red leg must
       # not cancel the others (default fail-fast hid exactly that).
       fail-fast: false
@@ -72,7 +95,7 @@ jobs:
           set -o pipefail
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
-            "$PWD/.derivedData" -scheme FOSMVVM \
+            "$PWD/.derivedData" -scheme FOSMVVM -configuration "${{ matrix.configuration }}" \
             -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
         if: matrix.ios_platform != 'macOS'
 
@@ -83,7 +106,7 @@ jobs:
           xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
             -skipMacroValidation -skipPackagePluginValidation \
             -derivedDataPath "$PWD/.derivedData" \
-            -scheme FOSUtilities-Package \
+            -scheme FOSUtilities-Package -configuration "${{ matrix.configuration }}" \
             -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
         if: matrix.ios_platform == 'macOS'
 
