@@ -130,13 +130,22 @@ public struct TestDataTransporter: View {
                 .accessibilityIdentifier(Self.accessibilityIdentifier)
                 // swiftlint:disable:next force_try
                 .accessibilityValue(try! viewModelOps.toJSON().obfuscate)
-                .frame(width: 0, height: 0)
+                // A zero-sized empty Text inside a ScrollView is culled from the
+                // accessibility tree, making the payload unreadable (measured on iOS 27;
+                // 1×1 survives). Hit-testing is refused and accessibility pinned visible
+                // so the footprint stays inert for the UI under test.
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(false)
         } else {
             Text("")
                 .accessibilityIdentifier(Self.accessibilityIdentifier)
                 // swiftlint:disable:next force_try
                 .accessibilityValue(try! viewModelOps.toJSON().obfuscate)
-                .frame(width: 0, height: 0)
+                // Same footprint as the sibling branch above — see its comment.
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(false)
         }
         #else
         EmptyView()
@@ -153,11 +162,15 @@ public extension View {
     @ViewBuilder func testDataTransporter(viewModelOps: any ViewModelOperations, repaintToggle: Binding<Bool>) -> some View {
         #if DEBUG
         ZStack {
+            self
+            // The transporter fronts the host view: behind an opaque card inside a
+            // ScrollView it is pruned from the accessibility tree; in front it survives.
+            // It draws nothing and refuses hit-testing, so fronting is inert for the UI
+            // under test.
             TestDataTransporter(
                 viewModelOps: viewModelOps,
                 repaintToggle: repaintToggle
             )
-            self
         }
         #else
         self
