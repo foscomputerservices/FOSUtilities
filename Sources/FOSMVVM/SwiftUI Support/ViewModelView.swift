@@ -398,8 +398,18 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     VM.Request.RequestBody == EmptyBody,
     VM == VM.Request.ResponseBody,
     VMV.VM == VM {
-    @Environment(MVVMEnvironment.self) private var mvvmEnv
+    @Environment(MVVMEnvironment.self) private var installedEnv: MVVMEnvironment?
     @Environment(\.locale) private var locale
+
+    private var mvvmEnv: MVVMEnvironment {
+        MissingEnvironmentDiagnostic.require(
+            installedEnv,
+            orStop: MissingEnvironmentDiagnostic.missingMVVMEnvironment(
+                reader: "ViewModelView.bind()"
+            )
+        )
+    }
+
     @Environment(\.viewModelInvalidated) private var viewModelInvalidated
     @Environment(\.viewModelRefreshed) private var viewModelRefreshed
     @State private var viewModel: VM?
@@ -549,8 +559,18 @@ private struct VMClientAppStateResolverView<VM, VMV>: View where
     VM.AppState: Hashable & Sendable,
     VMV: ViewModelView,
     VMV.VM == VM {
-    @Environment(MVVMEnvironment.self) private var mvvmEnv
+    @Environment(MVVMEnvironment.self) private var installedEnv: MVVMEnvironment?
     @Environment(\.locale) private var locale
+
+    private var mvvmEnv: MVVMEnvironment {
+        MissingEnvironmentDiagnostic.require(
+            installedEnv,
+            orStop: MissingEnvironmentDiagnostic.missingMVVMEnvironment(
+                reader: "ViewModelView.bind()"
+            )
+        )
+    }
+
     @State private var redraw = false
 
     private let query: VM.Request.Query?
@@ -630,8 +650,18 @@ private struct VMClientResolverView<VM, VMV>: View where
     VM.AppState == Void,
     VMV: ViewModelView,
     VMV.VM == VM {
-    @Environment(MVVMEnvironment.self) private var mvvmEnv
+    @Environment(MVVMEnvironment.self) private var installedEnv: MVVMEnvironment?
     @Environment(\.locale) private var locale
+
+    private var mvvmEnv: MVVMEnvironment {
+        MissingEnvironmentDiagnostic.require(
+            installedEnv,
+            orStop: MissingEnvironmentDiagnostic.missingMVVMEnvironment(
+                reader: "ViewModelView.bind()"
+            )
+        )
+    }
+
     @State private var redraw = false
 
     private let query: VM.Request.Query?

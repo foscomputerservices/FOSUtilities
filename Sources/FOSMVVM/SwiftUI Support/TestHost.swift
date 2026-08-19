@@ -115,7 +115,6 @@ public extension View {
 public extension URL {
     static let testHostRequest = "test-view-request"
 }
-#endif
 
 private extension ProcessInfo {
     var viewModelType: String? {
@@ -172,6 +171,7 @@ private extension ProcessInfo {
         }
     }
 }
+#endif
 
 extension ViewModelView {
     static var vmTypeStr: String {
@@ -286,20 +286,51 @@ private enum DismissKeyboardWindow {
 #endif
 #endif
 
-/// The diagnostics deliberately sit OUTSIDE `canImport(SwiftUI)`: they are pure text, and keeping
-/// them portable is what lets the Linux `swift test` leg — the only leg CI actually executes —
-/// cover them. Everything they describe is SwiftUI-only; the messages themselves need not be.
+// This block deliberately sits OUTSIDE `canImport(SwiftUI)`: the diagnostics are pure text, and
+// keeping them portable is what lets the Linux `swift test` leg — the only leg CI actually
+// executes — cover them. Everything they describe is SwiftUI-only; the messages themselves
+// need not be.
+
+/// Names the fix when `testHost()` cannot present the view under test because the consumer
+/// app is misconfigured
+///
+/// When a `testHost()` resolution step hits a dead end the consumer must repair (a view that
+/// was never registered, a payload its ViewModel cannot decode), stop through the matching
+/// message rather than a bare `fatalError`:
+///
+/// ```swift
+/// guard let registration = registeredTypes[vmTypeStr] else {
+///     TestHostDiagnostic.reportAndStop(
+///         TestHostDiagnostic.unregisteredView(
+///             viewModelType: vmTypeStr,
+///             registered: registeredTypes.keys.sorted()
+///         )
+///     )
+/// }
+/// ```
+///
+/// The run then stops with a message that names the misconfiguration and the exact
+/// registration that fixes it.
 enum TestHostDiagnostic {
-    /// Reports to stderr *and* traps.
+    /// Writes *message* in full to stderr, then traps with it — never returns
     ///
-    /// The Swift runtime folds a `fatalError` message into a single crash-report line, which log
-    /// viewers truncate; the stderr write is what guarantees the whole block reaches an
-    /// `xcodebuild` test log intact.
+    /// Reach for this over a bare `fatalError` whenever one of this type's messages must
+    /// reach the `xcodebuild` test log (see the type's example).
     static func reportAndStop(_ message: String) -> Never {
+        // The Swift runtime folds a `fatalError` message into a single crash-report line, which
+        // log viewers truncate; the stderr write is what guarantees the whole block reaches an
+        // `xcodebuild` test log intact.
         FileHandle.standardError.write(Data("\n\(message)\n".utf8))
         fatalError(message)
     }
 
+    /// The message for a `testHost()` presentation whose view under test was never registered
+    ///
+    /// - Parameters:
+    ///   - viewModelType: The ViewModel type name the test harness asked for, so the developer
+    ///     reading the log can match it to their test.
+    ///   - registered: Every currently registered ViewModel type name; listed in the message so
+    ///     the developer can spot a near-miss registration.
     static func unregisteredView(viewModelType: String, registered: [String]) -> String {
         let registeredList = registered.isEmpty
             ? "  (none — no test views have been registered)"
@@ -350,6 +381,13 @@ enum TestHostDiagnostic {
         """
     }
 
+    /// The message for a registered view whose ViewModel could not be decoded from the
+    /// payload the test sent
+    ///
+    /// - Parameters:
+    ///   - viewModelType: The ViewModel type name the test harness asked for, so the developer
+    ///     reading the log can match it to their test.
+    ///   - error: The decoding error, surfaced verbatim in the message.
     static func undecodableViewModel(viewModelType: String, error: any Error) -> String {
         """
         ================================================================================
