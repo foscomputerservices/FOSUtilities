@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`tap()` and `setText(_:expecting:)` clear a keyboard-occluded target before aiming**
+  (FOSTestingUI) — a raised software keyboard occludes everything beneath it, and none of
+  XCUITest's signals notice: the covered control exists, reports hittable, and holds a
+  stable frame, so a settled frame could still be an occluded frame and the gesture landed
+  on the keys, silently. Every aim now checks the *aimable band* — the app frame clipped at
+  the keyboard's top edge, with clearance for the accessory bar the reported frame omits —
+  and scrolls the target clear with strokes derived from the band itself, so short screens
+  cannot be undershot. Over existing text, `setText` additionally requires the edit menu to
+  rise before typing — geometry understated occlusion twice in the field; the menu cannot —
+  so an unproven selection is never typed over. Verified at all device sizes: the guards
+  are load-bearing on the largest iPad as much as the smallest iPhone.
+- **`tap()`'s coordinate path re-checks its premise after settling** (FOSTestingUI) — the
+  aimed-coordinate branch exists for a resolved control that sits away from the tag's
+  midpoint, but dispatches were measured whose computed coordinate equaled the tag's own
+  midpoint: the disagreement had evaporated during the settle, and the element path's
+  built-in quiescence waiting had been forfeited for nothing. When the frames agree again
+  at dispatch time, the tap now takes the element path.
+- **`TestDataTransporter` survives a scrolling parent** (FOSMVVM) — a zero-sized transporter
+  rendered behind an opaque host inside a `ScrollView` was pruned from the accessibility
+  tree entirely, making `viewModelOperations()` throw for exactly the views
+  `registerTestView(_:scrollable:)` serves. The transporter now fronts its host at 1×1
+  with hit-testing refused — inert for the UI under test, present for the reader.
+
 ## [0.12.6] - 2026-08-19
 
 ### Fixed

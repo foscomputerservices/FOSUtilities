@@ -411,6 +411,93 @@ struct CardContent: View {
     }
 }
 
+/// The composite the 0.12.5 field round proved the scrollable pin never saw, all in one
+/// card: its OWN internal `ScrollView` around data sections, the sections rendered only
+/// after a tapped async action populates them, an action row BELOW the fields, a
+/// transporter behind the card's opaque background, and enough height that the raised
+/// keyboard occludes the deeper targets — behind it, beyond the viewport bottom, and at
+/// its accessory margin, depending on device height. Registered `scrollable: true`, so
+/// the harness supplies the outer scrolling parent that makes all of it reachable.
+struct OcclusionCardContent: View {
+    @State private var ops = OcclusionCardOps()
+    @State private var repaintToggle = false
+    @State private var loaded = false
+    @State private var alpha = "11"
+    @State private var beta = "22"
+    @State private var gamma = "33"
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Text(verbatim: "occlusion-top")
+                .uiTestingIdentifier("occlusionTop")
+            Text(verbatim: "load-count-\(ops.loadCount)")
+                .uiTestingIdentifier("occlusionLoadCount")
+
+            Button {
+                Task { @MainActor in
+                    ops.loadCount += 1
+                    loaded = true
+                    repaintToggle.toggle()
+                }
+            } label: { Text(verbatim: "load") }
+                .uiTestingIdentifier("occlusionLoadButton")
+
+            // The field section sits LOW in the card (the measured client geometry:
+            // field at y=761 under a keyboard topping 590): scroll-to-visible brings a
+            // field just inside the bottom edge, focus raises the keyboard over it, and
+            // every aim from its honest, stable frame lands on the keys.
+            Spacer(minLength: 450)
+
+            if loaded {
+                ScrollView {
+                    VStack(spacing: 40) {
+                        TextField("alpha", text: $alpha)
+                            .textFieldStyle(.roundedBorder)
+                            .uiTestingIdentifier("occlusionAlphaField")
+
+                        TextField("beta", text: $beta)
+                            .textFieldStyle(.roundedBorder)
+                            .uiTestingIdentifier("occlusionBetaField")
+
+                        TextField("gamma", text: $gamma)
+                            .textFieldStyle(.roundedBorder)
+                            .uiTestingIdentifier("occlusionGammaField")
+                    }
+                    .padding(.vertical)
+                }
+                .frame(height: 420)
+            }
+
+            Spacer(minLength: 120)
+
+            Text(verbatim: "set-count-\(ops.setCount)")
+                .uiTestingIdentifier("occlusionSetCount")
+
+            Button {
+                Task { @MainActor in
+                    ops.setCount += 1
+                    ops.lastAmount = alpha
+                    repaintToggle.toggle()
+                }
+            } label: { Text(verbatim: "set") }
+                .uiTestingIdentifier("occlusionSetButton")
+        }
+        .padding()
+        // Opaque background: the transporter-pruning trigger the field round measured —
+        // behind opaque content inside a ScrollView, the transporter left the AX tree.
+        .background(Color(white: 0.95))
+        .testDataTransporter(viewModelOps: ops, repaintToggle: $repaintToggle)
+    }
+}
+
+struct OcclusionCardView: ViewModelView {
+    let viewModel: OcclusionCardViewModel
+
+    var body: some View {
+        OcclusionCardContent()
+    }
+}
+
 struct TallCardView: ViewModelView {
     let viewModel: TallCardViewModel
 
@@ -433,6 +520,7 @@ struct UITestingProbeApp: App {
         #if DEBUG
         MVVMEnvironment.registerTestView(TallCardView.self, scrollable: true)
         MVVMEnvironment.registerTestView(BareCardView.self)
+        MVVMEnvironment.registerTestView(OcclusionCardView.self, scrollable: true)
         #endif
     }
 
