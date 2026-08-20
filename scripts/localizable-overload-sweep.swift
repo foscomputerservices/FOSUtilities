@@ -24,6 +24,11 @@
 //   --check           regenerate in memory and byte-compare against the
 //                     checked-in output; exit 1 on drift (used by CI).
 //   --filter <Type>   process only symbols whose extended type == <Type>.
+//   --emit-async-only re-render ONLY the FOS-designed Button+AsyncAction.swift
+//                     from the checked-in SDK stamp — no extraction, no other
+//                     files touched. For editing the async-twin table on a
+//                     machine whose SDKs do not match the checked-in stamp;
+//                     the twin-base cross-check still runs on every full sweep.
 //   --keep-graphs     leave the extracted symbol-graph JSON in the temp dir and
 //                     print its path (otherwise the temp dir is removed on exit).
 //
@@ -53,6 +58,7 @@ struct Options {
     var check = false
     var keepGraphs = false
     var filter: String?
+    var emitAsyncOnly = false
 }
 
 func parseOptions() -> Options {
@@ -69,6 +75,8 @@ func parseOptions() -> Options {
                 fail("--filter requires a <Type> argument")
             }
             options.filter = value
+        case "--emit-async-only":
+            options.emitAsyncOnly = true
         default:
             fail("unknown argument: \(arg)")
         }
@@ -2354,6 +2362,263 @@ func renderGeneratedFile(
     )
 }
 
+// MARK: Async Button emission (Stage 6b)
+
+/// The async-twin surface is FOS-DESIGNED, not an Apple mirror: the parameter
+/// grouping (do-face, cancel-face, role, machinery), the refuse/toggle modes,
+/// and every tap semantic live in AsyncButtonActivity.swift and the ratified
+/// plan (planning/stream/feat-async-button-surface.md). The sweep's
+/// contribution is (a) the emission slot — Generated/ is replaced wholesale on
+/// regeneration, so the file must be rendered here — and (b) the twin-base
+/// cross-check: the row table below was designed against Button's
+/// action-taking Localizable overloads, and when that base grows or shifts in
+/// a future SDK the full sweep FAILS in verifyAsyncTwinBase so the async table
+/// is extended deliberately, never auto-stamped.
+let asyncButtonFileName = "Button+AsyncAction.swift"
+
+/// Button's action-taking generated Localizable overloads, as parameter-label
+/// rows. Grow this ONLY together with the async member renderer below.
+let expectedAsyncTwinBase: Set<[String]> = [
+    ["_", "defaultValue", "systemImage", "role", "action"],
+    ["_", "defaultValue", "systemImage", "action"],
+    ["_", "defaultValue", "image", "role", "action"],
+    ["_", "defaultValue", "image", "action"],
+    ["_", "defaultValue", "role", "action"],
+    ["_", "defaultValue", "action"]
+]
+
+func verifyAsyncTwinBase(_ overloads: [TransformedOverload]) throws {
+    let actual = Set(
+        overloads
+            .filter { $0.extendedType == "Button" && $0.overloadParameterLabels.contains("action") }
+            .map(\.overloadParameterLabels)
+    )
+    guard actual != expectedAsyncTwinBase else { return }
+
+    func list(_ rows: Set<[String]>) -> String {
+        rows.isEmpty
+            ? "(none)"
+            : rows.map { $0.joined(separator: ":") }.sorted().joined(separator: ", ")
+    }
+    throw Failure("""
+    async twin base drifted — Button's action-taking Localizable overloads no longer \
+    match the FOS-designed async table (Stage 6b).
+      unexpected: \(list(actual.subtracting(expectedAsyncTwinBase)))
+      missing:    \(list(expectedAsyncTwinBase.subtracting(actual)))
+    Extend expectedAsyncTwinBase AND the async member renderer together, deliberately.
+    """)
+}
+
+enum AsyncDecoration {
+    case systemImage
+    case imageResource
+    case textOnly
+}
+
+/// Renders one async init (DocC + declaration + body) at 4-space extension
+/// indent. The refuse/toggle signature shapes here ARE the ratified design —
+/// change them only against the plan, never to chase an Apple shape.
+func renderAsyncMember(
+    decoration: AsyncDecoration,
+    hasRole: Bool,
+    isToggle: Bool,
+    isFirstInFile: Bool
+) -> [String] {
+    // Signature — do-face, cancel-face, role, machinery (ratified face-grouped order)
+    var params = ["_ localizable: some Localizable", "defaultValue: String? = nil"]
+    switch decoration {
+    case .systemImage: params.append("systemImage: String")
+    case .imageResource: params.append("image: ImageResource")
+    case .textOnly: break
+    }
+    if isToggle {
+        params.append("cancelTitle: some Localizable")
+        params.append("cancelDefaultValue: String? = nil")
+        switch decoration {
+        case .systemImage: params.append("cancelSystemImage: String? = nil")
+        case .imageResource: params.append("cancelImage: ImageResource? = nil")
+        case .textOnly: break
+        }
+    }
+    if hasRole {
+        params.append("role: ButtonRole?")
+    }
+    params.append(isToggle
+        ? "activity: Binding<AsyncButtonActivity>"
+        : "activity: Binding<AsyncButtonActivity>? = nil")
+    params.append("error: Binding<Error?>")
+    params.append("action: @escaping @Sendable () async throws -> Void")
+
+    // Body — every member forwards to a hand-written ViewBuilder primitive
+    let forward = hasRole
+        ? "self.init(role: role, activity: activity, error: error, action: action, label: {"
+        : "self.init(activity: activity, error: error, action: action, label: {"
+    let titleExpr = "localizable.defaultedLocalizedString(defaultValue: defaultValue)"
+    let cancelExpr = "cancelTitle.defaultedLocalizedString(defaultValue: cancelDefaultValue)"
+
+    var body: [String] = []
+    if isToggle {
+        body.append("\(forward) phase in")
+        switch decoration {
+        case .systemImage:
+            body.append("    SwiftUI.Label(")
+            body.append("        phase == .idle ? \(titleExpr) : \(cancelExpr),")
+            body.append("        systemImage: phase == .idle ? systemImage : (cancelSystemImage ?? systemImage)")
+            body.append("    )")
+        case .imageResource:
+            body.append("    SwiftUI.Label(")
+            body.append("        phase == .idle ? \(titleExpr) : \(cancelExpr),")
+            body.append("        image: phase == .idle ? image : (cancelImage ?? image)")
+            body.append("    )")
+        case .textOnly:
+            body.append("    Text(phase == .idle ? \(titleExpr) : \(cancelExpr))")
+        }
+        body.append("})")
+    } else {
+        body.append(forward)
+        switch decoration {
+        case .systemImage:
+            body.append("    SwiftUI.Label(\(titleExpr), systemImage: systemImage)")
+        case .imageResource:
+            body.append("    SwiftUI.Label(\(titleExpr), image: image)")
+        case .textOnly:
+            body.append("    Text(\(titleExpr))")
+        }
+        body.append("})")
+    }
+
+    // DocC
+    var docc: [String] = []
+    if isToggle {
+        docc.append("/// A two-faced async button: tap to start the operation, tap again to cancel it")
+        docc.append("///")
+        docc.append("/// While idle the button shows `localizable`; while running it shows `cancelTitle` and")
+        docc.append("/// a tap cancels the operation. During the unwind (`activity.phase == .cancelling`)")
+        docc.append("/// taps are refused. A cancelled invocation writes nothing to `error`; a failed one")
+        docc.append("/// deposits its error there, and every launch clears it first.")
+        docc.append("///")
+        docc.append("/// > Important: Cancellation is cooperative — the action must run cancellation-aware")
+        docc.append("/// > work (any `URLSession`-backed `ServerRequest` is) for the cancel face to take")
+        docc.append("/// > effect.")
+        docc.append("///")
+        docc.append("/// - Parameters:")
+        docc.append("///   - localizable: The ``Localizable`` idle-face title.")
+        docc.append("///   - defaultValue: Fallback text used if localization did not complete.")
+        docc.append("///   - cancelTitle: The ``Localizable`` title shown while the operation runs.")
+        docc.append("///   - cancelDefaultValue: Fallback text for `cancelTitle`.")
+        switch decoration {
+        case .systemImage:
+            docc.append("///   - cancelSystemImage: The running-face symbol; `nil` keeps `systemImage`.")
+        case .imageResource:
+            docc.append("///   - cancelImage: The running-face image; `nil` keeps `image`.")
+        case .textOnly:
+            break
+        }
+        docc.append("///   - activity: The caller-owned ``AsyncButtonActivity`` (required — cancellation")
+        docc.append("///     needs state that survives re-renders).")
+        docc.append("///   - error: Receives the outcome of the most recent invocation.")
+    } else {
+        docc.append("/// Async form of the `Localizable` Button — runs a throwing async action and routes")
+        docc.append("/// its error to a binding")
+        docc.append("///")
+        if isFirstInFile {
+            docc.append("/// ## Example")
+            docc.append("///")
+            docc.append("/// ```swift")
+            docc.append("/// @ViewModel public struct MyViewModel: RequestableViewModel {")
+            docc.append("///     @LocalizedString public var saveTitle")
+            docc.append("///     ...")
+            docc.append("/// }")
+            docc.append("///")
+            docc.append("/// @State private var error: Error?")
+            docc.append("///")
+            docc.append("/// Button(viewModel.saveTitle, systemImage: \"tray.and.arrow.down\", error: $error) {")
+            docc.append("///     try await viewModel.operations.save()")
+            docc.append("/// }")
+            docc.append("/// .alert(error: $error,")
+            docc.append("///        title: viewModel.errorTitle,")
+            docc.append("///        dismissButtonLabel: viewModel.dismissTitle)")
+            docc.append("/// ```")
+            docc.append("///")
+        }
+        docc.append("/// Tapping starts the action; a thrown error lands in `error`, and every launch")
+        docc.append("/// clears it first — the binding holds the outcome of the most recent invocation.")
+        docc.append("/// Pass `activity:` to refuse taps while a run is in flight; without it every tap")
+        docc.append("/// starts a new concurrent invocation. The task runs to completion — for")
+        docc.append("/// user-cancellable work use the `cancelTitle:` forms.")
+        docc.append("///")
+        docc.append("/// - Parameters:")
+        docc.append("///   - localizable: The ``Localizable`` title to display.")
+        docc.append("///   - defaultValue: Fallback text used if localization did not complete.")
+        docc.append("///   - activity: Optional caller-owned ``AsyncButtonActivity`` enabling re-entry")
+        docc.append("///     refusal and running-state display.")
+        docc.append("///   - error: Receives the outcome of the most recent invocation.")
+    }
+
+    var lines = docc.map { "    \($0)" }
+    lines.append("    nonisolated init(\(params.joined(separator: ", "))) {")
+    lines.append(contentsOf: body.map { "        \($0)" })
+    lines.append("    }")
+    return lines
+}
+
+/// The full async file — pure; depends only on the stamp. Member order is
+/// fixed: per decoration (systemImage, image, text), role before plain,
+/// refuse before toggle.
+func renderAsyncButtonFile(stamp: GenerationStamp) -> GeneratedFile {
+    var lines: [String] = []
+    lines.append(renderLicenseHeader(fileName: asyncButtonFileName))
+    lines.append("")
+    lines.append("""
+    // GENERATED FILE — DO NOT EDIT
+    // Generated by scripts/localizable-overload-sweep.swift (Stage 6b — FOS-designed async twins)
+    // SDKs: \(stamp.sdkLine)
+    // Regenerate: swift scripts/localizable-overload-sweep.swift [--emit-async-only]
+    """)
+    lines.append("")
+    lines.append("#if canImport(SwiftUI)")
+    lines.append("import DeveloperToolsSupport")
+    lines.append("import SwiftUI")
+    lines.append("")
+    lines.append("public extension Button where Label == SwiftUI.Label<Text, Image> {")
+
+    var memberCount = 0
+    func appendMembers(_ decorations: [AsyncDecoration]) {
+        var first = true
+        for decoration in decorations {
+            for hasRole in [true, false] {
+                for isToggle in [false, true] {
+                    if !first {
+                        lines.append("")
+                    }
+                    lines.append(contentsOf: renderAsyncMember(
+                        decoration: decoration,
+                        hasRole: hasRole,
+                        isToggle: isToggle,
+                        isFirstInFile: memberCount == 0
+                    ))
+                    first = false
+                    memberCount += 1
+                }
+            }
+        }
+    }
+
+    appendMembers([.systemImage, .imageResource])
+    lines.append("}")
+    lines.append("")
+    lines.append("public extension Button where Label == Text {")
+    appendMembers([.textOnly])
+    lines.append("}")
+    lines.append("#endif")
+
+    return GeneratedFile(
+        fileName: asyncButtonFileName,
+        contents: lines.joined(separator: "\n") + "\n",
+        overloadCount: memberCount
+    )
+}
+
 // MARK: Manifest rendering
 
 /// The manifest's section order — the closed set of rejection reasons.
@@ -2765,6 +3030,34 @@ func main(options: Options) throws -> Int32 {
         }
     }
 
+    // Async-only emission: the FOS-designed file depends only on the SDK stamp,
+    // so it can be re-rendered from the checked-in one without extraction —
+    // the affordance for editing the async table on a machine whose SDKs do
+    // not match the checked-in stamp (a full regen there would restamp the
+    // whole Apple-mirror surface, a separate deliberate act).
+    if options.emitAsyncOnly {
+        guard FileManager.default.fileExists(
+            atPath: packageRoot.appendingPathComponent("Package.swift").path
+        ) else {
+            throw Failure("run from the package root — no Package.swift in \(packageRoot.path)")
+        }
+        let checkedIn = try readCheckedInSDKStamp(packageRoot: packageRoot)
+        let sdkLine = try requiredSDKs.map { platform -> String in
+            guard let version = checkedIn[platform] else {
+                throw Failure("checked-in SDK stamp has no entry for \(platform)")
+            }
+            return "\(platform) \(version)"
+        }.joined(separator: " | ")
+        let file = renderAsyncButtonFile(stamp: GenerationStamp(sdkLine: sdkLine))
+        let destination = packageRoot
+            .appendingPathComponent(generatedDirRelativePath, isDirectory: true)
+            .appendingPathComponent(file.fileName)
+        try Data(file.contents.utf8).write(to: destination)
+        print("wrote \(generatedDirRelativePath)/\(file.fileName) " +
+            "(\(file.overloadCount) overload(s), checked-in stamp)")
+        return 0
+    }
+
     // Staleness gate: before the expensive extraction, compare the runner's SDK
     // versions against the checked-in stamp. A mismatch (or a missing SDK) is an
     // informational SKIP (exit 0) — regeneration is a deliberate act, and a
@@ -2938,7 +3231,7 @@ func main(options: Options) throws -> Int32 {
         }
 
         let stamp = makeGenerationStamp(sdks: sdks)
-        let output = try renderEmitOutput(
+        let baseOutput = try renderEmitOutput(
             overloads: transformed.overloads,
             rejects: manifestRejects,
             betaTierAPIs: union.apis.filter { !$0.betaTierDomains.isEmpty },
@@ -2946,6 +3239,16 @@ func main(options: Options) throws -> Int32 {
             uniqueAPIs: union.stats.uniqueAPIs,
             stamp: stamp,
             typeAvailability: selection.typeAvailability
+        )
+
+        // Stage 6b: the FOS-designed async twins join the emit set — after the
+        // twin-base cross-check proves the designed table still matches
+        // Button's action-taking Localizable surface.
+        try verifyAsyncTwinBase(transformed.overloads)
+        let output = EmitOutput(
+            files: (baseOutput.files + [renderAsyncButtonFile(stamp: stamp)])
+                .sorted { $0.fileName < $1.fileName },
+            manifest: baseOutput.manifest
         )
 
         print("\n== Emit ==")
@@ -2990,6 +3293,10 @@ let options = parseOptions()
 
 if options.check, options.filter != nil {
     fail("--check cannot be combined with --filter")
+}
+
+if options.emitAsyncOnly, options.check || options.filter != nil {
+    fail("--emit-async-only cannot be combined with --check or --filter")
 }
 
 do {
