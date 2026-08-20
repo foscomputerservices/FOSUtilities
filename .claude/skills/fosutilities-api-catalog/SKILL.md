@@ -54,6 +54,8 @@ line via the `fosutilities-api-catalog-update` skill.
 - Attaching auth headers (bearer token, API key) to every client request, rotation-safe — or recovering when the server refuses one (refresh the credential and retry the request once) → `FOSMVVM.md § Protocols`
 - Declaring the data a server-rendered body needs — composable factory, load requirements, rooted scopes → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
+- A Button whose action is `async throws` — error routing, re-entry refusal, running state, tap-to-cancel → `FOSMVVM.md § SwiftUI Support`
+- Showing errors to the user — localized error messages on error types, one alert fed by a shared error binding → `FOSMVVM.md § Protocols`, `§ SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`
 - Booting a Vapor server for MVVM — YAML localization store, environment, locale, Leaf rendering → `FOSMVVMVapor.md § Extensions`
 - Registering request routes (reads and CRUD writes) — including mounting one behind a credential/middleware group — or serving a request outside the guarded verbs → `FOSMVVMVapor.md § Vapor Support`

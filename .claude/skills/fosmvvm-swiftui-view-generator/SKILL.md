@@ -198,7 +198,7 @@ public struct MyView: ViewModelView {
 
 **Why `toggleRepaint()` exists.** Client-hosted ops mutate `@Observable` storage that test harnesses (and occasionally SwiftUI itself) don't always re-observe in time for the next assertion. Toggling a `@State` flag forces a deterministic re-render at the View boundary, so UI tests see the post-op state instead of the pre-op state. In production builds the toggle is compiled out — it costs nothing at runtime.
 
-**Async vs sync op shape.** Server-backed ops are typically async (`try await operations.performAction()`) and pair with `Button(errorBinding:asyncAction:)` / `.task(errorBinding:)` / `.onAsyncSubmit`. Client-hosted scalar-mutation ops are typically sync — the live op writes a property on `@Observable` storage and returns. Don't add `async` to an op method that doesn't need it; don't omit `async` on one that calls a `ServerRequest`.
+**Async vs sync op shape.** Server-backed ops are typically async (`try await operations.performAction()`) and pair with the async `Button` forms — `Button(error:action:)` and its `Localizable`-titled twins — which deposit a thrown error into the screen's `error:` binding (add `activity:` for re-entry refusal, `cancelTitle:` for tap-to-cancel; see the FOSMVVM DocC article *Async Actions and Error Presentation*). For view-lifetime loads, catch into the binding by hand inside `.task { }` — an error-routing `.task` twin is queued in FOSUtilities but not yet shipped. Client-hosted scalar-mutation ops are typically sync — the live op writes a property on `@Observable` storage and returns. Don't add `async` to an op method that doesn't need it; don't omit `async` on one that calls a `ServerRequest`.
 
 The example above shows a **server-backed** op — `operations.performAction()` dispatches a `ServerRequest`. For **client-hosted** ops (those that mutate local `@Observable` storage), the call site shape is different — the View must inject storage from the environment and hand it to the op explicitly. See below.
 
@@ -338,16 +338,14 @@ public struct MyFormView: ViewModelView {
                 validations: validations
             )
 
-            Button(errorBinding: $error, asyncAction: submit) {
-                Text(viewModel.submitButtonLabel)
-            }
-            .disabled(validations.hasError)
+            Button(viewModel.submitButtonLabel, error: $error, action: submit)
+                .disabled(validations.hasError)
         }
-        .onAsyncSubmit {
-            await submit()
+        .onSubmit {
+            Task { do { try await submit() } catch { self.error = error } }
         }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -359,7 +357,7 @@ public struct MyFormView: ViewModelView {
 **Form patterns:**
 - `@Environment(Validations.self)` for validation state
 - `FormFieldView` for each input field
-- `Button(errorBinding:asyncAction:)` for async actions
+- `Button(error:action:)` (and its `Localizable`-titled twins) for async actions
 - `.disabled(validations.hasError)` on submit button
 - Separate handling for validation errors vs general errors
 
@@ -454,7 +452,7 @@ public struct ActionView: ViewModelView {
             }
         }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -595,56 +593,46 @@ Skill references information from:
 
 ### Error Handling Pattern
 
+The async `Button` forms own the catch: a thrown error lands in the `error:` binding (cleared on each launch), and one `alert(error:)` per screen presents it. The action closure is `@Sendable () async throws` — a thin dispatch into ops, never a hand-rolled `do/catch`:
+
 ```swift
 @State private var error: Error?
 
 var body: some View {
     VStack {
-        Button(errorBinding: $error, asyncAction: submit) {
-            Text(viewModel.submitLabel)
+        Button(viewModel.submitLabel, error: $error) {
+            try await operations.submit()
         }
     }
     .alert(
-        errorBinding: $error,
+        error: $error,
         title: viewModel.errorTitle,
         message: viewModel.errorMessage,
         dismissButtonLabel: viewModel.dismissButtonLabel
     )
 }
-
-private func submit() async {
-    do {
-        try await operations.submit()
-    } catch {
-        self.error = error
-    }
-    toggleRepaint()
-}
 ```
+
+Add `activity: $activity` (an `@State AsyncButtonActivity`) to refuse re-entry while a run is in flight and to drive `disabled(activity.isRunning)`; add `cancelTitle:` to make the button tap-to-cancel. See the FOSMVVM DocC article *Async Actions and Error Presentation*.
 
 ### Validation Error Pattern
 
-For forms, handle validation errors separately:
+For forms, intercept validation failures inside the action and let everything else flow to the `error:` binding:
 
 ```swift
-private func submit() async {
-    let validations = validations
+Button(viewModel.submitLabel, error: $error) {
     do {
         try await operations.submit(data: viewModel.data)
-    } catch let error as MyRequest.ResponseError {
-        if !error.validationResults.isEmpty {
-            validations.replace(with: error.validationResults)
-        } else {
-            self.error = error
-        }
-    } catch {
-        self.error = error
+    } catch let responseError as MyRequest.ResponseError
+        where !responseError.validationResults.isEmpty {
+        await MainActor.run { validations.replace(with: responseError.validationResults) }
     }
-    toggleRepaint()
 }
 ```
 
 ### Async Task Pattern
+
+For view-lifetime loads, catch into the binding by hand (an error-routing `.task` twin is queued in FOSUtilities but not yet shipped):
 
 ```swift
 var body: some View {
@@ -655,8 +643,8 @@ var body: some View {
             contentView
         }
     }
-    .task(errorBinding: $error) {
-        try await loadData()
+    .task {
+        do { try await loadData() } catch { self.error = error }
     }
 }
 
@@ -888,9 +876,7 @@ Button(action: submit) {
 }
 
 // ✅ GOOD - Error binding for async actions
-Button(errorBinding: $error, asyncAction: submit) {
-    Text(viewModel.submitLabel)
-}
+Button(viewModel.submitLabel, error: $error, action: submit)
 ```
 
 ### Storing Operations in Body Instead of Init
@@ -1004,20 +990,21 @@ See [reference.md](reference.md) for complete file templates.
 ```swift
 // Error alert with ViewModel strings
 .alert(
-    errorBinding: $error,
+    error: $error,
     title: viewModel.errorTitle,
     message: viewModel.errorMessage,
     dismissButtonLabel: viewModel.dismissButtonLabel
 )
 
-// Async task with error handling
-.task(errorBinding: $error) {
-    try await loadData()
+// Async task — catch into the binding by hand (an error-routing
+// .task twin is queued in FOSUtilities but not yet shipped)
+.task {
+    do { try await loadData() } catch { self.error = error }
 }
 
-// Async submit handler
-.onAsyncSubmit {
-    await submit()
+// Keyboard submit routing into the same binding
+.onSubmit {
+    Task { do { try await submit() } catch { self.error = error } }
 }
 
 // Test data transporter (DEBUG only)

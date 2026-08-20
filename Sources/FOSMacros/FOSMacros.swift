@@ -23,6 +23,7 @@ import SwiftSyntaxMacros
 struct FOSMacros: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         FieldValidationModelMacro.self,
+        LocalizableErrorMacro.self,
         ViewModelMacro.self,
         ViewModelFactoryMacro.self,
         ViewModelFactoryMethodMacro.self

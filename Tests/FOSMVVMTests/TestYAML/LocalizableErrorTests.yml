@@ -1,0 +1,14 @@
+en:
+  TestQuotaError:
+    errorMessage: "Requested %{requested} exceeds the maximum of %{maximum}"
+  TestSaveError:
+    errorMessage: "The document could not be saved"
+  TestOfflineError:
+    errorMessage: "This action requires a network connection"
+es:
+  TestQuotaError:
+    errorMessage: "Lo solicitado %{requested} supera el máximo de %{maximum}"
+  TestSaveError:
+    errorMessage: "No se pudo guardar el documento"
+  TestOfflineError:
+    errorMessage: "Esta acción requiere conexión de red"

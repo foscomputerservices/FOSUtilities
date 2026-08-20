@@ -561,11 +561,11 @@ public struct {ViewName}View: ViewModelView {
                 contentView
             }
         }
-        .task(errorBinding: $error) {
-            try await loadData()
+        .task {
+            do { try await loadData() } catch { self.error = error }
         }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -579,7 +579,7 @@ public struct {ViewName}View: ViewModelView {
         VStack {
             Text(viewModel.title)
 
-            Button(errorBinding: $error, asyncAction: submit) {
+            Button(error: $error, action: submit) {
                 Text(viewModel.submitButtonLabel)
             }
             .uiTestingIdentifier("submitButton")
@@ -691,7 +691,7 @@ public struct {ViewName}View: ViewModelView {
 
                 Spacer()
 
-                Button(errorBinding: $error, asyncAction: submit) {
+                Button(error: $error, action: submit) {
                     Text(viewModel.submitButtonLabel)
                 }
                 .buttonStyle(PrimaryButtonStyle())
@@ -699,11 +699,11 @@ public struct {ViewName}View: ViewModelView {
                 .disabled(selectedId == nil)
             }
         }
-        .task(errorBinding: $error) {
-            try await loadItems()
+        .task {
+            do { try await loadItems() } catch { self.error = error }
         }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel

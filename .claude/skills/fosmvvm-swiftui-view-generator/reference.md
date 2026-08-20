@@ -150,7 +150,7 @@ public struct {ViewName}View: ViewModelView {
         }
         .padding()
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -367,16 +367,16 @@ public struct {ViewName}View: ViewModelView {
                 validations: validations
             )
 
-            Button(errorBinding: $error, asyncAction: submit) {
+            Button(error: $error, action: submit) {
                 Text(viewModel.submitButtonLabel)
             }
             .disabled(validations.hasError)
         }
-        .onAsyncSubmit {
-            await submit()
+        .onSubmit {
+            Task { await submit() }
         }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -501,7 +501,7 @@ public struct {ViewName}View: ViewModelView {
 
             Spacer()
 
-            Button(errorBinding: $error, asyncAction: refresh) {
+            Button(error: $error, action: refresh) {
                 HStack {
                     Image(systemName: "arrow.clockwise")
                     Text(viewModel.refreshButtonLabel)
@@ -509,11 +509,11 @@ public struct {ViewName}View: ViewModelView {
             }
             .padding()
         }
-        .task(errorBinding: $error) {
-            try await loadItems()
+        .task {
+            do { try await loadItems() } catch { self.error = error }
         }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -844,7 +844,7 @@ public struct {ViewName}View: ViewModelView {
 
                 Spacer()
 
-                Button(errorBinding: $error, asyncAction: submit) {
+                Button(error: $error, action: submit) {
                     Text(viewModel.submitButtonLabel)
                         .fontWeight(.semibold)
                         .frame(minWidth: 120)
@@ -854,9 +854,9 @@ public struct {ViewName}View: ViewModelView {
             }
             .padding()
         }
-        .task(errorBinding: $error) { try await loadItems() }
+        .task { do { try await loadItems() } catch { self.error = error } }
         .alert(
-            errorBinding: $error,
+            error: $error,
             title: viewModel.errorTitle,
             message: viewModel.errorMessage,
             dismissButtonLabel: viewModel.dismissButtonLabel
@@ -972,7 +972,7 @@ private extension {ViewName}View {
 @State private var error: Error?
 
 .alert(
-    errorBinding: $error,
+    error: $error,
     title: viewModel.errorTitle,
     message: viewModel.errorMessage,
     dismissButtonLabel: viewModel.dismissButtonLabel
@@ -981,26 +981,23 @@ private extension {ViewName}View {
 
 ### Async Actions
 
-```swift
-Button(errorBinding: $error, asyncAction: submit) {
-    Text(viewModel.submitLabel)
-}
+The async `Button` forms own the catch — the action is a thin throwing dispatch, and the thrown error lands in the `error:` binding:
 
-private func submit() async {
-    do {
-        try await operations.submit()
-    } catch {
-        self.error = error
-    }
-    toggleRepaint()
+```swift
+Button(viewModel.submitLabel, error: $error) {
+    try await operations.submit()
 }
 ```
 
+Add `activity: $activity` (an `@State AsyncButtonActivity`) for re-entry refusal and running-state display; add `cancelTitle:` for tap-to-cancel. See the FOSMVVM DocC article *Async Actions and Error Presentation*.
+
 ### Task on Appear
 
+Catch into the binding by hand — an error-routing `.task` twin is queued in FOSUtilities but not yet shipped:
+
 ```swift
-.task(errorBinding: $error) {
-    try await loadData()
+.task {
+    do { try await loadData() } catch { self.error = error }
 }
 
 private func loadData() async throws {

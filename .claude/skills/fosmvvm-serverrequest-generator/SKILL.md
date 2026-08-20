@@ -166,6 +166,35 @@ encapsulation in `CLAUDE.md`). The typed error IS the contract; the moment a
 client sniffs a status, the error vocabulary you declared stops being the
 only door.
 
+**User-presentable errors conform to `LocalizableError`.** When the error will
+be shown to the user (the common case — the client's `alert(error:)` presents
+the screen's error binding), compose the `ResponseError` like a ViewModel:
+`@LocalizableError` macro, `@LocalizedString`/`@LocalizedSubs` message
+property, exposed as `localizedMessage`. `ErrorMiddleware` localizes the
+message as it encodes the throw, so the client presents it with no
+localization store of its own — the same encode-time localization every
+ViewModel property gets (SRP: the error carries its meaning; presentation
+never invents copy for it):
+
+```swift
+@LocalizableError
+public struct ResponseError: ServerRequestError {
+    public let maximum: Int
+
+    @LocalizedSubs(substitutions: \.subs) public var errorMessage
+    public var localizedMessage: any Localizable { errorMessage }
+
+    private var subs: [String: any Localizable] {
+        ["maximum": LocalizableInt(value: maximum)]
+    }
+
+    public init(maximum: Int) { self.maximum = maximum }
+}
+```
+
+The YAML rides the request's existing localization file — keys derive from
+the error's type + property names, exactly as ViewModel properties do.
+
 ---
 
 ## Request Protocol Selection

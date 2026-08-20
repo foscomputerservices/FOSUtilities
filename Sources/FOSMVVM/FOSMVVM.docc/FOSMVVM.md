@@ -52,4 +52,5 @@ To enable Xcode Cloud builds to build using macros check out this [Stack Overflo
 - <doc:Versioning>
 - <doc:ViewModelandViewModelRequest>
 - <doc:Operations>
+- <doc:AsyncActionsAndErrors>
 - <doc:TestingOverview>
