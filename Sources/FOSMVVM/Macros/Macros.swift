@@ -31,6 +31,19 @@ public macro FieldValidationModel() = #externalMacro(
     type: "FieldValidationModelMacro"
 )
 
+public enum LocalizableErrorOptions {
+    /// The error is created — and therefore localized — on the client; see
+    /// ``ClientHostedLocalizableError``
+    case clientHosted
+}
+
+@attached(extension, conformances: RetrievablePropertyNames, LocalizableError, ClientHostedLocalizableError)
+@attached(member, names: named(propertyNames))
+public macro LocalizableError(options: Set<LocalizableErrorOptions> = []) = #externalMacro(
+    module: "FOSMacros",
+    type: "LocalizableErrorMacro"
+)
+
 @attached(extension, conformances: RetrievablePropertyNames, ViewModel, ClientHostedViewModelFactory, RequestableViewModel, LiveViewModel)
 @attached(member, names: named(propertyNames), named(Request), named(AppState), named(model), named(modelSync), named(ClientHostedRequest), named(stub))
 public macro ViewModel(options: Set<ViewModelOptions> = []) = #externalMacro(
