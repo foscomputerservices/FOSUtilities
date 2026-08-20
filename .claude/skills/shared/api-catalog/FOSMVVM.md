@@ -375,6 +375,46 @@ caller (never `requestErrorHandler`).
 }
 ```
 
+### Give an error a user-presentable localized message — `LocalizableError` / `ClientHostedLocalizableError` / `localized()`
+Reach for this when: an error will be shown to the user — canonically a
+`ServerRequestError` conformer — and its message belongs in your YAML, not in
+code. Compose it exactly like a ViewModel: `@Localized…` message property,
+plumbing from the `@LocalizableError` macro. The error-alert modifier (see
+*Present errors from the shared binding* in § SwiftUI Support) presents
+conformers; non-conforming errors surface as their debug description.
+Don't hand-write localization plumbing or build messages from raw strings —
+the macro and the wrappers carry the keys.
+
+```swift
+@LocalizableError
+public struct QuotaError: ServerRequestError {
+    public let maximum: Int
+
+    @LocalizedSubs(substitutions: \.subs) public var errorMessage
+    public var localizedMessage: any Localizable { errorMessage }
+
+    private var subs: [String: any Localizable] {
+        ["maximum": LocalizableInt(value: maximum)]
+    }
+
+    public init(maximum: Int) { self.maximum = maximum }
+}
+```
+
+Localization happens as it does for a ViewModel — during the localizing
+encode: the server's `ErrorMiddleware` resolves the message as it encodes the
+thrown error, and the client decodes it already localized (`localizedMessage`'s
+name states that expectation). An error created **on the client** declares
+`@LocalizableError(options: [.clientHosted])` instead (emitting the
+`ClientHostedLocalizableError` marker) and is resolved at presentation:
+`localized(mvvmEnv:locale:)` runs the same round-trip a
+`ClientHostedViewModelFactory` runs for a ViewModel, against the app's own
+localization YAML, returning `nil` when it cannot (present the debug
+description then); `localized(locale:localizationStore:)` is the underlying
+throwing mechanism. An error type belongs to one localization domain — its
+YAML lives where it is thrown; an unresolved message at presentation surfaces
+as the debug description.
+
 ### Placeholders for unused pieces — `EmptyQuery` / `EmptyFragment` / `EmptyBody` / `EmptyError`
 Reach for this when: a request has no query, fragment, body, or well-defined
 error — typealias the slot to the Empty type and the protocol's default
@@ -880,6 +920,51 @@ TabContent.
 Button(viewModel.cta) { save() }
     .accessibilityLabel(viewModel.saveLabel)
     .accessibilityHint(viewModel.saveHint)
+```
+
+### Run an async operation from a Button — `AsyncButtonActivity` / `cancel()` / `isRunning` <!-- apple-only -->
+Reach for this when: a button's action is `async throws` — typically a
+ViewModel operation performing a `ServerRequest`. Every `Localizable` Button
+form (and the ViewBuilder forms) has an async twin: the thrown error lands in
+a required `error:` binding (cleared on each launch — the binding holds the
+outcome of the most recent invocation), and an optional `@State`-owned
+`AsyncButtonActivity` refuses re-entry while a run is in flight and reports
+`phase`/`isRunning` for `disabled(_:)` and progress display.
+Don't wrap the call in your own `Task` inside a sync Button — double-taps
+double-submit and the error handling gets re-invented per call site.
+
+```swift
+@State private var activity = AsyncButtonActivity()
+@State private var error: Error?
+
+Button(viewModel.saveTitle, activity: $activity, error: $error) {
+    try await viewModel.operations.save()
+}
+.disabled(activity.isRunning)
+```
+
+Providing the cancel face turns the button two-faced — tap to start, tap again
+to cancel (cooperatively): pass `cancelTitle:` (optionally
+`cancelSystemImage:`/`cancelImage:`) on the titled forms, or a phase-aware
+label closure on the ViewBuilder forms; the activity binding is then required,
+and `activity.cancel()` also cancels from outside the button (e.g.
+`.onDisappear`). Share one activity across buttons to make them mutually
+exclusive. Pair the `error:` binding with the error alert in the next entry.
+
+### Present errors from the shared binding — `alert()` <!-- apple-only -->
+Reach for this when: showing the errors your async buttons (or any hand-written
+catch) deposit in the screen's `@State var error: Error?` — one modifier is the
+screen's single presentation point. Shows while non-`nil`, clears on dismissal,
+localizes `LocalizableError` conformers through the client store (others show
+their debug description), and fills the message's `%{error}` substitution point
+at presentation. `title:` and `dismissButtonLabel:` are required and YAML-owned;
+omitting `message:` presents the error message alone.
+
+```swift
+.alert(error: $error,
+       title: viewModel.errorTitle,
+       message: viewModel.errorMessage,   // "The save failed: %{error}"
+       dismissButtonLabel: viewModel.dismissTitle)
 ```
 
 ### Refresh a stale ViewModel binding — `invalidateBinding()` / `refreshedViewModel()` <!-- apple-only -->
