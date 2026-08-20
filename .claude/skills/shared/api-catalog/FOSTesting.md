@@ -241,7 +241,10 @@ focus, replaces without caret assumptions, and returns only when the field reads
 the expected text — one gesture-strategy retry, then a loud failure naming identifier,
 entered text, and actual read-back. Formatter-backed fields normalize at commit: pass
 `expecting:` with the rendering (`setText("45", expecting: "45.00")`). SecureFields are
-excluded, teachably. iOS-certified; other platforms fail loudly until fixture-pinned.
+excluded, teachably. A field the raised keyboard occludes — behind it or beyond the
+viewport — is scrolled clear before any aim, and over existing text the edit menu's
+rise, not geometry, proves the selection landed. iOS-certified; other platforms fail
+loudly until fixture-pinned.
 Don't hand-roll select-all/delete-count helpers — every geometry that breaks them is
 this API's fixture matrix. `type(_:)` remains for append-at-caret, honestly unverified.
 
@@ -251,20 +254,19 @@ app.uiTestingElement("priceField").setText("45", expecting: "45.00")
 ```
 
 ### Put the software keyboard away — `dismissKeyboard()` <!-- apple-only -->
-Reach for this when: a test typed into a field and must now tap something the
-raised keyboard might cover — XCUITest has no dismiss API, a `.numberPad`
-keyboard has no Return key, and a tap aimed at a covered control lands on the
-keyboard instead. Rides an invisible control `testHost()` (FOSMVVM) plants, so
-it works for every keyboard type; a no-op when no keyboard is up, so call
-sites stay unconditional; fails the test naming the cause when the keyboard
-cannot be dismissed.
-Don't tap a neutral view to dismiss — a static `Text` resigns nothing and the
-idiom silently does not work.
+Reach for this when: a test must *see or assert* content the raised keyboard hides —
+XCUITest has no dismiss API and a `.numberPad` keyboard has no Return key. Rides an
+invisible control `testHost()` (FOSMVVM) plants, so it works for every keyboard type;
+a no-op when no keyboard is up, so call sites stay unconditional; fails the test
+naming the cause when the keyboard cannot be dismissed.
+Don't dismiss just to *tap* below the keyboard — `tap()` and `setText` scroll a
+covered target clear on their own. And don't tap a neutral view to dismiss — a
+static `Text` resigns nothing and the idiom silently does not work.
 
 ```swift
 app.uiTestingElement("quantityField").type("42")
 app.dismissKeyboard()
-app.uiTestingElement("saveButton").tap()
+XCTAssertTrue(app.uiTestingElement("totalsFooter").isVisible)
 ```
 
 ### Assert displayed text — `XCTAssertEqual()` / `XCTAssertNotEqual()` <!-- apple-only -->

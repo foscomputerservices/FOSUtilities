@@ -357,6 +357,31 @@ failure is loud: the identifier, the entered text, and what the field actually r
 `SecureField`s are not served — bullets defeat any honest read-back, and the failure
 says so.
 
+## When the Keyboard Covers the Target
+
+A raised keyboard occludes everything beneath it, and none of XCUITest's signals
+notice: the covered control still *exists*, reports `isHittable`, and holds a
+stable frame — a settled frame can still be an occluded frame. A gesture
+dispatched there lands on the keys, silently.
+
+`tap()` and `setText(_:expecting:)` clear their own aim: a target sitting behind
+the keyboard, or past the viewport's bottom edge, is scrolled into the clear
+region above the keyboard before any gesture is chosen — and over existing text,
+`setText` treats the edit menu's rise, not geometry, as proof its selection
+landed. Tests write the interaction and assert the outcome; no explicit
+scrolling or keyboard dismissal is needed between a text entry and a tap on a
+control the keyboard covers:
+
+```swift
+app.uiTestingElement("amountField").setText("42")  // the keyboard is now up
+app.uiTestingElement("saveButton").tap()           // covered by it — cleared, then tapped
+```
+
+This holds at every device size — the clearing scroll is load-bearing on the
+largest iPad as much as the smallest iPhone — and composes with
+`registerTestView(_:scrollable:)`: the scrolling parent that registration
+supplies is what the clearing scroll rides.
+
 ## Dismissing the Keyboard
 
 Typing raises the software keyboard, and a raised keyboard covers the lower

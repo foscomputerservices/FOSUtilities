@@ -407,6 +407,15 @@ public extension XCUIApplication {
     /// A tag that spans a composite — a row holding a caption and a field — taps the control
     /// within it rather than the row's midpoint, which can fall on the caption or in the gap
     /// between the two.
+    ///
+    /// A view the raised software keyboard covers is scrolled clear before the tap, so no
+    /// scrolling or keyboard dismissal is needed between a text entry and a tap on a control
+    /// beneath the keyboard:
+    ///
+    /// ```swift
+    /// app.uiTestingElement("amountField").setText("42")  // the keyboard is now up
+    /// app.uiTestingElement("saveButton").tap()           // covered by it — cleared, then tapped
+    /// ```
     public func tap(file: StaticString = #filePath, line: UInt = #line) {
         // Waiting through the public wait keeps one default governing both it and the call site.
         guard waitForExistence() else {
@@ -415,6 +424,24 @@ public extension XCUIApplication {
         }
 
         let element = xcuiElement
+
+        #if os(iOS)
+        // A settled frame can still be an occluded one: hittability and app-frame
+        // containment are both blind to the software keyboard (measured: taps dispatched
+        // into the keys and the action silently never fired). Clear the target before
+        // choosing any strategy, so every branch below aims from a cleared frame. The
+        // existence checks honor the sharp edge: resolving .frame on an element that left
+        // the tree (a menu row mid-scroll) fails the test hard, not degenerately.
+        if element.exists, !isAimable(element.frame) {
+            var lastFrame = element.frame
+            scrollIntoBand {
+                if element.exists {
+                    lastFrame = element.frame
+                }
+                return lastFrame
+            }
+        }
+        #endif
 
         // A tag spanning a composite covers caption and control alike, and the tag's midpoint
         // can miss the control entirely (measured: 1pt into the caption/field gap). The miss
@@ -434,11 +461,32 @@ public extension XCUIApplication {
             // in-flight frame reintroduces the miss through the side door.
             _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
             let target = taggedControl(hint: .interactive) ?? control
+
+            // The premise can evaporate during that settle: dispatches were measured whose
+            // computed coordinate equaled the tag's own midpoint — the disagreement that
+            // justified the coordinate path was gone by dispatch time, and the element
+            // path's built-in quiescence waiting had been forfeited for nothing. Re-check —
+            // but reroute ONLY onto a path that actually exists: a native tap needs a
+            // hittable element (measured: an element-anchored coordinate tap on the
+            // non-hittable tag overlay dispatched and fired nothing, where this aimed
+            // dispatch was green).
+            let premiseGone =
+                abs(target.frame.midX - element.frame.midX) <= 1 &&
+                abs(target.frame.midY - element.frame.midY) <= 1
+
+            if premiseGone, element.isHittable {
+                element.tap()
+                return
+            }
+
             let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
             app.coordinate(withNormalizedOffset: .zero)
                 .withOffset(CGVector(dx: centre.x, dy: centre.y))
                 .tap()
-        } else if element.isHittable {
+            return
+        }
+
+        if element.isHittable {
             element.tap()
         } else if isOnScreen(element) {
             // A not-hittable element is often one SwiftUI is still presenting, and a coordinate
@@ -540,6 +588,10 @@ public extension XCUIApplication {
     /// passing `expecting:` also commits the entry (via ``XCUIApplication/dismissKeyboard``)
     /// before verifying. The default expects `text` verbatim and leaves the field focused.
     ///
+    /// A field the raised keyboard occludes — behind it, or pushed past the viewport's
+    /// bottom — is scrolled clear before any aim, so entering into one field and then the
+    /// next needs no scrolling or dismissal in between.
+    ///
     /// `SecureField`s are not served: bullets defeat any honest read-back, and the failure
     /// says so rather than mystifying.
     public func setText(
@@ -606,8 +658,28 @@ public extension XCUIApplication {
             // read before it is stale and every gesture from it lands rows away. The settle
             // waits out that reflow — the same in-flight-frame contract as tap()'s.
             _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-            guard let target = taggedControl(hint: .textEntry) else { continue }
-            let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
+            guard var target = taggedControl(hint: .textEntry) else { continue }
+
+            // A settled frame can still be an occluded one: a scroll parent that does not
+            // auto-avoid the keyboard leaves the focused field under it — frame honest and
+            // stable (measured: field at y=761 beneath a keyboard topping at 590), every
+            // aim from it landing on keys. One native tap on the tagged element rides
+            // XCUITest's scroll-to-visible with the keyboard staying up; the band scroll
+            // clears what remains.
+            if !isAimable(target.frame) {
+                xcuiElement.tap()
+                _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+                if let fresh = taggedControl(hint: .textEntry) {
+                    target = fresh
+                }
+
+                scrollIntoBand {
+                    if let fresh = taggedControl(hint: .textEntry) {
+                        target = fresh
+                    }
+                    return target.frame
+                }
+            }
 
             // Replace without caret arithmetic: a double-tap ON the text selects it and
             // raises the edit menu — the menu is the proof a selection was made. Where the
@@ -618,21 +690,42 @@ public extension XCUIApplication {
             // is partial: take it; absent means the whole value is already selected. An
             // empty field has nothing to select, and typing simply inserts.
             if let existing = value, !existing.isEmpty {
-                let inset = min(20, target.frame.width / 4)
+                // Over existing text the menu's rise is the arbiter, not geometry: the
+                // reported keyboard frame understated occlusion twice (a field below the
+                // keyboard's bottom edge, and one 15pt above its reported top — both swept
+                // menuless while typing appended). A menuless sweep is occlusion evidence:
+                // one stroke away from the keyboard, re-resolve, re-probe. Typing over an
+                // unproven selection appends — never fall through to it.
+                var selectionProven = false
+                for retry in 0..<2 {
+                    let inset = min(20, target.frame.width / 4)
 
-                for x in [target.frame.minX + inset, centre.x, target.frame.maxX - inset] {
-                    app.coordinate(withNormalizedOffset: .zero)
-                        .withOffset(CGVector(dx: x, dy: centre.y))
-                        .doubleTap()
+                    for x in [target.frame.minX + inset, target.frame.midX, target.frame.maxX - inset] {
+                        app.coordinate(withNormalizedOffset: .zero)
+                            .withOffset(CGVector(dx: x, dy: target.frame.midY))
+                            .doubleTap()
 
-                    guard app.menuItems.firstMatch.waitForExistence(timeout: 1) else { continue }
+                        guard app.menuItems.firstMatch.waitForExistence(timeout: 1) else { continue }
 
-                    let selectAll = app.menuItems["Select All"]
-                    if selectAll.exists {
-                        selectAll.tap()
+                        let selectAll = app.menuItems["Select All"]
+                        if selectAll.exists {
+                            selectAll.tap()
+                        }
+                        selectionProven = true
+                        break
                     }
-                    break
+                    if selectionProven {
+                        break
+                    }
+
+                    if retry == 0 {
+                        dragWithinBand(raisingTarget: true)
+                        if let fresh = taggedControl(hint: .textEntry) {
+                            target = fresh
+                        }
+                    }
                 }
+                guard selectionProven else { continue }
             }
             app.typeText(text)
 
@@ -664,10 +757,11 @@ public extension XCUIApplication {
 
         XCTFail(
             """
-            The field tagged "\(identifier)" reads "\(value ?? "nil")" after entering \
-            "\(text)"; expected "\(expected)". A formatter-backed field normalizes its value \
-            when the entry commits — pass expecting: with the field's rendering \
-            ("45" → expecting: "45.00").
+            The field tagged "\(identifier)" reads "\(value ?? "nil")" after attempting to \
+            enter "\(text)"; expected "\(expected)". A formatter-backed field normalizes its \
+            value when the entry commits — pass expecting: with the field's rendering \
+            ("45" → expecting: "45.00"). An unchanged value can also mean no selection was \
+            ever proven: the edit menu never rose over the field's text.
             """,
             file: file, line: line
         )
@@ -702,6 +796,87 @@ public extension XCUIApplication {
         self.identifier = identifier
     }
 }
+
+// MARK: Aimable-band occlusion guard
+
+#if os(iOS)
+private extension UITestingElement {
+    /// The accessory/input-assistant bar sits above the keyboard's reported frame and
+    /// intercepts aims that clear the reported top (measured: an aim 15pt above it raised
+    /// no edit menu); the band demands this much clearance above the keyboard.
+    private static let keyboardClearance: CGFloat = 44
+    /// Stroke endpoints stay inside the band: below the system chrome at the top, above
+    /// the home indicator at the bottom.
+    private static let bandTopInset: CGFloat = 100
+    private static let bandBottomInset: CGFloat = 20
+    private static let bandScrollAttempts = 6
+
+    // swiftformat:disable docComments
+    // The aimable band: the app frame clipped at the keyboard's top edge, less clearance.
+    // One predicate for both occlusion geometries — a target behind the keyboard and one
+    // beyond the viewport bottom are equally dead to every gesture, and a settled frame
+    // says nothing about either (the frame is honest and stable precisely because nothing
+    // moves). Keyboard-frame reads stay behind `exists`: resolving .frame on a
+    // non-existent firstMatch fails the test hard rather than returning a degenerate rect.
+    // swiftformat:enable docComments
+    private func aimableBand() -> CGRect {
+        var band = app.frame
+        let keyboard = app.keyboards.firstMatch
+        if keyboard.exists {
+            band.size.height = max(0, keyboard.frame.minY - Self.keyboardClearance - band.origin.y)
+        }
+
+        return band
+    }
+
+    private func isAimable(_ frame: CGRect) -> Bool {
+        // The band narrows only under a raised keyboard; without one there is no occlusion
+        // evidence, and every pre-existing aim path must stay untouched — the guard firing
+        // keyboardless was measured scrolling an open menu and failing rows that had left
+        // the tree.
+        guard app.keyboards.firstMatch.exists else { return true }
+
+        let band = aimableBand()
+
+        return band.contains(CGPoint(x: frame.midX, y: frame.midY)) && frame.maxY <= band.maxY
+    }
+
+    // swiftformat:disable docComments
+    // One scroll stroke whose endpoints derive from the band, not the screen: fixed
+    // offsets undershoot on short screens (measured: three fixed strokes left a target
+    // 190pt outside the band), and a normalized start point drifts onto the keyboard as
+    // device height shrinks. Dragging raises the target when the stroke runs bottom→top.
+    // swiftformat:enable docComments
+    private func dragWithinBand(raisingTarget: Bool) {
+        let band = aimableBand()
+        let topY = band.minY + Self.bandTopInset
+        let bottomY = max(topY + 40, band.maxY - Self.bandBottomInset)
+        let fromY = raisingTarget ? bottomY : topY
+        let toY = raisingTarget ? topY : bottomY
+
+        app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: band.midX, dy: fromY))
+            .press(
+                forDuration: 0.05,
+                thenDragTo: app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: band.midX, dy: toY))
+            )
+        _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+    }
+
+    // swiftformat:disable docComments
+    // Scrolls the target into the aimable band, band membership as the arbiter, bounded.
+    // frame() re-reads the target each attempt — the scroll is what moves it.
+    // swiftformat:enable docComments
+    private func scrollIntoBand(of frame: () -> CGRect) {
+        var attempts = 0
+        while attempts < Self.bandScrollAttempts, !isAimable(frame()) {
+            dragWithinBand(raisingTarget: frame().midY > aimableBand().midY)
+            attempts += 1
+        }
+    }
+}
+#endif
 
 // MARK: Verified Picker selection
 

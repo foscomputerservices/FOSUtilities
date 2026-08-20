@@ -42,3 +42,23 @@ struct BareCardViewModel {
         .init(seed: seed)
     }
 }
+
+@ViewModel
+struct OcclusionCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
+}
+
+/// Operations recorded by the occlusion card and shipped across the process boundary by
+/// its transporter — the reads OcclusionScrollTests verifies could not be read at all when
+/// the transporter was pruned under the scrollable wrapper.
+struct OcclusionCardOps: ViewModelOperations {
+    var loadCount = 0
+    var setCount = 0
+    var lastAmount = ""
+}
