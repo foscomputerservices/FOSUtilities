@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.7] - 2026-08-20
+
 ### Fixed
 
 - **`tap()` and `setText(_:expecting:)` clear a keyboard-occluded target before aiming**
