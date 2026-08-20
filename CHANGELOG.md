@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-20
+
 ### Added
 
 - **Async Button surface** (FOSMVVM) — every `Localizable` Button form (and the ViewBuilder
@@ -945,7 +947,8 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.3...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.13.0...HEAD
+[0.13.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.7...0.13.0
 [0.12.3]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.2...0.12.3
 [0.12.2]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.0...0.12.1
