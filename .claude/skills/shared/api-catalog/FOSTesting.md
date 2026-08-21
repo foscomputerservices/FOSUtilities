@@ -137,7 +137,9 @@ FOSMVVM (catalogued there), the latter called from the App's `init()`. The
 ### UI-test a display-only view — `ViewModelDisplayTestCase` / `presentView()` / `localizedViewModel()` <!-- apple-only -->
 Reach for this when: XCUITest-driving a ViewModelView that only displays data —
 no operations to verify. Create one project-level subclass that pins
-`setUp(bundle:resourceDirectoryName:appBundleIdentifier:locales:)`; each test
+`setUp(bundle:resourceDirectoryName:appBundleIdentifier:locales:)` — or its
+`setUp(bundles:)` twin when the YAML lives in several bundles (the test
+harness's own plus another target's resources), merged into one store; each test
 then calls `presentView()` with a stub ViewModel (localized for you; the
 suite's `localizationStore` and locale shorthands are available) and asserts on
 the returned XCUIApplication. `presentView(testConfiguration:)` names a

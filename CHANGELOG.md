@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`setUp(bundles:resourceDirectoryName:appBundleIdentifier:locales:)`** (FOSTestingUI) —
+  `ViewModelDisplayTestCase` / `ViewModelViewTestCase` harnesses can now localize from
+  several bundles merged into one store (the harness's own YAML plus another target's
+  resources); the existing single-`bundle:` form delegates to it.
+
+### Changed
+
+- **`Localizable.text` is `@MainActor`** (FOSMVVM) — the SwiftUI resolver view it
+  constructs belongs on the main actor; call sites in SwiftUI `body` contexts are
+  unaffected.
+
 ## [0.13.1] - 2026-08-21
 
 ### Added

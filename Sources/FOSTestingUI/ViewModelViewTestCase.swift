@@ -213,11 +213,63 @@ import XCTest
         appBundleIdentifier: String,
         locales: Set<Locale>? = nil
     ) async throws {
+        try await setUp(
+            bundles: [bundle],
+            resourceDirectoryName: resourceDirectoryName,
+            appBundleIdentifier: appBundleIdentifier,
+            locales: locales
+        )
+    }
+
+    /// Sets up the application for each test pass, localizing from multiple bundles
+    ///
+    /// This method should be called from the subclass's setup() method.  Use this form
+    /// when the YAML under test lives in more than one bundle — typically the test
+    /// harness's own bundle plus another target's resources; the localizations of all
+    /// *bundles* merge into one store.  For a single bundle,
+    /// ``setUp(bundle:resourceDirectoryName:appBundleIdentifier:locales:)`` is available.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// @MainActor
+    /// class MyViewModelDisplayTestCase<VM: ViewModel>: ViewModelDisplayTestCase<VM> {
+    ///
+    ///     override func setUp() async throws {
+    ///         try await super.setUp(
+    ///             bundles: [Bundle.main, MyAppServerResources.bundle],
+    ///             resourceDirectoryName: "",
+    ///             appBundleIdentifier: "com.mycompany.myapp"
+    ///         )
+    ///
+    ///         continueAfterFailure = false // Stop the test and move on
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// > View tests never require YAML to be present: any localized string that has no
+    /// > translation in *bundles* — a server-hosted *ViewModel*'s strings, for example —
+    /// > resolves to visible placeholder text derived from its key, so the element keeps
+    /// > its surface area and stays reachable by XCUI.  Do not assert on placeholder
+    /// > content; localization completeness belongs in **LocalizableTestCase**'s
+    /// > *expectTranslations()*.
+    ///
+    /// - Parameters:
+    ///   - bundles: The test harness's application bundle and other custom bundles containing YAML files
+    ///   - resourceDirectoryName: The directory in the bundle to search for localizations (default: "")
+    ///   - appBundleIdentifier: The application's bundle identifier
+    ///   - locales: The locales to test (default: en)
+    public func setUp(
+        bundles: [Bundle],
+        resourceDirectoryName: String = "",
+        appBundleIdentifier: String,
+        locales: Set<Locale>? = nil
+    ) async throws {
         try await super.setUp()
 
         do {
             locStore = try KeyEchoLocalizationStore(
-                wrapping: bundle.yamlLocalization(
+                wrapping: bundles.yamlLocalization(
                     resourceDirectoryName: resourceDirectoryName
                 )
             )

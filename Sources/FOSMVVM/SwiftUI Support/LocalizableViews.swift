@@ -124,7 +124,7 @@ public extension Localizable {
     /// ```swift
     /// viewModel.pageTitle.text
     /// ```
-    var text: some View {
+    @MainActor var text: some View {
         LocalizableResolverView(localizable: self)
     }
 }
