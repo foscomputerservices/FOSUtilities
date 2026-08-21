@@ -170,6 +170,14 @@ let package = Package(
                 ]
             ),
             .testTarget(
+                name: "FOSTestingUITests",
+                dependencies: [
+                    .byName(name: "FOSFoundation"),
+                    .byName(name: "FOSMVVM"),
+                    .byName(name: "FOSTestingUI")
+                ]
+            ),
+            .testTarget(
                 name: "FOSMVVMTests",
                 dependencies: [
                     .byName(name: "FOSFoundation"),

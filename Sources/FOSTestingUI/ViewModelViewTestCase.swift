@@ -195,6 +195,13 @@ import XCTest
     /// }
     /// ```
     ///
+    /// > View tests never require YAML to be present: any localized string that has no
+    /// > translation in *bundle* — a server-hosted *ViewModel*'s strings, for example —
+    /// > resolves to visible placeholder text derived from its key, so the element keeps
+    /// > its surface area and stays reachable by XCUI.  Do not assert on placeholder
+    /// > content; localization completeness belongs in **LocalizableTestCase**'s
+    /// > *expectTranslations()*.
+    ///
     /// - Parameters:
     ///   - bundle: The test harness's application bundle
     ///   - resourceDirectoryName: The directory in the bundle to search for localizations (default: "")
@@ -208,9 +215,16 @@ import XCTest
     ) async throws {
         try await super.setUp()
 
-        locStore = try bundle.yamlLocalization(
-            resourceDirectoryName: resourceDirectoryName
-        )
+        do {
+            locStore = try KeyEchoLocalizationStore(
+                wrapping: bundle.yamlLocalization(
+                    resourceDirectoryName: resourceDirectoryName
+                )
+            )
+        } catch YamlStoreError.noResourcePaths {
+            // A harness with no YAML at all is supported: every string echoes its key
+            locStore = KeyEchoLocalizationStore(wrapping: nil)
+        }
         self.locales = locales ?? [Self.en]
 
         let app = XCUIApplication(bundleIdentifier: appBundleIdentifier)

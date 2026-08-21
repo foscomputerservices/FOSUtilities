@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`LocalizableTestCase.loadLocalizationStore(bundles:)`** (FOSTesting) — loads one
+  merged `LocalizationStore` from several bundles, so a suite can verify server-based
+  ViewModels against the same YAML the server serves alongside the test bundle's own
+  client-hosted localizations.
+
+### Changed
+
+- **View tests no longer require YAML** (FOSTestingUI) — `ViewModelDisplayTestCase` /
+  `ViewModelViewTestCase` setUp now resolves any localized string that has no translation
+  in the harness bundle to visible placeholder text derived from its key, instead of the
+  empty string. SwiftUI collapses empty-labeled elements to zero surface area, which made
+  such elements unreachable by XCUI even with a `uiTestingIdentifier()`; with the
+  placeholder they stay tappable. Don't assert on placeholder content — localization
+  completeness belongs in `LocalizableTestCase.expectTranslations()`.
+
+### Fixed
+
+- **`LocalizationStore` convenience dispatch** (FOSMVVM) — the index-less
+  `keyExists(_:locale:)` and `t()` conveniences now dispatch to the store's `keyExists` /
+  `translate` implementations; previously both always derived their answer from `value()`,
+  silently bypassing stores that customize those requirements.
+
+### Added
+
 - **`task(error:)` / `task(id:error:)`** (FOSMVVM) — async twins of SwiftUI's `task`
   modifiers for view-lifetime loads: the action becomes throwing, and a thrown error lands
   in the required `error: Binding<Error?>` (cleared on each start — the binding holds the

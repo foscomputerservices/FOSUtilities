@@ -70,8 +70,21 @@ public protocol LocalizationStore: Sendable {
 }
 
 public extension LocalizationStore {
-    func keyExists(_ key: String, locale: Locale, index: Int? = nil) -> Bool {
+    func keyExists(_ key: String, locale: Locale, index: Int?) -> Bool {
         value(key, locale: locale, default: nil, index: index) != nil
+    }
+
+    /// Provides information on whether a translation is available for  given key in a given locale
+    ///
+    /// - Parameters:
+    ///   - key: The translation key to look up
+    ///   - locale: The **Locale** context in which to resolve *key*
+    /// - Returns: **true** if the key is known in the given *locale*
+    func keyExists(_ key: String, locale: Locale) -> Bool {
+        // Dispatches the keyExists requirement so stores that customize it
+        // (rather than value()) are honored; a same-signature default argument
+        // here would statically bind to the value()-based implementation above
+        keyExists(key, locale: locale, index: nil)
     }
 
     func translate(_ key: String, locale: Locale, default: String?, index: Int?) -> String? {
@@ -79,7 +92,9 @@ public extension LocalizationStore {
     }
 
     func t(_ key: String, locale: Locale, default: String? = nil, index: Int? = nil) -> String? {
-        value(key, locale: locale, default: `default`, index: index) as? String
+        // Dispatches the translate requirement so stores that customize it
+        // (rather than value()) are honored
+        translate(key, locale: locale, default: `default`, index: index)
     }
 
     func v(_ key: String, locale: Locale, default: Any? = nil, index: Int? = nil) -> Any? {

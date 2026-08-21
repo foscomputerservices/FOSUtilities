@@ -57,6 +57,37 @@ public extension LocalizableTestCase {
         )
     }
 
+    /// Loads a single **LocalizationStore** merging the localizations of every bundle in *bundles*
+    ///
+    /// Use this form when the YAML under test lives in more than one bundle — typically the
+    /// test bundle's own client-hosted localizations plus a server target's resources — so
+    /// that server-based *ViewModel*s verify against the same YAML the server serves.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// @Suite("My Test Suite", .serialized)
+    /// struct MyTestSuite: LocalizableTestCase {
+    ///
+    ///     let locStore: LocalizationStore
+    ///     init() throws {
+    ///         self.locStore = try Self.loadLocalizationStore(
+    ///             bundles: [Bundle.module, MyAppServerResources.bundle]
+    ///         )
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - bundles: The *Bundle*s whose YAML localizations are merged into the store
+    ///   - resourceDirectoryName: The name of a resource directory searched in each
+    ///      bundle (default: Resources)
+    static func loadLocalizationStore(bundles: [Bundle], resourceDirectoryName: String = "Resources") throws -> LocalizationStore {
+        try bundles.yamlLocalization(
+            resourceDirectoryName: resourceDirectoryName
+        )
+    }
+
     /// Returns **JSONEncoder** that is configured to perform localization during encoding
     func encoder(locale: Locale = Self.en) -> JSONEncoder {
         JSONEncoder.localizingEncoder(
