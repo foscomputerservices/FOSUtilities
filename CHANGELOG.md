@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-08-21
+
 ### Added
 
+- **`task(error:)` / `task(id:error:)`** (FOSMVVM) — async twins of SwiftUI's `task`
+  modifiers for view-lifetime loads: the action becomes throwing, and a thrown error lands
+  in the required `error: Binding<Error?>` (cleared on each start — the binding holds the
+  outcome of the most recent invocation). Cancellation never reaches the binding: view
+  teardown and `id`-change restarts deposit nothing, so a superseded load can never speak
+  over the current one and teardown never puts a `CancellationError` in an alert. Pairs
+  with `alert(error:)` and the async Button forms on one screen-level binding. The new
+  *Async Action Lifecycle and Cancellation* DocC article draws the full contract,
+  situation by situation.
 - **`LocalizableTestCase.loadLocalizationStore(bundles:)`** (FOSTesting) — loads one
   merged `LocalizationStore` from several bundles, so a suite can verify server-based
   ViewModels against the same YAML the server serves alongside the test bundle's own
@@ -16,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Async Button cancellation never reaches `error`** (FOSMVVM) — the engine's deposit
+  guard now also filters the language's `CancellationError` sentinel type: a
+  `CancellationError` thrown by a *non-cancelled* invocation is discarded instead of
+  presented, making the quiet exit (throw `CancellationError` to end with nothing shown)
+  a supported idiom. The filter is sentinel-only — errors that describe a cancellation in
+  domain vocabulary still deposit and present. Every discarded outcome is recorded with a
+  debug notice. The full lifecycle contract is drawn situation-by-situation in the new
+  *Async Action Lifecycle and Cancellation* DocC article.
 - **View tests no longer require YAML** (FOSTestingUI) — `ViewModelDisplayTestCase` /
   `ViewModelViewTestCase` setUp now resolves any localized string that has no translation
   in the harness bundle to visible placeholder text derived from its key, instead of the
@@ -31,28 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `translate` implementations; previously both always derived their answer from `value()`,
   silently bypassing stores that customize those requirements.
 
-### Added
-
-- **`task(error:)` / `task(id:error:)`** (FOSMVVM) — async twins of SwiftUI's `task`
-  modifiers for view-lifetime loads: the action becomes throwing, and a thrown error lands
-  in the required `error: Binding<Error?>` (cleared on each start — the binding holds the
-  outcome of the most recent invocation). Cancellation never reaches the binding: view
-  teardown and `id`-change restarts deposit nothing, so a superseded load can never speak
-  over the current one and teardown never puts a `CancellationError` in an alert. Pairs
-  with `alert(error:)` and the async Button forms on one screen-level binding. The new
-  *Async Action Lifecycle and Cancellation* DocC article draws the full contract,
-  situation by situation.
-
-### Changed
-
-- **Async Button cancellation never reaches `error`** (FOSMVVM) — the engine's deposit
-  guard now also filters the language's `CancellationError` sentinel type: a
-  `CancellationError` thrown by a *non-cancelled* invocation is discarded instead of
-  presented, making the quiet exit (throw `CancellationError` to end with nothing shown)
-  a supported idiom. The filter is sentinel-only — errors that describe a cancellation in
-  domain vocabulary still deposit and present. Every discarded outcome is recorded with a
-  debug notice. The full lifecycle contract is drawn situation-by-situation in the new
-  *Async Action Lifecycle and Cancellation* DocC article.
+## [0.13.0] - 2026-08-20
 
 ### Added
 
@@ -992,8 +990,13 @@ Releases up to and including **0.3.7** are recorded as
 Releases. This changelog begins tracking notable changes from the next release
 onward.
 
-[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.13.0...HEAD
+[Unreleased]: https://github.com/foscomputerservices/FOSUtilities/compare/0.13.1...HEAD
+[0.13.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.13.0...0.13.1
 [0.13.0]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.7...0.13.0
+[0.12.7]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.6...0.12.7
+[0.12.6]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.5...0.12.6
+[0.12.5]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.4...0.12.5
+[0.12.4]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.3...0.12.4
 [0.12.3]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.2...0.12.3
 [0.12.2]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.1...0.12.2
 [0.12.1]: https://github.com/foscomputerservices/FOSUtilities/compare/0.12.0...0.12.1
