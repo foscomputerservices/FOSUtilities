@@ -21,7 +21,10 @@ typed errors the expectations throw.
 Reach for this when: a Swift Testing suite touches anything Localizable —
 conform, load the store once in `init`, and declare the locales under test;
 `encoder(locale:)` then hands out localizing encoders and every expectation
-below becomes available on the suite.
+below becomes available on the suite. When the YAML lives in more than one
+bundle — the test bundle's client-hosted localizations plus a server target's
+resources — `loadLocalizationStore(bundles:)` merges them into one store, so
+server-based ViewModels verify against the same YAML the server serves.
 Don't load YAML stores or build localizing encoders per-test by hand.
 
 ```swift
@@ -30,7 +33,9 @@ struct UserViewModelTests: LocalizableTestCase {
     let locStore: LocalizationStore
     var locales: Set<Locale> { [Self.en, Self.es] }
     init() throws {
-        self.locStore = try Self.loadLocalizationStore(bundle: .module)
+        self.locStore = try Self.loadLocalizationStore(
+            bundles: [.module, AppServerResources.bundle]
+        )
     }
 }
 ```
@@ -138,8 +143,14 @@ suite's `localizationStore` and locale shorthands are available) and asserts on
 the returned XCUIApplication. `presentView(testConfiguration:)` names a
 configuration the app's `testHost` closure can decorate the view with;
 `localizedViewModel()` localizes a ViewModel without launching.
+View tests never require YAML: a localized string with no translation in the
+harness bundle resolves to placeholder text derived from its key (an empty
+string would collapse the element to zero surface area and make it unreachable
+by XCUI), so server-hosted ViewModels' views stay drivable.
 Don't locate elements by display text, or by XCUITest element type — tag them
 with `uiTestingIdentifier()` (FOSMVVM) and find them with `uiTestingElement()`.
+Don't assert on placeholder content — localization completeness belongs in
+`LocalizableTestCase.expectTranslations()`.
 
 ```swift
 final class MyDisplayViewUITests: AppDisplayTestCase<MyDisplayViewModel>, @unchecked Sendable {
