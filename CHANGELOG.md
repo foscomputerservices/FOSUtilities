@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.0] - 2026-08-20
+### Changed
+
+- **Async Button cancellation never reaches `error`** (FOSMVVM) — the engine's deposit
+  guard now also filters the language's `CancellationError` sentinel type: a
+  `CancellationError` thrown by a *non-cancelled* invocation is discarded instead of
+  presented, making the quiet exit (throw `CancellationError` to end with nothing shown)
+  a supported idiom. The filter is sentinel-only — errors that describe a cancellation in
+  domain vocabulary still deposit and present. Every discarded outcome is recorded with a
+  debug notice. The full lifecycle contract is drawn situation-by-situation in the new
+  *Async Action Lifecycle and Cancellation* DocC article.
 
 ### Added
 

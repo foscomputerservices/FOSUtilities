@@ -180,8 +180,14 @@ enum AsyncButtonEngine {
                 failure = actionError
             }
 
-            if !Task.isCancelled, let failure {
-                error.wrappedValue = failure
+            if let failure {
+                if Task.isCancelled {
+                    print("AsyncButton: discarding \(type(of: failure)) from a cancelled invocation")
+                } else if failure is CancellationError {
+                    print("AsyncButton: discarding CancellationError from a non-cancelled invocation")
+                } else {
+                    error.wrappedValue = failure
+                }
             }
             activity?.wrappedValue.finishRun(recordFlip: mode == .toggle)
         }
