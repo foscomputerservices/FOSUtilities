@@ -6,11 +6,14 @@ Run a throwing async operation from a Button, route its failure to one screen-le
 
 Most user-initiated actions in an FOSMVVM application are asynchronous and can fail: the View dispatches through ``ViewModelOperations`` (see <doc:Operations>), the operation performs a ``ServerRequest``, and the server may answer with a typed error.
 
-Three pieces carry that flow from tap to alert, and they are designed to be wired together:
+Four pieces carry that flow — from tap or view appearance to alert — and they are designed to be wired together:
 
 - **Async `Button` forms** run a `@Sendable () async throws` action and deposit any thrown error into an `error:` binding.
+- **`task(error:)` / `task(id:error:)`** run a view-lifetime (or value-keyed) load and route its error into the same binding.
 - **`alert(error:title:message:dismissButtonLabel:)`** presents whatever lands in that binding, localized.
 - **``LocalizableError``** gives your error types user-presentable, YAML-localized messages — composed exactly like a ``ViewModel``.
+
+What the binding holds at every moment — success, failure, cancellation, restarts — is drawn situation-by-situation in <doc:AsyncLifecycle>.
 
 ## The Basic Wiring
 
@@ -83,6 +86,18 @@ While running, the button shows the cancel face and a tap cancels the operation;
 > Important: Cancellation is cooperative — the action must run cancellation-aware work (any `URLSession`-backed ``ServerRequest`` is) for the cancel face to take effect.
 
 For long-running *server* work, model the operation as a server-tracked resource and cancel it with another request — client-side cancellation only abandons the response.
+
+## View-Lifetime Loads
+
+The screen's initial load is not a tap — it belongs to the view's lifetime. The `task(error:)` twins of SwiftUI's `task` modifiers run a throwing load and feed the same binding:
+
+```swift
+.task(id: viewModel.selectedDocumentId, error: $error) {
+    try await viewModel.operations.loadDocument()
+}
+```
+
+The load starts on appearance — and restarts when `id` changes; a thrown error lands in `error` and the alert presents it. Cancellation — leaving the screen, an `id` restart, or the `CancellationError` sentinel — never deposits into the binding, so teardown and superseded loads stay silent. The full contract is in <doc:AsyncLifecycle>.
 
 ## Localizing Your Errors
 
