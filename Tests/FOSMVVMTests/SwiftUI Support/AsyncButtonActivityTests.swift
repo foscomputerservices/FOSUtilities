@@ -87,6 +87,44 @@ struct AsyncButtonActivityTests {
         #expect(harness.activity.value.phase == .idle)
     }
 
+    // MARK: Cancellation sentinel
+
+    @Test func cancellationError_fromNonCancelledInvocation_isDiscarded() async {
+        let harness = Harness()
+
+        harness.tap(.refuse) { throw CancellationError() }
+        await harness.waitUntilIdle()
+
+        #expect(harness.error.value == nil)
+        #expect(harness.activity.value.phase == .idle)
+    }
+
+    @Test func domainCancellationVocabulary_isNotFiltered() async {
+        let harness = Harness()
+
+        harness.tap(.refuse) { throw TestTapError.domainCancelled }
+        await harness.waitUntilIdle()
+
+        #expect(harness.error.value as? TestTapError == .domainCancelled)
+    }
+
+    @Test func cancelledInvocation_discardsEvenNonCancellationFailures() async {
+        let harness = Harness()
+
+        harness.tap(.toggle) {
+            do {
+                try await Task.sleep(for: .seconds(600))
+            } catch {
+                throw TestTapError.failed
+            }
+        }
+        harness.tap(.toggle) {}
+        await harness.waitUntilIdle()
+
+        #expect(harness.error.value == nil)
+        #expect(harness.activity.value.phase == .idle)
+    }
+
     // MARK: Refuse mode
 
     @Test func refuseMode_tapWhileRunning_hasNoObservableEffect() async {
@@ -252,6 +290,7 @@ struct AsyncButtonActivityTests {
 private enum TestTapError: Error, Equatable {
     case previous
     case failed
+    case domainCancelled
 }
 
 /// Caller-side state (what a view's `@State` would hold) plus the tap entry point

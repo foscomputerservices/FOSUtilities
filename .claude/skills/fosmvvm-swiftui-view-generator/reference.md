@@ -509,8 +509,8 @@ public struct {ViewName}View: ViewModelView {
             }
             .padding()
         }
-        .task {
-            do { try await loadItems() } catch { self.error = error }
+        .task(error: $error) {
+            try await loadItems()
         }
         .alert(
             error: $error,
@@ -854,7 +854,7 @@ public struct {ViewName}View: ViewModelView {
             }
             .padding()
         }
-        .task { do { try await loadItems() } catch { self.error = error } }
+        .task(error: $error) { try await loadItems() }
         .alert(
             error: $error,
             title: viewModel.errorTitle,
@@ -993,11 +993,11 @@ Add `activity: $activity` (an `@State AsyncButtonActivity`) for re-entry refusal
 
 ### Task on Appear
 
-Catch into the binding by hand — an error-routing `.task` twin is queued in FOSUtilities but not yet shipped:
+`.task(error:)` routes a thrown error into the screen's binding; cancellation — view teardown, an `id:` restart, or the `CancellationError` sentinel — never deposits into it:
 
 ```swift
-.task {
-    do { try await loadData() } catch { self.error = error }
+.task(error: $error) {
+    try await loadData()
 }
 
 private func loadData() async throws {
@@ -1005,6 +1005,8 @@ private func loadData() async throws {
     toggleRepaint()
 }
 ```
+
+To restart the load when a value changes: `.task(id: viewModel.selectedId, error: $error) { ... }` — the superseded invocation writes nothing. See the FOSMVVM DocC article *Async Action Lifecycle and Cancellation*.
 
 ### Conditional Rendering
 

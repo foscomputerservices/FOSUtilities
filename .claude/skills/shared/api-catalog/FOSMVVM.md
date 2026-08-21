@@ -375,7 +375,7 @@ caller (never `requestErrorHandler`).
 }
 ```
 
-### Give an error a user-presentable localized message — `LocalizableError` / `ClientHostedLocalizableError` / `localized()`
+### Give an error a user-presentable localized message — `LocalizableError` / `ClientHostedLocalizableError` / `LocalizableErrorOptions` / `localized()`
 Reach for this when: an error will be shown to the user — canonically a
 `ServerRequestError` conformer — and its message belongs in your YAML, not in
 code. Compose it exactly like a ViewModel: `@Localized…` message property,
@@ -949,11 +949,40 @@ to cancel (cooperatively): pass `cancelTitle:` (optionally
 label closure on the ViewBuilder forms; the activity binding is then required,
 and `activity.cancel()` also cancels from outside the button (e.g.
 `.onDisappear`). Share one activity across buttons to make them mutually
-exclusive. Pair the `error:` binding with the error alert in the next entry.
+exclusive. Cancellation never reaches the binding: a cancelled invocation
+deposits nothing, and the `CancellationError` sentinel type is filtered even
+from a non-cancelled invocation (discards are debug-logged) — the DocC article
+*Async Action Lifecycle and Cancellation* draws every situation. Pair the
+`error:` binding with the error alert in the *Present errors from the shared
+binding* entry below.
+
+### Route a view-lifetime load's error to the screen binding — `task` <!-- apple-only -->
+Reach for this when: the screen's load runs for the view's lifetime —
+`task(error:)` starts it on appearance, and `task(id:error:)` restarts it when
+a value changes; a thrown error lands in the same `error:` binding your async
+buttons feed.
+Don't catch into the binding by hand inside `.task { do/catch }` — teardown
+and superseded restarts then deposit `CancellationError` into the alert.
+
+```swift
+@State private var error: Error?
+
+DocumentDetail(viewModel: viewModel)
+    .task(id: viewModel.selectedDocumentId, error: $error) {
+        try await viewModel.operations.loadDocument()
+    }
+```
+
+Each start clears the binding — it always holds the most recent invocation's
+outcome. Cancellation never deposits: view teardown and `id`-change restarts
+write nothing (a superseded load cannot speak over the current one), and the
+`CancellationError` sentinel is filtered even from a non-cancelled invocation
+(discards are debug-logged). The DocC article *Async Action Lifecycle and
+Cancellation* draws every situation.
 
 ### Present errors from the shared binding — `alert()` <!-- apple-only -->
-Reach for this when: showing the errors your async buttons (or any hand-written
-catch) deposit in the screen's `@State var error: Error?` — one modifier is the
+Reach for this when: showing the errors your async buttons and `task(error:)`
+loads deposit in the screen's `@State var error: Error?` — one modifier is the
 screen's single presentation point. Shows while non-`nil`, clears on dismissal,
 localizes `LocalizableError` conformers through the client store (others show
 their debug description), and fills the message's `%{error}` substitution point

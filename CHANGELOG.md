@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.0] - 2026-08-20
+### Added
+
+- **`task(error:)` / `task(id:error:)`** (FOSMVVM) — async twins of SwiftUI's `task`
+  modifiers for view-lifetime loads: the action becomes throwing, and a thrown error lands
+  in the required `error: Binding<Error?>` (cleared on each start — the binding holds the
+  outcome of the most recent invocation). Cancellation never reaches the binding: view
+  teardown and `id`-change restarts deposit nothing, so a superseded load can never speak
+  over the current one and teardown never puts a `CancellationError` in an alert. Pairs
+  with `alert(error:)` and the async Button forms on one screen-level binding. The new
+  *Async Action Lifecycle and Cancellation* DocC article draws the full contract,
+  situation by situation.
+
+### Changed
+
+- **Async Button cancellation never reaches `error`** (FOSMVVM) — the engine's deposit
+  guard now also filters the language's `CancellationError` sentinel type: a
+  `CancellationError` thrown by a *non-cancelled* invocation is discarded instead of
+  presented, making the quiet exit (throw `CancellationError` to end with nothing shown)
+  a supported idiom. The filter is sentinel-only — errors that describe a cancellation in
+  domain vocabulary still deposit and present. Every discarded outcome is recorded with a
+  debug notice. The full lifecycle contract is drawn situation-by-situation in the new
+  *Async Action Lifecycle and Cancellation* DocC article.
 
 ### Added
 

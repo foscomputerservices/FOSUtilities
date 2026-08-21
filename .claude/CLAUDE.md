@@ -115,7 +115,7 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 - Credential rejection / typed 401 recovery → `FOSMVVM.md § Protocols`
 - Form fields and input validation → `FOSMVVM.md § Forms`, `§ Validation`
 - SwiftUI binding/app setup, property versioning, deployment URLs → `FOSMVVM.md § SwiftUI Support`, `§ Versioning`
-- Async Button actions (error routing, re-entry, cancel), localized error alerts → `FOSMVVM.md § SwiftUI Support`, `§ Protocols`
+- Async Button actions (error routing, re-entry, cancel), view-lifetime `.task` error routing, localized error alerts → `FOSMVVM.md § SwiftUI Support`, `§ Protocols`
 - Vapor boot/Leaf, routes, Fluent factories, versioned middleware → `FOSMVVMVapor.md § Extensions`, `§ Vapor Support`, `§ Protocols`, `§ Middleware`
 - Live ViewModel refresh (server push), incl. nudging live clients from non-Fluent/hybrid sources → `FOSMVVMVapor.md § Live Invalidation`
 - Testing ViewModels / UI / ServerRequests → `FOSTesting.md § FOSTesting`, `§ FOSTestingUI`, `§ FOSTestingVapor`

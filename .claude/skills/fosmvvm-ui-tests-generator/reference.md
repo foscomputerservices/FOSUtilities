@@ -561,8 +561,8 @@ public struct {ViewName}View: ViewModelView {
                 contentView
             }
         }
-        .task {
-            do { try await loadData() } catch { self.error = error }
+        .task(error: $error) {
+            try await loadData()
         }
         .alert(
             error: $error,
@@ -699,8 +699,8 @@ public struct {ViewName}View: ViewModelView {
                 .disabled(selectedId == nil)
             }
         }
-        .task {
-            do { try await loadItems() } catch { self.error = error }
+        .task(error: $error) {
+            try await loadItems()
         }
         .alert(
             error: $error,

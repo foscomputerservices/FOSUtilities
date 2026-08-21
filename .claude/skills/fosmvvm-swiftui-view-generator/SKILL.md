@@ -198,7 +198,7 @@ public struct MyView: ViewModelView {
 
 **Why `toggleRepaint()` exists.** Client-hosted ops mutate `@Observable` storage that test harnesses (and occasionally SwiftUI itself) don't always re-observe in time for the next assertion. Toggling a `@State` flag forces a deterministic re-render at the View boundary, so UI tests see the post-op state instead of the pre-op state. In production builds the toggle is compiled out — it costs nothing at runtime.
 
-**Async vs sync op shape.** Server-backed ops are typically async (`try await operations.performAction()`) and pair with the async `Button` forms — `Button(error:action:)` and its `Localizable`-titled twins — which deposit a thrown error into the screen's `error:` binding (add `activity:` for re-entry refusal, `cancelTitle:` for tap-to-cancel; see the FOSMVVM DocC article *Async Actions and Error Presentation*). For view-lifetime loads, catch into the binding by hand inside `.task { }` — an error-routing `.task` twin is queued in FOSUtilities but not yet shipped. Client-hosted scalar-mutation ops are typically sync — the live op writes a property on `@Observable` storage and returns. Don't add `async` to an op method that doesn't need it; don't omit `async` on one that calls a `ServerRequest`.
+**Async vs sync op shape.** Server-backed ops are typically async (`try await operations.performAction()`) and pair with the async `Button` forms — `Button(error:action:)` and its `Localizable`-titled twins — which deposit a thrown error into the screen's `error:` binding (add `activity:` for re-entry refusal, `cancelTitle:` for tap-to-cancel; see the FOSMVVM DocC article *Async Actions and Error Presentation*). For view-lifetime loads, use the `.task(error:)` twins — `.task(error: $error) { try await loadData() }`, or `.task(id:error:)` to restart the load when a value changes; a thrown error lands in the same binding, and cancellation (teardown, an `id` restart, or the `CancellationError` sentinel) never deposits into it (see the FOSMVVM DocC article *Async Action Lifecycle and Cancellation*). Client-hosted scalar-mutation ops are typically sync — the live op writes a property on `@Observable` storage and returns. Don't add `async` to an op method that doesn't need it; don't omit `async` on one that calls a `ServerRequest`.
 
 The example above shows a **server-backed** op — `operations.performAction()` dispatches a `ServerRequest`. For **client-hosted** ops (those that mutate local `@Observable` storage), the call site shape is different — the View must inject storage from the environment and hand it to the op explicitly. See below.
 
@@ -632,7 +632,7 @@ Button(viewModel.submitLabel, error: $error) {
 
 ### Async Task Pattern
 
-For view-lifetime loads, catch into the binding by hand (an error-routing `.task` twin is queued in FOSUtilities but not yet shipped):
+For view-lifetime loads, `.task(error:)` routes a thrown error into the screen's binding; cancellation — view teardown, an `id:` restart, or the `CancellationError` sentinel — never deposits into it:
 
 ```swift
 var body: some View {
@@ -643,8 +643,8 @@ var body: some View {
             contentView
         }
     }
-    .task {
-        do { try await loadData() } catch { self.error = error }
+    .task(error: $error) {
+        try await loadData()
     }
 }
 
@@ -655,6 +655,8 @@ private func loadData() async throws {
     toggleRepaint()
 }
 ```
+
+To restart the load when a value changes, key it: `.task(id: viewModel.selectedId, error: $error) { ... }` — the superseded invocation writes nothing to the binding. The lifecycle semantics are drawn situation-by-situation in the FOSMVVM DocC article *Async Action Lifecycle and Cancellation*.
 
 ### Conditional Rendering Pattern
 
@@ -996,10 +998,9 @@ See [reference.md](reference.md) for complete file templates.
     dismissButtonLabel: viewModel.dismissButtonLabel
 )
 
-// Async task — catch into the binding by hand (an error-routing
-// .task twin is queued in FOSUtilities but not yet shipped)
-.task {
-    do { try await loadData() } catch { self.error = error }
+// Async task — errors route into the same binding; cancellation never deposits
+.task(error: $error) {
+    try await loadData()
 }
 
 // Keyboard submit routing into the same binding
