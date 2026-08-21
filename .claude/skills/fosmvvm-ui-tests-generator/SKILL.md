@@ -263,6 +263,7 @@ class MyAppViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations>:
 **Key points:**
 - Display-only base has **one** generic parameter — `VM`. No stub Operations type.
 - Interactive base has **two** — `VM` and `VMO`. The `viewModelOperations()` helper is available only on this path.
+- Both `setUp` forms exist: `bundle:` for the common single-bundle harness, and `bundles: [Bundle]` when the YAML lives in more than one bundle (the harness's own plus another target's resources) — the localizations merge into one store. Untranslated keys resolve to key-derived placeholder text (never assert on it; localization completeness is `LocalizableTestCase`'s job), so view tests stay drivable with partial or no YAML.
 - Both wrap FOSTestingUI's `presentView()` and pin the bundle / bundle identifier.
 - `continueAfterFailure = false` stops tests immediately on failure.
 

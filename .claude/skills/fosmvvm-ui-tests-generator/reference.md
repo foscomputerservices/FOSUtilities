@@ -63,6 +63,10 @@ class {ProjectName}ViewModelViewTestCase<VM: ViewModel, VMO: ViewModelOperations
 }
 ```
 
+When the harness should localize from more than one bundle (e.g. the test bundle's
+own YAML plus a server target's resources), use the `setUp(bundles: [Bundle], ...)`
+form instead — the bundles' localizations merge into one store.
+
 ---
 
 
