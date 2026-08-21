@@ -55,6 +55,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Declaring the data a server-rendered body needs — composable factory, load requirements, rooted scopes → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - A Button whose action is `async throws` — error routing, re-entry refusal, running state, tap-to-cancel → `FOSMVVM.md § SwiftUI Support`
+- A view-lifetime (or value-keyed) load that can throw — `.task`-style error routing into the screen binding → `FOSMVVM.md § SwiftUI Support`
 - Showing errors to the user — localized error messages on error types, one alert fed by a shared error binding → `FOSMVVM.md § Protocols`, `§ SwiftUI Support`
 - Versioning ViewModel properties, choosing deployment URLs, negotiating versions over HTTP → `FOSMVVM.md § Versioning`
 - Booting a Vapor server for MVVM — YAML localization store, environment, locale, Leaf rendering → `FOSMVVMVapor.md § Extensions`
