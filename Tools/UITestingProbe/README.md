@@ -116,6 +116,13 @@ items do not land** — a tab bar button or toolbar button receives the tap and 
 taps normally. Re-measure both on the next beta before treating either as the platform's
 behaviour.
 
+**Re-measured 2026-08-22 (same beta):** the lost taps were the *verb*, not the platform — on
+macOS, `XCUIElement.tap()` and every coordinate-synthesized tap dispatch without failure and
+never land, while `click()` lands (measured one variable at a time via `RowResolutionMacTests`'
+composite row). With `tap()` dispatching through the platform's pointer verb (`click()` on
+macOS), the tab and toolbar tap tests pass again — the AnyView-root discovery regression above
+remains.
+
 Every assertion goes through `uiTestingElement(_:)`. The harness contains no XCUITest
 element-type queries — if one appears, it is either a gap in the strategy that needs stating
 or a shortcut that needs removing.
