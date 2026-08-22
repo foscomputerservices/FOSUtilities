@@ -11,6 +11,25 @@ For guides, articles, and API documentation see the
 
 [docs]: https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosfoundation
 
+## Create a project in one minute
+
+The package ships a scaffolder that generates a complete, verified FOSMVVM application: a SwiftUI app (`localOnly`), a SwiftUI app plus a Vapor server sharing one ViewModel contract (`clientServer`), or a reusable ViewModel package (`sharedLibrary`). It needs Xcode and [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`):
+
+```bash
+git clone https://github.com/foscomputerservices/FOSUtilities.git
+cd FOSUtilities
+
+cat > /tmp/myapp.json <<'CONFIG'
+{ "projectName": "MyApp", "shape": "clientServer",
+  "platforms": { "macOS": "14.0" },
+  "bundleIdRoot": "com.example.myapp", "teamId": "YOURTEAMID" }
+CONFIG
+
+swift run fosmvvm-bootstrap new --config /tmp/myapp.json --output ~/MyApp
+```
+
+Generation builds the new project and runs its tests before declaring success. Full details: [Creating a Project](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/main/documentation/fosmvvm/creatingaproject).
+
 ## FOSFoundation
 
 FOSFoundation is a library of protocols, patterns, types and routines that I have found generally useful in my projects.  Support areas include:
