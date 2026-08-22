@@ -64,6 +64,20 @@ import XCTest
         XCTAssertEqual(app.uiTestingElement("gapRow").value, "45")
     }
 
+    /// The measured macOS failure (2026-08-21): the aimed-coordinate dispatch anchored at
+    /// the app origin and offset by raw element-frame coordinates. Frames are
+    /// app-origin-relative on iOS but SCREEN-relative on macOS, where the window origin is
+    /// nonzero — the origin applied twice, and the tap dispatched without failure yet landed
+    /// off-target: the control's action silently never fired. A caption + button composite
+    /// forces the aimed path on every platform, and the fired count is the proof the tap
+    /// landed — keyboard-free, so this claim holds on macOS, where the keyboard-arrival
+    /// proofs above cannot run.
+    func testAimedTapFiresTheActionAcrossTheComposite() {
+        app.uiTestingElement("actionRow").tap()
+
+        XCTAssertEqual(app.uiTestingElement("actionFireCount").label, "fired 1")
+    }
+
     /// A tag on the control itself taps and reads that control; composite descent must not
     /// reroute it to a neighbour.
     func testDirectlyTaggedControlStillAnswersForItself() {

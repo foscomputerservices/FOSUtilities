@@ -91,6 +91,7 @@ struct RowResolutionProbe: View {
     @State private var trailing = ""
     @State private var padAmount = "45"
     @State private var secret = ""
+    @State private var fires = 0
 
     /// Renders at commit time: "45" typed reads back "45.00" once the entry commits —
     /// the normalization setText's expecting: exists for.
@@ -124,6 +125,24 @@ struct RowResolutionProbe: View {
                     .uiTestingIdentifier("captionField")
             }
             .uiTestingIdentifier("captionRow")
+
+            // The keyboard-free composite: caption + button, tag on the row, button
+            // deliberately untagged (the row tag is its only route). The tag's midpoint
+            // sits in the caption, so tapping through the tag takes the aimed-coordinate
+            // dispatch on every platform — and the fired count proves the tap landed,
+            // with no keyboard to consult, so the claim holds on macOS too.
+            HStack(spacing: 0) {
+                Text(verbatim: "A much longer caption")
+                    .lineLimit(1)
+                    .frame(width: 140, alignment: .leading)
+                Button(action: { fires += 1 }) {
+                    Text(verbatim: "Fire")
+                }
+            }
+            .uiTestingIdentifier("actionRow")
+
+            Text(verbatim: "fired \(fires)")
+                .uiTestingIdentifier("actionFireCount")
 
             // setText's fixture matrix: formatter-backed, trailing-aligned, number pad
             // (prefilled, so replace must select-all on a keyboard with no text menu

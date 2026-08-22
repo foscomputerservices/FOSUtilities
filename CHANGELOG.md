@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`tap()` lands on macOS** (FOSTestingUI) — on macOS, `XCUIElement.tap()` and every
+  coordinate-synthesized tap dispatch without failure and never land (measured on 27
+  beta, one variable at a time via the probe's composite row: native `tap()` on the
+  live, hittable, resolved control — "fired 0"; app-anchored and overlay-anchored
+  coordinate taps — "fired 0"; `click()` on the same control — green). Every native
+  dispatch now goes through the platform's pointer verb (`click()` on macOS, `tap()`
+  elsewhere), and the aimed path resolves its snapshot back to a live element to
+  receive it. This also cures the "synthesized taps on native-bridged bar items do not
+  land" regression the probe README recorded on this beta — the probe's tab and toolbar
+  tap tests pass again. Two supporting hardenings: `XCUIApplication.frame.origin` can
+  be non-finite on macOS (measured: `(inf, inf)`), so app-anchored offsets only
+  subtract a finite origin; iOS behavior is unchanged (its verb remains `tap()`, its
+  origin is zero, and its measured-green app-anchored fallbacks are untouched).
+
 ## [0.13.2] - 2026-08-21
 
 ### Added
