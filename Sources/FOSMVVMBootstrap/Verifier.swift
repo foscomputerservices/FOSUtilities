@@ -11,7 +11,7 @@ public enum VerifyStep: String, Sendable, CaseIterable {
     /// generated project and scheme, so it needs the project name; a nil
     /// name renders as the `<project>` placeholder (used by the error
     /// description, which must never crash).
-    func command(projectName: String?) -> [String] {
+    func command(projectName: String?, destination: String = "platform=macOS") -> [String] {
         switch self {
         case .swiftBuild: return ["swift", "build"]
         case .swiftTest: return ["swift", "test"]
@@ -22,7 +22,7 @@ public enum VerifyStep: String, Sendable, CaseIterable {
                 "xcodebuild",
                 "-project", "\(name).xcodeproj",
                 "-scheme", name,
-                "-destination", "platform=macOS",
+                "-destination", destination,
                 "build",
                 "CODE_SIGNING_ALLOWED=NO",
             ]
@@ -62,16 +62,40 @@ extension VerifierError: CustomStringConvertible {
 /// A failure is fatal and carries the tool output — the scaffolder
 /// never hands over a broken skeleton.
 public enum Verifier {
-    /// Steps for a shape. shared-library: build + test is the entire
-    /// finish line. local-only builds the generated Xcode project.
-    /// client-server runs both doors: the package (server boots + serves the
-    /// route headlessly under `swift test`) and the app (xcodegen + xcodebuild).
-    /// hybrid keeps the placeholder until Plan 4.
+    /// The xcodebuild destination for a config's verify door: macOS when the
+    /// project has it, else the first simulator platform the config asked for.
+    public static func buildDestination(for config: BootstrapConfig) -> String {
+        if config.platforms[.macOS] != nil { return "platform=macOS" }
+        if config.platforms[.iOS] != nil { return "generic/platform=iOS Simulator" }
+        if config.platforms[.tvOS] != nil { return "generic/platform=tvOS Simulator" }
+        if config.platforms[.visionOS] != nil { return "generic/platform=visionOS Simulator" }
+        return "platform=macOS"
+    }
+
+    /// Steps that PRODUCE part of the project. `xcodegen` writes the
+    /// `.xcodeproj` from the emitted `project.yml` — it is generation, not
+    /// verification, so it runs even under `--skip-verify` (a skipped
+    /// verification must never mean a missing deliverable; found live
+    /// 2026-08-22 when `--skip-verify` produced a project with no
+    /// `.xcodeproj`).
+    public static func generationSteps(for shape: ProjectShape) -> [VerifyStep] {
+        switch shape {
+        case .sharedLibrary: []
+        case .localOnly, .clientServer: [.xcodegenGenerate]
+        case .hybrid: []
+        }
+    }
+
+    /// Steps that CHECK the produced project. shared-library: build + test
+    /// is the entire finish line. local-only builds the generated Xcode
+    /// project. client-server checks both doors: the package (server boots +
+    /// serves the route headlessly under `swift test`) and the app
+    /// (xcodebuild). hybrid keeps the placeholder until Plan 4.
     public static func steps(for shape: ProjectShape) -> [VerifyStep] {
         switch shape {
         case .sharedLibrary: [.swiftBuild, .swiftTest]
-        case .localOnly: [.xcodegenGenerate, .xcodebuildBuild]
-        case .clientServer: [.swiftBuild, .swiftTest, .xcodegenGenerate, .xcodebuildBuild]
+        case .localOnly: [.xcodebuildBuild]
+        case .clientServer: [.swiftBuild, .swiftTest, .xcodebuildBuild]
         case .hybrid: [.swiftBuild, .swiftTest] // extended in Plan 4
         }
     }
@@ -93,6 +117,7 @@ public enum Verifier {
         projectDir: URL,
         steps: [VerifyStep],
         projectName: String? = nil,
+        destination: String = "platform=macOS",
         environment: [String: String]? = nil
     ) throws {
         // Overlay the caller's variables onto the inherited environment.
@@ -126,7 +151,7 @@ public enum Verifier {
             }
 
             let result = run(
-                command: step.command(projectName: projectName),
+                command: step.command(projectName: projectName, destination: destination),
                 in: projectDir,
                 environment: resolvedEnv
             )

@@ -52,7 +52,7 @@ extension Tag {
         try Emitter.emit(config: config, into: out)
         try Verifier.verify(
             projectDir: out,
-            steps: Verifier.steps(for: .localOnly),
+            steps: Verifier.generationSteps(for: .localOnly) + Verifier.steps(for: .localOnly),
             projectName: "PalettePress"
         )
     }
@@ -78,7 +78,7 @@ extension Tag {
         try Emitter.emit(config: config, into: out)
         try Verifier.verify(
             projectDir: out,
-            steps: Verifier.steps(for: .clientServer),
+            steps: Verifier.generationSteps(for: .clientServer) + Verifier.steps(for: .clientServer),
             projectName: "PalettePress"
         )
     }

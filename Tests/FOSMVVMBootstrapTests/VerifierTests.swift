@@ -46,12 +46,14 @@ import Testing
     }
 
     @Test func localOnlyStepsAreXcodeSteps() {
-        #expect(Verifier.steps(for: .localOnly) == [.xcodegenGenerate, .xcodebuildBuild])
+        #expect(Verifier.generationSteps(for: .localOnly) == [.xcodegenGenerate])
+        #expect(Verifier.steps(for: .localOnly) == [.xcodebuildBuild])
     }
 
     @Test func clientServerStepsAreTheFourDoorSteps() {
+        #expect(Verifier.generationSteps(for: .clientServer) == [.xcodegenGenerate])
         #expect(Verifier.steps(for: .clientServer)
-            == [.swiftBuild, .swiftTest, .xcodegenGenerate, .xcodebuildBuild])
+            == [.swiftBuild, .swiftTest, .xcodebuildBuild])
     }
 
     @Test func missingToolThrowsToolMissing() throws {

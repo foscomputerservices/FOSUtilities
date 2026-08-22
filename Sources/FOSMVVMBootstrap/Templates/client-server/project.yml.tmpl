@@ -9,18 +9,11 @@ options:
   # Nest the per-target synchronized folders under plain top-level `Sources` and
   # `Tests` groups (rather than flat `Sources/X`-named folders at the project root).
   createIntermediateGroups: true
-  deploymentTarget:
-    macOS: "{{MACOS_DEPLOYMENT}}"
+  deploymentTarget:{{DEPLOYMENT_TARGETS}}
   groupSortPosition: top
 
 settings:
   base:
-    # macOS is the only supported destination today (matches the witness
-    # projects). Without this pin, xcodegen ≥2.46 stamps
-    # "iphoneos iphonesimulator macosx", and running tests on the advertised
-    # iOS simulator hits the FOS type-identity trap (duplicate FOS copies via
-    # SPMLibraries + directly-linked FOSTesting) that macOS tolerates.
-    SUPPORTED_PLATFORMS: macosx
     SWIFT_VERSION: "6.0"
     SWIFT_STRICT_CONCURRENCY: complete
     BUILD_LIBRARY_FOR_DISTRIBUTION: NO
@@ -39,14 +32,14 @@ targets:
   # memory/spm-libraries-settled.md).
   SPMLibraries:
     type: framework
-    platform: macOS
+    supportedDestinations: {{FRAMEWORK_DESTINATIONS}}
     sources:
       - path: Sources/SPMLibraries
         type: syncedFolder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}.SPMLibraries
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: YES{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
     dependencies:
       - package: FOSUtilities
         product: FOSFoundation
@@ -61,14 +54,14 @@ targets:
   # server needs neither the display contract nor SwiftUI to set its version.
   {{PROJECT_NAME}}Foundation:
     type: framework
-    platform: macOS
+    supportedDestinations: {{FRAMEWORK_DESTINATIONS}}
     sources:
       - path: Sources/{{PROJECT_NAME}}Foundation
         type: syncedFolder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}.Foundation
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: YES{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
     dependencies:
       - target: SPMLibraries
         embed: false          # link only — the app embeds (single-embed rule)
@@ -76,21 +69,21 @@ targets:
   # Client-hosted ViewModels — their own framework, with bundled YAML.
   {{PROJECT_NAME}}ClientViewModels:
     type: framework
-    platform: macOS
+    supportedDestinations: {{FRAMEWORK_DESTINATIONS}}
     sources:
       - path: Sources/{{PROJECT_NAME}}ClientViewModels
         type: syncedFolder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}.ClientViewModels
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: YES{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
     dependencies:
       - target: SPMLibraries
         embed: false          # link only — the app embeds (single-embed rule)
 
   {{PROJECT_NAME}}:
     type: application
-    platform: macOS
+    supportedDestinations: {{SUPPORTED_DESTINATIONS}}
     sources:
       # The app's own sources. Info.plist + entitlements stay in the folder but
       # are excepted from the build phases (the synced-folder exception set);
@@ -113,7 +106,7 @@ targets:
         INFOPLIST_FILE: Sources/{{PROJECT_NAME}}/Info.plist
         CODE_SIGN_ENTITLEMENTS: Sources/{{PROJECT_NAME}}/{{PROJECT_NAME}}.entitlements
         MARKETING_VERSION: "0.1"
-        CURRENT_PROJECT_VERSION: 1
+        CURRENT_PROJECT_VERSION: 1{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
       configs:
         # Hardened runtime is Release-only. In Debug, Xcode signs SPM package
         # frameworks ad-hoc (TeamIdentifier=not set) and library validation
@@ -137,14 +130,14 @@ targets:
 
   {{PROJECT_NAME}}UnitTests:
     type: bundle.unit-test
-    platform: macOS
+    supportedDestinations: {{SUPPORTED_DESTINATIONS}}
     sources:
       - path: Tests/{{PROJECT_NAME}}UnitTests
         type: syncedFolder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}-unit-tests
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: YES{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/{{PROJECT_NAME}}.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/{{PROJECT_NAME}}"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
@@ -156,7 +149,7 @@ targets:
 
   {{PROJECT_NAME}}ClientViewModelsTests:
     type: bundle.unit-test
-    platform: macOS
+    supportedDestinations: {{SUPPORTED_DESTINATIONS}}
     sources:
       # CLIENT-hosted VMs only. Server-based VMs (BoardViewModel) are tested by
       # the Package.swift tests, which embody the server — the .xcodeproj is the
@@ -166,7 +159,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}-client-vm-tests
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: YES{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/{{PROJECT_NAME}}.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/{{PROJECT_NAME}}"
         BUNDLE_LOADER: "$(TEST_HOST)"
     dependencies:
@@ -183,7 +176,7 @@ targets:
 
   {{PROJECT_NAME}}UITests:
     type: bundle.ui-testing
-    platform: macOS
+    supportedDestinations: {{SUPPORTED_DESTINATIONS}}
     sources:
       # The test dir includes the `Resources` symlink → Sources/Resources: the
       # SERVER YAML rides into the harness so server-based VM stubs localize
@@ -201,7 +194,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}-ui-tests
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: YES{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
     dependencies:
       - target: {{PROJECT_NAME}}
       # AboutViewTests imports the client-hosted framework (its VM + StubOps); the
@@ -215,7 +208,7 @@ targets:
         product: FOSTesting
       - package: FOSUtilities
         product: FOSTestingUI
-
+{{WATCH_TARGET}}
 schemes:
   {{PROJECT_NAME}}:
     build:
@@ -234,3 +227,4 @@ schemes:
         - {{PROJECT_NAME}}UITests
     archive:
       config: Release
+{{WATCH_SCHEME}}

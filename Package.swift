@@ -284,6 +284,7 @@ let package = Package(
             name: "FOSMVVMBootstrapCLI",
             dependencies: [
                 "FOSMVVMBootstrap",
+                "FOSFoundation",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ))

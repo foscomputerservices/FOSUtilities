@@ -72,15 +72,15 @@ import Testing
         }
     }
 
-    @Test func clientServerRequiresMacOSPlatform() throws {
+    @Test func appShapesRequireAtLeastOneAppDestination() throws {
         let config = BootstrapConfig(
             projectName: "PalettePress",
             shape: .clientServer,
-            platforms: [.iOS: "17.0"],
+            platforms: [.watchOS: "10.0"],
             bundleIdRoot: "com.example.palettepress",
             teamId: "ABCDE12345"
         )
-        #expect(throws: BootstrapConfigError.missingPlatform(.macOS)) {
+        #expect(throws: BootstrapConfigError.noAppDestinations) {
             try config.validate()
         }
     }

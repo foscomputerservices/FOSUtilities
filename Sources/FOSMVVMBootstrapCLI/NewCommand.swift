@@ -8,35 +8,63 @@ struct New: ParsableCommand {
         abstract: "Scaffold a new FOSMVVM project from a config file."
     )
 
-    @Option(name: .shortAndLong, help: "Path to a BootstrapConfig JSON file.")
-    var config: String
+    @Option(name: .shortAndLong, help: "Path to a BootstrapConfig JSON file. Omit to answer a short interview instead.")
+    var config: String?
 
     @Option(name: .shortAndLong, help: "Output directory for the new project (must be empty or absent).")
     var output: String
 
-    @Flag(help: "Skip the build/test verification phase (CI of this repo only — never for real use).")
-    var skipVerify = false
+    @Flag(help: "After generating, build the project and run its tests (swift build / swift test / xcodebuild). CI verifies every release the same way; use this to prove the skeleton on THIS machine.")
+    var verify = false
+
+    @Flag(help: "Extra output, including the interview's equivalent --config JSON.")
+    var verbose = false
 
     func run() throws {
-        let configURL = URL(fileURLWithPath: config)
         let outputURL = URL(fileURLWithPath: output)
 
-        let bootstrapConfig = try JSONDecoder().decode(
-            BootstrapConfig.self,
-            from: Data(contentsOf: configURL)
-        )
+        let bootstrapConfig: BootstrapConfig
+        if let config {
+            bootstrapConfig = try JSONDecoder().decode(
+                BootstrapConfig.self,
+                from: Data(contentsOf: URL(fileURLWithPath: config))
+            )
+        } else {
+            bootstrapConfig = try Interview.conduct(outputDir: outputURL)
+            if verbose {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                if let json = try? String(data: encoder.encode(bootstrapConfig), encoding: .utf8) {
+                    print("\nEquivalent --config file (save to rerun without the interview):")
+                    print(json + "\n")
+                }
+            }
+        }
 
         print("Scaffolding \(bootstrapConfig.projectName) (\(bootstrapConfig.shape.rawValue)) …")
         let emitted = try Emitter.emit(config: bootstrapConfig, into: outputURL)
         print("Emitted \(emitted.count) files.")
 
-        if !skipVerify {
+        // Project generation (the .xcodeproj from project.yml) is part of the
+        // deliverable — it runs regardless of --skip-verify.
+        let generationSteps = Verifier.generationSteps(for: bootstrapConfig.shape)
+        if !generationSteps.isEmpty {
+            print("Generating Xcode project …")
+            try Verifier.verify(
+                projectDir: outputURL,
+                steps: generationSteps,
+                projectName: bootstrapConfig.projectName
+            )
+        }
+
+        if verify {
             let steps = Verifier.steps(for: bootstrapConfig.shape)
             print("Verifying (\(steps.map(\.rawValue).joined(separator: " / "))) …")
             try Verifier.verify(
                 projectDir: outputURL,
                 steps: steps,
-                projectName: bootstrapConfig.projectName
+                projectName: bootstrapConfig.projectName,
+                destination: Verifier.buildDestination(for: bootstrapConfig)
             )
             print("✅ Walking skeleton verified green.")
         }

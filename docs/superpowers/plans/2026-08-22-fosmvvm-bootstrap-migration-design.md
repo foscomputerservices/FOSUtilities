@@ -25,7 +25,7 @@ The decision under review is David's (2026-08-22): distribute the scaffolder thr
 
 ## 3. What the user sees
 
-**(a) Create a project** — README and DocC show one block, and it works from a bare clone:
+**(a) Create a project** — README and DocC show one block, and it works from a bare clone. RULED during execution (David, 2026-08-22): with no `--config`, `new` runs a short validated interview and echoes the equivalent config JSON — the file is the automation path, not the first-touch UX (a hand-authored file invites typo'd keys that decode silently).
 
 ```bash
 git clone https://github.com/foscomputerservices/FOSUtilities.git
@@ -38,7 +38,7 @@ EOF
 swift run fosmvvm-bootstrap new --config /tmp/myapp.json --output ~/MyApp
 ```
 
-Shapes: `localOnly`, `clientServer`, `sharedLibrary`. The generated project pins the FOSUtilities release the scaffolder shipped with (§6). A prebuilt-binary path (GitHub release artifact → optional Homebrew) is scoped to Plan 5, not this migration.
+Shapes: `localOnly`, `clientServer`, `sharedLibrary`. The generated project pins the FOSUtilities release the scaffolder shipped with (§6). RULED during execution (David, 2026-08-22): generation-time verification is opt-in via `--verify` — with §7's per-PR CI carrying the continuous proof, the doors' remaining value (this machine, this config, this dependency graph) does not justify minutes of every user's default run. The `.xcodeproj` is produced by generation itself, never by verification. A prebuilt-binary path (GitHub release artifact → optional Homebrew) is scoped to Plan 5, not this migration.
 
 **(b) Incorporate + diagnose** — `doctor` ships as an **SPM command plugin**, so a user whose package already depends on FOSUtilities runs, with zero installation:
 

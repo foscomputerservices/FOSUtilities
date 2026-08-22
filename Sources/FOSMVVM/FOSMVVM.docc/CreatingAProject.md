@@ -21,19 +21,18 @@ Three project shapes are supported:
 
 ## Generate
 
-Clone the package and run the scaffolder with a small JSON configuration:
+Clone the package and run the scaffolder. With no `--config`, a short interview collects everything it needs, validating each answer as it is given:
 
 ```bash
 git clone https://github.com/foscomputerservices/FOSUtilities.git
 cd FOSUtilities
+swift run fosmvvm-bootstrap new --output ~/MyApp
+```
 
-cat > /tmp/myapp.json <<'CONFIG'
-{ "projectName": "MyApp", "shape": "clientServer",
-  "platforms": { "macOS": "14.0" },
-  "bundleIdRoot": "com.example.myapp", "teamId": "YOURTEAMID" }
-CONFIG
+With `--verbose`, the interview also prints the equivalent `--config` JSON. Save it to rerun without the questions, or to script generation:
 
-swift run fosmvvm-bootstrap new --config /tmp/myapp.json --output ~/MyApp
+```bash
+swift run fosmvvm-bootstrap new --config myapp.json --output ~/MyApp
 ```
 
 Configuration fields:
@@ -44,15 +43,15 @@ Configuration fields:
 - `bundleIdRoot`: reverse-DNS root for bundle identifiers. App shapes only.
 - `teamId`: your Apple Development Team identifier. App shapes only.
 
-## What generation verifies
+## Verifying the generated project
 
-Generation does not stop at writing files. The scaffolder builds the generated project and runs its tests before declaring success: `swift build`, `swift test` (for `clientServer` this includes a real Fluent create-and-refresh round trip on an in-memory database), `xcodegen`, and an `xcodebuild` build of the app. A successful run ends with:
+Every release of the scaffolder is verified by CI: the generated projects are built and their test suites run, including the UI tests. To additionally prove the skeleton on your machine, pass `--verify` — the scaffolder then builds the generated project and runs its tests before declaring success: `swift build`, `swift test` (for `clientServer` this includes a real Fluent create-and-refresh round trip on an in-memory database), and an `xcodebuild` build of the app. A successful verified run ends with:
 
 ```
 ✅ Walking skeleton verified green
 ```
 
-followed by a short checklist of the few steps tooling cannot do for you, such as committing the new repository and confirming code signing.
+Either way, generation finishes with a short checklist of the few steps tooling cannot do for you, such as committing the new repository and confirming code signing.
 
 > Note: The generated project depends on the FOSUtilities release the scaffolder shipped with, using `from:`, so later releases arrive with a normal package update. Running the scaffolder from a checkout between releases pins the most recently stamped release.
 
