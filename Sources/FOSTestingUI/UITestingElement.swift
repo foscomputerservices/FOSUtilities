@@ -312,6 +312,61 @@ public extension XCUIApplication {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
+    // swiftformat:disable docComments
+    // An app-anchored coordinate that lands on `point` as element frames report it.
+    // Element frames are app-origin-relative on iOS (the app frame starts at zero) but
+    // SCREEN-relative on macOS, where the app's frame origin is nonzero — anchoring at
+    // the app origin and offsetting by raw frame coordinates applies that origin twice,
+    // and the synthesized gesture lands off-target, silently (measured: tap() dispatched,
+    // no failure raised, and the tapped control's action never fired, while a raw
+    // element click on the same control was green). Subtracting the app origin yields
+    // the same point on both platforms; on iOS the arithmetic is inert.
+    // swiftformat:enable docComments
+    private func appCoordinate(at point: CGPoint) -> XCUICoordinate {
+        // app.frame.origin is (0,0) on iOS and can be non-finite on macOS (measured:
+        // (inf, inf) on 27 beta) — only a finite, nonzero origin participates.
+        let origin = app.frame.origin
+        let dx = origin.x.isFinite ? point.x - origin.x : point.x
+        let dy = origin.y.isFinite ? point.y - origin.y : point.y
+        return app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: dx, dy: dy))
+    }
+
+    // swiftformat:disable docComments
+    // The platform's native pointer gesture. On macOS, tap() synthesizes an event that
+    // does not land (measured on 27 beta: a native tap() on the live, hittable, resolved
+    // control dispatched and the action never fired, while click() on the same control
+    // was green) — every native dispatch goes through the platform verb.
+    // swiftformat:enable docComments
+    private func nativeTap(_ element: XCUIElement) {
+        #if os(macOS)
+        element.click()
+        #else
+        element.tap()
+        #endif
+    }
+
+    // swiftformat:disable docComments
+    // Resolves a snapshot back to a live element by type and frame — the snapshot has
+    // geometry but no gestures, and on macOS a native element tap is the only dispatch
+    // that lands (coordinate-synthesized taps fire nothing there, measured on 27 beta).
+    // The frame tolerance absorbs sub-point rendering differences between the snapshot
+    // pass and the live query.
+    // swiftformat:enable docComments
+    private func liveElement(matching snapshot: XCUIElementSnapshot) -> XCUIElement? {
+        let candidates = app.descendants(matching: snapshot.elementType)
+        let frame = snapshot.frame
+        for index in 0..<min(candidates.count, 50) {
+            let candidate = candidates.element(boundBy: index)
+            guard candidate.exists else { continue }
+            let cf = candidate.frame
+            if abs(cf.midX - frame.midX) <= 1, abs(cf.midY - frame.midY) <= 1 {
+                return candidate
+            }
+        }
+        return nil
+    }
+
     /// Waits for the tagged view to become part of the view hierarchy
     ///
     /// ```swift
@@ -455,7 +510,6 @@ public extension XCUIApplication {
                 (abs(control.frame.midX - element.frame.midX) > 1 ||
                     abs(control.frame.midY - element.frame.midY) > 1)
         } ?? false
-
         if aimsElsewhere, let control {
             // Settle (temporal) before re-resolving to aim (spatial) — aiming from an
             // in-flight frame reintroduces the miss through the side door.
@@ -475,19 +529,32 @@ public extension XCUIApplication {
                 abs(target.frame.midY - element.frame.midY) <= 1
 
             if premiseGone, element.isHittable {
-                element.tap()
+                nativeTap(element)
                 return
             }
 
+            // The resolved control is a snapshot — geometry, no gestures — so prefer
+            // resolving it back to a LIVE element and tapping that natively. On macOS
+            // this is the only dispatch that lands: coordinate-synthesized taps —
+            // app-anchored and overlay-anchored alike — dispatch without failure and
+            // fire nothing (measured on 27 beta via the probe's composite row: "fired 0"
+            // both ways, while a native click on the same control was green). On iOS the
+            // native tap on the resolved control is equivalent to the aimed coordinate
+            // when hittable; when live resolution fails, fall back to the app-anchored
+            // dispatch iOS has always measured green (appCoordinate keeps it correct
+            // should element frames ever be screen-relative).
             let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
-            app.coordinate(withNormalizedOffset: .zero)
-                .withOffset(CGVector(dx: centre.x, dy: centre.y))
-                .tap()
+            let live = liveElement(matching: target)
+            if let live, live.isHittable {
+                nativeTap(live)
+            } else {
+                appCoordinate(at: centre).tap()
+            }
             return
         }
 
         if element.isHittable {
-            element.tap()
+            nativeTap(element)
         } else if isOnScreen(element) {
             // A not-hittable element is often one SwiftUI is still presenting, and a coordinate
             // computed from an in-flight frame taps where the element *was*. On timeout the tap
@@ -497,8 +564,9 @@ public extension XCUIApplication {
             _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
             element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         } else {
-            // Off screen: left to tap(), which reports it, rather than tapping nothing.
-            element.tap()
+            // Off screen: left to the native gesture, which reports it, rather than
+            // tapping nothing.
+            nativeTap(element)
         }
     }
 
@@ -641,12 +709,10 @@ public extension XCUIApplication {
                 _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
                 guard let focusTarget = taggedControl(hint: .textEntry) else { continue }
 
-                app.coordinate(withNormalizedOffset: .zero)
-                    .withOffset(CGVector(
-                        dx: focusTarget.frame.midX,
-                        dy: focusTarget.frame.midY
-                    ))
-                    .tap()
+                appCoordinate(at: CGPoint(
+                    x: focusTarget.frame.midX,
+                    y: focusTarget.frame.midY
+                )).tap()
             } else {
                 tap(file: file, line: line)
             }
@@ -701,8 +767,7 @@ public extension XCUIApplication {
                     let inset = min(20, target.frame.width / 4)
 
                     for x in [target.frame.minX + inset, target.frame.midX, target.frame.maxX - inset] {
-                        app.coordinate(withNormalizedOffset: .zero)
-                            .withOffset(CGVector(dx: x, dy: target.frame.midY))
+                        appCoordinate(at: CGPoint(x: x, y: target.frame.midY))
                             .doubleTap()
 
                         guard app.menuItems.firstMatch.waitForExistence(timeout: 1) else { continue }
@@ -854,12 +919,10 @@ private extension UITestingElement {
         let fromY = raisingTarget ? bottomY : topY
         let toY = raisingTarget ? topY : bottomY
 
-        app.coordinate(withNormalizedOffset: .zero)
-            .withOffset(CGVector(dx: band.midX, dy: fromY))
+        appCoordinate(at: CGPoint(x: band.midX, y: fromY))
             .press(
                 forDuration: 0.05,
-                thenDragTo: app.coordinate(withNormalizedOffset: .zero)
-                    .withOffset(CGVector(dx: band.midX, dy: toY))
+                thenDragTo: appCoordinate(at: CGPoint(x: band.midX, y: toY))
             )
         _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
     }
