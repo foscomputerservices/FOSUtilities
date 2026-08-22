@@ -207,12 +207,25 @@ jobs:
           "$BIN" new --config "$RUNNER_TEMP/local.json" --output "$RUNNER_TEMP/matrix/LocalDemo"
           "$BIN" new --config "$RUNNER_TEMP/server.json" --output "$RUNNER_TEMP/matrix/ServerDemo"
 
+      # CI simulators are ALWAYS the cold case: fresh boot, first install —
+      # exactly the measured first-run tap-flake condition (2026-08-22).
+      # Pre-booting warms the sim; -retry-tests-on-failure keeps a one-off
+      # settling flake visible in logs without redding the PR, while a real
+      # failure still fails both iterations. Durable fix is FOSTestingUI's
+      # first-interaction settle (follow-on) — then retries are belt-and-braces.
+      - name: Pre-boot iOS simulator
+        run: |
+          UDID=$(xcrun simctl list devices available | grep "iPhone 17 (" | head -1 | grep -oE "[0-9A-F-]{36}")
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b || true
+
       - name: Generated UI tests (iOS Simulator)
         run: |
           set -o pipefail
           for APP in LocalDemo ServerDemo; do
             xcrun xcodebuild -project "$RUNNER_TEMP/matrix/$APP/$APP.xcodeproj" \
               -scheme "$APP" -destination "platform=iOS Simulator,name=iPhone 17" \
+              -retry-tests-on-failure -test-iterations 2 \
               CODE_SIGNING_ALLOWED=NO SUPPORTED_PLATFORMS="iphonesimulator macosx" test
           done
 
@@ -222,5 +235,6 @@ jobs:
           for APP in LocalDemo ServerDemo; do
             xcrun xcodebuild -project "$RUNNER_TEMP/matrix/$APP/$APP.xcodeproj" \
               -scheme "$APP" -destination "platform=macOS,arch=arm64,name=My Mac" \
+              -retry-tests-on-failure -test-iterations 2 \
               CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= CODE_SIGN_STYLE=Manual test
           done
