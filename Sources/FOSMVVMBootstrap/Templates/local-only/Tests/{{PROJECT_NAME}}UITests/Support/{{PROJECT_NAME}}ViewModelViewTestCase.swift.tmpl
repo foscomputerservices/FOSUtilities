@@ -1,0 +1,48 @@
+// {{PROJECT_NAME}}ViewModelViewTestCase.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import FOSTestingUI
+import Foundation
+import ViewModels
+import XCTest
+
+// The INTERACTIVE base: for views that dispatch to ViewModelOperations —
+// `viewModelOperations()` is available to verify calls. Display-only views
+// subclass {{PROJECT_NAME}}ViewModelDisplayTestCase instead.
+//
+// Deliberately non-final: every view test suite subclasses this base.
+// swift lint:disable classes_should_be_final
+class {{PROJECT_NAME}}ViewModelViewTestCase<
+    VM: ViewModel,
+    VMO: ViewModelOperations
+>: ViewModelViewTestCase<VM, VMO>, @unchecked Sendable {
+    @MainActor func presentView(
+        configuration: TestConfiguration,
+        viewModel: VM = .stub(),
+        timeout: TimeInterval = 10
+    ) throws -> XCUIApplication {
+        try presentView(
+            testConfiguration: configuration.toJSON(),
+            viewModel: viewModel,
+            timeout: timeout
+        )
+    }
+
+    override static var runsForEachTargetApplicationUIConfiguration: Bool {
+        false
+    }
+
+    override func setUp() async throws {
+        try await super.setUp(
+            bundle: ViewModelsResourceAccess.localizationBundle,
+            resourceDirectoryName: "",
+            appBundleIdentifier: "{{BUNDLE_ID_ROOT}}"
+        )
+
+        continueAfterFailure = false // Stop the test and move on
+    }
+}
+
+// swift lint:enable classes_should_be_final

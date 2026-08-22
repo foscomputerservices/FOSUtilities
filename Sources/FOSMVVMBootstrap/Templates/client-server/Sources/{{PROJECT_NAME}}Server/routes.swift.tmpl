@@ -1,0 +1,19 @@
+// routes.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import FOSMVVMVapor
+import Vapor
+import {{PROJECT_NAME}}ViewModels
+
+func routes(_ app: Application) throws {
+    app.get { _ async in "It works!" }
+
+    // The served path is derived from the request type — never hand-mount a prefix
+    // (clients derive the same URL; a prefix desyncs them and is rejected at boot).
+    // Guard privileged routes by registering on a credential-middleware group instead
+    // of the public `app`. Swift picks the write door for CreateCardRequest by its
+    // CreateRequest + DataModelWriter constraints.
+    try app.register(request: BoardRequest.self, app: app)
+    try app.register(request: CreateCardRequest.self, app: app)
+}

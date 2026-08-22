@@ -1,0 +1,36 @@
+// BoardViewTests.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import FOSTestingUI
+import Foundation
+import SwiftUI
+import XCTest
+
+// The SERVER-BACKED operation example: tapping "Add Card" dispatches a
+// CreateCardRequest through the injected environment. Under test the operation is
+// the recording stub, so no server is involved: stubs record synchronously
+// regardless of signature, and the view repaints the transporter after the op
+// completes — the tap round-trip alone outlasts the Task hop, so the recorded
+// state is readable directly after tap() with no waiting.
+final class BoardViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<BoardViewModel, BoardViewModelStubOps>,
+                                   @unchecked Sendable {
+
+    func testShowBoardView() throws {
+        let app = try presentView()
+
+        XCTAssertTrue(app.uiTestingElement("boardTitle").exists)
+    }
+
+    func testAddCardDispatchesCreate() throws {
+        let app = try presentView()
+
+        app.uiTestingElement("addCardButton").tap()
+
+        let stubOps = try viewModelOperations()
+
+        XCTAssertTrue(stubOps.createCardCalled)
+        XCTAssertEqual(stubOps.createCardCalledWithTitle, "New Card")
+    }
+}

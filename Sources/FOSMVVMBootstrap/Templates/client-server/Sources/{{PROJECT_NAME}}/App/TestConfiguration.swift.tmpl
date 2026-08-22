@@ -1,0 +1,17 @@
+//  TestConfiguration.swift
+{{LICENSE_HEADER}}
+
+import Foundation
+
+/// Describes the various base configurations of ``AppState`` for testing purposes
+///
+/// > This file is symbolically linked into the UITests target to share the type between the UI tests and
+/// > the app.  Using an enum eliminates the "stringly-typed" nature of communication
+/// > between these points.
+///
+/// > The number of configuration should be kept to an absolute minimum.  If there is a tendency
+/// > for the number of configurations to grow, the Views and ViewModels should be re-evaluated
+/// > as most state should be in the ViewModel, not in AppState.
+enum TestConfiguration: Codable {
+    case none
+}

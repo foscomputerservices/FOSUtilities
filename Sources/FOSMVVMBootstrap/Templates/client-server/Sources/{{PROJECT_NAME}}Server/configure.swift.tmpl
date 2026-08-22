@@ -1,0 +1,66 @@
+// configure.swift
+{{LICENSE_HEADER}}
+import Fluent
+import FluentSQLiteDriver
+import FOSFoundation
+import FOSMVVM
+import FOSMVVMVapor
+import Foundation
+import Vapor
+import {{PROJECT_NAME}}Foundation
+import {{PROJECT_NAME}}ViewModels
+
+/// Boots the skeleton: SQLite (in-memory under `.testing`, a file otherwise), then
+/// the shared registrations, migrations, and a one-time demo seed.
+public func configure(_ app: Application) async throws {
+    switch app.environment {
+    case .testing:
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+    default:
+        app.databases.use(
+            .sqlite(.file(Environment.get("DB_PATH") ?? "db.sqlite")),
+            as: .sqlite
+        )
+    }
+
+    try registerServices(app)
+    try await app.autoMigrate()
+    try await seedIfEmpty(app.db)
+}
+
+/// Everything that isn't database/lifecycle — registered once, and reusable from a
+/// test (the FOSTestingVapor harness owns the DB + autoMigrate + boot). Containers
+/// register via register(_:migration:) (migration + identity descriptor in one call);
+/// plain records add their migration directly. The apex resolver answers "which
+/// container roots an apex read/create?" so a client can fetch the board without
+/// knowing its id. Register containers BEFORE the requests — the requests' load plans
+/// are derived and validated against the registry here.
+func registerServices(_ app: Application) throws {
+    SystemVersion.setCurrentVersion(.currentApplicationVersion)
+
+    try app.register(Board.self, migration: Board.Initial())
+    app.migrations.add(Card.Initial())
+
+    try app.useContainerAuthorizationProvider(SkeletonAuthProvider())
+
+    try app.useApexContainerResolver { req in
+        guard let board = try await Board.query(on: req.db).first() else {
+            throw Abort(.internalServerError, reason: "no Board seeded")
+        }
+        return try board.modelIdentity
+    }
+
+    try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "Resources")
+    try app.useLiveInvalidation(on: app)
+
+    try routes(app)
+}
+
+/// One demo Board with one Card, so the first fetch shows something and the apex
+/// resolver has a container to resolve.
+private func seedIfEmpty(_ db: any Database) async throws {
+    guard try await Board.query(on: db).first() == nil else { return }
+    let board = Board(name: "Demo Board")
+    try await board.save(on: db)
+    try await Card(title: "Welcome to FOSMVVM", ownerTag: nil, boardId: board.requireId()).save(on: db)
+}

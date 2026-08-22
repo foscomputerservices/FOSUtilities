@@ -1,0 +1,59 @@
+//
+{{LICENSE_HEADER}}
+//  AboutViewModelOperations.swift
+//  {{PROJECT_NAME}}
+//
+//  Created by David Hunt on 8/8/26.
+//
+
+import FOSFoundation
+import FOSMVVM
+import Foundation
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
+
+#if canImport(SwiftUI)
+
+// MARK: Operations
+//
+// LOCAL operations — they flip an on-device alert flag, no ServerRequest. Contrast
+// with BoardViewModelOperations, whose createCard(_:) dispatches a CreateCardRequest.
+
+public protocol AboutViewModelOperations: ViewModelOperations {
+    func presentDetails(output detailsStatus: Binding<Bool>)
+    func dismissDetails(output detailsStatus: Binding<Bool>)
+}
+
+public struct AboutViewModelOps: AboutViewModelOperations {
+    public init() {}
+
+    public func presentDetails(output detailsStatus: Binding<Bool>) {
+        detailsStatus.wrappedValue = true
+    }
+    public func dismissDetails(output detailsStatus: Binding<Bool>) {
+        detailsStatus.wrappedValue = false
+    }
+}
+
+public final class AboutViewModelStubOps: AboutViewModelOperations, @unchecked Sendable {
+    public private(set) var presentDetailsCalled: Bool
+    public private(set) var dismissDetailsCalled: Bool
+
+    public func presentDetails(output detailsStatus: Binding<Bool>) {
+        presentDetailsCalled = true
+        detailsStatus.wrappedValue = true
+    }
+
+    public func dismissDetails(output detailsStatus: Binding<Bool>) {
+        dismissDetailsCalled = true
+        detailsStatus.wrappedValue = false
+    }
+
+    public init() {
+        self.presentDetailsCalled = false
+        self.dismissDetailsCalled = false
+    }
+}
+
+#endif

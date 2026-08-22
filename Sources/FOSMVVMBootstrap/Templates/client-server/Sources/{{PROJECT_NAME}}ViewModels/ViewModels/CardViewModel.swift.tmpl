@@ -1,0 +1,30 @@
+// CardViewModel.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// One card on the board. `title` is data (from the server's Fluent record), not a
+/// localized UI string.
+///
+/// `ownerTag` is the correlation-seam key: the client-hosted `AboutViewModel` carries
+/// the same tag (`localOwnerTag`), and the *view* joins them to mark "my" cards — the
+/// server VM exposes the key, the view joins, and no single VM ever serves both doors.
+@ViewModel
+public struct CardViewModel {
+    public let title: String
+    public let ownerTag: String?
+
+    public var vmId = ViewModelId()
+
+    public init(title: String, ownerTag: String?) {
+        self.title = title
+        self.ownerTag = ownerTag
+    }
+}
+
+public extension CardViewModel {
+    static func stub() -> Self {
+        .init(title: "Sample Card", ownerTag: nil)
+    }
+}

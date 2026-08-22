@@ -1,0 +1,26 @@
+// SPMLibraries.swift
+{{LICENSE_HEADER}}
+import Foundation
+
+// ### SPMLibraries — SPM Dependencies
+//
+// It is required that ALL external SPM products are linked into THIS
+// framework and NOT directly into any other target of the project.
+//
+// Linking an SPM library statically into multiple targets compiles a
+// separate copy of its types into each target. Swift's mangled type
+// name carries the linking context, so the "same" type has a different
+// runtime identity per target: TypeA != TypeA. `is` / `as?` / `==` /
+// `===` fail across target boundaries, at runtime, far from the cause.
+// This is a generic Xcode+SPM packaging bug — nothing to do with FOS —
+// but FOS internals rely heavily on comparing types (e.g.
+// FOSMVVM.localizingEncoder's `value as? (any ViewModel)`).
+//
+// One umbrella dynamic framework = one canonical copy = one shared
+// type identity everywhere. See memory/spm-libraries-settled.md.
+//
+// Carve-out (ruled 2026-08-19): FOS testing products (FOSTesting,
+// FOSTestingUI) stay OUT of this umbrella — it embeds in the shipping
+// app, and testing frameworks must not ride along. Test targets link
+// them directly; their testing types are never shared across targets,
+// so the type-identity rule does not apply to them.

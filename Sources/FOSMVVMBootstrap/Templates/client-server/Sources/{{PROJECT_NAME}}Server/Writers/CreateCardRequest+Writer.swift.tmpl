@@ -1,0 +1,25 @@
+// CreateCardRequest+Writer.swift
+{{LICENSE_HEADER}}
+import Fluent
+import FOSFoundation
+import FOSMVVM
+import FOSMVVMVapor
+import Foundation
+import {{PROJECT_NAME}}ViewModels
+
+// Server-side write seam. `apply` is field-assignment ONLY — it cannot touch the
+// database. The framework owns everything else: it instantiates a fresh Card, calls
+// apply, sets the container foreign key from the apex-resolved Board, saves, and
+// re-serves BoardViewModel's factory. The committed save auto-emits live invalidation,
+// so every open Board client re-fetches and the new card appears.
+extension CreateCardBody: DataModelWriter {
+    // Apex-rooted create (the root container IS the create scope; create takes no
+    // `via:`). `public` because CreateCardBody is public and these are public
+    // protocol requirements referencing the public `Card`.
+    public static let candidates = LoadRequirement.create(Card.self, in: .newRoot(.apex))
+
+    public func apply(to card: Card) throws {
+        card.title = title
+        card.ownerTag = ownerTag
+    }
+}

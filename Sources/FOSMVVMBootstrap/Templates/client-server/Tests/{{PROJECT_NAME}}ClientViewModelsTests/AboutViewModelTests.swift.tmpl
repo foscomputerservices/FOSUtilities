@@ -1,0 +1,26 @@
+// AboutViewModelTests.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import FOSTesting
+import Foundation
+import Testing
+import {{PROJECT_NAME}}ClientViewModels
+
+@Suite("AboutViewModel")
+struct AboutViewModelTests: LocalizableTestCase {
+    let locStore: LocalizationStore
+
+    @Test func viewModelTests() throws {
+        try expectFullViewModelTests(AboutViewModel.self)
+    }
+
+    init() throws {
+        // "" — Xcode's CopyBundle flattens the framework's grouped resources to the
+        // bundle root, so the client-hosted YAML loads from the root, not "ViewModels".
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: {{PROJECT_NAME}}ClientViewModels.localizationBundle,
+            resourceDirectoryName: ""
+        )
+    }
+}

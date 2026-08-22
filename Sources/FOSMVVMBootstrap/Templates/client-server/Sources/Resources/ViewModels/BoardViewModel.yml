@@ -1,0 +1,15 @@
+en:
+  BoardViewModel:
+    title: "Demo Board"
+    addCardButtonTitle: "Add Card"
+    errorTitle: "An Error Occurred"
+    errorMessage: "The operation failed: %{error}"
+    dismissButtonLabel: "OK"
+
+es:
+  BoardViewModel:
+    title: "Tablero de Demostración"
+    addCardButtonTitle: "Agregar Tarjeta"
+    errorTitle: "Ocurrió un Error"
+    errorMessage: "La operación falló: %{error}"
+    dismissButtonLabel: "Aceptar"

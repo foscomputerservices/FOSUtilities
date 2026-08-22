@@ -1,0 +1,27 @@
+// BoardRequest.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// Fetches the board live. `EmptyQuery`: the server roots the read at its apex
+/// container (see `useApexContainerResolver` in the server's `configure`), so the
+/// client needs no board identity to start.
+public final class BoardRequest: ViewModelRequest, @unchecked Sendable {
+    public typealias Query = EmptyQuery
+    public typealias ResponseError = EmptyError
+
+    public let id: String
+    public var responseBody: BoardViewModel?
+
+    public init(
+        query: EmptyQuery? = nil,
+        sort: EmptySort? = nil,
+        fragment: EmptyFragment? = nil,
+        requestBody: EmptyBody? = nil,
+        responseBody: BoardViewModel? = nil
+    ) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}

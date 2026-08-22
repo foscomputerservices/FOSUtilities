@@ -1,0 +1,39 @@
+// swift-tools-version: 6.0
+{{LICENSE_HEADER}}
+import PackageDescription
+
+let package = Package(
+    name: "{{PROJECT_NAME}}",
+    platforms: [
+        {{PLATFORMS}}
+    ],
+    products: [
+        .library(
+            name: "{{PROJECT_NAME}}ViewModels",
+            targets: ["{{PROJECT_NAME}}ViewModels"]
+        )
+    ],
+    dependencies: [
+        .package(url: "https://github.com/foscomputerservices/FOSUtilities.git", from: "{{FOS_VERSION}}")
+    ],
+    targets: [
+        .target(
+            name: "{{PROJECT_NAME}}ViewModels",
+            dependencies: [
+                .product(name: "FOSFoundation", package: "FOSUtilities"),
+                .product(name: "FOSMVVM", package: "FOSUtilities")
+            ],
+            resources: [
+                .copy("Resources/Localizations")
+            ]
+        ),
+        .testTarget(
+            name: "{{PROJECT_NAME}}ViewModelsTests",
+            dependencies: [
+                "{{PROJECT_NAME}}ViewModels",
+                .product(name: "FOSTesting", package: "FOSUtilities")
+            ]
+        )
+    ],
+    swiftLanguageModes: [.v6]
+)

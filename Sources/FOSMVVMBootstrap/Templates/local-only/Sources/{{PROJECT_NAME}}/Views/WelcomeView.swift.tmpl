@@ -1,0 +1,70 @@
+// WelcomeView.swift
+{{LICENSE_HEADER}}
+
+import FOSMVVM
+import SwiftUI
+import ViewModels
+
+struct WelcomeView: ViewModelView {
+    @State private var isWelcomeAlertVisible: Bool = false
+
+    private let viewModel: WelcomeViewModel
+    private let operations: WelcomeViewModelOperations
+
+    #if DEBUG
+    @State private var repaintToggle = false
+    #endif
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(viewModel.welcomeTitle)
+                .font(.largeTitle)
+                .uiTestingIdentifier("welcomeTitle")
+            Text(viewModel.welcomeMessage)
+                .uiTestingIdentifier("welcomeMessage")
+
+            Button(viewModel.welcomeTitle, action: presentWelcomeAlert)
+                .uiTestingIdentifier("presentWelcomeAlertButton")
+        }
+        .alert(viewModel.welcomeTitle, isPresented: $isWelcomeAlertVisible) {
+            // A plain button (no `role: .confirm`) — `.confirm` is macOS 26.0-only,
+            // and the skeleton targets the FOS floor. Add the role once you raise
+            // the deployment target.
+            Button(action: dismissWelcomeAlert) {
+                Text(viewModel.okButtonTitle)
+                    .uiTestingIdentifier("dismissWelcomeAlertButton")
+            }
+        }
+        .padding()
+        #if DEBUG
+            .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
+        #endif
+    }
+
+    init(viewModel: WelcomeViewModel) {
+        self.viewModel = viewModel
+        self.operations = viewModel.operations
+    }
+}
+
+private extension WelcomeView {
+    private func presentWelcomeAlert() {
+        defer { toggleRepaint() }
+        operations.presentWelcome(output: $isWelcomeAlertVisible)
+    }
+
+    private func dismissWelcomeAlert() {
+        defer { toggleRepaint() }
+        operations.dismissWelcome(output: $isWelcomeAlertVisible)
+    }
+
+    private func toggleRepaint() {
+        #if DEBUG
+        repaintToggle.toggle()
+        #endif
+    }
+}
+
+#Preview {
+    WelcomeView.previewHost()
+}

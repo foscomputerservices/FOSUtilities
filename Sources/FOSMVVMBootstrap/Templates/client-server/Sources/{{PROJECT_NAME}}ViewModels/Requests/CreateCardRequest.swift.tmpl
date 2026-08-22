@@ -1,0 +1,61 @@
+// CreateCardRequest.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// Adds a card to the board. `EmptyQuery`: the create roots at the apex container
+/// (the server's apex resolver), so no board identity is threaded from the client.
+/// The `RequestBody`'s `DataModelWriter` conformance lives server-side; on commit the
+/// board's live clients auto-refresh and the new card appears.
+public final class CreateCardRequest: CreateRequest, @unchecked Sendable {
+    public typealias Query = EmptyQuery
+    public typealias RequestBody = CreateCardBody
+    public typealias Fragment = EmptyFragment
+    public typealias ResponseError = EmptyError
+    public typealias ResponseBody = BoardViewModel
+
+    public let id: String
+    public let requestBody: CreateCardBody?
+    public var responseBody: BoardViewModel?
+
+    public init(
+        query: EmptyQuery?,
+        sort: EmptySort?,
+        fragment: EmptyFragment?,
+        requestBody: CreateCardBody?,
+        responseBody: BoardViewModel?
+    ) {
+        self.id = .random(length: 10)
+        self.requestBody = requestBody
+        self.responseBody = responseBody
+    }
+
+    public static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+/// A validated per-request body — never `EmptyBody` for a write.
+public struct CreateCardBody: ServerRequestBody, ValidatableModel {
+    public var title: String
+    public var ownerTag: String?
+
+    public init(title: String, ownerTag: String? = nil) {
+        self.title = title
+        self.ownerTag = ownerTag
+    }
+
+    public func validate(
+        fields _: [any FormFieldBase]?,
+        validations: FOSMVVM.Validations
+    ) -> FOSMVVM.ValidationResult.Status? {
+        guard !title.isEmpty else {
+            validations.validations.append(
+                .init(status: .error, fieldId: .init(id: "title"), message: .constant("title must not be empty"))
+            )
+            return .error
+        }
+        return nil
+    }
+}

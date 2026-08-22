@@ -1,0 +1,41 @@
+// Board.swift
+{{LICENSE_HEADER}}
+import Fluent
+import FluentKit
+import FOSFoundation
+import FOSMVVM
+import FOSMVVMVapor
+import Foundation
+import Vapor
+
+/// The apex container — one Board holds many Cards. Apex-rooted reads/creates
+/// resolve their root here (see `useApexContainerResolver` in configure). A
+/// container declares BOTH `containedRecordTypes` and `containment`; boot rejects
+/// any drift between them.
+///
+/// `public` because `Card` (its record) is surfaced through a public write body's
+/// `LoadRequirement<Card>`, which forces `Card` — and this container — public.
+public final class Board: ContainerDataModel, @unchecked Sendable {
+    public static let schema = "boards"
+
+    public static var containedRecordTypes: [any FOSMVVM.Model.Type] {
+        [Card.self]
+    }
+
+    public static var containment: [ContainmentRelation] {
+        [.children(\Board.$cards)]
+    }
+
+    @ID(key: .id) public var id: UUID?
+    @Field(key: "name") public var name: String
+    @Children(for: \.$board) public var cards: [Card]
+
+    public init() {}
+    public init(name: String) {
+        self.name = name
+    }
+
+    public func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
+        nil
+    }
+}
