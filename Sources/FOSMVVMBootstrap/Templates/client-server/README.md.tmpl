@@ -1,0 +1,56 @@
+# {{PROJECT_NAME}}
+
+A **client-server** FOSMVVM project (the full-featured shape: two doors, a live
+server-fetched screen backed by Fluent, and a client-hosted screen).
+
+## Shape
+
+**Root SPM package** (`Package.swift`):
+- **`{{PROJECT_NAME}}ViewModels`** — the shared contract (ViewModels + requests).
+  FOS only, **no Vapor/Fluent, display-agnostic**. The app source-includes this
+  same folder; a future renderer (Leaf/Ignite/React) would link this product.
+- **`{{PROJECT_NAME}}Server`** — a Vapor executable. Fluent (SQLite), the
+  `Board`/`Card` models, the server-side projection + write seam, server-hosted
+  localization, and live invalidation.
+
+**App project** (`project.yml` → `{{PROJECT_NAME}}.xcodeproj`):
+- **`SPMLibraries`** — the umbrella framework; FOS enters through it **once**, so
+  types have one identity across the app and its tests. Nothing else links FOS
+  directly.
+- **`{{PROJECT_NAME}}ClientViewModels`** — the client-hosted door: `.clientHostedFactory`
+  ViewModels with their own bundled localization (`Bundle(for:)`).
+- **`{{PROJECT_NAME}}`** — the SwiftUI app. Links + embeds the umbrella + the
+  client framework; **source-includes** the shared contract.
+
+## The two doors
+
+- **Server-fetched (live + writable):** `BoardViewModel` is `@ViewModel(options: [.live])`;
+  the server projects it from Fluent `Card` records. `CreateCardRequest` adds a card
+  (`DataModelWriter`) and the framework **auto-refreshes** every open client — no
+  manual invalidation. The read/create root at the server's apex container
+  (`useApexContainerResolver`), so the client needs no board id.
+- **Client-hosted:** `AboutViewModel` (no server round-trip); its `@LocalizedString`s
+  resolve on-device from `{{PROJECT_NAME}}ClientViewModels`'s bundle.
+- **Correlation seam:** `CardViewModel.ownerTag` (server) and `AboutViewModel.localOwnerTag`
+  (client) share a key; the **view** joins them (`isMine(card:about:)`).
+
+## Verify
+
+- **Server (headless):** `swift build` then `swift test` — boots Fluent on
+  SQLite-in-memory, creates a card through the real pipeline, asserts the refreshed
+  board. No database server, no simulator.
+- **App:** `swift run {{PROJECT_NAME}}Server` (boots on `http://localhost:8080`),
+  then open `{{PROJECT_NAME}}.xcodeproj` and run.
+
+## Extending
+
+- Add screens with the `fosmvvm-viewmodel-generator`,
+  `fosmvvm-serverrequest-generator`, `fosmvvm-fluent-datamodel-generator`, and
+  `fosmvvm-swiftui-view-generator` skills.
+- Additional **display technologies** attach as new targets depending on
+  `{{PROJECT_NAME}}ViewModels` (the contract is display-agnostic) — see the
+  `fosmvvm-leaf-view-generator` / `fosmvvm-react-view-generator` skills.
+- Replace the grant-all `SkeletonAuthProvider` with a credential-scoped provider
+  behind a middleware group.
+
+Read `CLAUDE.md` and `memory/` — the settled doctrine ships with the project.

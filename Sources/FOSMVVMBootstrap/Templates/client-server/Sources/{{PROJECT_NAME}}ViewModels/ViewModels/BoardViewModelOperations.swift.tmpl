@@ -1,0 +1,57 @@
+//
+{{LICENSE_HEADER}}
+//  BoardViewModelOperations.swift
+//  {{PROJECT_NAME}}
+//
+//  Created by David Hunt on 8/8/26.
+//
+
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+#if canImport(SwiftUI)
+
+// MARK: Operations
+//
+// SERVER-BACKED operations — the live implementation dispatches a ServerRequest and
+// the `async throws` is genuine (it awaits network I/O and can fail). Contrast
+// AboutViewModelOperations, whose operations are purely local.
+//
+// The MVVMEnvironment is INJECTED (the View supplies it from @Environment) rather
+// than reached for as a global — a singleton would break the DIP the whole stack
+// depends on, and testability with it.
+
+public protocol BoardViewModelOperations: ViewModelOperations {
+    func createCard(title: String, mvvmEnv: MVVMEnvironment) async throws
+}
+
+public struct BoardViewModelOps: BoardViewModelOperations {
+    public init() {}
+
+    public func createCard(title: String, mvvmEnv: MVVMEnvironment) async throws {
+        let request = CreateCardRequest(
+            query: nil,
+            sort: nil,
+            fragment: nil,
+            requestBody: CreateCardBody(title: title),
+            responseBody: nil
+        )
+        // POST the create. BoardViewModel is [.live], so once the write commits the
+        // board re-fetches itself in place — there is no response to consume here.
+        try await request.processRequest(mvvmEnv: mvvmEnv)
+    }
+}
+
+public final class BoardViewModelStubOps: BoardViewModelOperations, @unchecked Sendable {
+    public var createCardCalled: Bool { createCardCalledWithTitle != nil }
+    public private(set) var createCardCalledWithTitle: String?
+
+    public init() {}
+
+    public func createCard(title: String, mvvmEnv _: MVVMEnvironment) async throws {
+        createCardCalledWithTitle = title
+    }
+}
+
+#endif

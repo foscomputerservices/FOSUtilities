@@ -1,0 +1,71 @@
+// AboutView.swift
+{{LICENSE_HEADER}}
+import FOSMVVM
+import SwiftUI
+import {{PROJECT_NAME}}ClientViewModels
+
+struct AboutView: ViewModelView {
+    @State private var isDetailsAlertVisible: Bool = false
+
+    private let viewModel: AboutViewModel
+    private let operations: AboutViewModelOperations
+
+    #if DEBUG
+    @State private var repaintToggle = false
+    #endif
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(viewModel.appName)
+                .font(.largeTitle)
+                .uiTestingIdentifier("appName")
+            Text(viewModel.tagline)
+                .uiTestingIdentifier("tagline")
+
+            Button(viewModel.detailsButtonTitle, action: presentDetails)
+                .uiTestingIdentifier("presentDetailsButton")
+        }
+        .alert(viewModel.appName, isPresented: $isDetailsAlertVisible) {
+            // A plain button (no `role: .confirm`) — `.confirm` is macOS 26.0-only,
+            // and the skeleton targets the FOS floor. Add the role once you raise
+            // the deployment target.
+            Button(action: dismissDetails) {
+                Text(viewModel.okButtonTitle)
+                    .uiTestingIdentifier("dismissDetailsButton")
+            }
+        } message: {
+            Text(viewModel.tagline)
+        }
+        .padding()
+        #if DEBUG
+            .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
+        #endif
+    }
+
+    init(viewModel: AboutViewModel) {
+        self.viewModel = viewModel
+        self.operations = viewModel.operations
+    }
+}
+
+private extension AboutView {
+    private func presentDetails() {
+        defer { toggleRepaint() }
+        operations.presentDetails(output: $isDetailsAlertVisible)
+    }
+
+    private func dismissDetails() {
+        defer { toggleRepaint() }
+        operations.dismissDetails(output: $isDetailsAlertVisible)
+    }
+
+    private func toggleRepaint() {
+        #if DEBUG
+        repaintToggle.toggle()
+        #endif
+    }
+}
+
+#Preview {
+    AboutView.previewHost()
+}

@@ -1,0 +1,37 @@
+// SystemVersion+App.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import Foundation
+
+public extension SystemVersion {
+    /// This application's version — pass it to `MVVMEnvironment(currentVersion:)`.
+    ///
+    ///     MVVMEnvironment(currentVersion: .currentApplicationVersion, appBundle: .main, ...)
+    ///
+    /// `major`/`minor` are pinned here in code (bump `v0_1_0` when you cut a release);
+    /// the patch is the build number, delivered through the bundle's `CFBundleVersion`
+    /// (set `CURRENT_PROJECT_VERSION` in the project, or from CI). In DEBUG this asserts
+    /// the bundle's `CFBundleShortVersionString` (from `MARKETING_VERSION`) equals
+    /// `major.minor`, so build settings and code can never silently drift.
+    static let currentApplicationVersion: SystemVersion = {
+        let codeVersion = Self.v0_1_0
+        let patch = Int(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0") ?? 0
+
+        #if DEBUG
+        if let marketingVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            let expected = "\(codeVersion.major).\(codeVersion.minor)"
+            guard marketingVersion == expected else {
+                fatalError(
+                    "MARKETING_VERSION (\(marketingVersion)) != SystemVersion.currentApplicationVersion (\(expected)). Update the project's Version, or v0_1_0 here."
+                )
+            }
+        }
+        #endif
+
+        return .init(major: codeVersion.major, minor: codeVersion.minor, patch: patch)
+    }()
+
+    /// The pinned `major.minor` for this release line. Add the next line's constant
+    /// (`v0_2_0`, `v1_0_0`, …) when you bump, and point `currentApplicationVersion` at it.
+    static let v0_1_0: SystemVersion = .init(major: 0, minor: 1)
+}

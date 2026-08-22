@@ -1,0 +1,28 @@
+// WelcomeViewModelTests.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import FOSTesting
+import Foundation
+import Testing
+import ViewModels
+
+@Suite("WelcomeViewModel")
+struct WelcomeViewModelTests: LocalizableTestCase {
+    let locStore: LocalizationStore
+
+    @Test func viewModelTests() throws {
+        try expectFullViewModelTests(WelcomeViewModel.self)
+    }
+
+    init() throws {
+        // "" — Xcode flattens a framework's grouped resources to the
+        // bundle root; the default "Resources" misses on iOS. Empty
+        // string recurses from the root and is correct on BOTH platforms.
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: ViewModelsResourceAccess.localizationBundle,
+            resourceDirectoryName: ""
+        )
+    }
+}

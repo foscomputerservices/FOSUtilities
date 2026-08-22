@@ -1,0 +1,23 @@
+// Card+Schema.swift
+{{LICENSE_HEADER}}
+import Fluent
+import Foundation
+
+extension Card {
+    struct Initial: AsyncMigration {
+        let name = "cards-initial"
+
+        func prepare(on database: any Database) async throws {
+            try await database.schema(Card.schema)
+                .id()
+                .field("title", .string, .required)
+                .field("owner_tag", .string)
+                .field("board_id", .uuid, .required, .references(Board.schema, "id"))
+                .create()
+        }
+
+        func revert(on database: any Database) async throws {
+            try await database.schema(Card.schema).delete()
+        }
+    }
+}

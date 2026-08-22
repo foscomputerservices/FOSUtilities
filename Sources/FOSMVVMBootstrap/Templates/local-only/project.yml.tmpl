@@ -1,0 +1,169 @@
+name: {{PROJECT_NAME}}
+
+options:
+  # Xcode 16 synchronized folders (PBXFileSystemSynchronizedRootGroup): the
+  # .xcodeproj auto-syncs with the filesystem, so adding/removing files needs no
+  # regeneration and the pbxproj does not churn in source control. project.yml
+  # stays the source of truth — regenerate any time.
+  projectFormat: xcode16_0
+  # Nest the per-target synchronized folders under plain top-level `Sources` and
+  # `Tests` groups (rather than flat `Sources/X`-named folders at the project root).
+  createIntermediateGroups: true
+  deploymentTarget:
+    macOS: "{{MACOS_DEPLOYMENT}}"
+  groupSortPosition: top
+
+settings:
+  base:
+    # macOS is the only supported destination today (matches the witness
+    # projects). Without this pin, xcodegen ≥2.46 stamps
+    # "iphoneos iphonesimulator macosx", and running tests on the advertised
+    # iOS simulator hits the FOS type-identity trap (duplicate FOS copies via
+    # SPMLibraries + directly-linked FOSTesting) that macOS tolerates.
+    SUPPORTED_PLATFORMS: macosx
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    BUILD_LIBRARY_FOR_DISTRIBUTION: NO
+    DEVELOPMENT_TEAM: {{TEAM_ID}}
+    # "Automatically manage signing" — without this, Xcode defaults to Manual
+    # and ⌘U can't sign/launch the app or its test host.
+    CODE_SIGN_STYLE: Automatic
+
+packages:
+  FOSUtilities:
+    url: https://github.com/foscomputerservices/FOSUtilities.git
+    from: "{{FOS_VERSION}}"
+
+targets:
+  # The ONE doorway for external SPM products (type identity — see
+  # memory/spm-libraries-settled.md).
+  SPMLibraries:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/SPMLibraries
+        type: syncedFolder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}.SPMLibraries
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - package: FOSUtilities
+        product: FOSFoundation
+      - package: FOSUtilities
+        product: FOSMVVM
+
+  # Shared contract module — client-hosted ViewModels + their YAML.
+  ViewModels:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/ViewModels
+        type: syncedFolder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}.ViewModels
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: SPMLibraries
+        embed: false          # link only — the app embeds (single-embed rule)
+
+  {{PROJECT_NAME}}:
+    type: application
+    platform: macOS
+    sources:
+      # Info.plist + entitlements stay in the folder but are excepted from the
+      # build phases (the synced-folder exception set); they are referenced by
+      # INFOPLIST_FILE / CODE_SIGN_ENTITLEMENTS below.
+      - path: Sources/{{PROJECT_NAME}}
+        type: syncedFolder
+        excludes:
+          - "Info.plist"
+          - "{{PROJECT_NAME}}.entitlements"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}
+        PRODUCT_NAME: {{PROJECT_NAME}}
+        INFOPLIST_FILE: Sources/{{PROJECT_NAME}}/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/{{PROJECT_NAME}}/{{PROJECT_NAME}}.entitlements
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: 1
+      configs:
+        # Hardened runtime is Release-only. In Debug, Xcode signs SPM package
+        # frameworks ad-hoc (TeamIdentifier=not set) and library validation
+        # refuses to map them into a hardened-runtime process ("different Team
+        # IDs") — the app dies in dyld before main(), which kills macOS UI
+        # testing. Release keeps it for notarization.
+        Debug:
+          ENABLE_HARDENED_RUNTIME: NO
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
+    dependencies:
+      - target: SPMLibraries
+        embed: true
+        codeSign: true
+      - target: ViewModels
+        embed: true
+        codeSign: true
+
+  {{PROJECT_NAME}}UnitTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/{{PROJECT_NAME}}UnitTests
+        type: syncedFolder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}-unit-tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/{{PROJECT_NAME}}.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/{{PROJECT_NAME}}"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+    dependencies:
+      - target: {{PROJECT_NAME}}
+      - target: SPMLibraries
+        embed: false
+      - target: ViewModels
+        embed: false
+      - package: FOSUtilities
+        product: FOSTesting
+
+  {{PROJECT_NAME}}UITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: Tests/{{PROJECT_NAME}}UITests
+        type: syncedFolder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {{BUNDLE_ID_ROOT}}-ui-tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: {{PROJECT_NAME}}
+      # The View UITests import ViewModels (the VM + its StubOps) and the shared
+      # LocalizableTestCase+ imports FOSTesting; SPMLibraries is the FOS type-identity
+      # doorway (FOSMVVM/FOSFoundation). Mirror the UnitTests dependency set.
+      - target: SPMLibraries
+        embed: false
+      - target: ViewModels
+        embed: false
+      - package: FOSUtilities
+        product: FOSTesting
+      - package: FOSUtilities
+        product: FOSTestingUI
+
+schemes:
+  {{PROJECT_NAME}}:
+    build:
+      targets:
+        {{PROJECT_NAME}}: all
+        {{PROJECT_NAME}}UnitTests: [test]
+        {{PROJECT_NAME}}UITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - {{PROJECT_NAME}}UnitTests
+        - {{PROJECT_NAME}}UITests
+    archive:
+      config: Release

@@ -58,6 +58,17 @@ let package = Package(
         ))
         #endif
 
+        #if os(macOS)
+        // The project scaffolder (see docs/superpowers/plans/
+        // 2026-08-22-fosmvvm-bootstrap-migration-design.md). macOS-only tooling:
+        // it shells out to xcodegen/xcodebuild, so the manifest gates it to Mac
+        // hosts rather than guarding call sites in code.
+        result.append(.executable(
+            name: "fosmvvm-bootstrap",
+            targets: ["FOSMVVMBootstrapCLI"]
+        ))
+        #endif
+
         return result
     }(),
     dependencies: {
@@ -86,6 +97,10 @@ let package = Package(
         result.append(.package(url: "https://github.com/vapor/fluent.git", .upToNextMajor(from: "4.12.0")))
         result.append(.package(url: "https://github.com/vapor/fluent-sqlite-driver.git", .upToNextMajor(from: "4.8.0")))
         result.append(.package(url: "https://github.com/vapor/leaf-kit.git", .upToNextMajor(from: "1.11.0")))
+        #endif
+
+        #if os(macOS)
+        result.append(.package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMajor(from: "1.3.0")))
         #endif
 
         return result
@@ -255,6 +270,26 @@ let package = Package(
             resources: [
                 .copy("TestYAML")
             ]
+        ))
+        #endif
+
+        #if os(macOS)
+        result.append(.target(
+            name: "FOSMVVMBootstrap",
+            resources: [
+                .copy("Templates")
+            ]
+        ))
+        result.append(.executableTarget(
+            name: "FOSMVVMBootstrapCLI",
+            dependencies: [
+                "FOSMVVMBootstrap",
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ]
+        ))
+        result.append(.testTarget(
+            name: "FOSMVVMBootstrapTests",
+            dependencies: ["FOSMVVMBootstrap"]
         ))
         #endif
 

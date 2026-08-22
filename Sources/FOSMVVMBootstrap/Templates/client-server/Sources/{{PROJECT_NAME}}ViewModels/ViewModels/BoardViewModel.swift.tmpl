@@ -1,0 +1,67 @@
+// BoardViewModel.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// The demo screen: a board and its cards, served live from the server.
+///
+/// `options: [.live]` keeps the client subscribed after the first fetch — when a
+/// card is created (or any registered container model commits), connected clients
+/// are nudged to re-fetch. The server-side projection + Fluent factory live in the
+/// `{{PROJECT_NAME}}Server` target (DIP: this contract stays Vapor/Fluent-free).
+@ViewModel(options: [.live])
+public struct BoardViewModel: RequestableViewModel {
+    public typealias Request = BoardRequest
+
+    @LocalizedString public var title
+    @LocalizedString public var addCardButtonTitle
+
+    // Error presentation for the async createCard op: the async Button deposits
+    // a thrown error into the screen's binding, and alert(error:) presents it
+    // with these strings (%{error} is filled at presentation).
+    @LocalizedString public var errorTitle
+    @LocalizedString public var errorMessage
+    @LocalizedString public var dismissButtonLabel
+
+    public let cards: [CardViewModel]
+
+    // MARK: Operations Access
+    //
+    // BoardView's operations are SERVER-BACKED: createCard(_:) dispatches a
+    // CreateCardRequest (see BoardViewModelOperations). Because this VM is [.live],
+    // the board re-fetches itself once the write commits. Contrast AboutView, whose
+    // operations are purely local.
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any BoardViewModelOperations {
+        isStub ? BoardViewModelStubOps() : BoardViewModelOps()
+    }
+    #endif
+
+    public var vmId = ViewModelId()
+
+    public init(cards: [CardViewModel]) {
+        self.init(cards: cards, isStub: false)
+    }
+}
+
+public extension BoardViewModel {
+    static func stub() -> Self {
+        .init(cards: [.stub()], isStub: true)
+    }
+}
+
+extension BoardViewModel {
+    private init(cards: [CardViewModel], isStub: Bool) {
+        self.cards = cards
+        self.isStub = isStub
+    }
+}
+
+// A create request re-serves this same body to refresh. `CreateResponseBody` is a
+// FOSMVVM marker, so the conformance lives here in the contract (the CreateRequest
+// constraint is checked where CreateCardRequest is declared) — not server-side.
+extension BoardViewModel: CreateResponseBody {}

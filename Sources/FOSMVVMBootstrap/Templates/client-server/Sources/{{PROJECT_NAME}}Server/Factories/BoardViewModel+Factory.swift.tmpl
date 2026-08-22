@@ -1,0 +1,34 @@
+// BoardViewModel+Factory.swift
+{{LICENSE_HEADER}}
+import Fluent
+import FOSFoundation
+import FOSMVVM
+import FOSMVVMVapor
+import Foundation
+import Vapor
+import {{PROJECT_NAME}}ViewModels
+
+// Server-side projection — keeps BoardViewModel (the shared contract) Vapor/Fluent-free.
+//
+// The read declares its Fluent data need as a STORED `static let` LoadRequirement,
+// read back through `context.records(_:)`. Records are loaded (auth-scoped) BEFORE
+// projection, so `body(context:)` is synchronous. Because Card is a plan-loaded
+// Fluent record, its live dependency registers automatically — no manual key.
+extension BoardViewModel: ComposableFactory, VaporResponseBodyFactory {
+    // Apex-rooted read: the apex resolver supplies the Board; Card's container is the
+    // implicit terminal hop (no `via:` — that lists INTERMEDIATE hops only). Records
+    // must be `public` because Card is public and this is a public protocol requirement.
+    public static let cards = LoadRequirement.read(Card.self, in: .newRoot(.apex))
+
+    public static var dataRequirements: [any DataRequirement] {
+        [cards]
+    }
+
+    public static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
+        where R.ResponseBody == Self {
+        .init(
+            cards: try context.records(Self.cards)
+                .map { CardViewModel(title: $0.title, ownerTag: $0.ownerTag) }
+        )
+    }
+}

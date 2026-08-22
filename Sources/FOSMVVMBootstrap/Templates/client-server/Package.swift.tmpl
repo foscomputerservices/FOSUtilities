@@ -1,0 +1,89 @@
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "{{PROJECT_NAME}}",
+    platforms: [
+        .macOS("{{MACOS_DEPLOYMENT}}")
+    ],
+    products: [
+        .library(name: "{{PROJECT_NAME}}Foundation", targets: ["{{PROJECT_NAME}}Foundation"]),
+        .library(name: "{{PROJECT_NAME}}ViewModels", targets: ["{{PROJECT_NAME}}ViewModels"]),
+        .executable(name: "{{PROJECT_NAME}}Server", targets: ["{{PROJECT_NAME}}Server"])
+    ],
+    dependencies: [
+        .package(
+            url: "https://github.com/foscomputerservices/FOSUtilities.git",
+            from: "{{FOS_VERSION}}"
+        ),
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
+        .package(url: "https://github.com/vapor/fluent.git", from: "4.9.0"),
+        .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.6.0")
+    ],
+    targets: [
+        // Shared foundation — the version handshake (SystemVersion) and other base
+        // types the server needs WITHOUT importing the display contract. FOSFoundation
+        // only. Both the client app and the server depend on this.
+        .target(
+            name: "{{PROJECT_NAME}}Foundation",
+            dependencies: [
+                .product(name: "FOSFoundation", package: "FOSUtilities")
+            ]
+        ),
+        // Shared contract — client + server both compile this. FOS only; NO Vapor,
+        // NO Fluent. Display-agnostic: the app source-includes this folder and any
+        // future renderer (Leaf/Ignite/React) links this product.
+        .target(
+            name: "{{PROJECT_NAME}}ViewModels",
+            dependencies: [
+                .product(name: "FOSFoundation", package: "FOSUtilities"),
+                .product(name: "FOSMVVM", package: "FOSUtilities")
+            ]
+        ),
+        .executableTarget(
+            name: "{{PROJECT_NAME}}Server",
+            dependencies: [
+                .byName(name: "{{PROJECT_NAME}}Foundation"),
+                .byName(name: "{{PROJECT_NAME}}ViewModels"),
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
+                .product(name: "FOSFoundation", package: "FOSUtilities"),
+                .product(name: "FOSMVVM", package: "FOSUtilities"),
+                .product(name: "FOSMVVMVapor", package: "FOSUtilities")
+            ],
+            resources: [
+                .copy("../Resources")
+            ]
+        ),
+        .testTarget(
+            name: "{{PROJECT_NAME}}ViewModelsTests",
+            dependencies: [
+                .target(name: "{{PROJECT_NAME}}ViewModels"),
+                .product(name: "FOSFoundation", package: "FOSUtilities"),
+                .product(name: "FOSMVVM", package: "FOSUtilities"),
+                .product(name: "FOSTesting", package: "FOSUtilities")
+            ],
+            resources: [
+                .copy("../../Sources/Resources")
+            ]
+        ),
+        .testTarget(
+            name: "{{PROJECT_NAME}}ServerTests",
+            dependencies: [
+                .target(name: "{{PROJECT_NAME}}Server"),
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
+                .product(name: "FOSFoundation", package: "FOSUtilities"),
+                .product(name: "FOSMVVM", package: "FOSUtilities"),
+                .product(name: "FOSMVVMVapor", package: "FOSUtilities"),
+                .product(name: "FOSTesting", package: "FOSUtilities"),
+                .product(name: "FOSTestingVapor", package: "FOSUtilities")
+            ],
+            resources: [
+                .copy("../../Sources/Resources")
+            ]
+        )
+    ]
+)

@@ -1,0 +1,56 @@
+# {{PROJECT_NAME}}
+
+A local-only FOSMVVM macOS app, scaffolded by fosmvvm-bootstrap.
+
+This is a walking skeleton: one screen (`WelcomeView`), no server.
+
+## Shape
+
+- **`SPMLibraries`** — the single umbrella framework through which all
+  external SPM products (FOSFoundation, FOSMVVM) are linked. Never link
+  an SPM product directly into another target. See
+  `memory/spm-libraries-settled.md` before touching linkage — this is
+  settled doctrine, not a preference.
+- **`ViewModels`** — the shared contract framework: client-hosted
+  ViewModels plus their localization YAML.
+- **`{{PROJECT_NAME}}`** — the SwiftUI app. It embeds the two frameworks
+  and hosts the views.
+
+## Localization is client-hosted
+
+This app talks to no server, so localized strings resolve on-device.
+The `ViewModels` framework ships its YAML as a bundled resource;
+`ViewModelsResourceAccess.localizationBundle` exposes it, and the app
+passes that bundle to `MVVMEnvironment.resourceBundles`. The
+`deploymentURLs` dictionary is intentionally empty — that is the correct
+expression of "no server", not a placeholder to fill in.
+
+## Tests run in Xcode / iOS Simulator
+
+`xcodebuild build-for-testing` on macOS fails at `Ld` for this layout —
+a known Xcode limitation, not a misconfiguration (see
+`memory/macos-build-for-testing-faq.md`). Run the suite from Xcode (⌘U)
+or on the iOS Simulator; the app itself builds fine on macOS.
+
+The app-side UI-test wiring (`.testHost()` + `registerTestingViews`)
+ships ready. Generate the full per-view `ViewModelViewTestCase` harness
+with the `fosmvvm-ui-tests-generator` skill.
+
+## Finishing checklist
+
+Things the tooling structurally cannot do — finish these by hand:
+
+1. `git init && git add -A && git commit`.
+2. Open `{{PROJECT_NAME}}.xcodeproj` in Xcode:
+   - Convert the enumerated source groups to synchronized folders
+     (File Inspector → each top-level group; XcodeGen cannot emit
+     `PBXFileSystemSynchronizedRootGroup`).
+   - Confirm signing: your real `DEVELOPMENT_TEAM` on every target.
+   - Run the test suite (⌘U).
+   - Add iOS/iPadOS destinations if wanted.
+3. Delete `project.yml`; commit the `.xcodeproj`. It is hand-maintained
+   from here — do not regenerate.
+4. Read `CLAUDE.md` and `memory/` — settled doctrine ships with the
+   project.
+5. Add screens via the `fosmvvm-viewmodel-generator` +
+   `fosmvvm-swiftui-view-generator` skills.

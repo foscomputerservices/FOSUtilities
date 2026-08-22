@@ -1,0 +1,10 @@
+// LocalizableTestCase+{{PROJECT_NAME}}.swift
+{{LICENSE_HEADER}}
+import FOSTesting
+import Foundation
+
+// The test target's locale set, declared ONCE for every LocalizableTestCase suite
+// in this target (add locales here, not in each suite).
+extension LocalizableTestCase {
+    var locales: Set<Locale> { [Self.en, Self.es] }
+}

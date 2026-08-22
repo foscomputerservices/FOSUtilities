@@ -1,0 +1,42 @@
+// WelcomeViewModel.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+@ViewModel
+public struct WelcomeViewModel {
+    @LocalizedString public var welcomeTitle
+    @LocalizedString public var welcomeMessage
+    @LocalizedString public var okButtonTitle
+
+    // MARK: Operations Access
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any WelcomeViewModelOperations {
+        isStub ? WelcomeViewModelStubOps() : WelcomeViewModelOps()
+    }
+    #endif
+
+    public var vmId = ViewModelId()
+
+    public init() {
+        self.init(
+            isStub: false
+        )
+    }
+
+    public static func stub() -> Self {
+        .init(
+            isStub: true
+        )
+    }
+}
+
+extension WelcomeViewModel {
+    private init (isStub: Bool) {
+        self.isStub = isStub
+    }
+}

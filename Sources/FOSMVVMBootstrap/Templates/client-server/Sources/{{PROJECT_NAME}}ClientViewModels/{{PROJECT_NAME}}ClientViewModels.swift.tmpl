@@ -1,0 +1,16 @@
+// {{PROJECT_NAME}}ClientViewModels.swift
+{{LICENSE_HEADER}}
+import Foundation
+
+/// The client-hosted door. This framework holds `.clientHostedFactory` ViewModels
+/// (no server round-trip) and their localization YAML, bundled INTO the framework.
+public final class {{PROJECT_NAME}}ClientViewModels {
+    /// This framework's own resource bundle, carrying the client-hosted ViewModels'
+    /// localization YAML. Pass it to the app's `MVVMEnvironment` as a `resourceBundles`
+    /// entry so client-hosted `@LocalizedString`s resolve on the client — the server
+    /// never serves these VMs. (Load it with `resourceDirectoryName: ""`: Xcode's
+    /// CopyBundle flattens the framework's grouped resources to the bundle root.)
+    public static var localizationBundle: Bundle {
+        Bundle(for: {{PROJECT_NAME}}ClientViewModels.self)
+    }
+}

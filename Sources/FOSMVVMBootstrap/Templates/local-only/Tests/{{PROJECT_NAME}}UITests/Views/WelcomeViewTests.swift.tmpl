@@ -1,0 +1,49 @@
+// WelcomeViewTestsTests.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import FOSTestingUI
+import Foundation
+import SwiftUI
+import ViewModels
+import XCTest
+
+final class WelcomeViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<WelcomeViewModel, WelcomeViewModelStubOps>,
+                                     @unchecked Sendable {
+
+    func testShowWelcomeView() throws {
+        let app = try presentView()
+
+        XCTAssertTrue(app.uiTestingElement("welcomeTitle").exists)
+        XCTAssertTrue(app.uiTestingElement("welcomeMessage").exists)
+    }
+
+    func testPresentWelcomeAlert() throws {
+        let app = try presentView()
+
+        app.uiTestingElement("presentWelcomeAlertButton").tap()
+
+        let stubOps = try viewModelOperations()
+
+        XCTAssertTrue(stubOps.presentWelcomeCalled)
+        // The SwiftUI alert itself cannot carry a testing identifier; its tagged
+        // dismiss button witnesses the alert's presence.
+        XCTAssertTrue(app.uiTestingElement("dismissWelcomeAlertButton").waitForExistence())
+    }
+
+    func testDismissWelcomeAlert() throws {
+        let app = try presentView()
+
+        app.uiTestingElement("presentWelcomeAlertButton").tap()
+
+        let dismissWelcomeAlertButton = app.uiTestingElement("dismissWelcomeAlertButton")
+        XCTAssertTrue(dismissWelcomeAlertButton.waitForExistence())
+        dismissWelcomeAlertButton.tap()
+
+        let stubOps = try viewModelOperations()
+
+        XCTAssertTrue(stubOps.dismissWelcomeCalled)
+        XCTAssertTrue(dismissWelcomeAlertButton.waitForDisappearance())
+    }
+}

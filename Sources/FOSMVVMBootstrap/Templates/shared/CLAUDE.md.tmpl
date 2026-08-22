@@ -1,0 +1,30 @@
+# CLAUDE.md — {{PROJECT_NAME}}
+
+This project follows the FOS-mvvm way. The rules below are settled
+doctrine, mined from real project histories. They are not preferences.
+
+## SOLID is the foundation
+
+A ViewModel is a *projection of* data, never the data. The ViewModels
+module imports only FOSFoundation + FOSMVVM — never a domain/wire
+module (the Factory adapts). Deviations surface far from their cause;
+treat a SOLID violation as a hard stop.
+
+## Your instincts will be wrong — the settled catalog
+
+- **Routes are type-derived.** Middleware is not a path prefix. Never
+  munge URLs, never `.grouped("string")` a path onto a ServerRequest.
+- **Never hand-roll HTTP gateways or transport parameters.**
+  `MVVMEnvironment` / ServerRequests are the only door to the network.
+- **Views are generated from ViewModels** (fosmvvm-swiftui-view-generator),
+  never transcribed from a mockup.
+- **Code is added via the fosmvvm-* generator skills.** Hand-rolling is
+  the exception that needs a stated justification.
+- **SPM products are consumed through the SPMLibraries umbrella** in
+  Xcode-project targets. See `memory/spm-libraries-settled.md` before
+  touching linkage — this is settled; arguing it is a long dead-end.
+
+## Memory
+
+Read `memory/*.md` before proposing changes to build wiring, linkage,
+entitlements, or test-target configuration.

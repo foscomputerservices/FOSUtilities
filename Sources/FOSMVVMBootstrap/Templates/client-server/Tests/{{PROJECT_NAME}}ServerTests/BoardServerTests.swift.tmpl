@@ -1,0 +1,55 @@
+// BoardServerTests.swift
+{{LICENSE_HEADER}}
+import Fluent
+import FOSFoundation
+import FOSMVVM
+import FOSTesting
+import FOSTestingVapor
+import Foundation
+import Testing
+import Vapor
+@testable import {{PROJECT_NAME}}Server
+import {{PROJECT_NAME}}ViewModels
+
+/// Boots the real server pipeline headlessly on SQLite-in-memory, POSTs a
+/// `CreateCardRequest` through the actual route, and asserts the refreshed
+/// `BoardViewModel` reflects the new card — proving the live+write loop
+/// (Fluent write → auto-refresh → re-served body) end to end, no simulator.
+@Suite("BoardServer", .serialized)
+struct BoardServerTests {
+    @Test func createCardRefreshesTheLiveBoard() async throws {
+        try await withFluentTestApp { app in
+            // The harness owns the DB + autoMigrate + boot; we register the same
+            // services the generated configure does.
+            try registerServices(app)
+        } _: { app, db in
+            // The harness path doesn't run the demo seed — seed one board.
+            let board = Board(name: "Test Board")
+            try await board.save(on: db)
+            let before = try await Card.query(on: db).count()
+
+            let create = CreateCardRequest(
+                query: nil, sort: nil, fragment: nil,
+                requestBody: CreateCardBody(title: "New Card"), responseBody: nil
+            )
+            let base = try #require(URL(string: "http://localhost"))
+            let url = try #require(try base.appending(serverRequest: create))
+
+            var buffer = ByteBufferAllocator().buffer(capacity: 0)
+            try buffer.writeBytes(JSONEncoder().encode(CreateCardBody(title: "New Card")))
+            var headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
+            headers.contentType = .json
+            let httpReq = Request(
+                application: app, method: .POST, url: URI(string: url.absoluteString),
+                headers: headers, collectedBody: buffer, on: app.eventLoopGroup.next()
+            )
+
+            let response = try await app.responder.respond(to: httpReq).get()
+            #expect(response.status == .ok)
+
+            let refreshed: BoardViewModel = try #require(response.body.data).fromJSON()
+            #expect(refreshed.cards.count == before + 1)
+            #expect(refreshed.cards.contains { $0.title == "New Card" })
+        }
+    }
+}
