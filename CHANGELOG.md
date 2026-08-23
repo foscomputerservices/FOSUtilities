@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-08-23
+
+### Added
+
+- **FOSMVVMBootstrap** — the FOSMVVM project scaffolder now ships in FOSUtilities.
+  The `fosmvvm-bootstrap` CLI interviews for a project configuration (or reads one
+  from `--config` JSON) and emits a complete, buildable FOSMVVM project in one of
+  three shapes: local-only (SwiftUI app, no server), client-server (SwiftUI app +
+  Vapor web service sharing a ViewModels contract), or shared-library (SPM library).
+  Generated apps come with ViewModelOperations wiring, YAML localization stores, and
+  a UI-test harness; app projects are emitted as Xcode 16 synchronized-folder
+  projects through XcodeGen, with `project.yml` remaining the source of truth.
+  Generated projects pin FOSUtilities to the release that generated them, and
+  `--verify` runs each shape's verification doors (`swift build`/`swift test`,
+  `xcodegen generate`, `xcodebuild`) inside the generated project before handing
+  it over.
+
 ## [0.13.3] - 2026-08-22
 
 ### Fixed
