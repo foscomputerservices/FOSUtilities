@@ -202,12 +202,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/matrix"
           cat > "$RUNNER_TEMP/local.json" <<'CONFIG'
           { "projectName": "LocalDemo", "shape": "localOnly",
-            "platforms": { "macOS": "14.0" },
+            "platforms": { "macOS": "14.0", "iOS": "17.0" },
             "bundleIdRoot": "com.example.localdemo", "teamId": "ABCDE12345" }
           CONFIG
           cat > "$RUNNER_TEMP/server.json" <<'CONFIG'
           { "projectName": "ServerDemo", "shape": "clientServer",
-            "platforms": { "macOS": "14.0" },
+            "platforms": { "macOS": "14.0", "iOS": "17.0" },
             "bundleIdRoot": "com.example.serverdemo", "teamId": "ABCDE12345" }
           CONFIG
           "$BIN" new --config "$RUNNER_TEMP/local.json" --output "$RUNNER_TEMP/matrix/LocalDemo"
@@ -232,7 +232,7 @@ jobs:
             xcrun xcodebuild -project "$RUNNER_TEMP/matrix/$APP/$APP.xcodeproj" \
               -scheme "$APP" -destination "platform=iOS Simulator,name=iPhone 17" \
               -retry-tests-on-failure -test-iterations 2 \
-              CODE_SIGNING_ALLOWED=NO SUPPORTED_PLATFORMS="iphonesimulator macosx" test
+              CODE_SIGNING_ALLOWED=NO test
           done
 
       - name: Generated UI tests (macOS)
