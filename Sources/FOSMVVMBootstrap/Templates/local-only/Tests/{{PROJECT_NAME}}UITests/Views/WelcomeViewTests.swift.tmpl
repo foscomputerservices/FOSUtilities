@@ -22,28 +22,34 @@ final class WelcomeViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<Welco
     func testPresentWelcomeAlert() throws {
         let app = try presentView()
 
-        app.uiTestingElement("presentWelcomeAlertButton").tap()
+        // The SwiftUI alert itself cannot carry a testing identifier; its tagged
+        // dismiss button witnesses the alert's presence.
+        let dismissWelcomeAlertButton = app.uiTestingElement("dismissWelcomeAlertButton")
+        XCTAssertTrue(tap(
+            app.uiTestingElement("presentWelcomeAlertButton"),
+            until: { dismissWelcomeAlertButton.exists }
+        ))
 
         let stubOps = try viewModelOperations()
 
         XCTAssertTrue(stubOps.presentWelcomeCalled)
-        // The SwiftUI alert itself cannot carry a testing identifier; its tagged
-        // dismiss button witnesses the alert's presence.
-        XCTAssertTrue(app.uiTestingElement("dismissWelcomeAlertButton").waitForExistence())
     }
 
     func testDismissWelcomeAlert() throws {
         let app = try presentView()
 
-        app.uiTestingElement("presentWelcomeAlertButton").tap()
-
         let dismissWelcomeAlertButton = app.uiTestingElement("dismissWelcomeAlertButton")
-        XCTAssertTrue(dismissWelcomeAlertButton.waitForExistence())
-        dismissWelcomeAlertButton.tap()
+        XCTAssertTrue(tap(
+            app.uiTestingElement("presentWelcomeAlertButton"),
+            until: { dismissWelcomeAlertButton.exists }
+        ))
+        XCTAssertTrue(tap(
+            dismissWelcomeAlertButton,
+            until: { !dismissWelcomeAlertButton.exists }
+        ))
 
         let stubOps = try viewModelOperations()
 
         XCTAssertTrue(stubOps.dismissWelcomeCalled)
-        XCTAssertTrue(dismissWelcomeAlertButton.waitForDisappearance())
     }
 }

@@ -25,28 +25,34 @@ final class AboutViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<AboutVi
     func testPresentDetailsAlert() throws {
         let app = try presentView()
 
-        app.uiTestingElement("presentDetailsButton").tap()
+        // The SwiftUI alert itself cannot carry a testing identifier; its tagged
+        // dismiss button witnesses the alert's presence.
+        let dismissDetailsButton = app.uiTestingElement("dismissDetailsButton")
+        XCTAssertTrue(tap(
+            app.uiTestingElement("presentDetailsButton"),
+            until: { dismissDetailsButton.exists }
+        ))
 
         let stubOps = try viewModelOperations()
 
         XCTAssertTrue(stubOps.presentDetailsCalled)
-        // The SwiftUI alert itself cannot carry a testing identifier; its tagged
-        // dismiss button witnesses the alert's presence.
-        XCTAssertTrue(app.uiTestingElement("dismissDetailsButton").waitForExistence())
     }
 
     func testDismissDetailsAlert() throws {
         let app = try presentView()
 
-        app.uiTestingElement("presentDetailsButton").tap()
-
         let dismissDetailsButton = app.uiTestingElement("dismissDetailsButton")
-        XCTAssertTrue(dismissDetailsButton.waitForExistence())
-        dismissDetailsButton.tap()
+        XCTAssertTrue(tap(
+            app.uiTestingElement("presentDetailsButton"),
+            until: { dismissDetailsButton.exists }
+        ))
+        XCTAssertTrue(tap(
+            dismissDetailsButton,
+            until: { !dismissDetailsButton.exists }
+        ))
 
         let stubOps = try viewModelOperations()
 
         XCTAssertTrue(stubOps.dismissDetailsCalled)
-        XCTAssertTrue(dismissDetailsButton.waitForDisappearance())
     }
 }

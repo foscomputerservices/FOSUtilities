@@ -10,10 +10,8 @@ import XCTest
 
 // The SERVER-BACKED operation example: tapping "Add Card" dispatches a
 // CreateCardRequest through the injected environment. Under test the operation is
-// the recording stub, so no server is involved: stubs record synchronously
-// regardless of signature, and the view repaints the transporter after the op
-// completes — the tap round-trip alone outlasts the Task hop, so the recorded
-// state is readable directly after tap() with no waiting.
+// the recording stub, so no server is involved; the recorded call, read back
+// through the transporter, is the witness that the tap landed.
 final class BoardViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<BoardViewModel, BoardViewModelStubOps>,
                                    @unchecked Sendable {
 
@@ -26,7 +24,10 @@ final class BoardViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<BoardVi
     func testAddCardDispatchesCreate() throws {
         let app = try presentView()
 
-        app.uiTestingElement("addCardButton").tap()
+        XCTAssertTrue(tap(
+            app.uiTestingElement("addCardButton"),
+            until: { (try? self.viewModelOperations().createCardCalled) == true }
+        ))
 
         let stubOps = try viewModelOperations()
 
