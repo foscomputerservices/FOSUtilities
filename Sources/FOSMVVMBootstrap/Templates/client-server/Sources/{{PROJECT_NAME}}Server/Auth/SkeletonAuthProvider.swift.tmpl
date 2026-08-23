@@ -1,0 +1,40 @@
+// SkeletonAuthProvider.swift
+{{LICENSE_HEADER}}
+import Fluent
+import FOSFoundation
+import FOSMVVM
+import FOSMVVMVapor
+import Foundation
+import Vapor
+
+// SKELETON auth — grants read + create on every Board for Card records, to no one
+// in particular. Replace this with a credential-scoped provider that returns only
+// the grants the authenticated caller holds (mount the reads/writes behind a
+// credential-middleware group). See docs/deferrals.md → "credential-middleware auth".
+struct SkeletonGrant: ContainerAuthorization {
+    let authorizedContainer: ModelIdentity
+    let operations: [ContainerOperation]
+    let recordTypes: [ModelNamespace]
+
+    func authorizes(
+        _ operation: ContainerOperation,
+        ofType recordType: any FOSMVVM.Model.Type,
+        in container: ModelIdentity
+    ) -> Bool {
+        container == authorizedContainer
+            && operations.authorizes(operation)
+            && recordTypes.contains(recordType.modelIdentityNamespace)
+    }
+}
+
+struct SkeletonAuthProvider: ContainerAuthorizationProvider {
+    func containerAuthorizations(for request: Vapor.Request) async throws -> [SkeletonGrant] {
+        try await Board.query(on: request.db).all().map { board in
+            try SkeletonGrant(
+                authorizedContainer: board.modelIdentity,
+                operations: [.readRecords, .createRecords],
+                recordTypes: [Card.modelIdentityNamespace]
+            )
+        }
+    }
+}

@@ -1,0 +1,70 @@
+// BoardView.swift
+{{LICENSE_HEADER}}
+import FOSMVVM
+import SwiftUI
+
+// BoardViewModel + CardViewModel are source-included (this module) — no import.
+struct BoardView: ViewModelView {
+    // The dispatch target for the server-backed operation, injected by the app.
+    @Environment(MVVMEnvironment.self) private var mvvmEnv
+
+    private let viewModel: BoardViewModel
+    private let operations: BoardViewModelOperations
+
+    // One error binding per screen: every async button deposits here, and one
+    // alert(error:) presents it.
+    @State private var error: Error?
+
+    #if DEBUG
+    @State private var repaintToggle = false
+    #endif
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(viewModel.title)
+                .font(.largeTitle)
+                .uiTestingIdentifier("boardTitle")
+            ForEach(viewModel.cards, id: \.vmId) { card in
+                Text(card.title)
+            }
+
+            Button(viewModel.addCardButtonTitle, error: $error, action: addCard)
+                .uiTestingIdentifier("addCardButton")
+        }
+        .padding()
+        .alert(
+            error: $error,
+            title: viewModel.errorTitle,
+            message: viewModel.errorMessage,
+            dismissButtonLabel: viewModel.dismissButtonLabel
+        )
+        #if DEBUG
+        .testDataTransporter(viewModelOps: operations, repaintToggle: $repaintToggle)
+        #endif
+    }
+
+    init(viewModel: BoardViewModel) {
+        self.viewModel = viewModel
+        self.operations = viewModel.operations
+    }
+}
+
+private extension BoardView {
+    // The async Button owns the Task and the catch: a thrown error lands in the
+    // screen's error binding. The op POSTs a CreateCardRequest; because
+    // BoardViewModel is [.live], the board refreshes itself once the write commits.
+    private func addCard() async throws {
+        defer { toggleRepaint() }
+        try await operations.createCard(title: "New Card", mvvmEnv: mvvmEnv)
+    }
+
+    private func toggleRepaint() {
+        #if DEBUG
+        repaintToggle.toggle()
+        #endif
+    }
+}
+
+#Preview {
+    BoardView.previewHost()
+}

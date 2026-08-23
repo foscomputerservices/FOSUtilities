@@ -1,0 +1,68 @@
+// {{PROJECT_NAME}}App.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import SwiftUI
+import ViewModels
+
+@main
+struct {{PROJECT_NAME}}App: App {
+    @State private var mvvmEnv = makeMVVMEnvironment()
+
+    var body: some Scene {
+        WindowGroup {
+            WelcomeView.bind(appState: .init())
+                .testHost()
+        }
+        .environment(mvvmEnv)
+    }
+
+    init() {
+        MVVMEnvironment.registerTestingViews()
+    }
+}
+
+private extension {{PROJECT_NAME}}App {
+    @MainActor static func makeMVVMEnvironment() -> MVVMEnvironment {
+        MVVMEnvironment(
+            currentVersion: .currentApplicationVersion,
+            appBundle: Bundle.main,
+            resourceBundles: [
+                ViewModelsResourceAccess.localizationBundle
+            ],
+            // This app talks to no server. An empty dictionary is the
+            // correct expression of that — do not invent placeholder URLs.
+            deploymentURLs: [Deployment: MVVMEnvironment.URLPackage]()
+        )
+    }
+}
+
+extension ViewModelView {
+    static func previewHost(
+        resourceDirectoryName: String = "",
+        locale: Locale = .current,
+        viewModel: VM = .stub(),
+        setStates: ((inout Self) -> Void)? = nil
+    ) -> some View {
+        previewHost(
+            bundle: ViewModelsResourceAccess.localizationBundle,
+            resourceDirectoryName: resourceDirectoryName,
+            locale: locale,
+            viewModel: viewModel,
+            setStates: setStates
+        )
+    }
+
+}
+
+private extension MVVMEnvironment {
+    // Every ViewModelView is listed here to enable individualized
+    // testing of each view.  Registration must happen before the first
+    // render — testHost() resolves the view under test in init().
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(WelcomeView.self)
+        #endif
+    }
+}

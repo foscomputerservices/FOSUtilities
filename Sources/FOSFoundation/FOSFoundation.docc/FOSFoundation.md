@@ -8,6 +8,8 @@ FOSFoundation is a library that provides extensions and patterns to Apple's Foun
 
 ``FOSFoundation`` provides the building blocks for its companion framework [FOSMVVM](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/main/documentation/fosmvvm), which provides full client and server support for building [Model-View-ViewModel](https://w.wiki/4T5B) applications.
 
+> Tip: Starting a new project? [Creating a Project](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/main/documentation/fosmvvm/creatingaproject) scaffolds a complete, verified FOSMVVM application in about a minute.
+
 ## Topics
 
 ### Networking

@@ -1,0 +1,21 @@
+// Board+Schema.swift
+{{LICENSE_HEADER}}
+import Fluent
+import Foundation
+
+extension Board {
+    struct Initial: AsyncMigration {
+        let name = "boards-initial"
+
+        func prepare(on database: any Database) async throws {
+            try await database.schema(Board.schema)
+                .id()
+                .field("name", .string, .required)
+                .create()
+        }
+
+        func revert(on database: any Database) async throws {
+            try await database.schema(Board.schema).delete()
+        }
+    }
+}

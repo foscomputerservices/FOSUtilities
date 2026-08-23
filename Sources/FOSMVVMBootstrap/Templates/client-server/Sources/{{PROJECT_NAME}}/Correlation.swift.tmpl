@@ -1,0 +1,16 @@
+// Correlation.swift
+{{LICENSE_HEADER}}
+import Foundation
+import {{PROJECT_NAME}}ClientViewModels
+
+// The correlation seam, joined HERE at the view layer — not inside either VM.
+//
+// The server-fetched `CardViewModel` exposes `ownerTag` (a plain String key on its
+// wire shape); the client-hosted `AboutViewModel` carries the same key as
+// `localOwnerTag`. A card is "mine" when they match. Neither VM serves both doors —
+// the app (this function) does the join. `CardViewModel` is source-included (this
+// module); `AboutViewModel` comes from the client-hosted framework.
+func isMine(card: CardViewModel, about: AboutViewModel) -> Bool {
+    guard let tag = card.ownerTag, let mine = about.localOwnerTag else { return false }
+    return tag == mine
+}

@@ -1,0 +1,54 @@
+//
+{{LICENSE_HEADER}}
+//  WelcomeViewModelOperations.swift
+//  {{PROJECT_NAME}}
+//
+//  Created by David Hunt on 8/8/26.
+//
+
+import FOSFoundation
+import FOSMVVM
+import Foundation
+#if canImport(SwiftUI)
+import SwiftUI
+#endif
+
+#if canImport(SwiftUI)
+
+// MARK: Operations
+
+public protocol WelcomeViewModelOperations: ViewModelOperations {
+    func presentWelcome(output welcomeStatus: Binding<Bool>)
+    func dismissWelcome(output welcomeStatus: Binding<Bool>)
+}
+
+public struct WelcomeViewModelOps: WelcomeViewModelOperations {
+    public func presentWelcome(output welcomeStatus: Binding<Bool>) {
+        welcomeStatus.wrappedValue = true
+    }
+    public func dismissWelcome(output welcomeStatus: Binding<Bool>) {
+        welcomeStatus.wrappedValue = false
+    }
+}
+
+public final class WelcomeViewModelStubOps: WelcomeViewModelOperations, @unchecked Sendable {
+    public private(set) var presentWelcomeCalled: Bool
+    public private(set) var dismissWelcomeCalled: Bool
+
+    public func presentWelcome(output welcomeStatus: Binding<Bool>) {
+        presentWelcomeCalled = true
+        welcomeStatus.wrappedValue = true
+    }
+
+    public func dismissWelcome(output welcomeStatus: Binding<Bool>) {
+        dismissWelcomeCalled = true
+        welcomeStatus.wrappedValue = false
+    }
+
+    public init() {
+        self.presentWelcomeCalled = false
+        self.dismissWelcomeCalled = false
+    }
+}
+
+#endif

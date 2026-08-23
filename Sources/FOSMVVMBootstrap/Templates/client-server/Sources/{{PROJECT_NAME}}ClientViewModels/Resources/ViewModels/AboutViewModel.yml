@@ -1,0 +1,13 @@
+en:
+  AboutViewModel:
+    appName: "About {{PROJECT_NAME}}"
+    tagline: "A FOSMVVM client-server app."
+    detailsButtonTitle: "Details"
+    okButtonTitle: "OK"
+
+es:
+  AboutViewModel:
+    appName: "Acerca de {{PROJECT_NAME}}"
+    tagline: "Una aplicación cliente-servidor de FOSMVVM."
+    detailsButtonTitle: "Detalles"
+    okButtonTitle: "Aceptar"

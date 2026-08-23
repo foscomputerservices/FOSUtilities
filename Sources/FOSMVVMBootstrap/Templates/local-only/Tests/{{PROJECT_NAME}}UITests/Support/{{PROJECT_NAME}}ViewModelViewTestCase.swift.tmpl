@@ -1,0 +1,78 @@
+// {{PROJECT_NAME}}ViewModelViewTestCase.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import FOSTestingUI
+import Foundation
+import ViewModels
+import XCTest
+
+// The INTERACTIVE base: for views that dispatch to ViewModelOperations —
+// `viewModelOperations()` is available to verify calls. Display-only views
+// subclass {{PROJECT_NAME}}ViewModelDisplayTestCase instead.
+//
+// Deliberately non-final: every view test suite subclasses this base.
+// swift lint:disable classes_should_be_final
+class {{PROJECT_NAME}}ViewModelViewTestCase<
+    VM: ViewModel,
+    VMO: ViewModelOperations
+>: ViewModelViewTestCase<VM, VMO>, @unchecked Sendable {
+    @MainActor func presentView(
+        configuration: TestConfiguration,
+        viewModel: VM = .stub(),
+        timeout: TimeInterval = 10
+    ) throws -> XCUIApplication {
+        try presentView(
+            testConfiguration: configuration.toJSON(),
+            viewModel: viewModel,
+            timeout: timeout
+        )
+    }
+
+    /// Taps `element`, then polls `witness` for proof the tap landed,
+    /// re-tapping once at half `timeout`:
+    /// `tap(presentButton, until: { dismissButton.exists })`.
+    /// > A freshly launched app can discard its first synthesized event
+    /// > (per-launch window, measured on CI simulators 2026-08-23), so a
+    /// > tap is proven by the UI change it causes, never assumed from
+    /// > dispatch.
+    @MainActor
+    @discardableResult
+    func tap(
+        _ element: UITestingElement,
+        until witness: () -> Bool,
+        timeout: TimeInterval = 10
+    ) -> Bool {
+        element.tap()
+        if poll(witness, for: timeout / 2) { return true }
+        element.tap()
+        return poll(witness, for: timeout / 2)
+    }
+
+    @MainActor
+    private func poll(_ witness: () -> Bool, for interval: TimeInterval) -> Bool {
+        let deadline = Date(timeIntervalSinceNow: interval)
+        while Date() < deadline {
+            if witness() { return true }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        return witness()
+    }
+
+    override static var runsForEachTargetApplicationUIConfiguration: Bool {
+        false
+    }
+
+    override func setUp() async throws {
+        try await super.setUp(
+            bundle: ViewModelsResourceAccess.localizationBundle,
+            resourceDirectoryName: "",
+            appBundleIdentifier: "{{BUNDLE_ID_ROOT}}"
+        )
+
+        continueAfterFailure = false // Stop the test and move on
+    }
+}
+
+// swift lint:enable classes_should_be_final

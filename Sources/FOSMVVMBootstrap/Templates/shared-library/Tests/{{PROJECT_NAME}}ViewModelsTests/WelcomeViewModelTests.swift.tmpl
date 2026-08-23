@@ -1,0 +1,24 @@
+// WelcomeViewModelTests.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import FOSTesting
+import Foundation
+import Testing
+@testable import {{PROJECT_NAME}}ViewModels
+
+@Suite("WelcomeViewModel")
+struct WelcomeViewModelTests: LocalizableTestCase {
+    let locStore: LocalizationStore
+
+    @Test func viewModelTests() throws {
+        try expectFullViewModelTests(WelcomeViewModel.self)
+    }
+
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: {{PROJECT_NAME}}ResourceAccess.localizationBundle,
+            resourceDirectoryName: "Localizations"
+        )
+    }
+}

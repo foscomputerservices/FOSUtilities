@@ -1,0 +1,24 @@
+// ViewModelsResourceAccess.swift
+{{LICENSE_HEADER}}
+import Foundation
+
+/// Access to the ViewModels framework's client-hosted resources.
+///
+/// The app passes this bundle to `MVVMEnvironment` so client-hosted
+/// ViewModels resolve their localized strings on-device:
+///
+/// ```swift
+/// MVVMEnvironment(
+///     currentVersion: .currentApplicationVersion,
+///     appBundle: Bundle.main,
+///     resourceBundles: [ViewModelsResourceAccess.localizationBundle],
+///     deploymentURLs: [Deployment: MVVMEnvironment.URLPackage]()
+/// )
+/// ```
+public enum ViewModelsResourceAccess {
+    private final class ResourceAccessClass {}
+
+    public static var localizationBundle: Bundle {
+        Bundle(for: ResourceAccessClass.self)
+    }
+}

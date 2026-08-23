@@ -1,0 +1,85 @@
+// {{PROJECT_NAME}}App.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import SwiftUI
+import {{PROJECT_NAME}}ClientViewModels
+import {{PROJECT_NAME}}Foundation
+
+// NOTE: no `import {{PROJECT_NAME}}ViewModels`. The shared contract folder is
+// source-included into this app target, so those types (BoardViewModel, CardViewModel,
+// the requests, currentApplicationVersion) are in THIS module. The client-hosted
+// door (AboutViewModel) IS a separate framework, so it is imported above.
+@main
+struct {{PROJECT_NAME}}App: App {
+    @State private var mvvmEnv = makeMVVMEnvironment()
+
+    var body: some Scene {
+        WindowGroup {
+            TabView {
+                BoardView.bind()
+                    .tabItem { Text("Board") }
+                AboutView.bind(appState: .init(localOwnerTag: nil))
+                    .tabItem { Text("About") }
+            }
+            .testHost()
+        }
+        .environment(mvvmEnv)
+    }
+
+    init() {
+        MVVMEnvironment.registerTestingViews()
+    }
+}
+
+private extension {{PROJECT_NAME}}App {
+    @MainActor static func makeMVVMEnvironment() -> MVVMEnvironment {
+        // BOTH doors: `resourceBundles` (+ resourceDirectoryName "") host the
+        // client-hosted VMs' localization on-device; `deploymentURLs` point the
+        // server-fetched VMs at the local server. Server-fetched VMs arrive already
+        // localized; only the client-hosted ones resolve from the bundle here.
+        MVVMEnvironment(
+            currentVersion: .currentApplicationVersion,
+            appBundle: Bundle.main,
+            resourceBundles: [{{PROJECT_NAME}}ClientViewModels.localizationBundle],
+            resourceDirectoryName: "",
+            deploymentURLs: [
+                .debug: URL(string: "http://localhost:8080")!
+            ]
+        )
+    }
+}
+
+extension ViewModelView {
+    // Both doors resolve their on-device localization from the client-hosted
+    // framework's bundle (resourceDirectoryName "" — Xcode flattens grouped
+    // resources to the bundle root). Server-fetched VMs (BoardView) arrive already
+    // localized in the running app; in a preview/stub their @LocalizedStrings simply
+    // fall through — the preview still exercises the view's shape and operations.
+    static func previewHost(
+        resourceDirectoryName: String = "",
+        locale: Locale = .current,
+        viewModel: VM = .stub(),
+        setStates: ((inout Self) -> Void)? = nil
+    ) -> some View {
+        previewHost(
+            bundle: {{PROJECT_NAME}}ClientViewModels.localizationBundle,
+            resourceDirectoryName: resourceDirectoryName,
+            locale: locale,
+            viewModel: viewModel,
+            setStates: setStates
+        )
+    }
+}
+
+private extension MVVMEnvironment {
+    // Every ViewModelView is listed here to enable individualized
+    // testing of each view.  Registration must happen before the first
+    // render — testHost() resolves the view under test in init().
+    @MainActor static func registerTestingViews() {
+        #if DEBUG
+        registerTestView(BoardView.self)
+        registerTestView(AboutView.self)
+        #endif
+    }
+}

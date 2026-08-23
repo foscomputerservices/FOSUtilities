@@ -1,0 +1,10 @@
+en:
+  WelcomeViewModel:
+    welcomeTitle: "Welcome"
+    welcomeMessage: "Your FOSMVVM app is alive."
+    okButtonTitle: "OK"
+es:
+  WelcomeViewModel:
+    welcomeTitle: "Bienvenido"
+    welcomeMessage: "Tu aplicación FOSMVVM está viva."
+    okButtonTitle: "Aceptar"

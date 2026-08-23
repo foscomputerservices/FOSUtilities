@@ -1,0 +1,24 @@
+// BoardViewModelTests.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import FOSTesting
+import Foundation
+import Testing
+import {{PROJECT_NAME}}ViewModels
+
+@Suite("BoardViewModel")
+struct BoardViewModelTests: LocalizableTestCase {
+    let locStore: LocalizationStore
+
+    @Test func viewModelTests() throws {
+        try expectFullViewModelTests(BoardViewModel.self)
+    }
+
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: Bundle.module,
+            resourceDirectoryName: "Resources"
+        )
+    }
+}

@@ -1,0 +1,57 @@
+// AboutViewModel.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// A client-hosted ViewModel — hosted entirely on the client (there is no server
+/// response to derive it from). `.clientHostedFactory` synthesizes the
+/// `Request`/`AppState`/`model`; this file authors only the projected shape + a
+/// `stub()`. Its `@LocalizedString`s resolve on-device from this framework's bundle.
+///
+/// `localOwnerTag` is this client's half of the correlation seam: the server's
+/// `CardViewModel.ownerTag` carries the same key, and the *view* joins them to mark
+/// "my" cards. Never one VM serving both doors — the view does the join.
+@ViewModel(options: [.clientHostedFactory])
+public struct AboutViewModel {
+    @LocalizedString public var appName
+    @LocalizedString public var tagline
+    @LocalizedString public var detailsButtonTitle
+    @LocalizedString public var okButtonTitle
+
+    public let localOwnerTag: String?
+
+    // MARK: Operations Access
+    //
+    // AboutView's operations are LOCAL — they mutate on-device view state (an alert
+    // flag), no server round trip. This is the client-hosted counterpart to
+    // BoardView's server-backed operations. See WelcomeViewModelOperations in the
+    // local-only shape for the same shape.
+
+    private let isStub: Bool
+
+    #if canImport(SwiftUI)
+    public var operations: any AboutViewModelOperations {
+        isStub ? AboutViewModelStubOps() : AboutViewModelOps()
+    }
+    #endif
+
+    public var vmId = ViewModelId()
+
+    public init(localOwnerTag: String? = nil) {
+        self.init(localOwnerTag: localOwnerTag, isStub: false)
+    }
+}
+
+public extension AboutViewModel {
+    static func stub() -> Self {
+        .init(localOwnerTag: nil, isStub: true)
+    }
+}
+
+extension AboutViewModel {
+    private init(localOwnerTag: String?, isStub: Bool) {
+        self.localOwnerTag = localOwnerTag
+        self.isStub = isStub
+    }
+}

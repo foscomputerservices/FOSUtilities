@@ -1,0 +1,58 @@
+// AboutViewTests.swift
+{{LICENSE_HEADER}}
+
+import FOSFoundation
+import FOSMVVM
+import FOSTestingUI
+import Foundation
+import SwiftUI
+import {{PROJECT_NAME}}ClientViewModels
+import XCTest
+
+// The LOCAL-operation example: a client-hosted VM whose operations mutate on-device
+// view state (an alert), with no server round trip. See BoardViewTests for the
+// server-backed counterpart.
+final class AboutViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<AboutViewModel, AboutViewModelStubOps>,
+                                   @unchecked Sendable {
+
+    func testShowAboutView() throws {
+        let app = try presentView()
+
+        XCTAssertTrue(app.uiTestingElement("appName").exists)
+        XCTAssertTrue(app.uiTestingElement("tagline").exists)
+    }
+
+    func testPresentDetailsAlert() throws {
+        let app = try presentView()
+
+        // The SwiftUI alert itself cannot carry a testing identifier; its tagged
+        // dismiss button witnesses the alert's presence.
+        let dismissDetailsButton = app.uiTestingElement("dismissDetailsButton")
+        XCTAssertTrue(tap(
+            app.uiTestingElement("presentDetailsButton"),
+            until: { dismissDetailsButton.exists }
+        ))
+
+        let stubOps = try viewModelOperations()
+
+        XCTAssertTrue(stubOps.presentDetailsCalled)
+    }
+
+    func testDismissDetailsAlert() throws {
+        let app = try presentView()
+
+        let dismissDetailsButton = app.uiTestingElement("dismissDetailsButton")
+        XCTAssertTrue(tap(
+            app.uiTestingElement("presentDetailsButton"),
+            until: { dismissDetailsButton.exists }
+        ))
+        XCTAssertTrue(tap(
+            dismissDetailsButton,
+            until: { !dismissDetailsButton.exists }
+        ))
+
+        let stubOps = try viewModelOperations()
+
+        XCTAssertTrue(stubOps.dismissDetailsCalled)
+    }
+}

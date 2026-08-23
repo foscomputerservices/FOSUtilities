@@ -1,0 +1,22 @@
+// {{PROJECT_NAME}}UnitTests.swift
+{{LICENSE_HEADER}}
+import Testing
+@testable import {{PROJECT_NAME}}
+import {{PROJECT_NAME}}ClientViewModels
+
+/// Proves the correlation seam's pure join: a card is "mine" only when the
+/// server-exposed `ownerTag` matches this client's `localOwnerTag`.
+@Suite("Correlation seam")
+struct {{PROJECT_NAME}}UnitTests {
+    @Test func matchesByOwnerTag() {
+        let mine = CardViewModel(title: "Mine", ownerTag: "me")
+        let theirs = CardViewModel(title: "Theirs", ownerTag: "you")
+        let untagged = CardViewModel(title: "Untagged", ownerTag: nil)
+        let about = AboutViewModel(localOwnerTag: "me")
+
+        #expect(isMine(card: mine, about: about))
+        #expect(!isMine(card: theirs, about: about))
+        #expect(!isMine(card: untagged, about: about))
+        #expect(!isMine(card: mine, about: AboutViewModel(localOwnerTag: nil)))
+    }
+}
