@@ -1,4 +1,19 @@
 // Verifier.swift
+//
+// Copyright 2026 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import Foundation
 
 public enum VerifyStep: String, Sendable, CaseIterable {
@@ -24,7 +39,7 @@ public enum VerifyStep: String, Sendable, CaseIterable {
                 "-scheme", name,
                 "-destination", destination,
                 "build",
-                "CODE_SIGNING_ALLOWED=NO",
+                "CODE_SIGNING_ALLOWED=NO"
             ]
         }
     }
@@ -34,8 +49,8 @@ public enum VerifyStep: String, Sendable, CaseIterable {
     /// tool before running the step and throws `.toolMissing` on absence.
     var requiredTool: (tool: String, installHint: String)? {
         switch self {
-        case .xcodegenGenerate: return ("xcodegen", "brew install xcodegen")
-        case .swiftBuild, .swiftTest, .xcodebuildBuild: return nil
+        case .xcodegenGenerate: ("xcodegen", "brew install xcodegen")
+        case .swiftBuild, .swiftTest, .xcodebuildBuild: nil
         }
     }
 }
@@ -48,12 +63,12 @@ public enum VerifierError: Error {
 extension VerifierError: CustomStringConvertible {
     public var description: String {
         switch self {
-        case let .stepFailed(step, output):
+        case .stepFailed(let step, let output):
             // Render with a nil project name (`<project>` placeholder) so
             // the description can never crash on a name it doesn't carry.
-            return "verification step '\(step.command(projectName: nil).joined(separator: " "))' failed:\n\(output)"
-        case let .toolMissing(tool, installHint):
-            return "required tool '\(tool)' not found on PATH — install it with: \(installHint)"
+            "verification step '\(step.command(projectName: nil).joined(separator: " "))' failed:\n\(output)"
+        case .toolMissing(let tool, let installHint):
+            "required tool '\(tool)' not found on PATH — install it with: \(installHint)"
         }
     }
 }
@@ -65,10 +80,18 @@ public enum Verifier {
     /// The xcodebuild destination for a config's verify door: macOS when the
     /// project has it, else the first simulator platform the config asked for.
     public static func buildDestination(for config: BootstrapConfig) -> String {
-        if config.platforms[.macOS] != nil { return "platform=macOS" }
-        if config.platforms[.iOS] != nil { return "generic/platform=iOS Simulator" }
-        if config.platforms[.tvOS] != nil { return "generic/platform=tvOS Simulator" }
-        if config.platforms[.visionOS] != nil { return "generic/platform=visionOS Simulator" }
+        if config.platforms[.macOS] != nil {
+            return "platform=macOS"
+        }
+        if config.platforms[.iOS] != nil {
+            return "generic/platform=iOS Simulator"
+        }
+        if config.platforms[.tvOS] != nil {
+            return "generic/platform=tvOS Simulator"
+        }
+        if config.platforms[.visionOS] != nil {
+            return "generic/platform=visionOS Simulator"
+        }
         return "platform=macOS"
     }
 
@@ -109,6 +132,11 @@ public enum Verifier {
     /// variables (e.g. a pinned `PATH`) onto the inherited process
     /// environment for every step and its tool probes.
     ///
+    /// > Steps run in a sanitized copy of the inherited environment:
+    /// > test-harness session variables are stripped, so verification
+    /// > behaves the same whether the scaffolder runs from a shell or
+    /// > inside a test runner.
+    ///
     /// Throws `VerifierError.toolMissing(tool:installHint:)` when a step's
     /// required tool isn't on `PATH`, or `VerifierError.stepFailed(step:output:)`
     /// carrying the failed step and its stdout+stderr, so the caller can
@@ -120,12 +148,13 @@ public enum Verifier {
         destination: String = "platform=macOS",
         environment: [String: String]? = nil
     ) throws {
-        // Overlay the caller's variables onto the inherited environment.
-        // Overlaying PATH REPLACES the inherited PATH for the children,
-        // which the tool-missing test relies on. nil means inherit as-is.
-        let resolvedEnv = environment.map { overlay in
-            ProcessInfo.processInfo.environment.merging(overlay) { _, new in new }
-        }
+        // Overlay the caller's variables onto the sanitized inherited
+        // environment. Overlaying PATH REPLACES the inherited PATH for the
+        // children, which the tool-missing test relies on.
+        let resolvedEnv = childEnvironment(
+            from: ProcessInfo.processInfo.environment,
+            overlaying: environment
+        )
 
         for step in steps {
             if let required = step.requiredTool {
@@ -161,20 +190,38 @@ public enum Verifier {
         }
     }
 
+    /// The environment for verification children: `base` (the inherited
+    /// process environment) minus the variables an XCTest/xcodebuild harness
+    /// injects into its own test process (`XCTest*`, `DYLD_*`). Inherited,
+    /// those make the generated project's `swift test` runner attach to the
+    /// HARNESS's IDE test session — it waits on a handshake that never comes
+    /// ("Failed to establish connection to the IDE: Timed out while preparing
+    /// IDE session") and the step hangs to its time limit or exits non-zero
+    /// with every generated test green. The caller's overlay wins over
+    /// surviving inherited values.
+    static func childEnvironment(
+        from base: [String: String],
+        overlaying overlay: [String: String]?
+    ) -> [String: String] {
+        let cleaned = base.filter { key, _ in
+            !key.hasPrefix("XCTest") && !key.hasPrefix("DYLD_")
+        }
+        guard let overlay else { return cleaned }
+        return cleaned.merging(overlay) { _, new in new }
+    }
+
     /// Runs one command via `/usr/bin/env` in `dir`, draining stdout+stderr,
     /// and returns the exit status with the combined output.
     private static func run(
         command: [String],
         in dir: URL,
-        environment: [String: String]?
+        environment: [String: String]
     ) -> (status: Int32, output: String) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = command
         process.currentDirectoryURL = dir
-        if let environment {
-            process.environment = environment
-        }
+        process.environment = environment
 
         let pipe = Pipe()
         process.standardOutput = pipe
