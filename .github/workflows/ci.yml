@@ -158,6 +158,12 @@ jobs:
       - name: Install xcodegen
         run: brew install xcodegen
 
+      # The Verifier's inner xcodebuild (building the generated app) is a
+      # child process, so the outer -skipMacroValidation flag never reaches
+      # it; disable the fingerprint gate runner-wide instead.
+      - name: Skip macro fingerprint validation
+        run: defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+
       - name: Fast suite
         run: |
           set -o pipefail
