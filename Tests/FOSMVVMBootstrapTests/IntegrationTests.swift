@@ -10,8 +10,12 @@ extension Tag {
 // verification doors. Slow (~8 min) and network-resolving, so they only run
 // when FOSMVVM_BOOTSTRAP_SKELETONS=1 — CI's generation-matrix job sets it;
 // bare `swift test` skips them.
+// .serialized: each skeleton resolves and compiles the full FOSUtilities
+// dependency graph; run in parallel they starve a 3–4 core hosted runner
+// past the time limits (sharedLibrary is ~40s alone, >600s contended).
 @Suite(
     .tags(.integration),
+    .serialized,
     .enabled(if: ProcessInfo.processInfo.environment["FOSMVVM_BOOTSTRAP_SKELETONS"] == "1")
 ) struct IntegrationTests {
     /// Full walking-skeleton proof for the shared-library shape:
