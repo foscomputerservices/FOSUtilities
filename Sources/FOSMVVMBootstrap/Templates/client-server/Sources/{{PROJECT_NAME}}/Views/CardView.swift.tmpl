@@ -1,0 +1,22 @@
+// CardView.swift
+{{LICENSE_HEADER}}
+import FOSMVVM
+import SwiftUI
+
+// CardViewModel's own view — one View per ViewModel, so the card can be driven
+// and tested in isolation. Display-only: the VM has no operations.
+struct CardView: ViewModelView {
+    private let viewModel: CardViewModel
+
+    var body: some View {
+        Text(viewModel.title)
+    }
+
+    init(viewModel: CardViewModel) {
+        self.viewModel = viewModel
+    }
+}
+
+#Preview {
+    CardView.previewHost()
+}

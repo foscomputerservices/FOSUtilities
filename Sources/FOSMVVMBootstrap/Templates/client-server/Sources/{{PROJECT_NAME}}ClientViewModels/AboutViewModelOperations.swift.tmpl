@@ -18,13 +18,21 @@ import SwiftUI
 // MARK: Operations
 //
 // LOCAL operations — they flip an on-device alert flag, no ServerRequest. Contrast
-// with BoardViewModelOperations, whose createCard(_:) dispatches a CreateCardRequest.
+// with BoardViewModelOperations, whose createCard(_:) dispatches a CardCreateRequest.
 
+/// The About screen's local operations, dispatched from `AboutView`.
+///
+/// Call from a view's action closure, handing over the view's own binding as the
+/// `output` parameter:
+/// ```swift
+/// viewModel.operations.presentDetails(output: $showingDetails)
+/// ```
 public protocol AboutViewModelOperations: ViewModelOperations {
     func presentDetails(output detailsStatus: Binding<Bool>)
     func dismissDetails(output detailsStatus: Binding<Bool>)
 }
 
+/// The live conformer: flips the bound flag on device — no server round trip.
 public struct AboutViewModelOps: AboutViewModelOperations {
     public init() {}
 

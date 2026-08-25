@@ -7,13 +7,14 @@ import FOSMVVM
 import FOSMVVMVapor
 import Foundation
 import Vapor
+import {{PROJECT_NAME}}ViewModels
 
 /// A card on a Board. A plain record (`DataModel`), not a container. `ownerTag` is
 /// the correlation-seam key surfaced to the client through `CardViewModel`.
 ///
-/// `public` because it is the `Target` of a public `DataModelWriter` (the create
-/// body), whose `candidates: LoadRequirement<Card>` is a public requirement.
-public final class Card: DataModel, @unchecked Sendable {
+/// Adopting `CardFields` gives storage the same validation contract the wire body
+/// enforces — one rule set, defined once, localized messages included.
+public final class Card: DataModel, CardFields, @unchecked Sendable {
     public static let schema = "cards"
 
     @ID(key: .id) public var id: UUID?
@@ -26,9 +27,5 @@ public final class Card: DataModel, @unchecked Sendable {
         self.title = title
         self.ownerTag = ownerTag
         $board.id = boardId
-    }
-
-    public func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
-        nil
     }
 }

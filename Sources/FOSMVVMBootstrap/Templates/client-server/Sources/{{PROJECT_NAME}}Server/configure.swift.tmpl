@@ -38,6 +38,11 @@ public func configure(_ app: Application) async throws {
 func registerServices(_ app: Application) throws {
     SystemVersion.setCurrentVersion(.currentApplicationVersion)
 
+    // FOSMVVM's ErrorMiddleware serves thrown errors typed and localized —
+    // Vapor's stock middleware flattens a typed rejection (a validation
+    // failure, a ResponseError) into a bare 500.
+    app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
+
     try app.register(Board.self, migration: Board.Initial())
     app.migrations.add(Card.Initial())
 

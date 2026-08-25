@@ -79,6 +79,7 @@ private extension MVVMEnvironment {
     @MainActor static func registerTestingViews() {
         #if DEBUG
         registerTestView(BoardView.self)
+        registerTestView(CardView.self)
         registerTestView(AboutView.self)
         #endif
     }

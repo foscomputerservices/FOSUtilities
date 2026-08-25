@@ -1,4 +1,4 @@
-// CreateCardRequest+Writer.swift
+// CardCreateRequest+Writer.swift
 {{LICENSE_HEADER}}
 import Fluent
 import FOSFoundation
@@ -12,9 +12,9 @@ import {{PROJECT_NAME}}ViewModels
 // apply, sets the container foreign key from the apex-resolved Board, saves, and
 // re-serves BoardViewModel's factory. The committed save auto-emits live invalidation,
 // so every open Board client re-fetches and the new card appears.
-extension CreateCardBody: DataModelWriter {
+extension CardCreateBody: DataModelWriter {
     // Apex-rooted create (the root container IS the create scope; create takes no
-    // `via:`). `public` because CreateCardBody is public and these are public
+    // `via:`). `public` because CardCreateBody is public and these are public
     // protocol requirements referencing the public `Card`.
     public static let candidates = LoadRequirement.create(Card.self, in: .newRoot(.apex))
 

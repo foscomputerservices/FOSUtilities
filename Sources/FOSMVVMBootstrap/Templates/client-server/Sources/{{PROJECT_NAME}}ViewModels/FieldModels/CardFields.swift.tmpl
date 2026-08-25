@@ -1,0 +1,85 @@
+// CardFields.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// Form Specification for a Card — the user-editable contract, defined once.
+///
+/// Adopted by `CardCreateBody` (the wire body) and `Card` (the record), so the
+/// form, the request, and storage all validate with one shared rule set, and the
+/// messages come localized from `CardFieldsMessages.yml` — never hardcoded.
+public protocol CardFields: ValidatableModel, Codable, Sendable {
+    var title: String { get set }
+
+    var cardValidationMessages: CardFieldsMessages { get }
+}
+
+public extension CardFields {
+    var cardValidationMessages: CardFieldsMessages { .init() }
+
+    // MARK: Field Constraints
+
+    static var titleRange: ClosedRange<Int> { 1...256 }
+
+    // MARK: FormField Definitions
+
+    static var titleField: FormField<String?> { .init(
+        fieldId: .init(id: "title"),
+        title: .localized(for: CardFieldsMessages.self, propertyName: "title", messageKey: "title"),
+        placeholder: .localized(for: CardFieldsMessages.self, propertyName: "title", messageKey: "placeholder"),
+        type: .text(inputType: .text),
+        options: [
+            .required(value: true)
+        ] + FormInputOption.rangeLength(titleRange)
+    ) }
+
+    // MARK: Field Validation Methods
+
+    internal func validateTitle(_ fields: [FormFieldBase]?) -> [ValidationResult]? {
+        guard fields == nil || (fields?.contains(Self.titleField) == true) else {
+            return nil
+        }
+
+        var result = [ValidationResult]()
+
+        if title.isEmpty {
+            result.append(.init(
+                status: .error,
+                field: Self.titleField,
+                message: cardValidationMessages.titleRequiredMessage
+            ))
+        } else if !Self.titleRange.contains(NSString(string: title).length) {
+            result.append(.init(
+                status: .error,
+                field: Self.titleField,
+                message: cardValidationMessages.titleOutOfRangeMessage
+            ))
+        }
+
+        return result.isEmpty ? nil : result
+    }
+
+    // MARK: ValidatableModel Implementation
+
+    func cardFieldsValidateModel(
+        validations: Validations,
+        fields: [FormFieldBase]?
+    ) -> [ValidationResult]? {
+        var result = [ValidationResult]()
+
+        result += validateTitle(fields) ?? []
+
+        return result.isEmpty ? nil : result
+    }
+
+    func validate(fields: [FormFieldBase]?, validations: Validations) -> ValidationResult.Status? {
+        let result = cardFieldsValidateModel(validations: validations, fields: fields) ?? []
+
+        if !result.isEmpty {
+            validations.validations = result
+        }
+
+        return .init(for: result)
+    }
+}

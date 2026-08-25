@@ -1,0 +1,16 @@
+en:
+  CardFieldsMessages:
+    title:
+      title: "Title"
+      placeholder: "Card title..."
+      validationMessages:
+        required: "A card needs a title"
+        outOfRange: "A card title runs 1 to 256 characters"
+es:
+  CardFieldsMessages:
+    title:
+      title: "Título"
+      placeholder: "Título de la tarjeta..."
+      validationMessages:
+        required: "La tarjeta necesita un título"
+        outOfRange: "El título debe tener entre 1 y 256 caracteres"

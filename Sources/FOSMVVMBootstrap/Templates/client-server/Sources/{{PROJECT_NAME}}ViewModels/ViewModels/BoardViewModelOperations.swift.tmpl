@@ -22,19 +22,29 @@ import Foundation
 // than reached for as a global — a singleton would break the DIP the whole stack
 // depends on, and testability with it.
 
+/// The board's server-backed operations, dispatched from `BoardView`.
+///
+/// Call from a view's action closure, passing the environment the view reads:
+/// ```swift
+/// try await viewModel.operations.createCard(title: title, mvvmEnv: mvvmEnv)
+/// ```
+/// The board is `[.live]`, so a committed write refreshes the screen by itself —
+/// there is no response to consume.
 public protocol BoardViewModelOperations: ViewModelOperations {
     func createCard(title: String, mvvmEnv: MVVMEnvironment) async throws
 }
 
+/// The live conformer: `createCard` POSTs a `CardCreateRequest` through
+/// `processRequest(mvvmEnv:)`.
 public struct BoardViewModelOps: BoardViewModelOperations {
     public init() {}
 
     public func createCard(title: String, mvvmEnv: MVVMEnvironment) async throws {
-        let request = CreateCardRequest(
+        let request = CardCreateRequest(
             query: nil,
             sort: nil,
             fragment: nil,
-            requestBody: CreateCardBody(title: title),
+            requestBody: CardCreateBody(title: title),
             responseBody: nil
         )
         // POST the create. BoardViewModel is [.live], so once the write commits the

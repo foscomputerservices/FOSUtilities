@@ -1,0 +1,19 @@
+// CardFieldsMessages.swift
+{{LICENSE_HEADER}}
+import FOSFoundation
+import FOSMVVM
+import Foundation
+
+/// Localized validation messages for `CardFields`.
+///
+/// Each property maps to a key path in `CardFieldsMessages.yml`; the
+/// `@FieldValidationModel` macro generates the localization binding.
+@FieldValidationModel public struct CardFieldsMessages {
+    @LocalizedString("title", messageGroup: "validationMessages", messageKey: "required")
+    public var titleRequiredMessage
+
+    @LocalizedString("title", messageGroup: "validationMessages", messageKey: "outOfRange")
+    public var titleOutOfRangeMessage
+
+    public init() {}
+}

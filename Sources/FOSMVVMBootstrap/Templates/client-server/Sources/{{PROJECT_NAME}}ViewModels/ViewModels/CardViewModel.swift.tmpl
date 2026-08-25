@@ -15,9 +15,12 @@ public struct CardViewModel {
     public let title: String
     public let ownerTag: String?
 
-    public var vmId = ViewModelId()
+    /// Derived from the record's data identity, so equal data means stable SwiftUI
+    /// identity — a re-fetch must not re-identify unchanged rows.
+    public let vmId: ViewModelId
 
-    public init(title: String, ownerTag: String?) {
+    public init(id: ModelIdType, title: String, ownerTag: String?) {
+        self.vmId = .init(id: id)
         self.title = title
         self.ownerTag = ownerTag
     }
@@ -25,6 +28,10 @@ public struct CardViewModel {
 
 public extension CardViewModel {
     static func stub() -> Self {
-        .init(title: "Sample Card", ownerTag: nil)
+        .init(
+            id: .init(uuidString: "00000000-0000-0000-0000-000000000042")!,
+            title: "Fred's Bedrock Card",
+            ownerTag: nil
+        )
     }
 }

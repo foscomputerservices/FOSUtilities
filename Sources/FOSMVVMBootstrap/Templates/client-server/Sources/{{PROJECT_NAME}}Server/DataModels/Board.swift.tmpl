@@ -9,12 +9,10 @@ import Foundation
 import Vapor
 
 /// The apex container — one Board holds many Cards. Apex-rooted reads/creates
-/// resolve their root here (see `useApexContainerResolver` in configure). A
-/// container declares BOTH `containedRecordTypes` and `containment`; boot rejects
-/// any drift between them.
+/// resolve their root here (see `useApexContainerResolver` in configure).
 ///
-/// `public` because `Card` (its record) is surfaced through a public write body's
-/// `LoadRequirement<Card>`, which forces `Card` — and this container — public.
+/// > A container declares BOTH `containedRecordTypes` and `containment`; boot
+/// > rejects any drift between them.
 public final class Board: ContainerDataModel, @unchecked Sendable {
     public static let schema = "boards"
 

@@ -29,7 +29,7 @@ public struct BoardViewModel: RequestableViewModel {
     // MARK: Operations Access
     //
     // BoardView's operations are SERVER-BACKED: createCard(_:) dispatches a
-    // CreateCardRequest (see BoardViewModelOperations). Because this VM is [.live],
+    // CardCreateRequest (see BoardViewModelOperations). Because this VM is [.live],
     // the board re-fetches itself once the write commits. Contrast AboutView, whose
     // operations are purely local.
 
@@ -41,7 +41,7 @@ public struct BoardViewModel: RequestableViewModel {
     }
     #endif
 
-    public var vmId = ViewModelId()
+    public var vmId: ViewModelId = .init(type: Self.self)
 
     public init(cards: [CardViewModel]) {
         self.init(cards: cards, isStub: false)
@@ -63,5 +63,5 @@ extension BoardViewModel {
 
 // A create request re-serves this same body to refresh. `CreateResponseBody` is a
 // FOSMVVM marker, so the conformance lives here in the contract (the CreateRequest
-// constraint is checked where CreateCardRequest is declared) — not server-side.
+// constraint is checked where CardCreateRequest is declared) — not server-side.
 extension BoardViewModel: CreateResponseBody {}

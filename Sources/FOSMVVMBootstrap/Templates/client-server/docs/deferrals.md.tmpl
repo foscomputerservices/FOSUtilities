@@ -1,0 +1,9 @@
+# Deferrals
+
+Work the walking skeleton deliberately defers. Each entry stays here until it ships; a deferral that leaves this ledger without shipping needs an owner's sign-off.
+
+## credential-middleware auth
+
+The skeleton's `SkeletonAuthProvider` grants read + create on every Board to no one in particular, so the walking skeleton runs without an identity system. Replace it with a credential-scoped provider that returns only the grants the authenticated caller holds, and mount the reads/writes behind a credential-middleware group.
+
+**Trigger to resolve:** before any deployment beyond local development.
