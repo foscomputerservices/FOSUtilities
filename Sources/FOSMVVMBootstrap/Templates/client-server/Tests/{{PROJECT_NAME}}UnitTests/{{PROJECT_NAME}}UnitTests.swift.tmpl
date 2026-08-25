@@ -9,9 +9,9 @@ import {{PROJECT_NAME}}ClientViewModels
 @Suite("Correlation seam")
 struct {{PROJECT_NAME}}UnitTests {
     @Test func matchesByOwnerTag() {
-        let mine = CardViewModel(title: "Mine", ownerTag: "me")
-        let theirs = CardViewModel(title: "Theirs", ownerTag: "you")
-        let untagged = CardViewModel(title: "Untagged", ownerTag: nil)
+        let mine = CardViewModel(id: .init(), title: "Mine", ownerTag: "me")
+        let theirs = CardViewModel(id: .init(), title: "Theirs", ownerTag: "you")
+        let untagged = CardViewModel(id: .init(), title: "Untagged", ownerTag: nil)
         let about = AboutViewModel(localOwnerTag: "me")
 
         #expect(isMine(card: mine, about: about))
