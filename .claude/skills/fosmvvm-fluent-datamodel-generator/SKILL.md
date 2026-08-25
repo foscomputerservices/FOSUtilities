@@ -270,9 +270,9 @@ final class Idea: DataModel, IdeaFields, Hashable, @unchecked Sendable {
 In schema: `.field("created_by", .uuid, .required, .references(User.schema, "id", onDelete: .cascade))`
 
 **When to use each pattern:**
-- **Associated type** (`associatedtype User: UserFields`): Required relationships
-- **Optional associated type**: Not supported - use `ModelIdType?` for optional FKs
-- **Plain `ModelIdType`**: Optional FKs, external system references
+- **Associated type** (`associatedtype User: UserFields`): required relationships — `@Parent` satisfies it directly.
+- **Optional FK to a table in this database**: `@OptionalParent(key:)` on the model, over a nullable `.references(...)` column. (Optional associated types are not supported on the protocol side; the optional relationship lives on the DataModel only.)
+- **Plain `ModelIdType`/`UUID` field**: ONLY for references *outside* this database — an external system's id, a token minted elsewhere — and only with express approval documented at the declaration site, per the firm `ModelIdType Requires Junction Tables Except for @ID` principle. The documentation names its authority (a decision, an issue, an approver) or the condition under which the exception ends — a note that merely describes the reference is not approval. A same-database reference as a raw UUID has no wall: nothing constrains what is written, Fluent cannot load the relation, and the reference dangles silently when the target row goes.
 
 ### Migrations
 
@@ -309,6 +309,13 @@ Key points:
 - Test all form fields
 - Test validation with `@Test(arguments:)`
 - Create private test struct implementing the Fields protocol
+
+**Database-backed tests bind an ephemeral database — never an inherited one.** A migration or
+schema test uses `app.databases.use(.sqlite(.memory), as: .sqlite)` (or an equally ephemeral,
+test-constructed binding). Never bind a DSN read from the ambient environment (`DATABASE_URL`) —
+the test's target then becomes whatever the shell says, and *Tests Must Never Modify Production
+Data* is a firm principle (repo `CLAUDE.md`): tests SHALL NOT modify, delete, or corrupt
+production data; isolation is constructed, not inherited.
 
 **Test structs with associated types:**
 
@@ -350,9 +357,27 @@ private struct TestUser: UserFields {
 | `Bool` | `.bool` | `BOOLEAN` |
 | `Date` | `.datetime` | `TIMESTAMPTZ` |
 | `UUID` | `.uuid` | `UUID` |
-| `[UUID]` | `.array(of: .uuid)` | `UUID[]` |
 | Custom Enum | `.string` | `VARCHAR` (stored as raw value) |
 | `JSONB` | `.json` | `JSONB` |
+
+> **Decode stored enums honestly.** A raw value read back with a coalescing fallback — `SomeEnum(rawValue: stored) ?? .someCase` — silently rewrites every historical row the current enum no longer names. Decode throwing or into an explicit `.unknown` case; never coalesce into a meaning-bearing category.
+
+> **No identity arrays.** `[UUID]` (`.array(of: .uuid)`) flattens a relation into a column nothing can constrain — element-level foreign keys do not exist on array columns. A many-to-many is a junction table + `@Siblings`; a design that genuinely wants the array (a subset pointer into an already-related aggregate, say) must clear the same express-approval bar as any raw identity field, naming the integrity cost it accepts.
+
+> **Identities hide in JSON too.** A `Codable` struct stored as `.json` whose members reference this database's tables by `UUID` carries the same integrity risk as a raw identity column, one struct-level down. Keep same-database references out of JSONB payloads; relate with wrappers and join.
+
+---
+
+## Framework Surface Since v2.1
+
+This skill's patterns predate several FOSMVVMVapor releases. Before hand-writing container loading, sorting, filtering, guarded writes, or live-refresh plumbing, check the catalog — these already exist:
+
+- **`ContainerDataModel` + `ContainmentRelation`** — declare a container's authorization-bearing relations from its own Fluent `@Children`/`@Siblings`/`@Parent` KeyPaths; cardinality and joins come from Fluent, never restated.
+- **`SortableDataModel` + `SortMapping`**, **`FilterableDataModel`** — published sort meanings mapped to database ordering, and query-driven narrowing of container loads.
+- **`DataModelWriter` + `WriteTargetProviding`** — the guarded write path the CRUD request doors (`CreateRequest`/`UpdateRequest`/`DeleteRequest` registration) require.
+- **Live invalidation** — a Fluent-persisted model's committed saves already nudge `.live` clients with no model-side code; non-Fluent sources pair `registerDependency(on:)` / `invalidateProjections(of:)`.
+
+See [`../shared/api-catalog/FOSMVVMVapor.md`](../shared/api-catalog/FOSMVVMVapor.md) for each one's reach-for entry.
 
 ---
 
@@ -376,3 +401,4 @@ private struct TestUser: UserFields {
 | 1.3 | 2025-12-24 | Factored out Fields layer to fields-generator skill |
 | 2.0 | 2025-12-26 | Renamed to fosmvvm-fluent-datamodel-generator, added Scope Guard, generalized from Kairos-specific to FOSMVVM patterns, added architecture context |
 | 2.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.2 | 2026-08-25 | Raw-identity rules aligned with the junction-table principle: `@OptionalParent` for same-database optional FKs, no `[UUID]` arrays, no same-database ids in JSONB, express-approval documentation for external references, honest enum decodes. Post-2.1 framework surface pointer (Container/Sortable/Filterable DataModel, DataModelWriter, live invalidation). |

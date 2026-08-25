@@ -1541,6 +1541,23 @@ If a type is needed by both client and server, it belongs in the shared module. 
 - Anything used by `MVVMEnvironment`
 - Anything that must be consistent across all targets
 
+### The SPMLibraries umbrella — the Xcode-side twin
+
+The shared module solves agreement between targets that are *compiled together*. An Xcode project has a second version of the same problem: several Xcode targets (app, unit tests, UI tests, frameworks) each consuming the same external SPM package products.
+
+**When more than one Xcode target consumes SPM package products, vend them through a single `SPMLibraries` umbrella framework that every target depends on — never link the SPM products directly into each target.** `SPMLibraries` is a thin framework whose dependencies list every external package product (`FOSFoundation`, `FOSMVVM`, …); every other target depends on it.
+
+**Why — a generic Xcode + SPM bug, not FOS-specific.** Linking an SPM library statically into multiple targets compiles a *separate copy of its types into each target*, and Swift's mangled type name carries the linking context. The "same" type then has a different runtime identity per target, so an instance crossing a target boundary fails `is` / `as?` / `==` / `===` against the same type on the other side: **`TypeA != TypeA`**. It compiles clean and breaks at runtime, far from the cause. One umbrella *dynamic* framework means one canonical copy and one shared type identity everywhere.
+
+**Why it matters especially here.** FOSMVVM leans hard on comparing types — type-derived request paths, ViewModel/Request resolution, versioning. An app that skips the umbrella breaks exactly where those comparisons happen. The umbrella looks like redundant re-vending to a mainstream Xcode eye, which is why it has to be stated rather than left implicit.
+
+Two carve-outs, both deliberate:
+
+- **Testing products** (`FOSTesting`, `FOSTestingUI`, `FOSTestingVapor`) stay *out* of the umbrella and link directly into test targets. The umbrella embeds in the shipping app, and testing products must not ride along; their types are never shared across target boundaries, so the identity rule does not apply to them. (Ruled 2026-08-19.)
+- **Single-embed.** The app embeds the umbrella and every local framework with sign-on-copy; every other target links without embedding, because the test host already carries the embedded copy. Embedding twice puts two copies in one bundle — the identity failure the umbrella exists to prevent, reintroduced.
+
+This is enforced in three places, and they must agree: the scaffolder's `project.yml` templates emit it, `fosmvvm-doctor` audits an existing project for it (rules R4a/R4b/R5), and generated projects ship a `memory/spm-libraries-settled.md` carrying the argument for the app's own future sessions.
+
 ---
 
 ## File Organization Conventions

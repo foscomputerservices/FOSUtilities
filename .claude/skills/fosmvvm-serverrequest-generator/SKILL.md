@@ -159,6 +159,40 @@ happen *across the wire*:
 - Clients branch by **catching the typed case** —
   never by reading an HTTP status back
 
+### Credential rejection is already typed — do not design around it
+
+A rejected credential reaches the client as `CredentialRejectedError`, a
+FOS-owned error, **regardless of what your `ResponseError` is**. Catch it; never
+branch on the 401.
+
+This matters because of the decode order. `WireError` tries the well-known
+surface errors *strictly before* the request's own `ResponseError`:
+
+```swift
+package init(from decoder: Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    if let rejection = try? container.decode(CredentialRejectedError.self) {
+        self = .surface(rejection)
+    } else {
+        self = try .response(container.decode(E.self))
+    }
+}
+```
+
+`CredentialRejectedError` wins that race unconditionally. So:
+
+- ✅ `EmptyError` is safe on a request behind a credential middleware. It cannot
+  swallow a rejection — the rejection is decoded first and never reaches it.
+- ❌ Do **not** add a permissive `String` field to a `ResponseError` "so a 401
+  isn't swallowed." That was never a real risk, and the permissive field creates
+  a different one: an error that decodes anything will happily decode any
+  `Abort(reason:)` body as a successful match, so unrelated failures arrive
+  wearing your operation's error type.
+
+If your operation has no well-defined throw, use `EmptyError`. A required
+free-text `reason: String` is not a lighter-weight error — it is an error with
+no vocabulary a client can branch on, which defeats the point of the type.
+
 **Why this protects encapsulation:** an HTTP status is a raw,
 publicly-mintable number — any failure can wear a 401, so routing result
 semantics on one is the stringly-typed encapsulation break (see SOLID /
@@ -344,6 +378,17 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
     public struct RequestBody: ServerRequestBody, ValidatableModel {
         // Fields...
     }
+    // ^ When the body carries USER-ENTERED field values (things a person types
+    //   into the requesting client's UI), it adopts the entity's {Name}Fields
+    //   protocol — `RequestBody: ServerRequestBody, {Name}Fields, Stubbable` —
+    //   and its `validate` calls the Fields helpers
+    //   (`{name}FieldsValidateModel(validations:fields:)`), so the form, the
+    //   wire, and the model all validate with the ONE shared contract. A
+    //   hand-written `validate` returning nil satisfies the compiler and
+    //   validates nothing. Bodies carrying only operation parameters (ids,
+    //   verbs, machine payloads) owe no Fields protocol; `EmptyBody` covers
+    //   the body-less write. This applies to the whole write family:
+    //   CreateRequest, UpdateRequest, and ReplaceRequest.
 
     // What the server returns
     public struct ResponseBody: {Protocol}ResponseBody {
@@ -414,12 +459,32 @@ private extension {Action}Request {
 }
 ```
 
-### Controller Registration
+### Registration — one door
+
+`register(request:app:)` is the door. Swift picks the right overload from the
+request's protocol, so the same call registers a read or a write:
 
 ```swift
-// In WebServer routes.swift
-try versionedGroup.register(collection: {Action}Controller())
+func routes(_ app: Application) throws {
+    let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
+    try authed.register(request: DockPageRequest.self, app: app)    // guarded read (GET)
+    try authed.register(request: UpdateBerthRequest.self, app: app) // write door
+    try app.register(request: LandingPageRequest.self, app: app)    // public — Application is a RoutesBuilder
+}
 ```
+
+**Mount on middleware-only groups.** A path-prefixing group — `app.grouped("admin")` —
+is **rejected at boot**, because the client derives the served URL from the request
+type. Adding a prefix on the server would move the route out from under the client's
+own derivation.
+
+There is no `register(viewModel:)`; it was removed. A write request that reaches the
+read door fails fast at boot rather than silently registering GET-only.
+
+**Route collections are the exception, not the pattern.** Reach for
+`ServerRequestController` and `register(collection:)` only for operations
+`register(request:app:)` does not cover — a `ReplaceRequest`, or a multi-record
+operation.
 
 ### Client Invocation
 

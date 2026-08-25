@@ -229,6 +229,19 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
 }
 ```
 
+> **Prefer the shipped harnesses over hand-rolling `withTestApp`** (FOSUtilities 0.5.0+):
+> `withFluentTestApp` scopes an in-memory SQLite + Vapor application, and
+> `withServedFluentTestApp` (0.6.0+) additionally serves it on a port for real-client
+> E2E. Both handle the boot path correctly — a hand-rolled harness on Vapor's
+> `app.test()` runs only the *synchronous* boot, so async lifecycle handlers
+> (middleware registered in async startup) silently never run under it.
+
+> **Assert rejections typed, never by status** (FOSUtilities 0.7.0+): a credential
+> rejection surfaces as `TestingServerRequestResponse.credentialRejection` and a
+> request's own failure as the typed `.error` — `#expect(response.status == .unauthorized)`
+> is status-sniffing the typed fields exist to eliminate, and it cannot tell a
+> middleware rejection from any other failure wearing the same number.
+
 ### Testing Different Request Types
 
 | Request Type | HTTP Method | What to Test |
@@ -549,6 +562,16 @@ try app.initYamlLocalization(
 
 ---
 
+## Parallelism and Shared State
+
+Swift Testing runs suites — and the tests inside a suite — in parallel by default.
+A suite whose tests touch shared mutable state (a singleton, a `static var`, the
+process environment, a fixed-path fixture) carries `.serialized`; the classic race
+symptom is a recorded value asserting `0` because another test cleared the state
+in between. `.serialized` protects within the suite only — state spanning multiple
+suites needs a test-owned gate around the racing window, or dependency injection
+so the state stops being shared at all.
+
 ## Naming Conventions
 
 | Concept | Convention | Example |
@@ -587,4 +610,5 @@ See [reference.md](reference.md) for complete file templates.
 |---------|------|---------|
 | 1.1 | 2025-01-20 | Add ServerRequestError localization testing guidance |
 | 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 1.3 | 2026-08-25 | Shipped harnesses (`withFluentTestApp`/`withServedFluentTestApp`) over hand-rolled `withTestApp`; typed rejection asserts (`credentialRejection`/`error`) over status-sniffing. |
 | 1.0 | 2025-01-05 | Initial skill |

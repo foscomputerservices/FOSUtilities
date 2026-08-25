@@ -1,6 +1,6 @@
 ---
 name: fosmvvm-review
-description: Review FOSMVVM code against per-area check files. Triages changed files by area, dispatches one subagent per affected area for parallel review, emits severity-tagged report. Report-only, no auto-fix. Use when reviewing a branch before merge, sweeping the codebase periodically, or in CI.
+description: Review FOSMVVM code in two tiers - the deterministic fosmvvm-doctor structural audit first (structural errors halt area review), then per-area check files dispatched one subagent per affected area. Emits one severity-tagged report covering both tiers. Report-only, no auto-fix. Use when reviewing a branch before merge, sweeping the codebase periodically, or in CI.
 homepage: https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documentation/fosmvvm
 ---
 
@@ -8,7 +8,7 @@ homepage: https://swiftpackageindex.com/foscomputerservices/FOSUtilities/documen
 
 > **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
 
-Reviews FOSMVVM-area Swift files against per-area check files in `checks/`. Designed for both interactive use and CI integration.
+Reviews a project in two tiers, one report. **Tier 1** is `fosmvvm-doctor` — the compiled, deterministic audit of project structure (Step 2); structural errors halt everything downstream, because area reviews assume a project shaped the way the scaffolder shapes it. **Tier 2** reviews the Swift sources against the per-area check files in `checks/`. Designed for both interactive use and CI integration.
 
 ## When to Use This Skill
 
@@ -24,8 +24,8 @@ Parse the `args` string for these flags. Order does not matter; unknown args pro
 | Arg | Effect | Default |
 |-----|--------|---------|
 | (none) | Scope = branch diff vs `--base`. | Branch diff |
-| `--all` | Scope = all `Sources/**/*.swift` and `Tests/**/*.swift`. | — |
-| `<path>` | Scope = `.swift` files under `<path>`. | — |
+| `--all` | Scope = all reviewable files (`.swift`, `.leaf`, `.tsx`, `.jsx`) under `Sources`, `Tests`, `Resources`. | — |
+| `<path>` | Scope = reviewable files under `<path>`. | — |
 | `--base <ref>` | Override diff base for default scope. | `main` |
 | `--format md\|json` | Report format. | `md` |
 | `--output <path>` | Write report to file (else stdout). | stdout |
@@ -37,15 +37,15 @@ Parse the `args` string for these flags. Order does not matter; unknown args pro
 
 ### Step 1: Resolve Scope and Load Project Config
 
-**Scope:**
-- If `<path>` given: `find <path> -name '*.swift' -type f`.
-- If `--all`: `find Sources Tests -name '*.swift' -type f` from repo root.
-- Else (default): `git diff --name-only <base>...HEAD -- '*.swift'` where `<base>` is `--base` value or `main`.
+**Scope:** reviewable files are `*.swift`, `*.leaf`, `*.tsx`, and `*.jsx` — the view edge has three rendering surfaces, and a Swift-only scope silently exempts the Leaf and React ones.
+- If `<path>` given: `find <path> -type f \( -name '*.swift' -o -name '*.leaf' -o -name '*.tsx' -o -name '*.jsx' \)`.
+- If `--all`: the same `find` over `Sources Tests Resources` from the repo root (skip `node_modules` and `.build`).
+- Else (default): `git diff --name-only <base>...HEAD -- '*.swift' '*.leaf' '*.tsx' '*.jsx'` where `<base>` is `--base` value or `main`.
 
 If the resulting file list is empty:
 - Empty diff: print "No changes to review." Exit 0.
-- Path with no `.swift` files: print "No files in scope at `<path>`." Exit 0.
-- `--all` with no files: print "No Swift files found." Exit 0.
+- Path with no reviewable files: print "No files in scope at `<path>`." Exit 0.
+- `--all` with no files: print "No reviewable files found." Exit 0.
 
 **Project config:**
 Look for `.fosmvvm-review.yml` at the repo root. If present, parse:
@@ -57,7 +57,31 @@ If the file is missing or any key is absent, use defaults. If the file is malfor
 
 Apply `excluded_paths` immediately to filter the scoped file list before triage.
 
-### Step 2: Load Check Files
+### Step 2: Tier 1 — Structural Audit (doctor)
+
+Before any triage, run the deterministic structural audit. `fosmvvm-doctor` checks the project against the scaffolder's rules — build settings, linkage and embedding, test plans, entitlements, deployment floors. Deterministic questions stay in compiled code: this skill never re-derives what doctor already answers.
+
+**How to run it** — first route that applies:
+
+1. The project is a Swift package whose FOSUtilities pin ships the plugin (0.15+): from the repo root, `swift package fosmvvm-doctor --json`, plus `--shape <localOnly|clientServer|sharedLibrary>` when the shape is known. Judge the pin from `Package.resolved` (the resolved version), not the `Package.swift` requirement — `from: "0.14.0"` can resolve past 0.15. When no `Package.resolved` exists yet, try this route and fall through on failure.
+2. Otherwise — an Xcode-only project, or a pre-plugin pin — run from a FOSUtilities checkout: `swift run fosmvvm-bootstrap doctor --project <repo-root> --json`, plus the same `--shape` flag when the shape is known (it moves the shape-dependent rules from `unchecked` into the audit). (The checkout is only a host; nothing is written anywhere.)
+
+Both routes exit non-zero when doctor finds errors — capture stdout regardless of exit status (append `|| true`).
+3. Neither available (no macOS, no checkout): tier 1 is **unavailable**. Record it as such below and continue to Step 3 — the absence is stated in the report, never silent. Name the enabling route (the `CreatingAProject` DocC article, § Diagnosing an existing project).
+
+**Parse the JSON:** `findings` (each carrying `severity` — `error` | `warning` — an optional `target`, `summary`, `remedy`), `unchecked`, and `hasErrors`.
+
+**The gate (ruled 2026-08-25): structural errors halt tier 2.** When `hasErrors` is true, do not dispatch any area subagent — fix structure first, so that the area reviews find what they expect where they expect. Skip to Step 7 and emit the report now, with:
+
+- the `structure` section carrying every doctor finding and the `unchecked` list,
+- `summary.by_area.structure` and `summary.total` counting them (severity mapping: doctor `error` → `blocker`, `warning` → `warning`),
+- `"tier2": "halted"` in JSON; in Markdown, a `**Tier 2: halted**` line stating that doctor reported structural errors and area review runs after they are fixed.
+
+When doctor reports only warnings, or nothing: record the results in the same `structure` section and continue to Step 3.
+
+Doctor findings are deterministic facts, not review judgments: they are exempt from `.fosmvvm-review.yml` overrides and inline suppression, and they carry no check names — each finding's `remedy` is the action.
+
+### Step 3: Load Check Files
 
 Read all `checks/*.md` from this skill's base directory. Parse YAML frontmatter (`area`, `generator-skill`, `where`).
 
@@ -65,7 +89,7 @@ Apply project config:
 - Drop any `## Check: <name>` section whose name appears in `disabled_checks`.
 - Override `**Severity:**` lines for checks listed in `severity_overrides`.
 
-### Step 3: Triage — Match Files to Areas
+### Step 4: Triage — Match Files to Areas
 
 For each scoped file, test against each check file's `where:` globs. Build a map `area → [files]`. A file may match multiple areas (acceptable — different lenses).
 
@@ -73,7 +97,7 @@ Always include `cross-cutting` in the dispatch list when scope is non-empty, reg
 
 Areas with no matched files (other than `cross-cutting`) are skipped.
 
-### Step 4: Dispatch Subagents
+### Step 5: Dispatch Subagents
 
 For each area in the dispatch list, dispatch a Task tool subagent (general-purpose) with the prompt template below. Run up to **4 subagents in parallel** (cap chosen to balance throughput against token usage; tune in a future plan if needed).
 
@@ -107,8 +131,13 @@ The "right way" lives in the `{generator_skill}` skill. Treat its SKILL.md as th
    - `// fosmvvm-review:disable <check-name>` / `// fosmvvm-review:enable <check-name>` block markers wrapping the candidate.
    If the matching check is suppressed, omit the finding. If a directive matches but has no justification text after the rule name, instead emit a `suppression-without-justification` finding (defined in `cross-cutting.md`).
 5. Apply Reviewer Guidance: do NOT recommend the listed anti-patterns even if they "look like" simplifications.
-6. If no findings, say "No findings."
-7. Do NOT fix anything. Report only.
+6. **Establish the pinned FOSUtilities version before grading any check that names an API.** A check that says "use `uiTestingElement(_:)`" is not a defect report against a codebase written before that API shipped. Read the pin — and read the right one: an Xcode-project area is governed by `*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`, which can disagree with the root SPM `Package.resolved`. Where the API postdates the pin, report the finding as **correct at time of writing, now fixable** and say which version lifts it, rather than as an authored defect. Where the pin's own source contradicts a comment in the code under review, the source wins — treat any comment describing framework internals as a claim to verify, not context to trust.
+6. **Never invent a check name.** The names above are the complete set for this area. If you find a real violation of the generator skill that no check covers — which will happen, because several areas are thinly covered — report it under the literal check name `uncovered-{area}` and name the generator-skill rule it breaks in the explanation. Do NOT coin a plausible-sounding name: check names are a stable contract that suppression directives, `.fosmvvm-review.yml`, and CI gates all address by name, and a fabricated one silently belongs to no rule and cannot be configured, suppressed, or trusted to reappear on the next run.
+7. **Grade an `uncovered-{area}` finding on the same severity scale as the named checks** — blocker when it breaks at runtime, warning when it degrades the development experience. The absence of a check is not itself a severity.
+8. If no findings, say "No findings."
+9. Do NOT fix anything. Report only.
+
+If you emitted any `uncovered-{area}` findings, end your report with a section titled `## Coverage gap` listing, one line each, the rule the check file should encode to catch them next time. This is the signal that the area needs checks written — say it plainly rather than papering over it with names that look official.
 
 Format each finding as:
 - **{severity}** [{check-name}] {repo-relative-path}:{line}
@@ -119,13 +148,13 @@ Format each finding as:
 
 Substitute `{area}`, `{file_list}`, `{reviewer_guidance_section_or_"(none)"}`, `{generator_skill}`, and `{full_check_section_text}` from the loaded check file before dispatching.
 
-### Step 5: Aggregate Findings
+### Step 6: Aggregate Findings
 
 Collect each subagent's findings. Parse them into structured records: `{severity, area, file, line, check, message, prevention}`.
 
 If a subagent returned an error or timeout, record the area as `ERROR` with the failure message; do not abort other areas.
 
-### Step 6: Emit Report
+### Step 7: Emit Report
 
 #### Markdown format (`--format=md`, default)
 
@@ -133,22 +162,37 @@ If a subagent returned an error or timeout, record the area as `ERROR` with the 
 # FOSMVVM Review
 
 **Scope:** {scope description} ({N} files)
-**Areas triaged:** {comma-separated areas}
+**Tier 1 (doctor):** {ran | unavailable — reason and the enabling route}
+**Tier 2:** (only when halted) halted — doctor reported structural errors; fix structure first, then re-run
+**Areas triaged:** {comma-separated areas, or "none — tier 2 halted"}
 **Fail-on threshold:** {threshold}
 **Configuration applied:** (omit line if no config) disabled checks: {names}; severity overrides: {name=severity, ...}; excluded paths: {N}
 
+## Structure (doctor)
+(omit the section when tier 1 ran clean with nothing unchecked)
+- {❌ error | ⚠️ warning} {target or (project)}: {summary} → {remedy}
+- Not checked: {each unchecked entry, one line}
+
 ## Findings by area
+- structure: {N} ({Bb / Ww}) (present when doctor reported anything; doctor error → blocker, warning → warning)
 - {area}: {N} ({Bb / Ww / Nn})
 - ...
 
 ## Blockers
-{findings, grouped}
+{tier-2 findings, grouped}
 
 ## Warnings
-{findings, grouped}
+{tier-2 findings, grouped}
 
 ## Nits
-{findings, grouped}
+{tier-2 findings, grouped}
+
+(The Blockers/Warnings/Nits sections carry **tier-2 findings only** — the markdown mirror of the JSON rule that tier-1 findings never enter `findings[]`. Doctor's full detail lives in the Structure section; its counts appear in "Findings by area" under `structure`. On a halted run the Structure section is the whole story and the tier-2 sections are empty.)
+
+## Coverage gaps
+(omit the section when there are no `uncovered-*` findings)
+Real violations no check covers — these areas need checks written:
+- {area}: {N} uncovered ({M} of them blockers) → rules to encode: {one line each}
 
 ## Generator skill signals
 Areas with elevated findings — candidates for generator skill updates:
@@ -159,11 +203,25 @@ Areas with elevated findings — candidates for generator skill updates:
 - {area}: {error message}
 ```
 
+`uncovered-*` findings count toward the severity totals like any other — a real
+blocker is a blocker whether or not someone had written the check yet. The
+separate section exists so the *gap* stays visible rather than dissolving into
+the general finding list, and so a run against a thinly-covered area cannot be
+mistaken for a clean one.
+
 #### JSON format (`--format=json`)
 
 ```json
 {
   "scope": { "description": "...", "file_count": 12 },
+  "tier1": "ran",
+  "tier2": "ran",
+  "structure": {
+    "findings": [
+      { "severity": "error", "target": "SPMLibraries", "summary": "...", "remedy": "..." }
+    ],
+    "unchecked": ["entitlements match the project shape (needs --shape)"]
+  },
   "areas_triaged": ["viewmodel", "swiftui-view", "cross-cutting"],
   "config": {
     "fail_on": "blocker",
@@ -172,12 +230,18 @@ Areas with elevated findings — candidates for generator skill updates:
     "excluded_paths_count": 0
   },
   "summary": {
-    "by_area": { "viewmodel": { "blocker": 1, "warning": 2, "nit": 0 }, "...": {} },
-    "total": { "blocker": 1, "warning": 2, "nit": 0 }
+    "by_area": { "structure": { "blocker": 1, "warning": 0, "nit": 0 }, "viewmodel": { "blocker": 1, "warning": 2, "nit": 0 }, "...": {} },
+    "total": { "blocker": 2, "warning": 2, "nit": 0 },
+    "uncovered": { "viewmodel": 3, "swiftui-app-setup": 5 }
   },
   "findings": [
     { "severity": "blocker", "area": "viewmodel", "file": "...", "line": 42,
-      "check": "ops-no-output-reads", "message": "...", "prevention": "fosmvvm-viewmodel-generator" }
+      "check": "ops-no-output-reads", "message": "...", "prevention": "fosmvvm-viewmodel-generator" },
+    { "severity": "warning", "area": "viewmodel", "file": "...", "line": 88,
+      "check": "uncovered-viewmodel", "message": "...", "prevention": "fosmvvm-viewmodel-generator" }
+  ],
+  "coverage_gaps": [
+    { "area": "viewmodel", "count": 3, "rules_to_encode": ["vmId derivation on list rows", "..."] }
   ],
   "errors": [
     { "area": "ui-tests", "message": "subagent timeout" }
@@ -185,14 +249,29 @@ Areas with elevated findings — candidates for generator skill updates:
 }
 ```
 
+`summary.uncovered` lets a CI wrapper track whether coverage is improving —
+`jq '.summary.uncovered | add // 0'` trending down means checks are being
+written. Gate on it only deliberately: a thinly-covered area reports a high
+number through no fault of the code under review.
+
+There is **one summary**: doctor findings count in `summary.by_area.structure`
+and in `summary.total` alongside every other area (doctor `error` → `blocker`,
+`warning` → `warning`), so the CI contract — `jq '.summary.total.blocker == 0'`
+— covers both tiers without forking. `tier1` is `"ran"` or
+`"unavailable: <reason>"`; `tier2` is `"ran"` or `"halted"`. When halted,
+`areas_triaged` is empty, `findings` carries no tier-2 records, and the
+`structure` section is the whole story. The full doctor detail (targets,
+remedies, unchecked) lives only in `structure` — tier-1 findings do not appear
+in the `findings[]` array, which remains check-name-addressable tier-2 records.
+
 If `--output <path>` given, write to file; else stdout.
 
-### Step 7: Annotate Failure Threshold
+### Step 8: Annotate Failure Threshold
 
 The skill runs inside Claude Code and cannot directly control the shell exit code. Instead, record the configured `--fail-on` threshold in the report so out-of-process wrappers can translate findings to exit codes:
 
 - **Markdown report:** include a `**Fail-on threshold:** {threshold}` line in the header.
-- **JSON output:** include a top-level `"config": { "fail_on": "<threshold>", ... }` field (already present per the JSON schema in Step 6).
+- **JSON output:** include a top-level `"config": { "fail_on": "<threshold>", ... }` field (already present per the JSON schema in Step 7).
 
 CI consumers invoke the skill via `claude -p` and parse the JSON to decide whether to fail the build:
 
@@ -250,9 +329,19 @@ Block scope:
 
 **Justification is required.** A suppression without text after the check name produces a `suppression-without-justification` finding (warning). This forces explicit documentation of every silenced check.
 
+## Coverage state
+
+The coverage ledger's register is closed — every gap it identified has a shipped check (most recently G22–G26 in 2.62.0). As of plugin 2.62.0:
+
+- **Covered:** `cross-cutting` (20 checks), `viewmodel` (13), `view` (9 — multi-surface: SwiftUI/Leaf/React), `serverrequest` (9), `swiftui-app-setup` (6), `datamodel` (5), `viewmodel-test` (5), `ui-tests` (4), `fields` (4), `serverrequest-test` (2).
+- **Retired:** `viewmodelrequest`. The rule set names `ServerRequest`, not `ViewModelRequest` — the latter is a `ShowRequest` specialization, so its wire contract is `serverrequest`'s and the VM↔Request pairing is `viewmodel`'s (`viewmodel-request-pairing`).
+
+Violations no check covers still surface as `uncovered-{area}` findings rather than under invented names, so any remaining gap shows up in every report instead of hiding behind official-looking labels — an `uncovered-*` finding is now also a signal that the coverage ledger (`coverage-ledger.md`, beside the checks) may need a new entry.
+
 ## Notes
 
 - Reports may flap slightly between runs on identical input due to subagent non-determinism. The exit code (`--fail-on` threshold) is the stable signal for CI.
+- A check name is a contract. Suppression directives, `.fosmvvm-review.yml`, and CI gates all address checks by name, so names must come from the check files and nowhere else — see the `uncovered-{area}` rule in the subagent prompt.
 - Per-PR CI runs should use the default branch-diff scope. `--all` is reserved for daily/weekly sweeps and PRs to `main`/`master`.
 - The skill is report-only by design. Do not add auto-fix; review and remediation are separate concerns.
 

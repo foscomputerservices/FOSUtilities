@@ -45,8 +45,11 @@ View                  ← ViewModel + ratified ui design
                         [fosmvvm-swiftui-view-generator |
                          fosmvvm-leaf-view-generator |
                          fosmvvm-react-view-generator]
-App bootstrap         ← architecture (deployment URLs, localization)
-                        [fosmvvm-swiftui-app-setup]  (once per app)
+Project               ← project shape + platforms + bundle id
+                        [fosmvvm-bootstrap]  (once per app, generated)
+App struct edits      ← architecture (deployment URLs, localization,
+                        test-view registry)
+                        [fosmvvm-swiftui-app-setup]  (for the app's life)
 Invariant tests       ← framework invariants + artifact type shape
  (round-trip,           [fosmvvm-viewmodel-test-generator |
   versioning, locales,   fosmvvm-serverrequest-test-generator |

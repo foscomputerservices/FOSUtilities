@@ -98,6 +98,28 @@ This is optional - use only when verifying specific formatting techniques.
 
 ---
 
+## Child ViewModels Need Their Own Tests
+
+A parent's round-trip carries its children, so their `Codable` conformance is covered. **Their
+translations are not.**
+
+`expectTranslations` walks a single level — `Mirror(reflecting: model)`, inspecting only children
+castable to `any Localizable` or `_LocalizedProperty`. A `[ChildViewModel]` is neither (there is no
+`Array: Localizable` conformance), and so is a single nested `ViewModel` property. Both are skipped,
+with no recursion. Encoding does not catch it either: a missing translation resolves to `""` rather
+than throwing.
+
+So a child ViewModel with any localized property gets its own test:
+
+```swift
+@Test func secretViewModel() throws {
+    try expectFullViewModelTests(SecretViewModel.self)   // the child, on its own
+}
+```
+
+Testing only the parent leaves every child's YAML unverified in every locale, and it fails silently
+— the suite stays green while the Spanish build ships English.
+
 ## Testing Discipline: Contract, Not Representation
 
 The `expect*` helpers verify **behavior the contract guarantees** — Codable round-trip, version stability, translations exist. Keep any *added* assertions at that same altitude. (Background: [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md); repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.)
@@ -379,6 +401,16 @@ let vm = try .stub().toJSON(encoder: encoder(locale: en)).fromJSON()
 ```
 
 ---
+
+## Parallelism and Shared State
+
+Swift Testing runs suites — and the tests inside a suite — in parallel by default.
+A suite whose tests touch shared mutable state (a singleton, a `static var`, the
+process environment, a fixed-path fixture) carries `.serialized`; the classic race
+symptom is a recorded value asserting `0` because another test cleared the state
+in between. `.serialized` protects within the suite only — state spanning multiple
+suites needs a test-owned gate around the racing window, or dependency injection
+so the state stops being shared at all.
 
 ## Naming Conventions
 

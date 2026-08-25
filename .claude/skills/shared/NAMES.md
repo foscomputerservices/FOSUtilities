@@ -104,6 +104,31 @@ it for *meaning* — not out of fear of the collision, which is harmless.
 
 ---
 
+## 3. The ViewModel family shares one stem
+
+A ViewModel's companion types carry its stem verbatim, so the whole family reads and
+searches as one group. (Both rules ratified 2026-08-25; their checks shipped first —
+`ops-naming-trio` and the stem clause of `viewmodel-view-one-to-one`.)
+
+### 3a. Operations trio → `{Name}ViewModelOperations`
+
+The Operations protocol for `{Name}ViewModel` is `{Name}ViewModelOperations`, in
+`{Name}ViewModelOperations.swift`.
+
+| ✅ Correct | ❌ Wrong |
+|-----------|---------|
+| `LocalDockViewModelOperations` beside `LocalDockViewModel` | `LocalDockOperations` beside `LocalDockViewModel` |
+
+Beyond consistency this has teeth: a drifted name is exactly what a name-keyed search
+misses, so the misnamed protocol escapes the review and tooling aimed at it.
+
+### 3b. A `ViewModelView` shares its ViewModel's stem
+
+`{Name}View` renders `{Name}ViewModel` — `LocalDockView` ↔ `LocalDockViewModel`. A
+near-miss stem (`LocalDocView`) hides the pairing from every reader and every search.
+
+---
+
 ## Quick reference
 
 | You are naming… | Form | Example |
@@ -113,6 +138,8 @@ it for *meaning* — not out of fear of the collision, which is harmless.
 | Screen/page ViewModel read request | `<Noun>Request` | `DocksRequest` |
 | Raw-entity read request | `<Entity>ShowRequest` | `UserShowRequest` |
 | Display type colliding with a domain type | name for meaning; collision is fine | `CatalogViewModels.Tier` |
+| Operations protocol | `<Name>ViewModelOperations` | `LocalDockViewModelOperations` |
+| View for a ViewModel | shares the ViewModel's stem | `LocalDockView` |
 
 ## Red flags — STOP
 
@@ -122,3 +149,5 @@ it for *meaning* — not out of fear of the collision, which is harmless.
   domain type — the collision is harmless; name for meaning instead.
 - A screen read request carrying a `Show`/`Get`/`Fetch` verb — drop it; the noun alone
   is the read.
+- An Operations protocol or a `ViewModelView` whose stem does not match its ViewModel's
+  (`LocalDockOperations`, `LocalDocView`) — rename to the shared stem.

@@ -424,6 +424,39 @@ Why the shortcut fails: the struct captures a snapshot of names-and-values. Hand
 
 ---
 
+## One Top-Level App State, Not an Environment of Entries
+
+The environment injection surface stays small: **one top-level Application State `@Observable final class`**, injected once at the root beside `MVVMEnvironment`. Values reach ViewModels through the projection edge — the parent body extracts scalars into `.bind(appState: .init(...))` — never through `@Environment` reads scattered down the view hierarchy.
+
+Every custom `@Entry` (or legacy `EnvironmentKey` conformance) and every additional `@Observable` type vended through `@Environment` is an **injection obligation** on every preview, test host, and scene that renders the subtree: forget one `.environment(...)` and an `@Environment(X.self)` read crashes; a custom-keyed value silently falls back to its default and the view renders wrong with no error. The cost lands on exactly the surfaces that give development its speed — previews and tests — and it compounds with every entry added.
+
+The single top-level App State is also the **persistence seam**: store one class and the app resumes where the user left off, even after being closed. Scatter the same state across a dozen environment entries and there is nothing coherent to store.
+
+**Wrong:**
+```swift
+extension EnvironmentValues {
+    @Entry var currentProject: Project? = nil
+    @Entry var filterState: FilterState = .init()
+    @Entry var selectedTab: Tab = .home
+}
+// …and views deep in the hierarchy each reading @Environment(\.currentProject)
+```
+
+**Right:**
+```swift
+@Observable final class AppState {
+    var currentProject: Project?
+    var filterState: FilterState = .init()
+    var selectedTab: Tab = .home
+}
+// Injected once at the root: .environment(appState)
+// Parent bodies extract scalars: .bind(appState: .init(projectName: appState.currentProject?.name, …))
+```
+
+**What this does not ban:** SwiftUI's built-in environment values (`\.dismiss`, `\.colorScheme`, `\.locale` — always present, no injection obligation); the framework's own types (`MVVMEnvironment`, a form's `Validations`); an `@Entry` a reusable component vends as styling configuration, the `buttonStyle`-shaped idiom. The question every *additional* entry or environment-vended `@Observable` must answer, in the existential principle's format: **why can't this live on the App State?** Unanswered, it's the finding.
+
+---
+
 ## Ops Conventions
 
 Client-hosted ops — the methods on your `ViewModelOperations` protocol that mutate `@Observable` storage — follow a small set of conventions covering where they live, their signature, their async-ness, and what they don't do. These conventions exist because client-hosted ops mirror server-side storage with one key asymmetry: on the server the storage path is implicit (Vapor request context); on the client it must be explicit.
@@ -440,7 +473,7 @@ The difference is *where `<storage>` comes from*.
 
 **Server-hosted.** `<storage>` is the database (or whatever the server persists to), reached through the Vapor request context that `MVVMEnvironment` and `deploymentURLs` configured once at startup. Every op on the server has an implicit path to storage — you don't pass it, the server context already has it.
 
-**Client-hosted.** There is no implicit server context. Storage lives in one or more `@Observable` classes held in `@Environment`. Nothing makes this implicit, so the convention makes it explicit in every op that writes back:
+**Client-hosted.** There is no implicit server context. Storage lives in `@Observable` classes held in `@Environment` — normally the one top-level App State (see *One Top-Level App State, Not an Environment of Entries*). Nothing makes this implicit, so the convention makes it explicit in every op that writes back:
 
 ```swift
 protocol MyViewModelOperations: ViewModelOperations {

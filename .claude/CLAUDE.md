@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Attribution Moratorium
+
+No AI attribution anywhere in this project's artifacts: no AI names, model names, or AI-authorship statements in documents, specifications, code, code comments, commit messages, PR/issue text, or generated files. No `Co-Authored-By`, `Claude-Session`, "Generated with", or similar trailers/banners — in any message or file, ever. Harness-required filenames and paths (`CLAUDE.md`, `.claude/`) are not attribution and are unaffected.
+
 ## Build & Test Commands
 
 ```bash
