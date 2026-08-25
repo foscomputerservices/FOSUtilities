@@ -204,6 +204,21 @@ app.uiTestingElement("saveButton").tap()
 XCTAssertTrue(app.uiTestingElement("savedBanner").waitForExistence())
 ```
 
+### Prove a tap by its effect — `tap(provenBy:)` <!-- apple-only -->
+Reach for this when: a tap's effect must be proven before the test proceeds — a
+freshly launched app can discard its first synthesized event, so this taps,
+polls the witness, and re-taps once inside the dropped-first-event window.
+The witness is any observable effect: a view appearing, or the transported
+operations recording becoming readable. Don't hand-roll a tap-then-poll helper,
+and don't give the witness real work to wait out — the poll absorbs
+dispatch-and-transport observability only; a stub operation records
+synchronously, so a witness that waits on "work" is being held wrong.
+
+```swift
+presentButton.tap(provenBy: { dismissButton.exists })
+addButton.tap(provenBy: { try viewModelOperations().createCardCalled })
+```
+
 ### Wait out a moving frame — `waitForStableFrame()` <!-- apple-only -->
 Reach for this when: an interaction bypasses `tap()` — a native double-tap, addressing a
 control's child elements, asserting a frame — on a view that may still be animating in. A

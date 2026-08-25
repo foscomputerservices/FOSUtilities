@@ -50,6 +50,11 @@ public extension XCUIApplication {
     }
 }
 
+// 368 lines against a 350 limit. Splitting the text-entry group (type/setText/
+// waitForFocus) into an extension clears it mechanically — worth doing next time
+// this file is open, rather than as drive-by churn under an unrelated change.
+// swiftlint:disable type_body_length
+
 /// A view tagged with `uiTestingIdentifier(_:isEnabled:)` (**FOSMVVM**), as seen by an XCUITest
 ///
 /// Obtain one from `XCUIApplication.uiTestingElement(_:)`:
@@ -471,6 +476,58 @@ public extension XCUIApplication {
     /// app.uiTestingElement("amountField").setText("42")  // the keyboard is now up
     /// app.uiTestingElement("saveButton").tap()           // covered by it — cleared, then tapped
     /// ```
+    /// Taps the tagged view and proves the tap landed by the effect it causes,
+    /// re-tapping once inside the dropped-first-event window
+    ///
+    /// ```swift
+    /// presentButton.tap(provenBy: { dismissButton.exists })
+    /// ```
+    ///
+    /// A freshly launched app can discard its first synthesized event, so a tap is proven
+    /// by the UI change it causes — a view appearing, a transported operations recording
+    /// becoming readable — never assumed from dispatch:
+    ///
+    /// ```swift
+    /// addButton.tap(provenBy: { try viewModelOperations().createCardCalled })
+    /// ```
+    ///
+    /// > The witness poll absorbs dispatch-and-transport observability — the moments
+    /// > between the synthesized event and its effect becoming readable from the test
+    /// > process — never operation behavior. A stub operation records the call
+    /// > synchronously; one that "does work" the witness must wait out is being held wrong.
+    ///
+    /// - Parameters:
+    ///   - witness: Returns `true` once the tap's effect is observable.
+    ///   - timeout: Total time to prove the tap, in seconds; the single re-tap happens at
+    ///     the halfway point.
+    /// - Returns: `true` if the witness proved the tap before the timeout elapsed.
+    @discardableResult public func tap(
+        provenBy witness: () throws -> Bool,
+        timeout: TimeInterval = 10,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) rethrows -> Bool {
+        tap(file: file, line: line)
+        if try Self.poll(witness, until: Date(timeIntervalSinceNow: timeout / 2)) {
+            return true
+        }
+        tap(file: file, line: line)
+        return try Self.poll(witness, until: Date(timeIntervalSinceNow: timeout / 2))
+    }
+
+    private static func poll(
+        _ witness: () throws -> Bool,
+        until deadline: Date
+    ) rethrows -> Bool {
+        while Date() < deadline {
+            if try witness() {
+                return true
+            }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        return try witness()
+    }
+
     public func tap(file: StaticString = #filePath, line: UInt = #line) {
         // Waiting through the public wait keeps one default governing both it and the call site.
         guard waitForExistence() else {
@@ -861,6 +918,8 @@ public extension XCUIApplication {
         self.identifier = identifier
     }
 }
+
+// swiftlint:enable type_body_length
 
 // MARK: Aimable-band occlusion guard
 
