@@ -20,8 +20,13 @@ jobs:
         run: brew install swiftformat swiftlint
 
       # --lint reports without writing. `swiftformat .` is the fix.
+      # fileHeader is excluded here, not in .swiftformat: its template year is
+      # `{created.year}`, which SwiftFormat resolves from filesystem creation
+      # dates — and a fresh checkout stamps every file with today's date, so any
+      # committed 2024/2025 header "fails" on CI while passing locally. Header
+      # enforcement stays local, where the dates are real.
       - name: SwiftFormat
-        run: swiftformat --lint .
+        run: swiftformat --lint --disable fileHeader .
 
       - name: SwiftLint
         run: swiftlint --strict

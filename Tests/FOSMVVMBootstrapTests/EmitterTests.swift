@@ -124,7 +124,6 @@ struct EmitterTests {
             "Sources/ViewModels/Resources/ViewModels/WelcomeViewModel.yml",
             "Sources/ViewModels/Versioning/SystemVersion+App.swift",
             "Sources/PalettePress/App/PalettePressApp.swift",
-            "Sources/PalettePress/App/TestConfiguration.swift",
             "Sources/PalettePress/Views/WelcomeView.swift",
             "Sources/PalettePress/Info.plist",
             "Sources/PalettePress/PalettePress.entitlements",
@@ -135,7 +134,6 @@ struct EmitterTests {
             "Tests/PalettePressUITests/PalettePressUITests.swift",
             "Tests/PalettePressUITests/Views/WelcomeViewTests.swift",
             "Tests/PalettePressUITests/Support/LocalizableTestCase+PalettePress.swift",
-            "Tests/PalettePressUITests/Support/TestConfiguration.swift", // symlink → the app's copy
             // shared doctrine set
             "CLAUDE.md",
             ".swiftformat",
@@ -191,11 +189,15 @@ struct EmitterTests {
             "Sources/PalettePressViewModels/ViewModels/BoardViewModelOperations.swift",
             "Sources/PalettePressViewModels/ViewModels/CardViewModel.swift",
             "Sources/PalettePressViewModels/Requests/BoardRequest.swift",
-            "Sources/PalettePressViewModels/Requests/CreateCardRequest.swift",
+            "Sources/PalettePressViewModels/Requests/CardCreateRequest.swift",
+            // the card's form contract — one rule set for form, wire body, and record
+            "Sources/PalettePressViewModels/FieldModels/CardFields.swift",
+            "Sources/PalettePressViewModels/FieldModels/CardFieldsMessages.swift",
             // shared foundation — version handshake for both the app and the server
             "Sources/PalettePressFoundation/SystemVersion+App.swift",
             // server-hosted YAML
             "Sources/Resources/ViewModels/BoardViewModel.yml",
+            "Sources/Resources/FieldModels/CardFieldsMessages.yml",
             // Vapor server (Fluent)
             "Sources/PalettePressServer/entrypoint.swift",
             "Sources/PalettePressServer/configure.swift",
@@ -205,7 +207,7 @@ struct EmitterTests {
             "Sources/PalettePressServer/Migrations/Board+Schema.swift",
             "Sources/PalettePressServer/Migrations/Card+Schema.swift",
             "Sources/PalettePressServer/Factories/BoardViewModel+Factory.swift",
-            "Sources/PalettePressServer/Writers/CreateCardRequest+Writer.swift",
+            "Sources/PalettePressServer/Writers/CardCreateRequest+Writer.swift",
             "Sources/PalettePressServer/Auth/SkeletonAuthProvider.swift",
             // umbrella (Xcode-only)
             "Sources/SPMLibraries/SPMLibraries.swift",
@@ -216,8 +218,8 @@ struct EmitterTests {
             "Sources/PalettePressClientViewModels/Resources/ViewModels/AboutViewModel.yml",
             // app (Xcode-only)
             "Sources/PalettePress/App/PalettePressApp.swift",
-            "Sources/PalettePress/App/TestConfiguration.swift",
             "Sources/PalettePress/Views/BoardView.swift",
+            "Sources/PalettePress/Views/CardView.swift",
             "Sources/PalettePress/Views/AboutView.swift",
             "Sources/PalettePress/Correlation.swift",
             "Sources/PalettePress/Info.plist",
@@ -234,10 +236,10 @@ struct EmitterTests {
             "Tests/PalettePressUITests/Support/PalettePressViewModelViewTestCase.swift",
             "Tests/PalettePressUITests/Support/PalettePressViewModelDisplayTestCase.swift",
             "Tests/PalettePressUITests/Support/LocalizableTestCase+PalettePress.swift",
-            "Tests/PalettePressUITests/Support/TestConfiguration.swift", // symlink → the app's copy
             "Tests/PalettePressUITests/Views/AboutViewTests.swift",
             "Tests/PalettePressUITests/Views/BoardViewTests.swift",
             "README.md",
+            "docs/deferrals.md",
             // shared doctrine set
             "CLAUDE.md",
             ".swiftformat",
