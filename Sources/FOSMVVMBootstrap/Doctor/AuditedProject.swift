@@ -386,6 +386,10 @@ private extension AuditedProject {
         var scanned: [ScannedSwiftSource] = []
         for url in files(under: root) where url.pathExtension == "swift" {
             guard let relativePath = relative(url, to: root) else { continue }
+            // SPM manifests are build scripts, not module sources — a `@ViewModel`
+            // in one can only be prose (measured: a comment in a manifest produced
+            // a false R13 finding naming Package.swift itself).
+            guard !url.lastPathComponent.hasPrefix("Package") else { continue }
             let components = relativePath.split(separator: "/").map(String.init)
             guard !components.contains(where: { $0 == "Tests" || $0.hasSuffix("Tests") }) else { continue }
             guard let contents = try? String(contentsOf: url, encoding: .utf8) else { continue }
@@ -400,8 +404,14 @@ private extension AuditedProject {
                 ScannedSwiftSource(
                     relativePath: relativePath,
                     imports: Set(imports).sorted(),
-                    // The trailing \b keeps @ViewModelFactory out of the match.
-                    declaresViewModel: contents.range(of: #"@ViewModel\b"#, options: .regularExpression) != nil
+                    // Anchored to line start: a Swift attribute leads its declaration
+                    // line, while a `@ViewModel` mentioned mid-line is prose in a
+                    // comment (measured: two comment mentions produced false R13
+                    // findings). The trailing \b keeps @ViewModelFactory out.
+                    declaresViewModel: contents.range(
+                        of: #"(?m)^\s*@ViewModel\b"#,
+                        options: .regularExpression
+                    ) != nil
                 )
             )
         }

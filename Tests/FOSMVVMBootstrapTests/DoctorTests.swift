@@ -538,6 +538,31 @@ struct DoctorSharedModuleRuleTests {
         #expect(!report.findings.contains { $0.summary.contains("ViewModels module") })
     }
 
+    @Test("R13 — a comment mentioning @ViewModel is prose, not a declaration")
+    func viewModelInCommentIsNotADeclaration() throws {
+        let report = try Fixture.localOnly(shape: .localOnly) { root in
+            try Data("""
+            import Vapor
+
+            // Serves the read slice — now LIVE (`@ViewModel(options: [.live])`); the
+            // grouped register mounts it behind the credential middleware.
+            func routes() {}
+            """.utf8).write(to: root.appendingPathComponent("Sources/PalettePress/Routes.swift"))
+        }
+        #expect(!report.findings.contains { $0.summary.contains("ViewModels module") })
+    }
+
+    @Test("R13 — a Package.swift mentioning @ViewModel is a manifest, not a source")
+    func manifestMentionIsNotADeclaration() throws {
+        let report = try Fixture.localOnly(shape: .localOnly) { root in
+            let manifest = root.appendingPathComponent("Package.swift")
+            let existing = (try? String(contentsOf: manifest, encoding: .utf8)) ?? ""
+            try Data((existing + "\n// the shared library — every per-screen `@ViewModel` lives here\n").utf8)
+                .write(to: manifest)
+        }
+        #expect(!report.findings.contains { $0.summary.contains("Package.swift") })
+    }
+
     @Test("R13 — a test-target ViewModel is a fixture, not a finding")
     func viewModelIsExempt() throws {
         let report = try Fixture.sharedLibrary(shape: .sharedLibrary) { root in
