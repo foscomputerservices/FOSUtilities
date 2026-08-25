@@ -7,6 +7,322 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`fosmvvm-review` checks the View/ViewModel structure** (plugin 2.31.0) — the
+  `swiftui-view` area gained `view-conforms-to-viewmodelview` (blocker),
+  `viewmodel-view-one-to-one` (blocker), and `preview-uses-previewhost` (warning).
+  Previously every check in that area examined what a View body reads or mutates, so
+  a project could render ViewModels from plain `View`s, share one ViewModel across a
+  family of sub-views, and skip `previewHost` entirely without the review noticing.
+  Existing projects should expect new blockers on first run. The triage globs also
+  widened to `Sources/**/*Views/**/*.swift`: a target named `FooViews` rather than
+  `Views` matched nothing before, and Views living in `Tile`/`Card`/`Row` files matched
+  no filename pattern — those files were silently unscanned.
+
+### Added
+
+- **The test-host seam arrives with the App State** (plugin 2.63.0) — ruled: a
+  skeleton app whose only environment is `mvvmEnv` correctly uses plain
+  `.testHost()`, so the scaffold no longer ships a payload-free `TestConfiguration`
+  and dead `presentView(configuration:)` overloads; the seam — a real
+  `TestConfiguration` plus the `.testHost { }` decorator — arrives the day
+  `.environment(appState)` does, and the app-setup skill teaches the pair together.
+  `testhost-mirrors-vm-settings` now grades by what the environment holds: a
+  project-authored `@Observable` behind a plain host is the finding, framework-only
+  environment is at most a note, and a dead seam is scaffolding noise. Also ruled:
+  scaffolds ship no `.VersionedTestJSON` baselines by design — the skeleton is a
+  template the user replaces, their own test runs mint their own baselines, and
+  `versioned-baseline-committed` is the reminder they get committed.
+
+- **`fosmvvm-review` gains the five ruled-in candidates** (plugin 2.62.0) — the
+  gaps the first full pipeline run surfaced, each now a check:
+  `directives-spell-their-tool` (a misspelled lint token is inert prose that reads
+  as governance), `deferral-pointers-resolve` (a comment deferring work must cite a
+  document that exists — path-drifted spellings of a real ledger are the common
+  case), `versioned-baseline-committed` (a never-committed `.VersionedTestJSON`
+  baseline means the wire-shape canary can never fire), blocker
+  `server-installs-the-error-middleware` (verifying *which* module's middleware —
+  `Vapor.ErrorMiddleware.default` type-checks while installing the wrong one), and
+  `views-dont-mint-prose` (user-visible prose is never a view-body literal, display
+  or operation-argument alike; the view generator's Hardcoding Text rule gained the
+  same extension).
+
+- **`fosmvvm-review` closes the coverage register for real** (plugin 2.61.0) — the
+  last gap, caught open by a same-day bookkeeping audit, ships as `serverrequest`
+  blocker `live-invalidation-is-a-pair`: for a `.live` screen, register a dependency
+  on what the projection reads and invalidate projections of what changed, both
+  naming the same entity — an emit nothing registered nudges nobody, a registration
+  nothing emits never refreshes, and a hand-driven Fluent write outside
+  `liveTransaction` silently skips the refresh. Detection pairs the registration and
+  emit sets by entity expression, enumerates `+Live.swift` and `LiveInvalidation/`
+  files before judging (a truncated sweep manufactures dead-emit findings), and
+  names the conformant sentinel-projection idiom — one shared `static let observed`
+  referenced by both halves. The area's globs now reach factory files.
+
+- **`tap(provenBy:)`** (FOSTestingUI) — taps a tagged view and proves the tap landed
+  by the effect it causes, re-tapping once inside the dropped-first-event window a
+  freshly launched app exhibits. The witness is any observable effect — a view
+  appearing, the transported operations recording becoming readable — and the poll
+  absorbs dispatch-and-transport observability only, never operation behavior: a
+  stub operation records synchronously, so there is no "work" to wait out. Retires
+  the hand-rolled tap-then-poll helpers consumers had to carry. Paired review check
+  `stubs-record-they-dont-do` (plugin 2.60.0) guards the frame from the other side:
+  a stub Operations body that awaits real work, sleeps, or reaches network/storage
+  turns a wiring test into a timing-dependent behavior test and is flagged.
+
+- **The bootstrap templates are brought to the review standard** — the first full
+  `fosmvvm-review` run over a fresh scaffold found the walking skeleton drifting
+  from doctrine ratified after it shipped; the templates now hold it. The card
+  gains a `CardFields` form contract (protocol + localized en/es messages) adopted
+  by both the wire body and the record; `CardViewModel` derives `vmId` from the
+  record's identity threaded through the factory, and every screen ViewModel uses
+  the type-keyed singleton form; the card gets its own `CardView`, registered for
+  testing; the create request is renamed noun-first (`CardCreateRequest`); the
+  server installs FOSMVVMVapor's `ErrorMiddleware` (without it, Vapor's stock
+  middleware flattened typed validation rejections to bare 500s — caught by the
+  scaffold's new tests); `BoardServerTests` drives both requests through the typed
+  test door, including an invalid-body rejection; stubs use the reserved-fake
+  vocabulary; the failed-boot shutdown error is logged; inert lint directives are
+  removed; the scaffold ships `docs/deferrals.md`; and the public Operations
+  surface carries customer-frame DocC with call examples.
+
+- **`fosmvvm-review`'s two-tier pipeline is qualified end-to-end** (plugin 2.59.0) —
+  the first full run of the doctor-into-skill flow (structural halt exercised on a
+  seeded error; nine areas dispatched on the clean re-run) fed fixes back into the
+  skill text: doctor routing judges the resolved pin rather than the `Package.swift`
+  requirement, route 2 documents `--shape` and both routes' non-zero exit, the
+  markdown report's finding sections are explicitly tier-2-only (doctor detail lives
+  in the Structure section), the coverage-state section reflects the closed register,
+  and the `serverrequest-test` area's globs now match `*ServerTests.swift` — the
+  scaffolder's own server-test naming had silently escaped the area.
+
+- **`fosmvvm-review` closes the coverage register** (plugin 2.58.0) — final register
+  check `suites-serialize-shared-state` (`cross-cutting`, warning): Swift Testing
+  parallelizes by default, so suites touching shared mutable state — singletons,
+  `static var`s, the process environment, fixed-path fixtures — carry `.serialized`.
+  The check states the trait's boundary honestly: it protects within a suite only,
+  so cross-suite state needs a test-owned gate scoped to the racing window or
+  dependency injection, and findings name one of those. All three test generators
+  gained the same statement (§Parallelism and Shared State). With this, every gap
+  in the coverage ledger's register (G1–G20) is closed.
+
+- **`fosmvvm-review` reviews documentation discipline** (plugin 2.57.0) — new
+  `cross-cutting` check `docc-serves-the-customer`: DocC serves the code's customer
+  (lead with how to call it, state the contract), design rationale belongs in
+  design/plan prose (relocated, not deleted), and internal comments exist only for
+  genuinely non-obvious constraints — theatre is flagged. Undocumented and
+  example-free public API is aggregated into one finding graded by whether the
+  symbol has customers, and detection walks up past the attribute stack
+  (`@ViewModel`, wrappers) so the framework's most idiomatic types are not
+  misreported as undocumented.
+
+- **`fosmvvm-review` asks the existential question** (plugin 2.56.0) — new
+  `cross-cutting` check `existentials-answer-the-question`, under the ruled scope:
+  passing `any P` as a parameter is fine; stored existentials, `[any P]` collections,
+  and existential returns must answer the principle's own question — was there any
+  other way? Findings state the cost (dispatch, boxing, lost type identity, `Codable`
+  friction) and name the alternative (generic, primary associated type, enum over a
+  closed conformer set, concrete type). Named answers that are not hits: the
+  injected-dependency seam where generics would metastasize type parameters, the
+  seam's transitively-erased resources, third-party protocol idioms, and genuinely
+  open heterogeneous mixes.
+
+- **`fosmvvm-review` guards the behavioral-test channel** (plugin 2.55.0) — new
+  `cross-cutting` check `behavioral-suite-standing`: behavioral suites project from
+  requirements + ratified design in a context that never saw the implementation, so
+  review verifies only their standing (a visible requirements register with no suite
+  is the gap) and their code-visible isolation (`@testable import` or
+  implementation-module imports inside a `*BehavioralTests` suite). The check
+  explicitly forbids reviewers from judging behavioral assertions against the code —
+  a disagreement between the channels classifies upward, never as a finding against
+  the test.
+
+- **`fosmvvm-review` enforces tests-never-touch-production** (plugin 2.54.0) — new
+  `cross-cutting` blocker `tests-never-touch-production`: a test's isolation is
+  constructed, not inherited. The check resolves each test's execution edges and fires
+  on mutation paths that can reach non-test infrastructure — write requests at real
+  deployment URLs, database bindings read from the ambient environment, pattern-keyed
+  cleanup deletes against shared targets. A production hostname literal handed to a
+  pure function is inert fixture data, and live external reads are flakiness notes,
+  not this blocker. The Fluent generator now states the ephemeral-database rule
+  (`.sqlite(.memory)`, never an inherited `DATABASE_URL`) beside its test templates.
+
+- **`fosmvvm-review` enforces the request naming dictionary** (plugin 2.53.0) — new
+  `serverrequest` check `request-names-follow-the-dictionary` (NAMES §1a–1c): writes
+  and semantic actions are noun-first (`UserCreateRequest`, never `CreateUserRequest`),
+  screen reads are the ViewModel's stem with no verb, raw reads keep a noun-first
+  `Show`. Detection enumerates `ServerRequest` conformers — never `*Request`-named
+  types, so domain types like a GitHub `PullRequest` cannot false-positive — and
+  classifies by contract before testing the leading token, so a verb-derived word
+  inside a screen noun is not a hit. Wholesale verb-first drift gets one area-wide
+  finding framed as rename items per the dictionary's do-not-add-more callout. Also
+  carries NAMES §2's clause: a display type renamed only to dodge a harmless
+  cross-module collision is flagged — names are chosen for meaning.
+
+- **`fosmvvm-review` flags hand-rolled framework products** (plugin 2.52.0) — new
+  `cross-cutting` check `no-hand-rolled-framework-products`: helpers re-implementing
+  what the api-catalog already lists (JSON/Codable glue, wire-format dates, network
+  mocks, semantic versions, async button/error-alert surfaces) are flagged by the
+  contract semantics the hand-roll loses, and framework internals duplicated
+  downstream get the upstream report as their only remedy. The version floor is
+  mandatory before any finding: a consumer pinned below the API's release gets an
+  adoption candidate, not a violation — blaming code for an API its pin cannot see is
+  the check's characteristic false positive. Detections resolve against the catalog,
+  never memory; network plumbing stays with `server-calls-use-the-request-door`, and
+  UI-test helpers keep `no-hand-rolled-element-helpers`.
+
+- **One top-level App State becomes doctrine, and `fosmvvm-review` enforces it**
+  (plugin 2.51.0) — new architecture statement (One Top-Level App State, Not an
+  Environment of Entries) and its `view`-area check `one-top-level-appstate`: the
+  environment injection surface is `MVVMEnvironment` plus one top-level Application
+  State `@Observable final class`, with values reaching ViewModels as scalars through
+  `.bind(appState:)`. Every custom `@Entry`/`EnvironmentKey` and every additional
+  environment-vended `@Observable` is an injection obligation previews and test hosts
+  pay — a missing `.environment(...)` crashes an `@Environment(X.self)` read and
+  silently defaults a custom key — and the single class doubles as the persistence
+  seam for resuming where the user left off. SwiftUI built-ins, the framework's own
+  surface, and component-vended styling entries are named non-hits. The
+  `fosmvvm-swiftui-app-setup` skill's multiple-environment-values section now teaches
+  the discipline instead of inviting the growth.
+
+- **`fosmvvm-review` flags generic error architectures** (plugin 2.50.0) — new
+  `viewmodel` check `no-generic-error-architecture`: error UI follows the same
+  ViewModel → View pattern as everything else, so each error scenario gets its own
+  client-hosted ViewModel taking the specific `ResponseError` (or routes the typed
+  throw to the framework's localizing `.alert(error:)` surface). Detection covers the
+  unifying display protocol, the one-ViewModel-for-all-errors shape, central
+  error-rendering middleware, and the erosion signal — typed errors erased to
+  `localizedDescription` for display. Named non-hits keep the doctrine's own shapes
+  safe: a shared toast template over per-error ViewModels is the pattern held, not
+  violated, and an error-binding routed to the framework alert is transport, not
+  architecture.
+
+- **`fosmvvm-review` catches computed properties on wire-crossing ViewModels**
+  (plugin 2.49.0) — new `viewmodel` check `computed-properties-dont-serialize`: only
+  stored properties exist in the encoded JSON, so a computed presentation value is a
+  blocker where the encoded JSON is what renders (a live Leaf template reading it
+  misevaluates silently — sections that never show, badges that never appear) and a
+  warning where a decoded Swift instance recomputes it, since the derivation still ran
+  on the wrong side of the wire. Property-wrapper declarations and the computed
+  `operations` idiom are carved out; derive-on-the-owner (a value type's computed
+  frozen into a stored VM property at init) is named as the correct shape. Verified
+  against a drifted Leaf codebase (five live blocker groups) with a zero-false-positive
+  falsifier run on a SwiftUI client. The `view` area's template-read clause now
+  resolves reads to **stored** properties only, pairing the two sides.
+
+- **`fosmvvm-review`'s view area goes multi-surface** (plugin 2.48.0) — `swiftui-view`
+  becomes `view`: one area, per-surface detections for SwiftUI, Leaf, and React, since
+  all three render the same edge (View ← ViewModel + ratified design). The skill's
+  scope widens with it — `.leaf`/`.tsx`/`.jsx` files are now reviewable; the Swift-only
+  scope had silently exempted two of the three surfaces. New check
+  `views-render-they-dont-shape`: views render data, they never compose, format, or
+  reorder it — detection keys on the VM's own confessing property names (`…Prefix`,
+  `…Suffix`, `…Part1/2/3`) before syntax, carves out identifier interpolation, and
+  knows `#date(…)` over a `Localizable` cannot work at all. The Leaf clauses carry the
+  decisive framework fact: LeafKit renders template↔VM drift silently empty — a page
+  can read a ViewModel that no longer has its properties and ship blank with zero
+  errors, so review is the only net. Verified against a drifted Leaf codebase; React
+  clauses ship statically checked pending a verification target.
+
+- **`fosmvvm-review` gains the `serverrequest-test` area** (plugin 2.47.0) — the wire
+  contract's test-side twin, verified drive-by-drive against a drifted test tree
+  before shipping. `request-test-uses-the-typed-door` (blocker): tests drive
+  ServerRequest routes through the typed door — `app.testing().test(request, locale:)`
+  or `processRequest` — never hand-glued paths and hand-encoded queries, which go
+  green against their own invention while the production client fetches something
+  else; when the glue mirrors a bespoke controller mount, the finding names the
+  production side as the broken party and says the remedy spans both trees.
+  `request-test-covers-the-contract` (warning): every request has a typed-door test,
+  declared errors are provoked and caught typed (decode-guard declarations accept a
+  decode-contract test instead), validating write bodies get one invalid-body test,
+  and writes assert effects. The serverrequest-test generator caught up: the shipped
+  Fluent harnesses over hand-rolled helpers (naming the async-boot trap), and typed
+  rejection asserts over status-sniffing.
+
+- **`fosmvvm-review` checks the write body's contract** (plugin 2.46.0) —
+  `requestbody-adopts-its-fields` in `serverrequest`: a write request's body carrying
+  user-entered field values must adopt the entity's Fields protocol, with a `validate`
+  that actually reaches the Fields helpers — the compiler forces `ValidatableModel`
+  onto Create/Update/Replace bodies but cannot stop a `nil`-returning `validate` from
+  satisfying it emptily. The enumeration covers the whole write family including
+  `ReplaceRequest` and write-actioned plain `ServerRequest`s; the user-values-versus-
+  operation-parameters discriminator keeps machine bodies (control-channel commands,
+  log tails, CLI keys) out. Verified two-sided before shipping: a drifted codebase
+  supplied the true positive, and a zero-Fields codebase produced zero false blockers.
+
+- **`fosmvvm-review` checks the VM's snapshot discipline** (plugin 2.45.0) —
+  `vm-holds-scalars-only` in `viewmodel`: a `@ViewModel` type storing an `@Observable`
+  class reference is a blocker — directly, buried one level inside an owned value type,
+  or laundered behind a stored existential whose conformers include one. Detection
+  names the compile-gate fingerprints (a `Codable` retrofit, `@MainActor`/`@unchecked
+  Sendable`) and carves out the framework's own patterns: the computed `operations`
+  minting idiom and `@FormFieldModel` wrapper backings. Verified against a drifted
+  client codebase before shipping. Also fixes the `FormFieldModel` DocC example,
+  which showed `@ViewModel final class` against the macro's struct-only rule.
+
+- **`fosmvvm-review` checks the wire door** (plugin 2.44.0) — `server-calls-use-the-request-door`
+  in `cross-cutting`: a hand-built HTTP call to the app's own server (raw `URLSession`,
+  hand-assembled `URLRequest`, an app-owned socket dialer) is a blocker — the typed
+  `ServerRequest` door is the way, through either `processRequest` overload; hand-rolled
+  plumbing to external services is a warning where FOSFoundation's `url.fetch()` /
+  `send(data:)` / `delete(data:)` front door exists, with `errorType:` when the error
+  body is an owned type. Detection keys on the transport, resolves CLI hosts through
+  injected bases, and lets client role win over target membership. Where the door
+  genuinely cannot express an operation (raw streaming, ranged reads, socket channels),
+  the disposition is a suppression naming the gap and its upstream issue — findings
+  converge instead of re-firing forever. Verified against a drifted client-server
+  codebase before shipping. Leaf/JS template fetches are TBD, reported at warning
+  when encountered.
+
+- **`fosmvvm-review` gains the `datamodel` area** (plugin 2.43.0) — the Model layer's
+  first review home, five checks verified against a drifted Fluent codebase before
+  shipping. The firm junction-table principle is now enforced (`modelid-outside-id`:
+  raw identity fields outside `@ID`, including identities smuggled through JSONB
+  structs and `String` fields, need express, expiring documentation); form-backed
+  models must adopt their Fields protocol; the model and the net of its migration
+  sequence must agree per dialect; required-ness must agree between Fields and
+  schema; and a stored enum decoded with a coalescing fallback into a meaning-bearing
+  case is flagged as the silent history-rewrite it is. The fluent-datamodel generator
+  caught up in the same stage: `@OptionalParent` for same-database optional FKs, no
+  `[UUID]` identity arrays (its own field-type table had offered one), honest enum
+  decodes, and a pointer to the post-2.1 framework surface.
+
+- **`doctor` R13 and R14 — the shared-module pair.** Two rules join the table (now
+  fourteen), both errors, both running for every shape including shared-library:
+  R13 flags `@ViewModel` declarations living outside a shared ViewModels module
+  (`Sources/ViewModels` or `Sources/…ViewModels`) — types shared by name instead of
+  by module drift apart; R14 flags server imports (`Vapor`, `Fluent*`, `Leaf`,
+  `FOSMVVMVapor`, …) inside that module — the dependency points one way, and the
+  server-side Factory is the one place that sees both worlds. Test sources are
+  exempt: a ViewModel declared in a test target is a fixture.
+
+- **`doctor --json`** — both doctor doors emit the report as stable, sorted-key JSON
+  (`findings` with `severity`/`target`/`summary`/`remedy`, `unchecked`, and a
+  `hasErrors` verdict), and `Doctor.Report` gains a `json` property beside `text`.
+  The `fosmvvm-review` skill (plugin 2.42.0) now runs doctor as its tier-1 structural
+  pass: structural errors halt area review — fix structure first, so the area reviews
+  find what they expect where they expect — and doctor findings count in the review
+  report's single summary, so the existing CI gate covers both tiers without forking.
+
+- **`doctor`** (FOSMVVMBootstrap) — audits an existing project against the rules the
+  scaffolder generates by, and reports what has drifted. Two doors, one engine: a
+  `swift package fosmvvm-doctor` command plugin (nothing to install for a package that
+  already depends on FOSUtilities) and a `fosmvvm-bootstrap doctor` subcommand. It
+  reports and never rewrites; every finding names the setting and the value to use.
+  Twelve rules cover the failures that surface far from their cause — a second direct
+  link to a shipping FOS product, a testing product linked outside a test target,
+  embedding without sign-on-copy, a misspelled `BUILD_LIBRARY_FOR_DISTRIBUTION` that
+  Xcode silently ignores, an unpinned `TEST_HOST`, a missing `DEVELOPMENT_TEAM`,
+  manual code signing, a hardened runtime in Debug, entitlements that do not match the
+  shape, stray localization YAML, a test plan pointing at re-minted target
+  identifiers, and deployment targets that disagree with `Package.swift` or fall below
+  the FOSUtilities floors. Findings are errors or warnings, and the command exits
+  non-zero only on errors, so it works as a build step or a generator-skill gate.
+  `--shape` is optional: the two shape-conditional rules report as unchecked rather
+  than guess. The same rules judge every project the scaffolder emits, in the walking
+  skeletons — so the table and the templates cannot drift apart silently.
+
 ## [0.14.0] - 2026-08-23
 
 ### Added
