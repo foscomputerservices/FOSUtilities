@@ -1,6 +1,6 @@
 ---
 name: fosmvvm-swiftui-app-setup
-description: Set up the @main App struct for FOSMVVM SwiftUI apps. Configures MVVMEnvironment, deployment URLs, client-hosted localization (resourceBundles, missingLocalizationStore/noResourcePaths symptoms), and test infrastructure.
+description: Maintain and extend the @main App struct of an existing FOSMVVM SwiftUI app — MVVMEnvironment, deployment URLs, test-view registration, client-hosted localization (resourceBundles, missingLocalizationStore/noResourcePaths symptoms), and adding framework targets by hand after bootstrap. To CREATE an app, run fosmvvm-bootstrap instead.
 homepage: https://github.com/foscomputerservices/FOSUtilities
 metadata: {"clawdbot": {"emoji": "🚀", "os": ["darwin"]}}
 ---
@@ -9,7 +9,9 @@ metadata: {"clawdbot": {"emoji": "🚀", "os": ["darwin"]}}
 
 > **Read [`shared/functional-discipline.md`](../shared/functional-discipline.md) before proceeding.** Every rule below derives from it.
 
-Generate the main App struct for a SwiftUI application using FOSMVVM architecture.
+Maintain the App struct of a FOSMVVM SwiftUI application — the `MVVMEnvironment`, the test-view registry, the localization wiring, and the framework targets added by hand after generation.
+
+> **Creating an app is `fosmvvm-bootstrap`'s job.** `swift run fosmvvm-bootstrap new` emits a complete, buildable project for any of the three shapes — App struct, environment, test infrastructure, seeded `CLAUDE.md` and memory files. This skill picks up where that leaves off: the scaffolder generates once and does not maintain, and an app's App struct changes for as long as the app lives.
 
 ## Conceptual Foundation
 
@@ -181,29 +183,27 @@ private extension MVVMEnvironment {
 
 ## When to Use This Skill
 
-- Starting a new FOSMVVM SwiftUI application
-- Migrating an existing SwiftUI app to FOSMVVM
-- Setting up the App struct with proper FOSMVVM infrastructure
-- Configuring test infrastructure for UI testing
+The App struct is generated once and then edited for the rest of the app's life. This skill is for the editing.
 
-## What This Skill Generates
+- **Adding a framework target by hand**, after bootstrap — Xcode's template defaults are wrong for FOSMVVM; see the checklist below.
+- **Standing up the first client-hosted ViewModel** in an app that had none — `resourceBundles`, the bundle accessor, and the two symptoms (`missingLocalizationStore`, `noResourcePaths`).
+- **Registering a new `ViewModelView`** so it can be driven in isolation under test.
+- **Adding a deployment environment or changing a server URL.**
+- **Adopting FOSMVVM in an existing SwiftUI app** the scaffolder never created.
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Main App struct | `Sources/App/{AppName}.swift` | Entry point with MVVMEnvironment setup |
-| MVVMEnvironment configuration | Computed property in App struct | Bundles and deployment URLs |
-| Test infrastructure | DEBUG blocks in App struct | UI testing support |
-| Project conventions doc | `CLAUDE.md` / `AGENTS.md` at the app repo root | Anchors the app on SOLID (see below) |
+**Creating a new app is not on this list.** `swift run fosmvvm-bootstrap new` emits the App struct, the `MVVMEnvironment`, the test infrastructure, and the app's seeded `CLAUDE.md` and memory files, for all three project shapes. Reach for the scaffolder, then come back here when the app starts changing.
 
-## Seed the App's `CLAUDE.md` (project conventions)
+## What This Skill Covers
 
-When setting up a **new FOSMVVM app**, seed (or extend) a `CLAUDE.md`/`AGENTS.md` at the app
-repo root with a short **"SOLID Is the Foundation"** entry, mirroring FOSUtilities' own. A
-FOSMVVM app inherits FOSMVVM's SOLID contract — deviations (a domain type in a ViewModel,
-per-target SPM linking, `.grouped("string")` routes, throwaway `vmId`s) break in baffling
-ways — so every future session on the app should read this before touching code. Drop-in:
+| Concern | Where it lives | When you touch it |
+|---------|----------------|-------------------|
+| `MVVMEnvironment` | Computed property in the App struct | New resource bundle, new deployment URL |
+| Test-view registration | `init()` of the App struct | Every new `ViewModelView` |
+| Client-hosted localization | `resourceBundles` + a module's `ResourceAccess` | First client-hosted VM; every new resource-carrying framework |
+| Server-hosted contract wiring | Shared module + server side | Every new server-fetched ViewModel |
+| Deployment configuration | `deploymentURLs` + `FOS-DEPLOYMENT` | New environment, changed host |
 
-```markdown
+
 ## SOLID Is the Foundation
 
 This app is built on **FOSMVVM**, which is built on the **SOLID principles** — deviations
@@ -252,90 +252,71 @@ collections, async bridging, versioning, model identifiers, or testing, invoke t
 Prefer the catalogued API over hand-rolled code.
 ```
 
-## Project Structure Configuration
-
-| Placeholder | Description | Example |
-|-------------|-------------|---------|
-| `{AppName}` | Your app name | `MyApp`, `StoreApp` |
-| `{AppTarget}` | Main app target | `App` |
-| `{ResourceBundles}` | Module names with localization | `MyAppViewModels`, `SharedResources` |
-
 ## How to Use This Skill
 
-**Invocation:**
-/fosmvvm-swiftui-app-setup
+**Invocation:** `/fosmvvm-swiftui-app-setup`
 
-**Prerequisites:**
-- App name understood from conversation context
-- Deployment URLs discussed or documented
-- Resource bundles identified (modules with localization)
-- Test support requirements clarified
+**Start by reading the App struct that already exists.** Every task below is an edit to a
+file the scaffolder wrote, or to one a previous session extended — not a fresh generation.
+Read it first, and match it.
 
-**Workflow integration:**
-This skill is used when setting up a new FOSMVVM SwiftUI application or adding FOSMVVM infrastructure to an existing app. The skill references conversation context automatically—no file paths or Q&A needed.
+**The recurring edits, and where each lands:**
 
-## Pattern Implementation
+| You are… | Edit | Then verify |
+|---|---|---|
+| Adding a `ViewModelView` | `registerTestView(_:)` in the App's `init()` | Drive it in isolation under test |
+| Adding a resource-carrying framework | `resourceBundles` + a `{Module}ResourceAccess` | Translations round-trip in that module's tests |
+| Standing up the first client-hosted VM | `resourceBundles`, and read Client-Hosted Localization below | No `missingLocalizationStore` / `noResourcePaths` |
+| Adding a deployment environment | `deploymentURLs` + the `FOS-DEPLOYMENT` plist key | `Deployment.current` resolves as intended |
+| Adding a framework target by hand | The new-framework-target checklist below | `swift package fosmvvm-doctor` |
 
-This skill references conversation context to determine App struct configuration:
+**Registration timing is load-bearing** and is the one edit that fails silently if placed
+wrong — it belongs in `init()`, not in a computed property, `.onAppear`, or `.task`. The
+Core Components section above states why.
 
-### Configuration Detection
+**When the edit is structural rather than in-file** — a new target, changed signing, a new
+test bundle — the project settings are the scaffolder's territory and `fosmvvm-doctor`'s to
+audit. See the hand-off section near the end of this file.
 
-From conversation context, the skill identifies:
-- **App name** (from project discussion or existing code)
-- **Deployment environments** (production, staging, debug URLs)
-- **Resource bundles** (modules containing localization YAML files)
-- **Test infrastructure** (whether UI testing support needed)
-
-### MVVMEnvironment Setup
-
-Based on project structure:
-- **App bundle** (typically Bundle.main)
-- **Resource bundle accessors** (from identified modules)
-- **Deployment URLs** (for each environment)
-- **Current version** (from shared module)
-
-### Test Infrastructure Planning
-
-If test support needed:
-- **Test detection** (process arguments check)
-- **Test host modifier** (wrapping top-level view)
-- **View registration** (all ViewModelViews for testing)
-
-### File Generation
-
-1. Main App struct with @main attribute
-2. MVVMEnvironment computed property
-3. WindowGroup with environment injection
-4. Test infrastructure (if requested, DEBUG-only)
-5. `MVVMEnvironment.registerTestingViews()` static extension, called from `init()` (if test support)
-
-### Context Sources
-
-Skill references information from:
-- **Prior conversation**: App requirements, deployment environments discussed
-- **Project structure**: From codebase analysis of module organization
-- **Existing patterns**: From other FOSMVVM apps if context available
 
 ## Key Patterns
 
-### MVVMEnvironment as Computed Property
-
-The `MVVMEnvironment` is a computed property, not a stored property:
+### MVVMEnvironment: built once by a static factory, held in `@State`
 
 ```swift
-private var mvvmEnv: MVVMEnvironment {
-    MVVMEnvironment(
-        appBundle: Bundle.main,
-        resourceBundles: [...],
-        deploymentURLs: [...]
-    )
+@main
+struct MyApp: App {
+    @State private var mvvmEnv = makeMVVMEnvironment()
+
+    var body: some Scene {
+        WindowGroup { … }
+            .environment(mvvmEnv)
+    }
+}
+
+private extension MyApp {
+    @MainActor static func makeMVVMEnvironment() -> MVVMEnvironment {
+        MVVMEnvironment(
+            appBundle: Bundle.main,
+            resourceBundles: [MyAppViewModelsResourceAccess.localizationBundle],
+            deploymentURLs: [...]
+        )
+    }
 }
 ```
 
-**Why computed?**
-- Keeps initialization logic separate
-- Can be customized in DEBUG vs RELEASE
-- Clear dependency on bundles and URLs
+**Why stored, and why a factory.** `body` is evaluated repeatedly. A computed
+`var mvvmEnv: MVVMEnvironment { … }` therefore builds a **new** `MVVMEnvironment` on every
+pass and hands `.environment()` a different instance each render — churn on a value that
+should be stable for the app's lifetime, and wasted work resolving bundles and URLs. `@State`
+holds one instance; the static factory keeps the construction out of the property
+declaration, so DEBUG/RELEASE variation, pinned sessions, and credential providers all have
+somewhere to live without turning the declaration into a wall of arguments.
+
+> Earlier revisions of this skill specified a computed property, on the reasoning that it
+> kept initialization separate and allowed per-configuration variation. The static factory
+> satisfies both without rebuilding per render, and is what `fosmvvm-bootstrap` emits for
+> every shape.
 
 ### Test Detection Pattern
 
@@ -388,9 +369,10 @@ private extension MVVMEnvironment {
 
 ## Common Customizations
 
-### Multiple Environment Values
+### The Environment Surface: `mvvmEnv` + One App State
 
-You can inject multiple environment values:
+The root injects exactly two things — the framework environment and **one top-level
+Application State `@Observable final class`**:
 
 ```swift
 var body: some Scene {
@@ -399,10 +381,37 @@ var body: some Scene {
     }
     .environment(mvvmEnv)
     .environment(appState)
-    .environment(\.colorScheme, .dark)
-    .environment(\.customValue, myCustomValue)
 }
 ```
+
+Resist growing this list. Every custom `@Entry` and every additional `@Observable`
+injected here is an obligation on every preview and test host that renders the
+subtree — forget one `.environment(...)` and an `@Environment(X.self)` read crashes,
+while a custom-keyed value silently defaults. App-state-shaped values (selection,
+filters, navigation, session) belong as properties **on the App State class**, reaching
+ViewModels as scalars through `.bind(appState: .init(...))`. One class also gives you
+the persistence seam for free: store it, and the app resumes where the user left off.
+The question any additional entry must answer: *why can't this live on the App State?*
+See [Architecture Patterns → One Top-Level App State, Not an Environment of
+Entries](../shared/architecture-patterns.md).
+
+### The Test-Host Seam Arrives With the App State
+
+A skeleton app whose only environment is `mvvmEnv` correctly uses plain
+`.testHost()` — there is no state to transport, so it ships no `TestConfiguration`
+and no decorator (ruled 2026-08-25). **The seam arrives the day
+`.environment(appState)` does.** When you add the top-level App State, add the
+pair together:
+
+- a `TestConfiguration` (`Codable` enum) whose cases carry the state a UI test
+  needs the app to mirror, and
+- the decorator form — `.testHost { testConfiguration, testView in … }` — building
+  env state from the decoded configuration, so the hosted view's environment
+  mirrors the injected VM stub instead of production state.
+
+A `TestConfiguration` with a single payload-free case that no test constructs is
+a dead seam — scaffolding noise that teaches nothing. See *Advanced Test
+Configurations* below for the decorator's shape.
 
 ### Conditional Test Registration
 
@@ -442,104 +451,9 @@ You can add specific test configurations in `.testHost`:
 }
 ```
 
-## Project File Structure
+## Wiring the App to Its Resources
 
-The App struct does not stand alone. It is one consumer of a shared module that holds ServerRequests, ViewModels, Fields, and SystemVersion (see [FOSMVVMArchitecture.md](../../docs/FOSMVVMArchitecture.md) §"The Shared Module Pattern"). The on-disk layout depends on the build system.
-
-### Build system: Xcode project vs. SPM
-
-| | Xcode project (`*.xcodeproj`) | Swift Package (`Package.swift`) |
-|---|---|---|
-| Targets | Xcode-managed framework targets | SPM library products |
-| Resource bundle | `Bundle(for: ResourceAccessClass.self)` | `Bundle.module` |
-| macOS signing | Frameworks sign with app's Team ID — no entitlement workaround needed | Hardened-runtime + ad-hoc-signed `PackageFrameworks` requires `com.apple.security.cs.disable-library-validation` (see "Code Signing for SPMLibraries Umbrella Frameworks" above) |
-| Info.plist / entitlements | App target `Sources/{AppTarget}/` or `Resources/` | App target's resource directory |
-| SPMLibraries umbrella | **Required** `Sources/SPMLibraries/SPMLibraries.swift` umbrella when multiple targets consume SPM products — one canonical type identity across targets (see "The SPMLibraries umbrella") | N/A |
-
-Default to **Xcode project** for app projects unless there is a specific reason to use SPM at the top level. The Xcode layout sidesteps the PackageFrameworks signing trap and gives natural homes for `Info.plist`, `Assets.xcassets`, and `.entitlements`.
-
-### Sources/ tree (canonical app layout)
-
-```
-{ProjectName}/
-├── {ProjectName}.xcodeproj          # Xcode project (no Package.swift)
-│
-├── Sources/
-│   ├── ViewModels/                  # SHARED MODULE (framework target)
-│   │   ├── ViewModels/              # @ViewModel structs — ONE type per file,
-│   │   │   └── Docks/               #   grouped in a dir named for the container VM
-│   │   │       ├── DocksViewModel.swift       # top-level (composite)
-│   │   │       ├── DockViewModel.swift        # child — its own file
-│   │   │       ├── BerthViewModel.swift       # grandchild — its own file
-│   │   │       ├── HarbormasterSummary.swift  # display type — its own file
-│   │   │       └── BerthLiveness.swift        # display enum — its own file
-│   │   ├── Operations/              # Op protocols + StubOps (no live impls)
-│   │   ├── Fields/                  # Fields protocols + FieldsMessages
-│   │   ├── Errors/                  # ServerRequestError types
-│   │   ├── Versioning/
-│   │   │   └── SystemVersion+App.swift   # extension on SystemVersion — name for the
-│   │   │                                 #   TYPE (+ matching header), NOT <Module>Version.swift
-│   │   ├── Resources/ViewModels/    # *.yml — client-hosted apps ONLY;
-│   │   │                            #   server-hosted → sibling Sources/Resources/ (see Contract Wiring)
-│   │   └── ViewModelsResourceAccess.swift   # exposes localizationBundle
-│   │
-│   ├── Models/                      # OPTIONAL framework — @Model classes
-│   │
-│   ├── SPMLibraries/                # umbrella — REQUIRED for one type identity
-│   │   └── SPMLibraries.swift       #   across targets (Xcode; see below)
-│   │
-│   └── {AppTarget}/                 # APP TARGET
-│       ├── App/
-│       │   ├── {AppName}App.swift   # @main — the file this skill generates
-│       │   ├── TestConfiguration.swift   # if .testHost uses typed configs
-│       │   └── Assets.xcassets
-│       ├── Views/
-│       │   └── Docks/               # Views mirror the same container grouping
-│       │       ├── DocksView.swift
-│       │       └── DockView.swift
-│       ├── Operations/              # Live op implementations
-│       ├── AppState/                # @Observable session state
-│       ├── Info.plist
-│       └── {AppName}.entitlements
-│
-└── Tests/                          # mirrors Sources/ one-to-one
-    ├── UnitTests/
-    │   ├── Docks/                   # same grouping again
-    │   │   └── DocksViewModelTests.swift
-    │   └── TestYAML/                # FOSMVVM test fixtures
-    └── UITests/
-```
-
-### File Organization Conventions
-
-Three rules govern how ViewModel code is laid out. They apply to **every** layer, and
-the generators scaffold to them by default.
-
-1. **One type per file, named for the type.** Each `@ViewModel` type — the top-level
-   composite **and** every composed child — lives in its **own file** named for the type
-   (`DocksViewModel.swift`, `DockViewModel.swift`, `BerthViewModel.swift`). Display
-   structs and display enums the ViewModels use get their own files too
-   (`HarbormasterSummary.swift`, `BerthLiveness.swift`). **Never chain several
-   `@ViewModel` types into one file.** A long multi-type file hides the model and fights
-   reviewability; one-file-per-type keeps each display snapshot independently readable,
-   diffable, and testable — this is **Single Responsibility applied to the file**.
-
-2. **Group a collection in a directory named for its container.** A composite ViewModel
-   and its children live in a directory named after the containing top-level VM **minus
-   the `ViewModel` suffix**: `ViewModels/Docks/`. The directory name (`Docks`) signals
-   which VM owns the collection.
-
-3. **The same grouping repeats across every layer.** `Views/Docks/`,
-   `Tests/UnitTests/Docks/`, and — server-side — `ViewModelFactories/Docks/` and
-   `Controllers/Docks/` all use the identical `Docks/` folder, so a screen's ViewModel,
-   View, Factory, and tests sit in parallel folders. **`Tests/` mirrors `Sources/`
-   one-to-one.** (Factories/Controllers/DataModels are server-only and live in the server
-   target, not the shared module — see the contract-wiring section for which side owns
-   the shared module. The shared module carries only what both client and server must
-   agree on: ViewModels, Requests, Fields, Versioning.)
-
-Other skills reference these rules rather than restating them (e.g. the
-[viewmodel-generator](../fosmvvm-viewmodel-generator/SKILL.md) scaffolds one file per VM).
+The three things the App struct has to get right about resources — where a module's bundle comes from, what `deploymentURLs` says when there is no server, and what the App file is allowed to import.
 
 ### ResourceAccess.swift — the two forms
 
@@ -769,126 +683,23 @@ Structure", "What Belongs Where", "File Organization Conventions".
 > change FOSMVVM**. The server path and client path agree automatically because neither side
 > invents one.
 
-## Generating the Xcode Project (XcodeGen)
+## The Xcode project is the scaffolder's job, not this skill's
 
-The Xcode-project layout has many easy-to-forget settings that must be set on **every** target: `SWIFT_VERSION = 6.0`, `BUILD_LIBRARY_FOR_DISTRIBUTION = NO`, embed-and-sign vs. link-only on the app target, `SPMLibraries` umbrella wiring, signing identity, deployment targets, entitlements path, Info.plist path. Configuring these by hand is repetitive and drifts.
+`fosmvvm-bootstrap` emits the `project.yml`, the target graph, the SPMLibraries umbrella, the
+signing settings, and the test-target wiring for all three project shapes. It is the source of
+truth for project structure; this skill does not restate it.
 
-**Recommendation:** declare the project in [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`project.yml`) and regenerate the `.xcodeproj` from it. Commit `project.yml`; treat the `.xcodeproj` as derived.
+- **Creating a project** — `swift run fosmvvm-bootstrap new`. See the
+  [Creating a Project](../../../Sources/FOSMVVM/FOSMVVM.docc/CreatingAProject.md) article.
+- **Auditing an existing one** — `swift package fosmvvm-doctor`, which checks the settings this
+  section used to list (`SWIFT_VERSION`, `BUILD_LIBRARY_FOR_DISTRIBUTION`, `TEST_HOST`,
+  `DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE`, the hardened runtime, the link and embed graph,
+  deployment floors).
+- **Why the umbrella exists** — [FOSMVVM Architecture → The SPMLibraries umbrella](../../docs/FOSMVVMArchitecture.md).
 
-### Why XcodeGen
-
-- **Diff-able** — `project.yml` is one file; `project.pbxproj` is a giant generated graph hostile to review.
-- **Reproducible** — every target gets the same Swift version, distribution flag, deployment target, signing — no per-target drift.
-- **Claude-editable** — adding a target, package, or build setting is a small YAML edit, not a click sequence.
-- **Single tool** — `brew install xcodegen` then `xcodegen generate`. No Tuist cache, no Bazel.
-
-### Workflow
-
-1. `brew install xcodegen` (one time per machine).
-2. Edit `project.yml` at the repo root.
-3. Run `xcodegen generate` — produces/updates `{ProjectName}.xcodeproj`.
-4. Open in Xcode normally. Re-run the command after every `project.yml` change.
-
-### The SPMLibraries umbrella, declaratively — REQUIRED for type identity
-
-**When more than one Xcode target consumes SPM package products (app + unit tests + UI
-tests …), vend them through a SINGLE `SPMLibraries` umbrella framework that every target
-depends on — never link the SPM products directly into each target.** `SPMLibraries` is a
-thin framework whose dependencies list every external package product (FOSFoundation,
-FOSMVVM, …); the app target depends on `SPMLibraries` (plus `ViewModels` and `Models`). In
-XcodeGen this is one stanza.
-
-**Why (a generic Xcode + SPM bug — not FOS-specific):** linking an SPM library statically
-into multiple targets compiles a **separate copy of its types into each target**, and
-Swift's mangled type name carries the linking context — so the "same" type has a
-**different runtime identity per target**. An instance crossing a target boundary then
-fails `is` / `as?` / `==` / `===` against the same type on the other side: **`TypeA != TypeA`.**
-It **compiles clean and breaks at runtime in baffling ways, far from the cause.** One
-umbrella *dynamic* framework = one canonical copy = one shared type identity everywhere.
-
-**Why it matters ESPECIALLY for FOSMVVM:** FOSMVVM leans hard on **comparing types** —
-type-derived request paths, ViewModel/Request resolution, versioning. A FOS app that skips
-the umbrella breaks exactly where those comparisons happen. The umbrella *looks* like
-redundant re-vending to a mainstream eye — which is precisely why it must be stated, not
-emitted silently.
-
-> **Do NOT "simplify" by linking SPM products directly per-target.** `TypeA != TypeA`
-> across target boundaries at runtime (a generic Xcode packaging bug); FOS relies on type
-> comparison, so this **WILL** break in baffling ways. Every target depends on the one
-> `SPMLibraries` framework. (UI-test targets are the one exception — they run in a separate
-> process and link FOS products directly; see the ui-tests generator.)
-
-### What `project.yml` settles in one place
-
-| Setting | Applied to | Why |
-|---|---|---|
-| `SWIFT_VERSION: 6.0` | All targets via `settings.base` | Must match across the project |
-| `BUILD_LIBRARY_FOR_DISTRIBUTION: NO` | All targets | App is not a library; setting YES bloats build & breaks `@_spi` |
-| `ENABLE_HARDENED_RUNTIME: YES` | App + tests | macOS notarization |
-| `GENERATE_INFOPLIST_FILE: YES` | Frameworks + tests | Saves writing empty Info.plists |
-| `INFOPLIST_FILE: Sources/{App}/Info.plist` | App target only | Carries `FOS-DEPLOYMENT`, `NS*UsageDescription` |
-| `CODE_SIGN_ENTITLEMENTS: Sources/{App}/{App}.entitlements` | App target only | CloudKit, audio background, etc. |
-| `DEVELOPMENT_TEAM` | All targets via `settings.base` | Avoids the SPM ad-hoc-signing trap |
-| Package dependencies on `SPMLibraries` only | App imports just `import {AppModule}` shape | One place to add/remove SPM deps |
-
-See [reference.md](reference.md) Template 7 for the complete `project.yml`.
-
-### Verified, build-tested `project.yml` (Option A — source inclusion)
-
-For a **one-shot, build-verified** setup, use
-[`docs/work/fosmvvm-app-project-template.md`](../../docs/work/fosmvvm-app-project-template.md)
-— reverse-engineered from a real hand-built `.xcodeproj` and confirmed with
-`xcodebuild … build-for-testing → ** TEST BUILD SUCCEEDED **` (app + app-hosted unit-test
-bundle + UI-test bundle all compile and link). It refines Template 7 with these load-bearing
-corrections — apply them whichever template you start from:
-
-- **Option A (source inclusion).** The app target `sources:` **include the folders** of the
-  shared contract module and the Views layer (they compile *into* the app; Views reference
-  ViewModels with no cross-module `import`). The app links **only** `SPMLibraries`. (Template
-  7 is Option B — a separate `ViewModels` framework; both are valid.)
-- **Singular `BUILD_LIBRARY_FOR_DISTRIBUTION: NO`** — the plural `…LIBRARIES…` is a no-op typo.
-- **Test-target names `{Base}UnitTests` / `{Base}UITests`**, where `{Base}` strips a trailing
-  `UI` from the app name. Never bare `{AppName}Tests` (a unit target should say "Unit") or
-  `{AppName}UITests` when `{AppName}` already ends in `UI` (→ doubled `…UIUITests`).
-- **Pin `TEST_HOST` when the app target name ≠ `PRODUCT_NAME`** — XcodeGen otherwise derives
-  it from the target name and the unit test fails to link (`ld: library '…' not found`):
-  `TEST_HOST: "$(BUILT_PRODUCTS_DIR)/{ProductName}.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/{ProductName}"` + `BUNDLE_LOADER: "$(TEST_HOST)"`.
-- **App-hosted tests** (unit test depends on the app target) so the tests share the app's
-  exact FOS type identity — the real proof the `SPMLibraries` umbrella works.
-- **Multi-platform → `supportedDestinations: [macOS, iOS]`**, NOT `platform: [macOS, iOS]`
-  (the latter splits into per-platform targets and breaks a single-name scheme entry).
-- **`.xctestplan` caveat:** a committed plan pins targets by UUID, which XcodeGen re-mints on
-  generate → dangling references. Either drop the plan and list `test.targets:` in the scheme
-  (regenerable default), or reconcile the plan's UUIDs once in Xcode after the first generate.
-
-### Lifecycle: XcodeGen scaffolds, it does not maintain
-
-The generator is a **one-shot scaffolder**, not a lifetime project manager. It earns its keep
-once — nailing the hard, easy-to-forget setup (umbrella, source-inclusion, app-hosted tests,
-`TEST_HOST`, Swift 6 + strict concurrency). Once the project is stable, the few tweaks it
-accrues (a setting, a destination, a folder) are better made **in Xcode by hand** — a regen
-clobbers them. The workflow:
-
-1. **Scaffold once** from the template.
-2. **Do the two things XcodeGen structurally can't**, once, in Xcode after the final generate:
-   - **Synchronized folders** (`PBXFileSystemSynchronizedRootGroup`). XcodeGen (≤ 2.45.4)
-     emits classic enumerated groups, not the Xcode-16 folders that auto-mirror the
-     filesystem. The build is identical, but auto-mirroring is lost — re-add the source
-     folders as synchronized folders.
-   - Add **iOS/iPadOS destinations** if needed (destinations-only under source-inclusion — no
-     package change, provided the included source is iOS-clean).
-3. **Commit the `.xcodeproj`** (stop git-ignoring it) — it becomes the hand-maintained source
-   of truth; keep `project.yml` as a documented **seed**, not a live regen target.
-
-**Keep the strict-concurrency win.** Verify the generated project has `SWIFT_VERSION 6.0` +
-`SWIFT_STRICT_CONCURRENCY complete` and **no** `SWIFT_APPROACHABLE_CONCURRENCY` /
-`SWIFT_DEFAULT_ACTOR_ISOLATION` keys. A fresh Xcode 26 app turns on Approachable Concurrency
-(`@MainActor`-by-default) by default; XcodeGen sets only what `project.yml` declares, so you
-keep clean strict-complete concurrency the IDE would otherwise relax.
-
-## File Templates
-
-See [reference.md](reference.md) for complete file templates.
+The scaffolder generates a project once and does not maintain it: after the finishing checklist
+converts the groups to synchronized folders, the `.xcodeproj` is hand-maintained. Everything below
+is about that phase — the app's whole life after generation.
 
 ## Naming Conventions
 
@@ -918,35 +729,6 @@ Runtime Detection:
 - Edit Scheme → Run → Arguments → Environment Variables
 - Add: `FOS-DEPLOYMENT = staging`
 
-## Code Signing for SPMLibraries Umbrella Frameworks
-
-**Required when** the project uses an `SPMLibraries.framework` umbrella target that links FOSFoundation/FOSMVVM (or any other SwiftPM products) and the app is built for **macOS** with `ENABLE_HARDENED_RUNTIME = YES` (the default for new macOS / multiplatform apps).
-
-**Symptom at launch / first test run:**
-```
-dyld[...]: Library not loaded: @rpath/FOSFoundation.framework/...
-Reason: ... code signature in '...PackageFrameworks/FOSFoundation.framework' not valid
-        for use in process: mapping process and mapped file (non-platform) have different Team IDs
-```
-
-**Why it happens:** SwiftPM builds dynamic package frameworks into `Build/Products/<config>/PackageFrameworks/` and **always ad-hoc-signs them** (`TeamIdentifier=not set`), regardless of the consuming project's `DEVELOPMENT_TEAM`. The app binary is signed with the developer's team, so under hardened-runtime library validation dyld refuses to load the ad-hoc-signed framework. This does **not** affect iOS Simulator builds (library validation isn't enforced there), so iOS-only projects never see it.
-
-**Fix — add to the app's `.entitlements` file:**
-```xml
-<key>com.apple.security.cs.disable-library-validation</key>
-<true/>
-```
-
-This is Apple's documented escape hatch for apps that load dylibs not signed by their team. It only relaxes library validation; the rest of hardened runtime stays in effect.
-
-**Verify** with:
-```
-codesign -dvv <DerivedData>/Build/Products/Debug/PackageFrameworks/FOSFoundation.framework
-```
-Expect `Signature=adhoc`, `TeamIdentifier=not set` — that is the trigger condition.
-
-**Apply the same entitlement to** any additional bundles that load `SPMLibraries.framework` out-of-process: standalone test bundles, app extensions, helper tools. (Tests hosted by the app inherit the host app's entitlements and need no change.)
-
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models and patterns
@@ -965,7 +747,8 @@ Expect `Signature=adhoc`, `TeamIdentifier=not set` — that is the trigger condi
 | 1.4 | 2026-05-03 | Add "Generating the Xcode Project (XcodeGen)" section with declarative project setup (`SWIFT_VERSION`, `BUILD_LIBRARY_FOR_DISTRIBUTION = NO`, signing, `SPMLibraries` umbrella wiring) so the `.xcodeproj` is regenerable from a committed `project.yml`. Add Template 7 to reference.md with a complete `project.yml`. |
 | 1.5 | 2026-07-02 | Add "File Organization Conventions" (canonical owner): one type per file, collection grouped in a container-named directory (`ViewModels/Docks/`), the same grouping repeated across Views/Factories/Tests, and `Tests/` mirrors `Sources/`. Canonical tree now demonstrates the grouping. (backlog B2/L59; other skills reference this.) |
 | 1.6 | 2026-07-02 | **BLOCKERS.** Add "Server-Hosted ViewModel Contract Wiring (Both Sides)": type-derived globally-unique paths (no `.grouped("string")`), middleware≠path, clean-host base URLs, resources server-only in sibling `Sources/Resources/`, native app in root `.xcodeproj`, Tests mirror Sources; anti-drift callout; grounded in FOSShowcase `routes.swift`/`FOSShowcaseApp.swift` (C1). Add the SPMLibraries **type-identity** rationale (`TypeA != TypeA` across targets; FOS relies on type comparison) + "do not link per-target" callout; retitled umbrella REQUIRED (was "Optional") (C2). |
-| 1.7 | 2026-07-02 | Fold in the build-verified [`fosmvvm-app-project-template.md`](../../docs/work/fosmvvm-app-project-template.md) (copied into this repo): Option-A source inclusion, singular `BUILD_LIBRARY_FOR_DISTRIBUTION` (fixed the plural no-op typo throughout), `{Base}UnitTests`/`{Base}UITests` naming, `TEST_HOST` pin, app-hosted tests, `supportedDestinations`, `.xctestplan` caveat (C3). `.testHost()` no-arg baseline + `underTest` detection via `launchEnvironment` (`__FOS_ViewModel`) not `arguments.count` — verified against `ViewModelViewTestCase.presentView` (C4). "Lifecycle: scaffolds not maintains" — synchronized folders, commit the `.xcodeproj`, keep strict-concurrency (C5). Reinforced `SystemVersion+<App>.swift` naming (C6). |
+| 1.7 | 2026-07-02 | Fold in the build-verified `fosmvvm-app-project-template.md` (since removed) (copied into this repo): Option-A source inclusion, singular `BUILD_LIBRARY_FOR_DISTRIBUTION` (fixed the plural no-op typo throughout), `{Base}UnitTests`/`{Base}UITests` naming, `TEST_HOST` pin, app-hosted tests, `supportedDestinations`, `.xctestplan` caveat (C3). `.testHost()` no-arg baseline + `underTest` detection via `launchEnvironment` (`__FOS_ViewModel`) not `arguments.count` — verified against `ViewModelViewTestCase.presentView` (C4). "Lifecycle: scaffolds not maintains" — synchronized folders, commit the `.xcodeproj`, keep strict-concurrency (C5). Reinforced `SystemVersion+<App>.swift` naming (C6). |
 | 1.8 | 2026-07-02 | Add "Seed the App's `CLAUDE.md`": recommend the scaffolded app repo adopt a "SOLID Is the Foundation" project-conventions entry (drop-in template) so downstream apps inherit FOSMVVM's SOLID discipline and point future sessions at the `fosmvvm-*` skills. |
 | 1.9 | 2026-07-03 | Wire in the FOSUtilities API catalog: pointer to `../shared/api-catalog/FOSMVVM.md` (§ SwiftUI Support, § Versioning) near the top, and an "API Discovery" drop-in for the seeded app `CLAUDE.md` referencing the `fosutilities-api-catalog` skill by name only (never a filesystem path — the catalog lives in the installed plugin). |
 | 1.10 | 2026-07-23 | Add "Client-Hosted Localization" (field feedback from standing up a first `.clientHostedFactory` VM in an overlay-based Xcode app): encode-time vs bind-time localization concept + `missingLocalizationStore`/`noResourcePaths` symptoms; the resource-carrying framework pattern for overlay projects; the five framework-target settings (`DEVELOPMENT_TEAM`, `BUILD_LIBRARY_FOR_DISTRIBUTION`, deployment targets, `SWIFT_VERSION`, SPMLibraries-only linking); the Xcode resource-flattening gotcha (`resourceDirectoryName` nil ⇒ `""` recurses; tests must pass `""`, not the `"Resources"` default); client-VM-framework tests default to the iOS Simulator (macOS build-for-testing PackageFrameworks link failure); `localizationBundle` naming (never `clientLocalizationStore`). All claims verified against `MVVMEnvironment.swift` / `YamlLocalizationStore.swift` / `URL+Files.swift` / `LocalizableTestCase.swift` / `ViewModelView.swift`. |
+| 2.0 | 2026-08-24 | **Re-cut around the app's life, not its creation.** `fosmvvm-bootstrap` (shipped 0.14.0) now emits the App struct, `MVVMEnvironment`, test infrastructure, seeded `CLAUDE.md` and memory files for all three shapes, so this skill's project-creation half was superseded and had begun to drift — its `project.yml` table still read `ENABLE_HARDENED_RUNTIME: YES` for app and tests, while the templates set Debug `NO` / Release `YES` because YES in Debug kills macOS UI testing. Removed: the XcodeGen section, the project file tree, the code-signing section, the file-template list, and the seeded-`CLAUDE.md` instructions — all now the scaffolder's, and audited by `fosmvvm-doctor`. Kept and re-parented: `MVVMEnvironment`, test-view registration, the resource wiring, Client-Hosted Localization (including the hand-added-framework checklist and the `resourceDirectoryName` flattening gotcha), server-hosted contract wiring, deployment configuration. The SPMLibraries type-identity doctrine moved to `.claude/docs/FOSMVVMArchitecture.md`, discharging the never-done item from the bootstrap design §6.7 — it had lived only in this skill and in a template that ships out to customers. |

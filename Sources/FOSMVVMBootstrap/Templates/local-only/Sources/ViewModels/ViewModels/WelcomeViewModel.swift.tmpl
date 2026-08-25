@@ -21,7 +21,7 @@ public struct WelcomeViewModel {
     }
     #endif
 
-    public var vmId = ViewModelId()
+    public var vmId: ViewModelId = .init(type: Self.self)
 
     public init() {
         self.init(

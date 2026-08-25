@@ -24,7 +24,12 @@ enum Entrypoint {
             try await configure(app)
         } catch {
             app.logger.report(error: error)
-            try? await app.asyncShutdown()
+            do {
+                try await app.asyncShutdown()
+            } catch let shutdownError {
+                // The boot error still propagates; the shutdown failure must not vanish.
+                app.logger.report(error: shutdownError)
+            }
             throw error
         }
         try await app.execute()

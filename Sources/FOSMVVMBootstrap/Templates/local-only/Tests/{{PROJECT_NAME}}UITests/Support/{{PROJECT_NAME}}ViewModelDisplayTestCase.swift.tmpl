@@ -14,22 +14,9 @@ import XCTest
 // never have to.
 //
 // Deliberately non-final: every view test suite subclasses this base.
-// swift lint:disable classes_should_be_final
 class {{PROJECT_NAME}}ViewModelDisplayTestCase<
     VM: ViewModel
 >: ViewModelDisplayTestCase<VM>, @unchecked Sendable {
-    @MainActor func presentView(
-        configuration: TestConfiguration,
-        viewModel: VM = .stub(),
-        timeout: TimeInterval = 10
-    ) throws -> XCUIApplication {
-        try presentView(
-            testConfiguration: configuration.toJSON(),
-            viewModel: viewModel,
-            timeout: timeout
-        )
-    }
-
     override static var runsForEachTargetApplicationUIConfiguration: Bool {
         false
     }
@@ -45,4 +32,3 @@ class {{PROJECT_NAME}}ViewModelDisplayTestCase<
     }
 }
 
-// swift lint:enable classes_should_be_final

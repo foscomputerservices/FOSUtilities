@@ -1,0 +1,1378 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0D2B891AC00E4F201698973D /* PalettePressClientViewModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */; };
+		1A0C90C1191198C40142F61B /* SPMLibraries.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; };
+		3C6F9DE20EB54BF004BD3174 /* PalettePressClientViewModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */; };
+		46FEA9742DA54E30397C338E /* SPMLibraries.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; };
+		594ED7F98110F2A8B21C6F03 /* SPMLibraries.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; };
+		67D5933DE551137F3FB80685 /* SPMLibraries.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7297EE0E9C22D5ECD59A4B74 /* PalettePressFoundation.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 17BD0A19663BD69B2A5BD0A6 /* PalettePressFoundation.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7D99C10A37F0588FB787ED12 /* SPMLibraries.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; };
+		8F9022C915F48867C37E4176 /* FOSFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = BBD2F6AA78E668E094862F15 /* FOSFoundation */; };
+		8FC648601A0E400431883638 /* SPMLibraries.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; };
+		940D15C8BBE3D759A3FA57E2 /* FOSMVVM in Frameworks */ = {isa = PBXBuildFile; productRef = 162C147957A9C40CAFEEBC9F /* FOSMVVM */; };
+		AA015D96C9AE7F5FEC74CE41 /* SPMLibraries.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */; };
+		B5006F596BFF909D0CE6618A /* FOSTestingUI in Frameworks */ = {isa = PBXBuildFile; productRef = 91AB71AF2825D1B6C40831F3 /* FOSTestingUI */; };
+		CC794838B5B860214E00D90B /* PalettePressFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 17BD0A19663BD69B2A5BD0A6 /* PalettePressFoundation.framework */; };
+		DE92997DEEBB7F9E0A19A3F5 /* PalettePressClientViewModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */; };
+		E0876BFF57A30F5EB8D4A35B /* FOSTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 6BB3600FB4B417DD95C3873B /* FOSTesting */; };
+		F83F60C411C88BD1ACFEFD31 /* FOSTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 8B50130F8D3870DC68E3BD70 /* FOSTesting */; };
+		FC365033F7CC73BBEDC3F8F5 /* PalettePressClientViewModels.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */; };
+		FFDACD1AF0DF72C0325EB3DD /* PalettePressClientViewModels.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0A1A9FF2D513BD17761DDBFD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE7C01F95ABBF6ACFCFDB87F;
+			remoteInfo = PalettePress;
+		};
+		21DC9251B62D6B6719A40717 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7367D783BC96A676873C895F;
+			remoteInfo = SPMLibraries;
+		};
+		28572D69B22D9EEB595B88A8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7367D783BC96A676873C895F;
+			remoteInfo = SPMLibraries;
+		};
+		4DD533DAC070D50D3E46F0E3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7367D783BC96A676873C895F;
+			remoteInfo = SPMLibraries;
+		};
+		55801861E1AABFC079558E70 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C51CBBE1B2A4976475166DEF;
+			remoteInfo = PalettePressClientViewModels;
+		};
+		5972415E2A3C035A16F8D7A3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE7C01F95ABBF6ACFCFDB87F;
+			remoteInfo = PalettePress;
+		};
+		8FF693FA92C45253447AC779 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C51CBBE1B2A4976475166DEF;
+			remoteInfo = PalettePressClientViewModels;
+		};
+		9F3654BFD5866AD3E1FEF223 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE7C01F95ABBF6ACFCFDB87F;
+			remoteInfo = PalettePress;
+		};
+		A05056FAAFB31D3108A56B7F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C51CBBE1B2A4976475166DEF;
+			remoteInfo = PalettePressClientViewModels;
+		};
+		A5A46E6B38BD6A6C4649F353 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C51CBBE1B2A4976475166DEF;
+			remoteInfo = PalettePressClientViewModels;
+		};
+		A778737D160A8BA1D1F3C420 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4680835CC3175A0C0952D871;
+			remoteInfo = PalettePressFoundation;
+		};
+		B9AB966D9FDA61E0D297F4B5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7367D783BC96A676873C895F;
+			remoteInfo = SPMLibraries;
+		};
+		C68D957E3DE84BC6F01A8E8E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7367D783BC96A676873C895F;
+			remoteInfo = SPMLibraries;
+		};
+		E6A61F3A18548983630C711E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7367D783BC96A676873C895F;
+			remoteInfo = SPMLibraries;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		18FD30D2A7A7DAA1C28E3055 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				67D5933DE551137F3FB80685 /* SPMLibraries.framework in Embed Frameworks */,
+				7297EE0E9C22D5ECD59A4B74 /* PalettePressFoundation.framework in Embed Frameworks */,
+				FFDACD1AF0DF72C0325EB3DD /* PalettePressClientViewModels.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		17BD0A19663BD69B2A5BD0A6 /* PalettePressFoundation.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PalettePressFoundation.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SPMLibraries.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		65E33C078EA55187EA5CD4FD /* PalettePress.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PalettePress.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		74E3D40857B49D2E1ECED519 /* PalettePressClientViewModelsTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PalettePressClientViewModelsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = PalettePressClientViewModels.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		CFD28261DB7C08FBE1AB3619 /* PalettePressUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PalettePressUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EF634CC26CBDFD0793645BAA /* PalettePressUnitTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PalettePressUnitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		15A6DE9ED06A8EF295C73072 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				PalettePress.entitlements,
+			);
+			target = FE7C01F95ABBF6ACFCFDB87F /* PalettePress */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3EA082D3DA15280F3F69A086 /* PalettePressViewModels */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePressViewModels;
+			path = PalettePressViewModels;
+			sourceTree = "<group>";
+		};
+		7F0E8C67542B0E661605294D /* PalettePress */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				15A6DE9ED06A8EF295C73072 /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePress;
+			path = PalettePress;
+			sourceTree = "<group>";
+		};
+		BCC6502CA6BFD53B1F75147B /* SPMLibraries */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = SPMLibraries;
+			path = SPMLibraries;
+			sourceTree = "<group>";
+		};
+		C947F9705254736DDF66ACBF /* PalettePressFoundation */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePressFoundation;
+			path = PalettePressFoundation;
+			sourceTree = "<group>";
+		};
+		D611C2CC52468D5B9F339914 /* PalettePressUnitTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePressUnitTests;
+			path = PalettePressUnitTests;
+			sourceTree = "<group>";
+		};
+		D78E9299EAAFD687F505EF1D /* PalettePressClientViewModels */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePressClientViewModels;
+			path = PalettePressClientViewModels;
+			sourceTree = "<group>";
+		};
+		D8122488BED05B3CFC1680BA /* PalettePressClientViewModelsTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePressClientViewModelsTests;
+			path = PalettePressClientViewModelsTests;
+			sourceTree = "<group>";
+		};
+		FCDCD3AF83A5DC58B5D3710E /* PalettePressUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			explicitFileTypes = {
+			};
+			explicitFolders = (
+			);
+			name = PalettePressUITests;
+			path = PalettePressUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		47162AF613F36261FE05B76D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A0C90C1191198C40142F61B /* SPMLibraries.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5B2F829636F58BD895C87454 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				46FEA9742DA54E30397C338E /* SPMLibraries.framework in Frameworks */,
+				CC794838B5B860214E00D90B /* PalettePressFoundation.framework in Frameworks */,
+				FC365033F7CC73BBEDC3F8F5 /* PalettePressClientViewModels.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6BF44864CF34D89C4A7A1E6F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D99C10A37F0588FB787ED12 /* SPMLibraries.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72F5EEF0617E95A9DB657F30 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F9022C915F48867C37E4176 /* FOSFoundation in Frameworks */,
+				940D15C8BBE3D759A3FA57E2 /* FOSMVVM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D789C45A890AF28CCC9E8EDF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				594ED7F98110F2A8B21C6F03 /* SPMLibraries.framework in Frameworks */,
+				3C6F9DE20EB54BF004BD3174 /* PalettePressClientViewModels.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DF730D25FB369B2CFCC88A36 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA015D96C9AE7F5FEC74CE41 /* SPMLibraries.framework in Frameworks */,
+				0D2B891AC00E4F201698973D /* PalettePressClientViewModels.framework in Frameworks */,
+				E0876BFF57A30F5EB8D4A35B /* FOSTesting in Frameworks */,
+				B5006F596BFF909D0CE6618A /* FOSTestingUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC4FBFE6FE992F691814181E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8FC648601A0E400431883638 /* SPMLibraries.framework in Frameworks */,
+				DE92997DEEBB7F9E0A19A3F5 /* PalettePressClientViewModels.framework in Frameworks */,
+				F83F60C411C88BD1ACFEFD31 /* FOSTesting in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4806224C652126D25E449CE7 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				7F0E8C67542B0E661605294D /* PalettePress */,
+				D78E9299EAAFD687F505EF1D /* PalettePressClientViewModels */,
+				C947F9705254736DDF66ACBF /* PalettePressFoundation */,
+				3EA082D3DA15280F3F69A086 /* PalettePressViewModels */,
+				BCC6502CA6BFD53B1F75147B /* SPMLibraries */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		4DF66DEFCBD4971C2FC59E24 = {
+			isa = PBXGroup;
+			children = (
+				4806224C652126D25E449CE7 /* Sources */,
+				79E86051FB8A8B9E14E8AA28 /* Tests */,
+				C7B3B55D78145E89B219FAC5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		79E86051FB8A8B9E14E8AA28 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				D8122488BED05B3CFC1680BA /* PalettePressClientViewModelsTests */,
+				FCDCD3AF83A5DC58B5D3710E /* PalettePressUITests */,
+				D611C2CC52468D5B9F339914 /* PalettePressUnitTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		C7B3B55D78145E89B219FAC5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				65E33C078EA55187EA5CD4FD /* PalettePress.app */,
+				9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */,
+				74E3D40857B49D2E1ECED519 /* PalettePressClientViewModelsTests.xctest */,
+				17BD0A19663BD69B2A5BD0A6 /* PalettePressFoundation.framework */,
+				CFD28261DB7C08FBE1AB3619 /* PalettePressUITests.xctest */,
+				EF634CC26CBDFD0793645BAA /* PalettePressUnitTests.xctest */,
+				659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3CD8E5B07B056B309DC7991C /* PalettePressUnitTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2DC1CA2FE88FD82ADAA6E181 /* Build configuration list for PBXNativeTarget "PalettePressUnitTests" */;
+			buildPhases = (
+				36F4506F1CC7499B922F6C5E /* Sources */,
+				9288BD0C1B43040511CFDD81 /* Resources */,
+				D789C45A890AF28CCC9E8EDF /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D348DE533A6F9A2AD8242C60 /* PBXTargetDependency */,
+				A2C5C67B0BEDDFAB054D3986 /* PBXTargetDependency */,
+				24F15A0B1DB86FE7DABBE70E /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D611C2CC52468D5B9F339914 /* PalettePressUnitTests */,
+			);
+			name = PalettePressUnitTests;
+			packageProductDependencies = (
+			);
+			productName = PalettePressUnitTests;
+			productReference = EF634CC26CBDFD0793645BAA /* PalettePressUnitTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		4680835CC3175A0C0952D871 /* PalettePressFoundation */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D7FC177BE1B6791557F86BFC /* Build configuration list for PBXNativeTarget "PalettePressFoundation" */;
+			buildPhases = (
+				62DFD23AE8619ADD0569D235 /* Sources */,
+				35B709C23E27EAEA42848D4A /* Resources */,
+				47162AF613F36261FE05B76D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D710E671297F6102903C98E0 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C947F9705254736DDF66ACBF /* PalettePressFoundation */,
+			);
+			name = PalettePressFoundation;
+			packageProductDependencies = (
+			);
+			productName = PalettePressFoundation;
+			productReference = 17BD0A19663BD69B2A5BD0A6 /* PalettePressFoundation.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		7367D783BC96A676873C895F /* SPMLibraries */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 51EAE477174DB485F2AAC038 /* Build configuration list for PBXNativeTarget "SPMLibraries" */;
+			buildPhases = (
+				3F98336CDBB07C4FD263231E /* Sources */,
+				64CFE388A9BC8F5536878FED /* Resources */,
+				72F5EEF0617E95A9DB657F30 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				BCC6502CA6BFD53B1F75147B /* SPMLibraries */,
+			);
+			name = SPMLibraries;
+			packageProductDependencies = (
+				BBD2F6AA78E668E094862F15 /* FOSFoundation */,
+				162C147957A9C40CAFEEBC9F /* FOSMVVM */,
+			);
+			productName = SPMLibraries;
+			productReference = 659EBED4E8FEE82CC25214D1 /* SPMLibraries.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		98359C1117251D09A1ED07A9 /* PalettePressUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D6EAF0DA91CA8CB063D602F9 /* Build configuration list for PBXNativeTarget "PalettePressUITests" */;
+			buildPhases = (
+				F547A965EEE5A27A53587AEA /* Sources */,
+				05A12240C0DD07559C8116D0 /* Resources */,
+				DF730D25FB369B2CFCC88A36 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7172D60DA67F8E6248DE5143 /* PBXTargetDependency */,
+				BAC56F7D3A5F6D6D99E32786 /* PBXTargetDependency */,
+				B887D56F573AAAD89479C867 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				FCDCD3AF83A5DC58B5D3710E /* PalettePressUITests */,
+				3EA082D3DA15280F3F69A086 /* PalettePressViewModels */,
+			);
+			name = PalettePressUITests;
+			packageProductDependencies = (
+				6BB3600FB4B417DD95C3873B /* FOSTesting */,
+				91AB71AF2825D1B6C40831F3 /* FOSTestingUI */,
+			);
+			productName = PalettePressUITests;
+			productReference = CFD28261DB7C08FBE1AB3619 /* PalettePressUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		C51CBBE1B2A4976475166DEF /* PalettePressClientViewModels */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 17B4B75E366659B803DA937F /* Build configuration list for PBXNativeTarget "PalettePressClientViewModels" */;
+			buildPhases = (
+				A7565CD12DC5AFDD4D0866A4 /* Sources */,
+				F72033F4307FF5B1F2754945 /* Resources */,
+				6BF44864CF34D89C4A7A1E6F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				43D0FD3C3940533A499872EE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D78E9299EAAFD687F505EF1D /* PalettePressClientViewModels */,
+			);
+			name = PalettePressClientViewModels;
+			packageProductDependencies = (
+			);
+			productName = PalettePressClientViewModels;
+			productReference = 9D867FB314AC9C08B9C1DC3F /* PalettePressClientViewModels.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		CC71024BD0DE8242A0813C11 /* PalettePressClientViewModelsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9130BEDB91740E757BA45050 /* Build configuration list for PBXNativeTarget "PalettePressClientViewModelsTests" */;
+			buildPhases = (
+				BDE9F15F25043C953AB93EA4 /* Sources */,
+				0356569C3F7E93F477417103 /* Resources */,
+				FC4FBFE6FE992F691814181E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				75A99AAFE82A159BFBDD31C7 /* PBXTargetDependency */,
+				9D692357627D2D481A15B09D /* PBXTargetDependency */,
+				E6ED3A6499CAE6AA829376DB /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D8122488BED05B3CFC1680BA /* PalettePressClientViewModelsTests */,
+			);
+			name = PalettePressClientViewModelsTests;
+			packageProductDependencies = (
+				8B50130F8D3870DC68E3BD70 /* FOSTesting */,
+			);
+			productName = PalettePressClientViewModelsTests;
+			productReference = 74E3D40857B49D2E1ECED519 /* PalettePressClientViewModelsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		FE7C01F95ABBF6ACFCFDB87F /* PalettePress */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A519276339517D92EC967040 /* Build configuration list for PBXNativeTarget "PalettePress" */;
+			buildPhases = (
+				82FBD67D873629D7F3AC561C /* Sources */,
+				F29511C158A9E0AA24E0ED3F /* Resources */,
+				5B2F829636F58BD895C87454 /* Frameworks */,
+				18FD30D2A7A7DAA1C28E3055 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6AB99572F81A7E5E56A092F2 /* PBXTargetDependency */,
+				4799D3AB4FDEC392400433A8 /* PBXTargetDependency */,
+				F76F31A63998683C25894774 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7F0E8C67542B0E661605294D /* PalettePress */,
+				3EA082D3DA15280F3F69A086 /* PalettePressViewModels */,
+			);
+			name = PalettePress;
+			packageProductDependencies = (
+			);
+			productName = PalettePress;
+			productReference = 65E33C078EA55187EA5CD4FD /* PalettePress.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9F08973F1DFBE7275CCB2CF8 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3CD8E5B07B056B309DC7991C = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+					};
+					4680835CC3175A0C0952D871 = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+					};
+					7367D783BC96A676873C895F = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+					};
+					98359C1117251D09A1ED07A9 = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+						TestTargetID = FE7C01F95ABBF6ACFCFDB87F;
+					};
+					C51CBBE1B2A4976475166DEF = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+					};
+					CC71024BD0DE8242A0813C11 = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+					};
+					FE7C01F95ABBF6ACFCFDB87F = {
+						DevelopmentTeam = ABCDE12345;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B3A27425E1DEDF3C23549B95 /* Build configuration list for PBXProject "PalettePress" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 4DF66DEFCBD4971C2FC59E24;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C7B3B55D78145E89B219FAC5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7367D783BC96A676873C895F /* SPMLibraries */,
+				4680835CC3175A0C0952D871 /* PalettePressFoundation */,
+				C51CBBE1B2A4976475166DEF /* PalettePressClientViewModels */,
+				FE7C01F95ABBF6ACFCFDB87F /* PalettePress */,
+				3CD8E5B07B056B309DC7991C /* PalettePressUnitTests */,
+				CC71024BD0DE8242A0813C11 /* PalettePressClientViewModelsTests */,
+				98359C1117251D09A1ED07A9 /* PalettePressUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0356569C3F7E93F477417103 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		05A12240C0DD07559C8116D0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		35B709C23E27EAEA42848D4A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		64CFE388A9BC8F5536878FED /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9288BD0C1B43040511CFDD81 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F29511C158A9E0AA24E0ED3F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F72033F4307FF5B1F2754945 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		36F4506F1CC7499B922F6C5E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3F98336CDBB07C4FD263231E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		62DFD23AE8619ADD0569D235 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		82FBD67D873629D7F3AC561C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A7565CD12DC5AFDD4D0866A4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDE9F15F25043C953AB93EA4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F547A965EEE5A27A53587AEA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		24F15A0B1DB86FE7DABBE70E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C51CBBE1B2A4976475166DEF /* PalettePressClientViewModels */;
+			targetProxy = A05056FAAFB31D3108A56B7F /* PBXContainerItemProxy */;
+		};
+		43D0FD3C3940533A499872EE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7367D783BC96A676873C895F /* SPMLibraries */;
+			targetProxy = 21DC9251B62D6B6719A40717 /* PBXContainerItemProxy */;
+		};
+		4799D3AB4FDEC392400433A8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4680835CC3175A0C0952D871 /* PalettePressFoundation */;
+			targetProxy = A778737D160A8BA1D1F3C420 /* PBXContainerItemProxy */;
+		};
+		6AB99572F81A7E5E56A092F2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7367D783BC96A676873C895F /* SPMLibraries */;
+			targetProxy = 4DD533DAC070D50D3E46F0E3 /* PBXContainerItemProxy */;
+		};
+		7172D60DA67F8E6248DE5143 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE7C01F95ABBF6ACFCFDB87F /* PalettePress */;
+			targetProxy = 5972415E2A3C035A16F8D7A3 /* PBXContainerItemProxy */;
+		};
+		75A99AAFE82A159BFBDD31C7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE7C01F95ABBF6ACFCFDB87F /* PalettePress */;
+			targetProxy = 9F3654BFD5866AD3E1FEF223 /* PBXContainerItemProxy */;
+		};
+		9D692357627D2D481A15B09D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7367D783BC96A676873C895F /* SPMLibraries */;
+			targetProxy = 28572D69B22D9EEB595B88A8 /* PBXContainerItemProxy */;
+		};
+		A2C5C67B0BEDDFAB054D3986 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7367D783BC96A676873C895F /* SPMLibraries */;
+			targetProxy = E6A61F3A18548983630C711E /* PBXContainerItemProxy */;
+		};
+		B887D56F573AAAD89479C867 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C51CBBE1B2A4976475166DEF /* PalettePressClientViewModels */;
+			targetProxy = 55801861E1AABFC079558E70 /* PBXContainerItemProxy */;
+		};
+		BAC56F7D3A5F6D6D99E32786 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7367D783BC96A676873C895F /* SPMLibraries */;
+			targetProxy = C68D957E3DE84BC6F01A8E8E /* PBXContainerItemProxy */;
+		};
+		D348DE533A6F9A2AD8242C60 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE7C01F95ABBF6ACFCFDB87F /* PalettePress */;
+			targetProxy = 0A1A9FF2D513BD17761DDBFD /* PBXContainerItemProxy */;
+		};
+		D710E671297F6102903C98E0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7367D783BC96A676873C895F /* SPMLibraries */;
+			targetProxy = B9AB966D9FDA61E0D297F4B5 /* PBXContainerItemProxy */;
+		};
+		E6ED3A6499CAE6AA829376DB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C51CBBE1B2A4976475166DEF /* PalettePressClientViewModels */;
+			targetProxy = A5A46E6B38BD6A6C4649F353 /* PBXContainerItemProxy */;
+		};
+		F76F31A63998683C25894774 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C51CBBE1B2A4976475166DEF /* PalettePressClientViewModels */;
+			targetProxy = 8FF693FA92C45253447AC779 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		28CF475CFF9544ADE0F708D9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.palettepress-client-vm-tests";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PalettePress.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PalettePress";
+			};
+			name = Release;
+		};
+		30F4F54D0424BB530BBCF456 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.palettepress-ui-tests";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PalettePress;
+			};
+			name = Debug;
+		};
+		3BC7436F56B57A0C2940077A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress.SPMLibraries;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		415BADB809DB2695F5106A2B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress.SPMLibraries;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		4AD674896968FA1EA4BA95D5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress.Foundation;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		9FFC93EC1A5ECB5489EBE040 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = ABCDE12345;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C9F09E412DB428492F8B49A9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.palettepress-ui-tests";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = PalettePress;
+			};
+			name = Release;
+		};
+		CA9659BF8CCC3BF549962FE9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress.ClientViewModels;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		D023F1376C855335AFB441EA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.palettepress-unit-tests";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PalettePress.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PalettePress";
+			};
+			name = Debug;
+		};
+		D1D26CB5A72264EA4C1AF417 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/PalettePress/PalettePress.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Sources/PalettePress/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress;
+				PRODUCT_NAME = PalettePress;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D20DF6B6DC8D29D13ECBBAC2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = ABCDE12345;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		D2B9976B3D6FC6EE9EF35FC1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress.Foundation;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		E03317038CA228F3D63C1689 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Sources/PalettePress/PalettePress.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = NO;
+				INFOPLIST_FILE = Sources/PalettePress/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress;
+				PRODUCT_NAME = PalettePress;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E7ED5C608CC81D1E101261D2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.palettepress-client-vm-tests";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PalettePress.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PalettePress";
+			};
+			name = Debug;
+		};
+		ED12BD316FCFB348CD776790 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.example.palettepress-unit-tests";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PalettePress.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PalettePress";
+			};
+			name = Release;
+		};
+		EFCF02D3364EEFD48B280AC6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.palettepress.ClientViewModels;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		17B4B75E366659B803DA937F /* Build configuration list for PBXNativeTarget "PalettePressClientViewModels" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EFCF02D3364EEFD48B280AC6 /* Debug */,
+				CA9659BF8CCC3BF549962FE9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2DC1CA2FE88FD82ADAA6E181 /* Build configuration list for PBXNativeTarget "PalettePressUnitTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D023F1376C855335AFB441EA /* Debug */,
+				ED12BD316FCFB348CD776790 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		51EAE477174DB485F2AAC038 /* Build configuration list for PBXNativeTarget "SPMLibraries" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3BC7436F56B57A0C2940077A /* Debug */,
+				415BADB809DB2695F5106A2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9130BEDB91740E757BA45050 /* Build configuration list for PBXNativeTarget "PalettePressClientViewModelsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E7ED5C608CC81D1E101261D2 /* Debug */,
+				28CF475CFF9544ADE0F708D9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A519276339517D92EC967040 /* Build configuration list for PBXNativeTarget "PalettePress" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E03317038CA228F3D63C1689 /* Debug */,
+				D1D26CB5A72264EA4C1AF417 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B3A27425E1DEDF3C23549B95 /* Build configuration list for PBXProject "PalettePress" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9FFC93EC1A5ECB5489EBE040 /* Debug */,
+				D20DF6B6DC8D29D13ECBBAC2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D6EAF0DA91CA8CB063D602F9 /* Build configuration list for PBXNativeTarget "PalettePressUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				30F4F54D0424BB530BBCF456 /* Debug */,
+				C9F09E412DB428492F8B49A9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D7FC177BE1B6791557F86BFC /* Build configuration list for PBXNativeTarget "PalettePressFoundation" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4AD674896968FA1EA4BA95D5 /* Debug */,
+				D2B9976B3D6FC6EE9EF35FC1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/foscomputerservices/FOSUtilities.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.14.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		162C147957A9C40CAFEEBC9F /* FOSMVVM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */;
+			productName = FOSMVVM;
+		};
+		6BB3600FB4B417DD95C3873B /* FOSTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */;
+			productName = FOSTesting;
+		};
+		8B50130F8D3870DC68E3BD70 /* FOSTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */;
+			productName = FOSTesting;
+		};
+		91AB71AF2825D1B6C40831F3 /* FOSTestingUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */;
+			productName = FOSTestingUI;
+		};
+		BBD2F6AA78E668E094862F15 /* FOSFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A336F1A8EE6C0FFF5DB7220F /* XCRemoteSwiftPackageReference "FOSUtilities" */;
+			productName = FOSFoundation;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 9F08973F1DFBE7275CCB2CF8 /* Project object */;
+}

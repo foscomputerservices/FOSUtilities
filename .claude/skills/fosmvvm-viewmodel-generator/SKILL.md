@@ -436,7 +436,7 @@ Operations is the dispatch seam for user-initiated actions. Every interactive Vi
 
 - **Protocol** (`{Name}ViewModelOperations: ViewModelOperations`) — declares the actions the View can dispatch.
 - **Live implementation** (`{Name}Ops`, struct) — does the real work: calls a server via `ServerRequest`, mutates `@Observable` storage, talks to a device, etc.
-- **Stub implementation** (`{Name}StubOps`, `final class`, `@unchecked Sendable`) — records which methods were called and with what arguments, for UI tests.
+- **Stub implementation** (`{Name}StubOps`, `final class`, `@unchecked Sendable`) — records which methods were called and with what arguments, for UI tests. **A stub records; it never performs the operation's work** (ratified 2026-08-25): no `await` on real calls, no `Task.sleep`, no network or storage reach — a UI test proves the button is *wired* to the operation, not that the operation does something, and a stub that "does work" turns that wiring test into a timing-dependent behavior test. (Writing the `output` storage it is handed is recording's client-hosted twin, not work; an `async throws` signature with no `await` is the protocol's shape, not a smell.)
 - **Wiring on the VM** — a private `isStub: Bool` flag plus a `public var operations: any {Name}ViewModelOperations` computed property that returns Ops in production and StubOps in `stub()`.
 
 The protocol + both implementations live together in `{Name}ViewModelOperations.swift`, next to `{Name}ViewModel.swift`.
@@ -861,8 +861,45 @@ Hand-write the zero-arg `stub()` yourself only when the macro has nothing to for
 `vmId` parameterizes SwiftUI's `.id()` on the view that renders the ViewModel, so it
 governs view stabilization (whether SwiftUI reuses or tears down the view on refresh). It
 must be **stable across re-fetches of the same logical thing** — never a fresh random
-value. A bare `ViewModelId()` / `.init()` is **random** (`isRandom`, `String.unique()`
-under the hood) and is correct *only* when identity genuinely doesn't matter.
+value.
+
+**The rule: the `vmId` must uniquely identify this ViewModel from the values it was
+projected from.** Everything below follows from that — including why "I used an init
+parameter" is not on its own an answer.
+
+**1. An `id` init parameter, if one exists.** `userId`, `groupId`, `companyId`, `agentID`
+— the identity the data already carries:
+
+```swift
+self.vmId = .init(id: userId)
+```
+
+**2. Otherwise, a value derived from the init parameters that uniquely identifies this
+projection.** Compose the parameters that together distinguish it, or hash across all of
+them:
+
+```swift
+self.vmId = .init(id: "\(host)-\(version.versionString)")   // composed
+```
+
+**3. Type based — `.init(type: Self.self)` — when the ViewModel is singleton in identity.**
+Not a separate strategy so much as rule 2's degenerate case: when the parameter values are
+always the same, the type is what uniquely identifies it. One instance per screen.
+
+**4. Random — a bare `ViewModelId()` / `.init()`. Almost never desirable.** It is random
+under the hood (`isRandom`, `String.unique()`), so every re-fetch mints a new identity,
+SwiftUI treats the view as new, and it tears down and rebuilds — taking selection, scroll
+position, and focus with it. Reach for it only where identity genuinely cannot matter, and
+expect to justify it.
+
+> **Using *an* init parameter is not the test — uniqueness is.** A display label is an init
+> parameter and identifies nothing: two Docks the operator named "Studio A" collide on one
+> `vmId`, and renaming one churns its row. If the init also carries a real id, that is the
+> one to use; if it does not, compose or hash the parameters that actually distinguish the
+> projection.
+
+Note that `ViewModelId` stores `isRandom` alongside the id: the framework itself treats a
+random identity as the exceptional case, not an ordinary one.
 
 **Singleton — one instance per screen** (a top-level page VM, or a once-only child such as
 a header/summary panel). Constant per type = maximally stable:

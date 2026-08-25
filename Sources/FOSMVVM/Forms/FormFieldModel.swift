@@ -28,7 +28,7 @@ import Observation
 /// ## Example
 ///
 /// ```swift
-/// @ViewModel final class UserFormModel: UserFields {
+/// @ViewModel struct UserFormModel: UserFields {
 ///
 ///     @FormFieldModel(UserFormModel.emailField) public var email: String?
 ///     @FormFieldModel(UserFormModel.firstNameField) public var firstName: String?

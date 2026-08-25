@@ -1,4 +1,4 @@
-// CreateCardRequest.swift
+// CardCreateRequest.swift
 {{LICENSE_HEADER}}
 import FOSFoundation
 import FOSMVVM
@@ -8,22 +8,22 @@ import Foundation
 /// (the server's apex resolver), so no board identity is threaded from the client.
 /// The `RequestBody`'s `DataModelWriter` conformance lives server-side; on commit the
 /// board's live clients auto-refresh and the new card appears.
-public final class CreateCardRequest: CreateRequest, @unchecked Sendable {
+public final class CardCreateRequest: CreateRequest, @unchecked Sendable {
     public typealias Query = EmptyQuery
-    public typealias RequestBody = CreateCardBody
+    public typealias RequestBody = CardCreateBody
     public typealias Fragment = EmptyFragment
     public typealias ResponseError = EmptyError
     public typealias ResponseBody = BoardViewModel
 
     public let id: String
-    public let requestBody: CreateCardBody?
+    public let requestBody: CardCreateBody?
     public var responseBody: BoardViewModel?
 
     public init(
         query: EmptyQuery?,
         sort: EmptySort?,
         fragment: EmptyFragment?,
-        requestBody: CreateCardBody?,
+        requestBody: CardCreateBody?,
         responseBody: BoardViewModel?
     ) {
         self.id = .random(length: 10)
@@ -32,12 +32,15 @@ public final class CreateCardRequest: CreateRequest, @unchecked Sendable {
     }
 
     public static func stub() -> Self {
-        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+        .init(query: nil, sort: nil, fragment: nil, requestBody: .stub(), responseBody: nil)
     }
 }
 
-/// A validated per-request body — never `EmptyBody` for a write.
-public struct CreateCardBody: ServerRequestBody, ValidatableModel {
+/// The write body *is* the form contract: `CardFields` supplies the validation
+/// rules and localized messages (`validate` arrives from its extension), and
+/// `Stubbable` completes the RequestBody composition —
+/// `ServerRequestBody` + Fields + `ValidatableModel` + `Stubbable`.
+public struct CardCreateBody: ServerRequestBody, CardFields, Stubbable {
     public var title: String
     public var ownerTag: String?
 
@@ -46,16 +49,7 @@ public struct CreateCardBody: ServerRequestBody, ValidatableModel {
         self.ownerTag = ownerTag
     }
 
-    public func validate(
-        fields _: [any FormFieldBase]?,
-        validations: FOSMVVM.Validations
-    ) -> FOSMVVM.ValidationResult.Status? {
-        guard !title.isEmpty else {
-            validations.validations.append(
-                .init(status: .error, fieldId: .init(id: "title"), message: .constant("title must not be empty"))
-            )
-            return .error
-        }
-        return nil
+    public static func stub() -> Self {
+        .init(title: "Fred's Bedrock Card", ownerTag: nil)
     }
 }

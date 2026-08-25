@@ -52,6 +52,7 @@ extension Tag {
         )
         try Emitter.emit(config: config, into: out)
         try Verifier.verify(projectDir: out, steps: Verifier.steps(for: .sharedLibrary))
+        try expectDoctorClean(out, shape: .sharedLibrary)
     }
 
     /// Local-only walking-skeleton proof: emit → xcodegen generate →
@@ -76,6 +77,7 @@ extension Tag {
             steps: Verifier.generationSteps(for: .localOnly) + Verifier.steps(for: .localOnly),
             projectName: "PalettePress"
         )
+        try expectDoctorClean(out, shape: .localOnly)
     }
 
     /// Client-server (= hybrid) walking-skeleton proof: emit → the four-step door.
@@ -101,6 +103,26 @@ extension Tag {
             projectDir: out,
             steps: Verifier.generationSteps(for: .clientServer) + Verifier.steps(for: .clientServer),
             projectName: "PalettePress"
+        )
+        try expectDoctorClean(out, shape: .clientServer)
+    }
+
+    /// The conformance assertion: the rules table judges a project the emitter
+    /// just produced, and finds nothing.
+    ///
+    /// This is what makes the table truth rather than a second opinion. Without
+    /// it, `doctor` and the templates could drift apart indefinitely, each
+    /// internally consistent — and the first person to notice would be a
+    /// customer whose correctly-generated project was told it was wrong.
+    ///
+    /// It rides here, rather than in the fast suite, because judging a real
+    /// `.xcodeproj` means one has to exist — and these tests have already paid
+    /// for `xcodegen`.
+    private func expectDoctorClean(_ projectDir: URL, shape: ProjectShape) throws {
+        let report = try Doctor.examine(projectAt: projectDir, shape: shape)
+        #expect(
+            report.findings.isEmpty,
+            "doctor found problems in a freshly generated \(shape.rawValue) project:\n\(report.text)"
         )
     }
 }

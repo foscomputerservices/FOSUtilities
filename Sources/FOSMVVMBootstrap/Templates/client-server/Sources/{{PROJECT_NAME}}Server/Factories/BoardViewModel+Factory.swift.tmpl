@@ -28,7 +28,7 @@ extension BoardViewModel: ComposableFactory, VaporResponseBodyFactory {
         where R.ResponseBody == Self {
         .init(
             cards: try context.records(Self.cards)
-                .map { CardViewModel(title: $0.title, ownerTag: $0.ownerTag) }
+                .map { try CardViewModel(id: $0.requireID(), title: $0.title, ownerTag: $0.ownerTag) }
         )
     }
 }

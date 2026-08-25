@@ -2,6 +2,20 @@
 
 Work items acknowledged and deliberately not done yet. Each entry names the evidence in hand, why it was deferred, and what reopens it. Removing an entry requires the work shipping or David striking it.
 
+## `doctor` has no installable binary, so Xcode-only projects need a checkout
+
+**Recorded:** 2026-08-24, at David's direction, when `doctor` shipped.
+
+**What it is:** `swift package fosmvvm-doctor` requires a `Package.swift` to attach to. Client-server and shared-library projects have one; an app that is only a `.xcodeproj` — the local-only shape, and most apps predating FOSUtilities — does not, and `swift package` stops with `Could not find Package.swift`. Those users must clone FOSUtilities and run `swift run fosmvvm-bootstrap doctor --project <path>`, paying a full scaffolder build on first use.
+
+**Why it matters:** the Xcode-only shape is the one most likely to have drifted, so the audit is least convenient exactly where it is most useful.
+
+**Why it was deferred:** the fix is a prebuilt binary attached to each GitHub release, optionally behind a Homebrew formula — which adds a build-and-notarize step to the release ritual, permanently, on a guess about demand. David's ruling: "At some point we'll ship some sort of homebrew solution. Right now this is understood as a limitation and the documentation shows the users how to use it with the support that we have."
+
+**Current standing:** documented in the `Creating a Project` DocC article and the README, both of which name the limitation and give the checkout route.
+
+**What reopens it:** a user hitting the wall and saying so; or the Plan 5 prebuilt-binary/Homebrew item being scheduled for its own reasons.
+
 ## The inert coordinate tap on iOS 27 (the "Fact A ghost")
 
 **Recorded:** 2026-08-20, at David's direction, during the aimable-band occlusion round.

@@ -147,6 +147,8 @@ public protocol {Name}Fields: ValidatableModel, Codable, Sendable {
 
 > **Overridable-with-a-default member? Declare it as a *requirement* AND provide the default.** If you want a Fields member to have a zero-config default that a conformer can still override (a validation policy, a message source), it must be a protocol **requirement** with a default in an extension. A member defined *only* in an extension is statically dispatched — a conformer's "override" merely **shadows** it and calls through the protocol/a generic `some {Name}Fields` still hit the default. That's a silent OCP failure. See [Architecture Patterns → Requirement + Default = a Real Override](../shared/architecture-patterns.md).
 
+> **The `{name}FieldsValidateModel(validations:fields:)` composition helper lives in the extension deliberately — it is not an override point** (ratified 2026-08-25). Its protocol-derived prefix is the point: a type adopting two Fields protocols writes one `validate(fields:validations:)` that calls `documentFieldsValidateModel(…)` *and* `otherFieldsValidateModel(…)` — a composition seam, so the requirement-plus-default rule above does not apply to it. (`ValidatableModel.validate(fields:validations:)` itself *is* a real requirement, so a `validate` default in a Fields extension is dynamically dispatched and correctly overridable.)
+
 ### FormField Definition
 
 ```swift

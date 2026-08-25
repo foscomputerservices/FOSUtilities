@@ -1,8 +1,24 @@
+// EmitterTests.swift
+//
+// Copyright 2026 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import FOSMVVMBootstrap
 import Foundation
 import Testing
 
-@Suite struct EmitterTests {
+struct EmitterTests {
     /// The token-scannable text of an emitted entry: a symlink's own target
     /// string (a link may point at a directory), a regular file's contents.
     func emittedText(_ out: URL, _ path: String) throws -> String {
@@ -45,7 +61,7 @@ import Testing
             "Sources/PalettePressViewModels/ViewModels/WelcomeViewModelOperations.swift",
             "Sources/PalettePressViewModels/Resources/Localizations/ViewModels/WelcomeViewModel.yml",
             "Tests/PalettePressViewModelsTests/WelcomeViewModelTests.swift",
-            "Tests/PalettePressViewModelsTests/LocalizableTestCase+PalettePress.swift",
+            "Tests/PalettePressViewModelsTests/LocalizableTestCase+PalettePress.swift"
         ]
         for path in expected {
             #expect(emitted.contains(path), "missing \(path)")
@@ -108,7 +124,6 @@ import Testing
             "Sources/ViewModels/Resources/ViewModels/WelcomeViewModel.yml",
             "Sources/ViewModels/Versioning/SystemVersion+App.swift",
             "Sources/PalettePress/App/PalettePressApp.swift",
-            "Sources/PalettePress/App/TestConfiguration.swift",
             "Sources/PalettePress/Views/WelcomeView.swift",
             "Sources/PalettePress/Info.plist",
             "Sources/PalettePress/PalettePress.entitlements",
@@ -119,7 +134,6 @@ import Testing
             "Tests/PalettePressUITests/PalettePressUITests.swift",
             "Tests/PalettePressUITests/Views/WelcomeViewTests.swift",
             "Tests/PalettePressUITests/Support/LocalizableTestCase+PalettePress.swift",
-            "Tests/PalettePressUITests/Support/TestConfiguration.swift", // symlink → the app's copy
             // shared doctrine set
             "CLAUDE.md",
             ".swiftformat",
@@ -175,11 +189,15 @@ import Testing
             "Sources/PalettePressViewModels/ViewModels/BoardViewModelOperations.swift",
             "Sources/PalettePressViewModels/ViewModels/CardViewModel.swift",
             "Sources/PalettePressViewModels/Requests/BoardRequest.swift",
-            "Sources/PalettePressViewModels/Requests/CreateCardRequest.swift",
+            "Sources/PalettePressViewModels/Requests/CardCreateRequest.swift",
+            // the card's form contract — one rule set for form, wire body, and record
+            "Sources/PalettePressViewModels/FieldModels/CardFields.swift",
+            "Sources/PalettePressViewModels/FieldModels/CardFieldsMessages.swift",
             // shared foundation — version handshake for both the app and the server
             "Sources/PalettePressFoundation/SystemVersion+App.swift",
             // server-hosted YAML
             "Sources/Resources/ViewModels/BoardViewModel.yml",
+            "Sources/Resources/FieldModels/CardFieldsMessages.yml",
             // Vapor server (Fluent)
             "Sources/PalettePressServer/entrypoint.swift",
             "Sources/PalettePressServer/configure.swift",
@@ -189,7 +207,7 @@ import Testing
             "Sources/PalettePressServer/Migrations/Board+Schema.swift",
             "Sources/PalettePressServer/Migrations/Card+Schema.swift",
             "Sources/PalettePressServer/Factories/BoardViewModel+Factory.swift",
-            "Sources/PalettePressServer/Writers/CreateCardRequest+Writer.swift",
+            "Sources/PalettePressServer/Writers/CardCreateRequest+Writer.swift",
             "Sources/PalettePressServer/Auth/SkeletonAuthProvider.swift",
             // umbrella (Xcode-only)
             "Sources/SPMLibraries/SPMLibraries.swift",
@@ -200,8 +218,8 @@ import Testing
             "Sources/PalettePressClientViewModels/Resources/ViewModels/AboutViewModel.yml",
             // app (Xcode-only)
             "Sources/PalettePress/App/PalettePressApp.swift",
-            "Sources/PalettePress/App/TestConfiguration.swift",
             "Sources/PalettePress/Views/BoardView.swift",
+            "Sources/PalettePress/Views/CardView.swift",
             "Sources/PalettePress/Views/AboutView.swift",
             "Sources/PalettePress/Correlation.swift",
             "Sources/PalettePress/Info.plist",
@@ -218,10 +236,10 @@ import Testing
             "Tests/PalettePressUITests/Support/PalettePressViewModelViewTestCase.swift",
             "Tests/PalettePressUITests/Support/PalettePressViewModelDisplayTestCase.swift",
             "Tests/PalettePressUITests/Support/LocalizableTestCase+PalettePress.swift",
-            "Tests/PalettePressUITests/Support/TestConfiguration.swift", // symlink → the app's copy
             "Tests/PalettePressUITests/Views/AboutViewTests.swift",
             "Tests/PalettePressUITests/Views/BoardViewTests.swift",
             "README.md",
+            "docs/deferrals.md",
             // shared doctrine set
             "CLAUDE.md",
             ".swiftformat",

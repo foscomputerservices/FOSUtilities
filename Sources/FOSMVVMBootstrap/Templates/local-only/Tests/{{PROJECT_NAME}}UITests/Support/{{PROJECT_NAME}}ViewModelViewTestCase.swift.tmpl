@@ -13,23 +13,10 @@ import XCTest
 // subclass {{PROJECT_NAME}}ViewModelDisplayTestCase instead.
 //
 // Deliberately non-final: every view test suite subclasses this base.
-// swift lint:disable classes_should_be_final
 class {{PROJECT_NAME}}ViewModelViewTestCase<
     VM: ViewModel,
     VMO: ViewModelOperations
 >: ViewModelViewTestCase<VM, VMO>, @unchecked Sendable {
-    @MainActor func presentView(
-        configuration: TestConfiguration,
-        viewModel: VM = .stub(),
-        timeout: TimeInterval = 10
-    ) throws -> XCUIApplication {
-        try presentView(
-            testConfiguration: configuration.toJSON(),
-            viewModel: viewModel,
-            timeout: timeout
-        )
-    }
-
     /// Taps `element`, then polls `witness` for proof the tap landed,
     /// re-tapping once at half `timeout`:
     /// `tap(presentButton, until: { dismissButton.exists })`.
@@ -75,4 +62,3 @@ class {{PROJECT_NAME}}ViewModelViewTestCase<
     }
 }
 
-// swift lint:enable classes_should_be_final

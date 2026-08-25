@@ -2,9 +2,17 @@
 
 This guide specifies the structure and style for files in `checks/`. Each file documents one FOSMVVM area's review knowledge.
 
+## What an area is
+
+An area is a **dispatch partition** of the rule inventory — how checks batch into subagent-sized review contexts with coherent file scopes. It is review ergonomics, deliberately not a mirror of the generator skills or of the build tree.
+
+Coverage is carried by **rules, not areas**: a check exists because a truth-layer statement exists (the shared docs, the architecture doc, NAMES.md, the repo doctrine), and completeness is measured rule-by-rule in `coverage-ledger.md` — never by counting areas. Before authoring a check, find (or author, for the owner's ratification) its truth statement, and record the mapping in the ledger.
+
 ## File Naming
 
-`checks/<area>.md` where `<area>` is one of: `fields`, `serverrequest`, `swiftui-app-setup`, `swiftui-view`, `ui-tests`, `viewmodel`, `viewmodel-test`, `viewmodelrequest`, `cross-cutting`.
+`checks/<area>.md` where `<area>` is one of: `cross-cutting`, `datamodel`, `fields`, `serverrequest`, `serverrequest-test`, `swiftui-app-setup`, `ui-tests`, `view`, `viewmodel`, `viewmodel-test`.
+
+The `view` area is multi-surface (SwiftUI, Leaf, React — ruled 2026-08-25): its frontmatter names the SwiftUI generator, and its Reviewer Guidance directs the subagent to cite the surface-matching generator (`fosmvvm-leaf-view-generator`, `fosmvvm-react-view-generator`) for non-Swift files. The partition is revisable on ergonomic grounds; keep this list, the `checks/` directory, and the ledger in agreement.
 
 ## Frontmatter (Required)
 

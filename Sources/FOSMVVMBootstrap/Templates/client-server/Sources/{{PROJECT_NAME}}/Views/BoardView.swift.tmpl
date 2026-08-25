@@ -25,7 +25,7 @@ struct BoardView: ViewModelView {
                 .font(.largeTitle)
                 .uiTestingIdentifier("boardTitle")
             ForEach(viewModel.cards, id: \.vmId) { card in
-                Text(card.title)
+                CardView(viewModel: card)
             }
 
             Button(viewModel.addCardButtonTitle, error: $error, action: addCard)
@@ -51,7 +51,7 @@ struct BoardView: ViewModelView {
 
 private extension BoardView {
     // The async Button owns the Task and the catch: a thrown error lands in the
-    // screen's error binding. The op POSTs a CreateCardRequest; because
+    // screen's error binding. The op POSTs a CardCreateRequest; because
     // BoardViewModel is [.live], the board refreshes itself once the write commits.
     private func addCard() async throws {
         defer { toggleRepaint() }

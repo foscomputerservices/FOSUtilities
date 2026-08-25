@@ -202,7 +202,8 @@ Don't keep Vapor's stock ErrorMiddleware — it flattens typed ResponseErrors
 into plain-text reasons the client cannot decode.
 
 ```swift
-app.middleware.use(ErrorMiddleware.default(environment: app.environment))
+app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
+// Module-qualified: Vapor declares its own ErrorMiddleware, and the bare name is ambiguous.
 ```
 
 ### Gate routes on client version — `RequireVersionedAppMiddleware`

@@ -11,12 +11,30 @@ import Vapor
 @testable import {{PROJECT_NAME}}Server
 import {{PROJECT_NAME}}ViewModels
 
-/// Boots the real server pipeline headlessly on SQLite-in-memory, POSTs a
-/// `CreateCardRequest` through the actual route, and asserts the refreshed
-/// `BoardViewModel` reflects the new card — proving the live+write loop
-/// (Fluent write → auto-refresh → re-served body) end to end, no simulator.
+/// Boots the real server pipeline headlessly on SQLite-in-memory and drives both
+/// requests through the typed test door — the same derivation `processRequest`
+/// uses in production (URL, verb, headers, and the SystemVersion handshake all
+/// come from the request, never hand-built).
 @Suite("BoardServer", .serialized)
 struct BoardServerTests {
+    /// The board read: the screen's primary fetch serves the seeded board.
+    @Test func boardRequestServesTheBoard() async throws {
+        try await withFluentTestApp { app in
+            try registerServices(app)
+        } _: { app, db in
+            let board = Board(name: "Test Board")
+            try await board.save(on: db)
+
+            try await app.testing().test(BoardRequest()) { response in
+                #expect(response.status == .ok)
+                let served = try #require(response.body)
+                #expect(served.cards.isEmpty)
+            }
+        }
+    }
+
+    /// The live+write loop: a create through the typed door commits, and the
+    /// re-served `BoardViewModel` reflects the new card.
     @Test func createCardRefreshesTheLiveBoard() async throws {
         try await withFluentTestApp { app in
             // The harness owns the DB + autoMigrate + boot; we register the same
@@ -28,28 +46,43 @@ struct BoardServerTests {
             try await board.save(on: db)
             let before = try await Card.query(on: db).count()
 
-            let create = CreateCardRequest(
+            let create = CardCreateRequest(
                 query: nil, sort: nil, fragment: nil,
-                requestBody: CreateCardBody(title: "New Card"), responseBody: nil
-            )
-            let base = try #require(URL(string: "http://localhost"))
-            let url = try #require(try base.appending(serverRequest: create))
-
-            var buffer = ByteBufferAllocator().buffer(capacity: 0)
-            try buffer.writeBytes(JSONEncoder().encode(CreateCardBody(title: "New Card")))
-            var headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
-            headers.contentType = .json
-            let httpReq = Request(
-                application: app, method: .POST, url: URI(string: url.absoluteString),
-                headers: headers, collectedBody: buffer, on: app.eventLoopGroup.next()
+                requestBody: CardCreateBody(title: "New Card"), responseBody: nil
             )
 
-            let response = try await app.responder.respond(to: httpReq).get()
-            #expect(response.status == .ok)
+            try await app.testing().test(create) { response in
+                #expect(response.status == .ok)
+                let refreshed = try #require(response.body)
+                #expect(refreshed.cards.count == before + 1)
+                #expect(refreshed.cards.contains { $0.title == "New Card" })
+            }
+        }
+    }
 
-            let refreshed: BoardViewModel = try #require(response.body.data).fromJSON()
-            #expect(refreshed.cards.count == before + 1)
-            #expect(refreshed.cards.contains { $0.title == "New Card" })
+    /// The Fields contract gates the write: an empty title is rejected before
+    /// anything commits. Paired with the success test above, this proves the
+    /// validator runs on the server — not merely that it compiles into it.
+    @Test func createCardRejectsAnEmptyTitle() async throws {
+        try await withFluentTestApp { app in
+            try registerServices(app)
+        } _: { app, db in
+            let board = Board(name: "Test Board")
+            try await board.save(on: db)
+            let before = try await Card.query(on: db).count()
+
+            let create = CardCreateRequest(
+                query: nil, sort: nil, fragment: nil,
+                requestBody: CardCreateBody(title: ""), responseBody: nil
+            )
+
+            try await app.testing().test(create) { response in
+                #expect(response.status == .badRequest)
+                #expect(response.body == nil)
+            }
+
+            let after = try await Card.query(on: db).count()
+            #expect(after == before)
         }
     }
 }

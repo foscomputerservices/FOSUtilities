@@ -25,7 +25,7 @@ server-fetched screen backed by Fluent, and a client-hosted screen).
 ## The two doors
 
 - **Server-fetched (live + writable):** `BoardViewModel` is `@ViewModel(options: [.live])`;
-  the server projects it from Fluent `Card` records. `CreateCardRequest` adds a card
+  the server projects it from Fluent `Card` records. `CardCreateRequest` adds a card
   (`DataModelWriter`) and the framework **auto-refreshes** every open client — no
   manual invalidation. The read/create root at the server's apex container
   (`useApexContainerResolver`), so the client needs no board id.

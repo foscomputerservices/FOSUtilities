@@ -5,6 +5,32 @@ on:
   pull_request:
 
 jobs:
+  # Its own job, not a step on run_tests: linting needs neither a toolchain
+  # install nor a build, so it reports in under a minute instead of waiting
+  # behind the matrix. Both tools are the ones CLAUDE.md documents; until now
+  # nothing enforced either, which is how twenty scaffolder files reached main
+  # without their license header.
+  lint:
+    name: Format and lint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install linters
+        run: brew install swiftformat swiftlint
+
+      # --lint reports without writing. `swiftformat .` is the fix.
+      # fileHeader is excluded here, not in .swiftformat: its template year is
+      # `{created.year}`, which SwiftFormat resolves from filesystem creation
+      # dates — and a fresh checkout stamps every file with today's date, so any
+      # committed 2024/2025 header "fails" on CI while passing locally. Header
+      # enforcement stays local, where the dates are real.
+      - name: SwiftFormat
+        run: swiftformat --lint --disable fileHeader .
+
+      - name: SwiftLint
+        run: swiftlint --strict
+
   run_tests:
     name: Test Swift v${{ matrix.swift }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

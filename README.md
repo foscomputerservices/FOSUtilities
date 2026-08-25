@@ -23,6 +23,22 @@ swift run fosmvvm-bootstrap new --output ~/MyApp
 
 A short interview asks for the project name, shape, platforms, bundle id, and team (add `--verbose` to also print the equivalent `--config` JSON so reruns can skip the questions). Add `--verify` to build the generated project and run its tests on your machine (CI already verifies every release this way). Full details: [Creating a Project](https://swiftpackageindex.com/foscomputerservices/FOSUtilities/main/documentation/fosmvvm/creatingaproject).
 
+## Already have a project?
+
+`doctor` audits an existing project against the same rules the scaffolder generates by. If your project is a Swift package that already depends on FOSUtilities, there is nothing to install:
+
+```bash
+swift package fosmvvm-doctor --shape clientServer
+```
+
+An Xcode-only project — a `.xcodeproj` with no package manifest — has nothing for `swift package` to attach to, so run the audit from a FOSUtilities checkout instead (a standalone installable binary is planned):
+
+```bash
+swift run fosmvvm-bootstrap doctor --project ~/MyApp --shape localOnly
+```
+
+It reports and never rewrites — every finding names the setting and the value to use. It catches the failures that surface far from their cause: a second direct link to a FOS product, a silently-ignored misspelled build setting, a missing development team, a deployment target under the FOSUtilities floor, a test plan pointing at identifiers a regeneration re-minted. Errors exit non-zero; warnings do not.
+
 ## FOSFoundation
 
 FOSFoundation is a library of protocols, patterns, types and routines that I have found generally useful in my projects.  Support areas include:

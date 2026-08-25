@@ -869,6 +869,22 @@ Button(action: submit) {
 }
 ```
 
+**The rule covers operation arguments, not just display** (ratified 2026-08-25):
+prose handed *into* an operation persists and renders back in every locale, so it
+too arrives from the user or from the ViewModel — never as a view-body literal.
+Even a deliberate default name is a product decision sited on the VM, localized:
+
+```swift
+// ❌ BAD — an English literal, persisted and displayed forever after
+try await operations.createCard(title: "New Card", mvvmEnv: mvvmEnv)
+
+// ✅ GOOD — the localized default is the ViewModel's
+try await operations.createCard(title: viewModel.newCardDefaultTitle, mvvmEnv: mvvmEnv)
+```
+
+(User-authored input the view conduits, typed values that localize at render, and
+machine text — identifiers, testing tags, query syntax — are not prose.)
+
 ### Missing Error Binding
 
 ```swift

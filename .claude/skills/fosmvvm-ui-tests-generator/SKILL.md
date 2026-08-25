@@ -723,6 +723,16 @@ func testErrorDisplay() async throws {
 
 See [reference.md](reference.md) for complete file templates.
 
+## Parallelism and Shared State
+
+Swift Testing runs suites — and the tests inside a suite — in parallel by default.
+A suite whose tests touch shared mutable state (a singleton, a `static var`, the
+process environment, a fixed-path fixture) carries `.serialized`; the classic race
+symptom is a recorded value asserting `0` because another test cleared the state
+in between. `.serialized` protects within the suite only — state spanning multiple
+suites needs a test-owned gate around the racing window, or dependency injection
+so the state stops being shared at all.
+
 ## Naming Conventions
 
 | Concept | Convention | Example |
