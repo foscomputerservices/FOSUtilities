@@ -5,6 +5,16 @@ All notable changes to **FOSUtilities** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The scaffold's witnessed-tap helper retires** — the UI-test support templates
+  drop their hand-rolled `tap(_:until:)`/`poll` pair, and the generated tests call
+  FOSTestingUI's `tap(provenBy:)` directly: 0.15.0 ships the framework form, and
+  the scaffold's pin now reaches it. The first pin-gated template edit to land
+  through the release ritual's step 6.
+
 ## [0.15.0] - 2026-08-25
 
 ### Changed

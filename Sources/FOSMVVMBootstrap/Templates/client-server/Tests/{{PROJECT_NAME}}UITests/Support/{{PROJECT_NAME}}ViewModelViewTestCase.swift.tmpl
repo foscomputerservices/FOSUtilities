@@ -17,42 +17,6 @@ class {{PROJECT_NAME}}ViewModelViewTestCase<
     VM: ViewModel,
     VMO: ViewModelOperations
 >: ViewModelViewTestCase<VM, VMO>, @unchecked Sendable {
-    /// Taps `element`, then polls `witness` for proof the tap landed,
-    /// re-tapping once at half `timeout`:
-    /// `tap(presentButton, until: { dismissButton.exists })`.
-    /// > A freshly launched app can discard its first synthesized event
-    /// > (per-launch window, measured on CI simulators 2026-08-23), so a
-    /// > tap is proven by the UI change it causes, never assumed from
-    /// > dispatch.
-    ///
-    /// > This helper exists because FOSTestingUI does not yet provide a
-    /// > retrying witnessed tap or a wait on out-of-process stub state; it
-    /// > retires when those seams ship. Prefer `waitForExistence()` /
-    /// > `waitForDisappearance()` directly when the witness is element
-    /// > existence and no re-tap protection is needed.
-    @MainActor
-    @discardableResult
-    func tap(
-        _ element: UITestingElement,
-        until witness: () -> Bool,
-        timeout: TimeInterval = 10
-    ) -> Bool {
-        element.tap()
-        if poll(witness, for: timeout / 2) { return true }
-        element.tap()
-        return poll(witness, for: timeout / 2)
-    }
-
-    @MainActor
-    private func poll(_ witness: () -> Bool, for interval: TimeInterval) -> Bool {
-        let deadline = Date(timeIntervalSinceNow: interval)
-        while Date() < deadline {
-            if witness() { return true }
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
-        }
-        return witness()
-    }
-
     override static var runsForEachTargetApplicationUIConfiguration: Bool {
         false
     }

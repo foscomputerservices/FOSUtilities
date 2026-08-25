@@ -25,10 +25,7 @@ final class WelcomeViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<Welco
         // The SwiftUI alert itself cannot carry a testing identifier; its tagged
         // dismiss button witnesses the alert's presence.
         let dismissWelcomeAlertButton = app.uiTestingElement("dismissWelcomeAlertButton")
-        XCTAssertTrue(tap(
-            app.uiTestingElement("presentWelcomeAlertButton"),
-            until: { dismissWelcomeAlertButton.exists }
-        ))
+        XCTAssertTrue(app.uiTestingElement("presentWelcomeAlertButton").tap(provenBy: { dismissWelcomeAlertButton.exists }))
 
         let stubOps = try viewModelOperations()
 
@@ -39,14 +36,8 @@ final class WelcomeViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<Welco
         let app = try presentView()
 
         let dismissWelcomeAlertButton = app.uiTestingElement("dismissWelcomeAlertButton")
-        XCTAssertTrue(tap(
-            app.uiTestingElement("presentWelcomeAlertButton"),
-            until: { dismissWelcomeAlertButton.exists }
-        ))
-        XCTAssertTrue(tap(
-            dismissWelcomeAlertButton,
-            until: { !dismissWelcomeAlertButton.exists }
-        ))
+        XCTAssertTrue(app.uiTestingElement("presentWelcomeAlertButton").tap(provenBy: { dismissWelcomeAlertButton.exists }))
+        XCTAssertTrue(dismissWelcomeAlertButton.tap(provenBy: { !dismissWelcomeAlertButton.exists }))
 
         let stubOps = try viewModelOperations()
 

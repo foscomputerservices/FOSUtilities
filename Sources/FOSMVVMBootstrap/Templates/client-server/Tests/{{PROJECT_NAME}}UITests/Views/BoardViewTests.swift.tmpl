@@ -24,10 +24,7 @@ final class BoardViewTestsUITests: {{PROJECT_NAME}}ViewModelViewTestCase<BoardVi
     func testAddCardDispatchesCreate() throws {
         let app = try presentView()
 
-        XCTAssertTrue(tap(
-            app.uiTestingElement("addCardButton"),
-            until: { (try? self.viewModelOperations().createCardCalled) == true }
-        ))
+        XCTAssertTrue(app.uiTestingElement("addCardButton").tap(provenBy: { (try? self.viewModelOperations().createCardCalled) == true }))
 
         let stubOps = try viewModelOperations()
 
