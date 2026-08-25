@@ -118,8 +118,10 @@ extension ProjectRule {
                 ]
             }
 
-            let expectedFragment = Self.expectedYAMLFragment(for: shape)
-            let misplaced = paths.filter { !$0.contains(expectedFragment) }
+            let expectedFragments = Self.expectedYAMLFragments(for: shape)
+            let misplaced = paths.filter { path in
+                !expectedFragments.contains(where: path.contains)
+            }
             guard !misplaced.isEmpty else { return [] }
 
             return [
@@ -137,11 +139,13 @@ extension ProjectRule {
     /// A package-hosted library reads through `Bundle.module` and declares its
     /// tree with `.copy("Resources/Localizations")`; every other shape reads
     /// through a framework or app bundle whose YAML sits under
-    /// `Resources/ViewModels`, on the client and server sides alike.
-    private static func expectedYAMLFragment(for shape: ProjectShape) -> String {
+    /// `Resources/ViewModels`, on the client and server sides alike — with
+    /// `Resources/FieldModels` as the Fields-messages sibling the fields
+    /// generator prescribes (the store's search is recursive, so both load).
+    private static func expectedYAMLFragments(for shape: ProjectShape) -> [String] {
         switch shape {
-        case .sharedLibrary: "Resources/Localizations/"
-        case .localOnly, .clientServer, .hybrid: "Resources/ViewModels/"
+        case .sharedLibrary: ["Resources/Localizations/"]
+        case .localOnly, .clientServer, .hybrid: ["Resources/ViewModels/", "Resources/FieldModels/"]
         }
     }
 

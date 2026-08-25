@@ -375,6 +375,17 @@ struct DoctorStructureRuleTests {
         #expect(!report.hasErrors, "R8 alone must not fail the run")
     }
 
+    @Test("R8 — FieldModels YAML is the Fields-messages sibling, not a stray")
+    func fieldModelsYAMLIsInTree() throws {
+        let report = try Fixture.localOnly(shape: .localOnly) { root in
+            let dir = root.appendingPathComponent("Sources/ViewModels/Resources/FieldModels")
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try Data("en:\n  CardFieldsMessages:\n    title:\n      title: \"Title\"\n".utf8)
+                .write(to: dir.appendingPathComponent("CardFieldsMessages.yml"))
+        }
+        #expect(!report.findings.contains { $0.summary.contains("outside the tree") })
+    }
+
     // MARK: Floors
 
     @Test("R10 — a deployment target below the FOSUtilities floor is an error")
