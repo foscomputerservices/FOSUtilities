@@ -1,0 +1,10 @@
+en:
+  WelcomeViewModel:
+    welcomeTitle: "Welcome"
+    welcomeMessage: "Your FOSMVVM shared library is alive."
+    okButtonTitle: "OK"
+es:
+  WelcomeViewModel:
+    welcomeTitle: "Bienvenido"
+    welcomeMessage: "Tu biblioteca compartida FOSMVVM está viva."
+    okButtonTitle: "Aceptar"

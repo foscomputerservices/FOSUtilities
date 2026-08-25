@@ -1,0 +1,13 @@
+en:
+  AboutViewModel:
+    appName: "About PalettePress"
+    tagline: "A FOSMVVM client-server app."
+    detailsButtonTitle: "Details"
+    okButtonTitle: "OK"
+
+es:
+  AboutViewModel:
+    appName: "Acerca de PalettePress"
+    tagline: "Una aplicación cliente-servidor de FOSMVVM."
+    detailsButtonTitle: "Detalles"
+    okButtonTitle: "Aceptar"

@@ -67,6 +67,13 @@ let package = Package(
             name: "fosmvvm-bootstrap",
             targets: ["FOSMVVMBootstrapCLI"]
         ))
+        // `swift package fosmvvm-doctor` from any package that depends on
+        // FOSUtilities — the zero-installation door for auditing a project
+        // the scaffolder never created.
+        result.append(.plugin(
+            name: "FOSMVVMDoctor",
+            targets: ["FOSMVVMDoctor"]
+        ))
         #endif
 
         return result
@@ -101,6 +108,11 @@ let package = Package(
 
         #if os(macOS)
         result.append(.package(url: "https://github.com/apple/swift-argument-parser.git", .upToNextMajor(from: "1.3.0")))
+        // Reads the .xcodeproj `doctor` audits. Modeling the pbxproj object graph
+        // by hand is feasible (Foundation parses the openStep plist) but the
+        // format moves — XcodeProj tracks it, and AuditedProject keeps every rule
+        // off this API so a breaking change lands in one file.
+        result.append(.package(url: "https://github.com/tuist/XcodeProj.git", .upToNextMajor(from: "9.16.0")))
         #endif
 
         return result
@@ -276,6 +288,9 @@ let package = Package(
         #if os(macOS)
         result.append(.target(
             name: "FOSMVVMBootstrap",
+            dependencies: [
+                .product(name: "XcodeProj", package: "XcodeProj")
+            ],
             resources: [
                 .copy("Templates")
             ]
@@ -288,9 +303,33 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ))
+        // Plugin-only tool: a command plugin resolves its tool by executable
+        // TARGET name, and FOSMVVMBootstrapCLI is vended under the renamed
+        // `fosmvvm-bootstrap` product, which the plugin machinery cannot
+        // address. Not a second implementation — it calls Doctor.examine, the
+        // same entry `fosmvvm-bootstrap doctor` calls.
+        result.append(.executableTarget(
+            name: "fosmvvm-doctor-tool",
+            dependencies: ["FOSMVVMBootstrap"]
+        ))
+        result.append(.plugin(
+            name: "FOSMVVMDoctor",
+            capability: .command(
+                intent: .custom(
+                    verb: "fosmvvm-doctor",
+                    description: "Audit this project against the FOSMVVM project rules."
+                )
+                // No permissions requested: doctor reports and never writes, so
+                // the plugin sandbox's read-only default is exactly right.
+            ),
+            dependencies: [.target(name: "fosmvvm-doctor-tool")]
+        ))
         result.append(.testTarget(
             name: "FOSMVVMBootstrapTests",
-            dependencies: ["FOSMVVMBootstrap"]
+            dependencies: ["FOSMVVMBootstrap"],
+            resources: [
+                .copy("Fixtures")
+            ]
         ))
         #endif
 

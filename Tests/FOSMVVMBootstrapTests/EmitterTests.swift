@@ -1,8 +1,24 @@
+// EmitterTests.swift
+//
+// Copyright 2026 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import FOSMVVMBootstrap
 import Foundation
 import Testing
 
-@Suite struct EmitterTests {
+struct EmitterTests {
     /// The token-scannable text of an emitted entry: a symlink's own target
     /// string (a link may point at a directory), a regular file's contents.
     func emittedText(_ out: URL, _ path: String) throws -> String {
@@ -45,7 +61,7 @@ import Testing
             "Sources/PalettePressViewModels/ViewModels/WelcomeViewModelOperations.swift",
             "Sources/PalettePressViewModels/Resources/Localizations/ViewModels/WelcomeViewModel.yml",
             "Tests/PalettePressViewModelsTests/WelcomeViewModelTests.swift",
-            "Tests/PalettePressViewModelsTests/LocalizableTestCase+PalettePress.swift",
+            "Tests/PalettePressViewModelsTests/LocalizableTestCase+PalettePress.swift"
         ]
         for path in expected {
             #expect(emitted.contains(path), "missing \(path)")

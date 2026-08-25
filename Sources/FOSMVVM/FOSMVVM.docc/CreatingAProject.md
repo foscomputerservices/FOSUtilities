@@ -57,4 +57,46 @@ Either way, generation finishes with a short checklist of the few steps tooling 
 
 ## Diagnosing an existing project
 
-A `doctor` command that audits an existing project against the same rules the scaffolder uses is planned as an SPM command plugin.
+`doctor` audits a project against the same rules the scaffolder generates by, and tells you what has drifted. It never changes anything.
+
+There are two ways to run it, and which one applies depends on whether your project has a `Package.swift`.
+
+### Your project is a Swift package
+
+Client-server and shared-library projects are. If the package already depends on FOSUtilities, there is nothing to install — run it from the project directory:
+
+```bash
+swift package fosmvvm-doctor --shape clientServer
+```
+
+### Your project is an Xcode project only
+
+An app with a `.xcodeproj` and no package manifest — the local-only shape, and most apps that predate FOSUtilities — cannot use the command plugin: `swift package` has no manifest to attach to and stops with `Could not find Package.swift`.
+
+Run the audit from a FOSUtilities checkout instead, pointing it at your project:
+
+```bash
+git clone https://github.com/foscomputerservices/FOSUtilities.git
+cd FOSUtilities
+swift run fosmvvm-bootstrap doctor --project ~/MyApp --shape localOnly
+```
+
+The first run builds the scaffolder, so it takes a few minutes; later runs are immediate. The checkout is only a host for the command — nothing is written to it, and nothing is written to your project either.
+
+> Note: A standalone binary you could install once, without the checkout, is planned. Until it ships, the checkout is the supported route for Xcode-only projects.
+
+Reach for it after adding a framework target by hand, or when adopting FOSUtilities in a project the scaffolder never created. The settings it checks are the ones that fail far from their cause: a second direct link to a FOS product (two non-identical copies of the same types, so `is` and `as?` fail across target boundaries at runtime), a misspelled `BUILD_LIBRARY_FOR_DISTRIBUTION` that Xcode silently ignores, a missing `DEVELOPMENT_TEAM` that surfaces as a dyld rejection at launch, a deployment target below the FOSUtilities floor, and a test plan pointing at target identifiers a regeneration re-minted. It also audits the shared-module doctrine: ViewModels declared outside a shared ViewModels module, and server imports (Vapor, Fluent) inside one.
+
+Every finding names the setting and the value to use, because fixing it is yours to do.
+
+Findings are either errors or warnings, and `doctor` exits non-zero only when there is at least one error — so it works as a build step or a gate in a generator skill.
+
+For tooling that parses rather than reads, pass `--json` to either door: the report becomes stable, sorted-key JSON carrying `findings` (each with `severity`, `target`, `summary`, and `remedy`), `unchecked`, and a `hasErrors` verdict. The `fosmvvm-review` skill runs exactly this as its structural first pass.
+
+> Note: `--shape` is optional but worth passing. Two rules — entitlements posture and localization YAML layout — can only be judged against a known shape, and without one they are listed as unchecked rather than guessed at.
+
+A clean project says so:
+
+```
+✅ No findings — the project matches the generated structure.
+```

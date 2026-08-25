@@ -1,4 +1,20 @@
 // FOSPlatformFloor.swift
+//
+// Copyright 2026 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// FOSPlatformFloor.swift
 import Foundation
 
 /// The pinned FOSUtilities release and its platform minimums.
@@ -41,10 +57,12 @@ public enum FOSPlatformFloor {
     static func compareVersions(_ lhs: String, _ rhs: String) -> ComparisonResult {
         let l = lhs.split(separator: ".").map { Int($0) ?? 0 }
         let r = rhs.split(separator: ".").map { Int($0) ?? 0 }
-        for i in 0 ..< max(l.count, r.count) {
+        for i in 0..<max(l.count, r.count) {
             let a = i < l.count ? l[i] : 0
             let b = i < r.count ? r[i] : 0
-            if a != b { return a < b ? .orderedAscending : .orderedDescending }
+            if a != b {
+                return a < b ? .orderedAscending : .orderedDescending
+            }
         }
         return .orderedSame
     }

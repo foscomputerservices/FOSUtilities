@@ -1,0 +1,35 @@
+{
+  "configurations" : [
+    {
+      "id" : "00000000-0000-0000-0000-000000000001",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:PalettePress.xcodeproj",
+        "name" : "PalettePressUnitTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:PalettePress.xcodeproj",
+        "name" : "PalettePressClientViewModelsTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:PalettePress.xcodeproj",
+        "name" : "PalettePressUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

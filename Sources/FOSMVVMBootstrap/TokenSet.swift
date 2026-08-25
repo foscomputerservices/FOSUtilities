@@ -1,4 +1,18 @@
 // TokenSet.swift
+//
+// Copyright 2026 FOS Computer Services, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the  License);
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /// Derives every template token from the validated config.
 /// Derivation lives here in typed Swift — never in templates and never
@@ -48,8 +62,12 @@ public enum TokenSet {
                 destinations.append("iOS")
                 deploymentLines += "\n    iOS: \"\(iOSDeployment)\""
                 let devices = config.iosDevices ?? ["iPhone", "iPad"]
-                if devices.contains("iPhone") { families.append("1") }
-                if devices.contains("iPad") { families.append("2") }
+                if devices.contains("iPhone") {
+                    families.append("1")
+                }
+                if devices.contains("iPad") {
+                    families.append("2")
+                }
             }
             if let tvDeployment = config.platforms[.tvOS] {
                 destinations.append("tvOS")
