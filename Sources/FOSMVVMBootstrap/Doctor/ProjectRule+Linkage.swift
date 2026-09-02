@@ -93,7 +93,7 @@ extension ProjectRule {
                         severity: .error,
                         target: target.name,
                         summary: "links \(testing.joined(separator: ", ")), which is a testing product, into a non-test target.",
-                        remedy: "Remove the link. Testing products belong on test targets only — linked here they ride into the shipping app."
+                        remedy: "Remove the link here, and link \(testing.joined(separator: ", ")) directly on each test target that uses it. Testing products belong on test targets only — linked here they ride into the shipping app — and they do not go through SPMLibraries: test-only types are never shared across targets, so the one-doorway rule does not apply to them."
                     )
                 }
         }

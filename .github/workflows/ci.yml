@@ -163,23 +163,26 @@ jobs:
   # swift test/build hang on macOS runners (see run_tests matrix note), and
   # the bootstrap targets are mac-host-gated so ubuntu never sees them.
   #
-  # Layers:
+  # Layers, one job each (fanned out 2026-09-02: serial, they ran seventy
+  # minutes — fast suite, skeletons, then four generated-app runs back to
+  # back; none feeds another, so the wall clock is now the longest leg):
   #   1. Fast suite (config/tokens/emitter/consistency tests; skeletons
   #      self-skip without the env gate).
   #   2. Walking skeletons: emit each shape, run its verification doors.
   #      TEST_RUNNER_ prefix forwards the gate to the test process.
   #   3. Generation matrix: generated UI tests on real destinations — the
-  #      automated BIG TEST. The least-proven leg (design §7): signing and
-  #      simulator behavior on hosted runners may need iteration.
-  bootstrap_generation_matrix:
-    name: Scaffolder fast suite + skeletons + generated-app tests
+  #      automated BIG TEST, one leg per app shape × destination. The
+  #      least-proven leg (design §7): signing and simulator behavior on
+  #      hosted runners may need iteration.
+  bootstrap_fast_suite:
+    name: Scaffolder fast suite
     runs-on: macos-latest
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -204,6 +207,22 @@ jobs:
             -scheme FOSUtilities-Package -destination "platform=macOS,arch=arm64,name=My Mac" \
             -only-testing:FOSMVVMBootstrapTests test
 
+  bootstrap_skeletons:
+    name: Scaffolder walking skeletons
+    runs-on: macos-latest
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Skip macro fingerprint validation
+        run: defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+
       - name: Walking skeletons
         env:
           TEST_RUNNER_FOSMVVM_BOOTSTRAP_SKELETONS: "1"
@@ -215,29 +234,62 @@ jobs:
             -scheme FOSUtilities-Package -destination "platform=macOS,arch=arm64,name=My Mac" \
             -only-testing:FOSMVVMBootstrapTests/IntegrationTests test
 
-      - name: Generate app shapes for the matrix
+  # One leg per (app shape × destination). Each leg builds the CLI and
+  # scaffolds its own app: a few minutes of build per leg buys running the
+  # four legs side by side instead of one after another.
+  bootstrap_generated_app_tests:
+    name: Generated UI tests (${{ matrix.app }}, ${{ matrix.destination }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [LocalDemo, ServerDemo]
+        destination: [iOS Simulator, macOS]
+        include:
+          - app: LocalDemo
+            shape: localOnly
+            bundle_id_root: com.example.localdemo
+          - app: ServerDemo
+            shape: clientServer
+            bundle_id_root: com.example.serverdemo
+          - destination: iOS Simulator
+            xcode_destination: "platform=iOS Simulator,name=iPhone 17"
+            signing: "CODE_SIGNING_ALLOWED=NO"
+          - destination: macOS
+            xcode_destination: "platform=macOS,arch=arm64,name=My Mac"
+            signing: "CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= CODE_SIGN_STYLE=Manual"
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Skip macro fingerprint validation
+        run: defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+
+      - name: Build the scaffolder
+        run: |
+          set -o pipefail
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$PWD/.derivedData" \
+            -scheme fosmvvm-bootstrap -destination "platform=macOS,arch=arm64,name=My Mac" build
+
+      - name: Generate ${{ matrix.app }}
         run: |
           set -o pipefail
           BIN="$PWD/.derivedData/Build/Products/Debug/fosmvvm-bootstrap"
-          if [ ! -x "$BIN" ]; then
-            xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
-              -skipMacroValidation -skipPackagePluginValidation \
-              -derivedDataPath "$PWD/.derivedData" \
-              -scheme fosmvvm-bootstrap -destination "platform=macOS,arch=arm64,name=My Mac" build
-          fi
           mkdir -p "$RUNNER_TEMP/matrix"
-          cat > "$RUNNER_TEMP/local.json" <<'CONFIG'
-          { "projectName": "LocalDemo", "shape": "localOnly",
+          cat > "$RUNNER_TEMP/app.json" <<CONFIG
+          { "projectName": "${{ matrix.app }}", "shape": "${{ matrix.shape }}",
             "platforms": { "macOS": "14.0", "iOS": "17.0" },
-            "bundleIdRoot": "com.example.localdemo", "teamId": "ABCDE12345" }
+            "bundleIdRoot": "${{ matrix.bundle_id_root }}", "teamId": "ABCDE12345" }
           CONFIG
-          cat > "$RUNNER_TEMP/server.json" <<'CONFIG'
-          { "projectName": "ServerDemo", "shape": "clientServer",
-            "platforms": { "macOS": "14.0", "iOS": "17.0" },
-            "bundleIdRoot": "com.example.serverdemo", "teamId": "ABCDE12345" }
-          CONFIG
-          "$BIN" new --config "$RUNNER_TEMP/local.json" --output "$RUNNER_TEMP/matrix/LocalDemo"
-          "$BIN" new --config "$RUNNER_TEMP/server.json" --output "$RUNNER_TEMP/matrix/ServerDemo"
+          "$BIN" new --config "$RUNNER_TEMP/app.json" --output "$RUNNER_TEMP/matrix/${{ matrix.app }}"
 
       # CI simulators are ALWAYS the cold case: fresh boot, first install —
       # exactly the measured first-run tap-flake condition (2026-08-22).
@@ -246,27 +298,16 @@ jobs:
       # failure still fails both iterations. Durable fix is FOSTestingUI's
       # first-interaction settle (follow-on) — then retries are belt-and-braces.
       - name: Pre-boot iOS simulator
+        if: matrix.destination == 'iOS Simulator'
         run: |
           UDID=$(xcrun simctl list devices available | grep "iPhone 17 (" | head -1 | grep -oE "[0-9A-F-]{36}")
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b || true
 
-      - name: Generated UI tests (iOS Simulator)
+      - name: Generated UI tests
         run: |
           set -o pipefail
-          for APP in LocalDemo ServerDemo; do
-            xcrun xcodebuild -project "$RUNNER_TEMP/matrix/$APP/$APP.xcodeproj" \
-              -scheme "$APP" -destination "platform=iOS Simulator,name=iPhone 17" \
-              -retry-tests-on-failure -test-iterations 2 \
-              CODE_SIGNING_ALLOWED=NO test
-          done
-
-      - name: Generated UI tests (macOS)
-        run: |
-          set -o pipefail
-          for APP in LocalDemo ServerDemo; do
-            xcrun xcodebuild -project "$RUNNER_TEMP/matrix/$APP/$APP.xcodeproj" \
-              -scheme "$APP" -destination "platform=macOS,arch=arm64,name=My Mac" \
-              -retry-tests-on-failure -test-iterations 2 \
-              CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= CODE_SIGN_STYLE=Manual test
-          done
+          xcrun xcodebuild -project "$RUNNER_TEMP/matrix/${{ matrix.app }}/${{ matrix.app }}.xcodeproj" \
+            -scheme "${{ matrix.app }}" -destination "${{ matrix.xcode_destination }}" \
+            -retry-tests-on-failure -test-iterations 2 \
+            ${{ matrix.signing }} test
