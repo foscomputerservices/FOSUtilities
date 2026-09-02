@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`expectFullViewModelTests(_:locales:version:)`** — the one-liner forwards a
+  `version:` to `expectVersionedViewModel`, so a project whose version line is not
+  `1.0.0` mints and checks baselines off its real line without hand-assembling
+  the three primitives.
+- **`expectTranslations` walks child ViewModels** — stored child ViewModels,
+  optionals, and collections are descended, so a missing or blank translation on
+  a row fails the parent's pass and names the path (`rows[0].label`).
+- **The test encoder is strict** — `LocalizableTestCase.encoder(locale:)` now
+  fails an encode on a key the store cannot resolve
+  (`LocalizerError.missingTranslation`) instead of encoding an empty string;
+  `JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)`
+  exposes the switch. Production encoding is unchanged.
+- **A UI-test harness with no YAML fails loudly** — `setUp(bundles:)` throws
+  `RunError.noLocalizationYAML` when the bundles given yield no YAML; pass
+  `bundles: []` to run key-echo on purpose. Key-echo is for a missing key, not a
+  missing harness.
+
 - **`CredentialChallenge`** — what a server demands of a credential, typed: `.bearer`,
   `.bearerRealm(_:)`, `.basicRealm(_:)`. A `ServerCredentialVerifier` attaches it to
   the rejection it throws; the transport renders `WWW-Authenticate` from it (the

@@ -1,0 +1,17 @@
+en:
+  WalkParentViewModel:
+    title: "Parent"
+  WalkChildViewModel:
+    label: "Child"
+  BlankChildViewModel:
+    label: "Blank child"
+  BlankParentViewModel:
+    title: "Blank parent"
+
+es:
+  WalkParentViewModel:
+    title: "Padre"
+  BlankChildViewModel:
+    label: ""
+  BlankParentViewModel:
+    title: "Padre en blanco"

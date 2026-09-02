@@ -24,12 +24,17 @@ public extension JSONEncoder {
     ///   - locale: The **Locale** to use to encode ``Localizable`` values
     ///   - localizationStore: The ``LocalizationStore`` to use to resolve localization
     ///     lookups during encoding
+    ///   - strictLocalization: When **true**, a key the store cannot resolve fails the
+    ///     encode with ``LocalizerError/missingTranslation(_:locale:)`` instead of
+    ///     encoding an empty string. Test encoders use it so a missing key is red, never
+    ///     a blank that ships (default: **false**)
     /// - Returns: A ``JSONEncoder`` that encodes ``Localizable`` values
-    static func localizingEncoder(locale: Locale, localizationStore: LocalizationStore) -> JSONEncoder {
+    static func localizingEncoder(locale: Locale, localizationStore: LocalizationStore, strictLocalization: Bool = false) -> JSONEncoder {
         let encoder = LocalizingEncoder()
         encoder.dateEncodingStrategy = .formatted(DateFormatter.JSONDateTimeFormatter)
         encoder.userInfo[.localeKey] = locale
         encoder.userInfo[.localizationStoreKey] = localizationStore
+        encoder.userInfo[.strictLocalizationKey] = strictLocalization
         return encoder
     }
 }
@@ -62,10 +67,14 @@ extension Encoder {
             throw LocalizerError.localizationStoreMissing
         }
 
-        return try locale.localize(
+        let localized = try locale.localize(
             localizable,
             localizationStore: localizationStore
         )
+        if localized == nil, userInfo[.strictLocalizationKey] as? Bool == true {
+            throw LocalizerError.missingTranslation(String(describing: localizable), locale: locale.identifier)
+        }
+        return localized
     }
 
     /// Converts the ``Localizable`` into an **Array** of *Element*s
@@ -380,6 +389,10 @@ private extension CodingUserInfoKey {
 
     static var localizationStoreKey: CodingUserInfoKey {
         CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_sTore*_")!
+    }
+
+    static var strictLocalizationKey: CodingUserInfoKey {
+        CodingUserInfoKey(rawValue: "_*LoCalIzAtIon_sTrIcT*_")!
     }
 
     /// The properties of the model currently being processed

@@ -64,9 +64,14 @@ calling the pieces individually.
 
 ```swift
 try expectFullViewModelTests(UserViewModel.self)
+try expectFullViewModelTests(UserViewModel.self, version: .init("0.2.0"))  // the project's own line
 try expectFullFieldValidationModelTests(UserFieldsMessages.self)
 try expectFullFormFieldTests(UserFormModel.emailField)
 ```
+
+`version:` (0.16.0) is forwarded to the version-stability check; pass the
+project's version line when nothing calls `setCurrentVersion` under
+`swift test`, where the default is `1.0.0`.
 
 ### Codable round-trip check — `expectCodable()`
 Reach for this when: any Codable & Stubbable type must survive encode → decode
@@ -95,7 +100,11 @@ try expectVersionedViewModel(UserViewModel.self, encoder: encoder())
 Reach for this when: verifying no localized property is missing a YAML value —
 encodes the stub once per locale and fails on empty or still-pending values.
 Overloads take a ViewModel-like type or a single Localizable (a FormField
-title, an error message). Included in `expectFullViewModelTests()`.
+title, an error message). Included in `expectFullViewModelTests()`. It walks
+stored child ViewModels, optionals, and collections (0.16.0) and names the
+failing path (`rows[0].label`); and the suite's `encoder(locale:)` is strict —
+a key the store cannot resolve fails the encode with
+`LocalizerError.missingTranslation` rather than encoding `""`.
 
 ```swift
 try expectTranslations(UserViewModel.self)
@@ -139,7 +148,9 @@ Reach for this when: XCUITest-driving a ViewModelView that only displays data �
 no operations to verify. Create one project-level subclass that pins
 `setUp(bundle:resourceDirectoryName:appBundleIdentifier:locales:)` — or its
 `setUp(bundles:)` twin when the YAML lives in several bundles (the test
-harness's own plus another target's resources), merged into one store; each test
+harness's own plus another target's resources), merged into one store — bundles
+that yield no YAML at all fail `setUp` with `RunError.noLocalizationYAML`
+(0.16.0); `bundles: []` is the explicit opt-in to key-echo with no YAML; each test
 then calls `presentView()` with a stub ViewModel (localized for you; the
 suite's `localizationStore` and locale shorthands are available) and asserts on
 the returned XCUIApplication. `presentView(testConfiguration:)` names a

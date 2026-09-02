@@ -171,6 +171,18 @@ public extension RetrievablePropertyNames {
     typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
 }
 
+/// The property wrapper seen without its generic parameters — what a translation walk
+/// needs from any `@LocalizedString`/`@LocalizedSubs`/… on any Model.
+package protocol LocalizedPropertyTranslation {
+    var translatedValue: any Localizable { get }
+}
+
+extension _LocalizedProperty: LocalizedPropertyTranslation {
+    package var translatedValue: any Localizable {
+        wrappedValue
+    }
+}
+
 @propertyWrapper public struct _LocalizedProperty<Model: RetrievablePropertyNames, Value: Localizable>: Codable, Hashable, Sendable, Stubbable, Versionable {
     private typealias WrappedValueBinder = @Sendable (Model?, String, Encoder) throws -> Value
 

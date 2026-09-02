@@ -122,8 +122,16 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     @Test func codable_localized_unknownKey() throws {
         let localized = LocalizableString.localized(key: "lkjoipuew")
-        let decodedLoc: LocalizableString = try localized.toJSON(encoder: encoder()).fromJSON()
+
+        // The production encoder encodes an unknown key as an empty string …
+        let lenient = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let decodedLoc: LocalizableString = try localized.toJSON(encoder: lenient).fromJSON()
         #expect(try decodedLoc.localizedString == "")
+
+        // … and the test encoder is strict about it.
+        #expect(throws: LocalizerError.self) {
+            _ = try localized.toJSON(encoder: encoder())
+        }
     }
 
     // MARK: Identifiable Protocol
