@@ -40,3 +40,13 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 **Why it was deferred:** placing a field at a fixed offset above the keyboard's top is device- and keyboard-height-dependent, so a deterministic fixture needs layout that measures the keyboard at runtime — more machinery than the round's scope. The failure mode is guarded by an arbiter, not by geometry, so the fix does not silently depend on the un-pinned case.
 
 **What reopens it:** a regression report where the menu-rise re-scroll fails on a margin-occluded field; or the next probe-fixture round, where a runtime-measured margin field should join the composite card so all three geometries are forced in-house.
+
+## `CredentialRejectedError` has no user-presentable localized message
+
+**Recorded:** 2026-09-02, at David's direction, during the credential-rejection redesign.
+
+**What it is:** the rejection carries typed data (`reason`, `challenge`) but no `LocalizableError` conformance, so `.alert(error:)` presents its debug description rather than a sentence in the user's language. The shape that would fix it is the canonical one — `@LocalizableError` with a `@LocalizedSubs` message substituting the reason and the challenge's realm, resolved by the server's localizing encoder so the client decodes it already localized.
+
+**Why it was deferred:** the message needs YAML at the server's localization store, and FOSUtilities ships no localization YAML of its own today. A framework-owned bundle is its own design: how it reaches the store the app initialized (`initYamlLocalization(bundle:resourceDirectoryName:)` takes one bundle), and whether an app's YAML may override the framework's words. The substituted message rides on that design, not ahead of it.
+
+**What reopens it:** the framework-localization-bundle design; or a second framework-owned error that needs a user-facing message, at which point the bundle stops being a one-type question.
