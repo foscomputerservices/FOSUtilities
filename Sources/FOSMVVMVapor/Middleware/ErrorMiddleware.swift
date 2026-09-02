@@ -58,6 +58,34 @@ public final class ErrorMiddleware: AsyncMiddleware {
     }
 }
 
+private extension ErrorMiddleware {
+    /// Opens the existential so the envelope is generic over the error's own type;
+    /// returns Data because an opened type cannot escape into the result.
+    static func envelopeData(_ error: some ServerRequestError, encoder: JSONEncoder) throws -> Data {
+        try envelope(error).toJSONData(encoder: encoder)
+    }
+
+    private static func envelope<E: ServerRequestError>(_ error: E) -> WireError<E> {
+        if let rejection = error as? CredentialRejectedError {
+            // `.surface` carries no E: the client decodes
+            // `WireError<ItsOwnResponseError>` and matches it regardless.
+            return .surface(rejection)
+        }
+        return .response(error)
+    }
+
+    /// The transport dressing: the credential rejection is 401 + WWW-Authenticate;
+    /// any other ServerRequestError takes its own AbortError status when it has
+    /// one, else 400.
+    static func dressing(for error: any ServerRequestError) -> (status: HTTPResponseStatus, headers: HTTPHeaders) {
+        if let rejection = error as? CredentialRejectedError {
+            return (CredentialRejectedError.transportStatus, rejection.transportHeaders)
+        }
+        let abort = error as? any AbortError
+        return (abort?.status ?? .badRequest, abort?.headers ?? [:])
+    }
+}
+
 public extension ErrorMiddleware {
     /// Create a default `ErrorMiddleware`. Logs errors to a `Logger` based on `Environment`
     /// and converts `Error` to `Response` based on conformance to `AbortError` and `Debuggable`.
@@ -74,6 +102,31 @@ public extension ErrorMiddleware {
 
             // Inspect the error type and extract what data we can.
             switch error {
+            // A ServerRequestError crosses the wire inside the WireError envelope —
+            // the one body shape the client decodes. Its dressing (status, headers)
+            // is decided here, in the one place an error becomes a Response.
+            case let serverError as any ServerRequestError:
+                let dressing = Self.dressing(for: serverError)
+                do {
+                    let encoder = try req.localizingEncoder
+
+                    (reason, errorData, status, headers, source) = try (
+                        "",
+                        Self.envelopeData(serverError, encoder: encoder),
+                        dressing.status,
+                        dressing.headers,
+                        .capture()
+                    )
+                } catch {
+                    (reason, errorData, status, headers, source) = (
+                        "Error serializing ServerRequestError to JSON: \(error)",
+                        nil,
+                        dressing.status,
+                        [:],
+                        .capture()
+                    )
+                }
+
             case let encodableAbort as any (Encodable & AbortError):
                 do {
                     let encoder = try req.localizingEncoder

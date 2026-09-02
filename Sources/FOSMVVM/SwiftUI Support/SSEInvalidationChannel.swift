@@ -133,7 +133,7 @@ struct SSEInvalidationChannel: InvalidationChannel {
             // `credentialHeaders()` — the channel carries no credential state of its own.
             if http.statusCode == 401 {
                 _ = await credentialProvider?.credentialHeaders(
-                    afterRejection: CredentialRejectedError(code: .invalid)
+                    afterRejection: CredentialRejectedError(reason: .invalid)
                 )
             }
 

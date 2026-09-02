@@ -16,7 +16,8 @@
 
 // ErrorMiddleware transport-dressing contract: an error that is BOTH Encodable
 // and AbortError is served with its typed body AND its own status/headers; a
-// plain Encodable error keeps the typed body with 400 (unchanged).
+// plain Encodable error keeps the typed body with 400. Every ServerRequestError
+// body rides inside the WireError envelope, the one shape the client decodes.
 
 import FOSFoundation
 import FOSMVVM
@@ -64,7 +65,11 @@ struct ErrorMiddlewareDressingTests {
             // A single Content-Type on the wire — a duplicate would surface here
             // comma-joined by value(forHTTPHeaderField:)
             #expect(headers["Content-Type"] == "application/json; charset=utf-8")
-            let decoded: DressedError = try body.fromJSON()
+            // The body is the WireError envelope — the one shape the client decodes
+            let wire: WireError<DressedError> = try body.fromJSON()
+            guard case .response(let decoded) = wire else {
+                Issue.record("Expected .response, got \(wire)"); return
+            }
             #expect(decoded.errorCode == 7)
         }
     }
@@ -84,7 +89,10 @@ struct ErrorMiddlewareDressingTests {
             // A single Content-Type on the wire — a duplicate would surface here
             // comma-joined by value(forHTTPHeaderField:)
             #expect(headers["Content-Type"] == "application/json; charset=utf-8")
-            let decoded: PlainEncodableError = try body.fromJSON()
+            let wire: WireError<PlainEncodableError> = try body.fromJSON()
+            guard case .response(let decoded) = wire else {
+                Issue.record("Expected .response, got \(wire)"); return
+            }
             #expect(decoded.errorCode == 9)
         }
     }

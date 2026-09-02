@@ -70,7 +70,7 @@ public protocol ClientCredentialProvider: Sendable {
     ///
     /// ```swift
     /// func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]? {
-    ///     guard afterRejection.code == .invalid else { return nil }
+    ///     guard afterRejection.reason == .invalid else { return nil }
     ///     guard let token = await SessionStore.shared.refreshAccessToken() else { return nil }
     ///     return [(field: "Authorization", value: "Bearer \(token)")]
     /// }
@@ -87,7 +87,7 @@ public protocol ClientCredentialProvider: Sendable {
     ///     several times in quick succession with the same rejection.
     /// - Parameter afterRejection: The rejection the server returned, so a provider
     ///     can distinguish a missing credential from an invalid one. A refused
-    ///     ServerRequest carries the server's actual code; a refused live-channel
+    ///     ServerRequest carries the server's actual reason; a refused live-channel
     ///     reconnect cannot read it and always presents `.invalid`, and may call
     ///     this once per failed reconnect rather than only once.
     /// - Returns: Headers to retry the request with once, or `nil` when no fresh

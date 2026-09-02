@@ -23,7 +23,7 @@ import Vapor
 /// runs before each route in a protected group: return to admit the request, throw to
 /// reject it — throw ``CredentialRejectedError`` (carrying its code + challenge) to
 /// reject; any other thrown error is wrapped by the middleware into
-/// `CredentialRejectedError(code: .invalid)`. Rejection reasons must **never** echo
+/// `CredentialRejectedError(reason: .invalid)`. Rejection reasons must **never** echo
 /// the presented credential back to the caller.
 ///
 /// The verifier is consulted **per request**, so a credential revoked or rotated on the
@@ -40,7 +40,7 @@ public protocol ServerCredentialVerifier: Sendable {
     /// - Parameter headers: The HTTP headers the request presented
     /// - Throws: To reject the request — throw ``CredentialRejectedError``
     ///     (carrying code + challenge); any other thrown error is wrapped by
-    ///     the middleware into `CredentialRejectedError(code: .invalid)`. The
+    ///     the middleware into `CredentialRejectedError(reason: .invalid)`. The
     ///     rejection reason must not contain the presented credential
     func verify(headers: HTTPHeaders) async throws
 }
@@ -93,8 +93,8 @@ public struct ClientCredentialMiddleware: AsyncMiddleware {
         } catch {
             // The verifier contract is "throw to reject" — any throw is a
             // rejection; custom verifiers throw CredentialRejectedError
-            // directly to carry richer intent (code, challenge).
-            throw CredentialRejectedError(code: .invalid)
+            // directly to carry richer intent (reason, challenge).
+            throw CredentialRejectedError(reason: .invalid)
         }
 
         return try await next.respond(to: request)
@@ -132,19 +132,17 @@ public struct ClientCredentialMiddleware: AsyncMiddleware {
 /// }
 /// ```
 public struct BearerCredentialVerifier: ServerCredentialVerifier {
-    private static let challenge = "Bearer"
-
     private let isValid: @Sendable (String) async -> Bool
 
     // MARK: ServerCredentialVerifier Protocol
 
     public func verify(headers: HTTPHeaders) async throws {
         guard let token = headers.bearerAuthorization?.token else {
-            throw CredentialRejectedError(code: .missing, challenge: Self.challenge)
+            throw CredentialRejectedError(reason: .missing, challenge: .bearer)
         }
 
         guard await isValid(token) else {
-            throw CredentialRejectedError(code: .invalid, challenge: Self.challenge)
+            throw CredentialRejectedError(reason: .invalid, challenge: .bearer)
         }
     }
 

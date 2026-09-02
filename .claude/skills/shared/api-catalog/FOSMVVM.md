@@ -363,12 +363,16 @@ final class UserViewModelRequest: ViewModelRequest, @unchecked Sendable {
 Reach for this when: a request to a protected route may be rejected before the
 operation runs — catch the typed error (`.missing` = no credential configured;
 `.invalid` = presented and refused → refresh and retry, safe because the
-operation never ran); never branch on an HTTP status. It always throws to the
-caller (never `requestErrorHandler`).
+operation never ran); never branch on an HTTP status. The client first offers
+it to `credentialHeaders(afterRejection:)` and retries once on fresh headers;
+only an unrecovered rejection throws to the caller (never
+`requestErrorHandler`). It carries the server's typed `CredentialChallenge`
+(`.bearer`, `.bearerRealm(_:)`, `.basicRealm(_:)`) — the same value the
+transport rendered as `WWW-Authenticate`.
 
 ```swift
 } catch let error as CredentialRejectedError {
-    switch error.code {
+    switch error.reason {
     case .missing: ... // check the MVVMEnvironment's clientCredentialProvider
     case .invalid: ... // refresh the credential and retry
     }
