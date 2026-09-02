@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Doctor R4's testing-product remedy names both halves** — removing
+  `FOSTesting` from a non-test target is only half the fix; the finding now also
+  says to link the testing product directly on each test target that uses it,
+  and why the one-doorway rule does not apply there. Surfaced by the first
+  customer doctor run, where "remove the link" alone would have broken the
+  test bundles.
+- **The scaffolder CI job fans out** — the serial seventy-minute job (fast suite,
+  walking skeletons, four generated-app UI-test runs) is now three jobs, the last
+  a four-leg matrix over app shape × destination. Each leg builds the CLI and
+  scaffolds its own app, so nothing waits on anything and the wall clock is the
+  longest leg.
+
 ## [0.15.1] - 2026-09-02
 
 ### Added
