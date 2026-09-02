@@ -350,6 +350,29 @@ struct DoctorStructureRuleTests {
         #expect(finding.severity == .error)
     }
 
+    @Test("R7 — a withheld sandbox is an error that names its disableable rule")
+    func withheldSandboxNamesItsRule() throws {
+        let report = try Fixture.clientServer(
+            mutatingEntitlements: { $0.replacingOccurrences(of: "com.apple.security.app-sandbox", with: "com.apple.security.unused") },
+            shape: .clientServer
+        )
+        let finding = try #require(report.findings.first { $0.summary.contains("app-sandbox") })
+        #expect(finding.severity == .error)
+        #expect(finding.rule == .appSandbox)
+        #expect(report.hasErrors)
+        #expect(report.text.contains("rule app_sandbox"))
+    }
+
+    @Test("R7 — a missing network.client is not disableable")
+    func missingNetworkClientIsNotDisableable() throws {
+        let report = try Fixture.clientServer(
+            mutatingEntitlements: { $0.replacingOccurrences(of: "com.apple.security.network.client", with: "com.apple.security.unused") },
+            shape: .clientServer
+        )
+        let finding = try #require(report.findings.first { $0.summary.contains("network.client") })
+        #expect(finding.rule == nil)
+    }
+
     @Test("R7 — disabling library validation is reported as the symptom it is")
     func disabledLibraryValidation() throws {
         let report = try Fixture.localOnly(
@@ -493,7 +516,7 @@ struct DoctorReportTests {
     func jsonReportContract() throws {
         let report = Doctor.Report(
             findings: [
-                Finding(severity: .error, target: "PalettePress", summary: "e", remedy: "fix e"),
+                Finding(severity: .error, target: "PalettePress", summary: "e", remedy: "fix e", rule: .appSandbox),
                 Finding(severity: .warning, summary: "w", remedy: "fix w")
             ],
             unchecked: ["entitlements posture (needs --shape)"]
@@ -508,6 +531,12 @@ struct DoctorReportTests {
         let findingsData = try JSONSerialization.data(withJSONObject: top["findings"] as Any)
         let decoded = try JSONDecoder().decode([Finding].self, from: findingsData)
         #expect(decoded == report.findings)
+
+        // The rule identifier is what a project writes in .fosmvvm-review.yml,
+        // so the JSON must carry it verbatim.
+        let encoded = try #require(top["findings"] as? [[String: Any]])
+        #expect(encoded.first?["rule"] as? String == "app_sandbox")
+        #expect(encoded.last?["rule"] == nil)
     }
 
     @Test("a clean report's JSON gates false")

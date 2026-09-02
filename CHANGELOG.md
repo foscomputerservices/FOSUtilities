@@ -7,8 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A doctor finding can name a rule the project may disable** — `Finding.rule`
+  (`DisableableRule`, one case: `app_sandbox`) marks the few findings a project
+  may hold on purpose, such as an ops app that runs unsandboxed to reach local
+  infrastructure. The JSON carries the identifier on those findings only, and the
+  text report prints it under the finding. `fosmvvm-review` gains
+  `doctor.disabled_rules` in `.fosmvvm-review.yml` (`rule`, `target`, `reason`),
+  SwiftLint's vocabulary: a matched finding reports at warning with the reason
+  beside it and no longer halts tier 2. Doctor's own verdict is unchanged — it
+  reports facts; the skill applies the project's word. Plugin 2.64.0.
+
 ### Changed
 
+- **Seeded memories state the settled signing shape** — the scaffold's
+  `entitlement-is-a-symptom.md` and `xcode16-dynamic-spm-packages.md` carried an
+  unratified 2026-08 evaluation that called `disable-library-validation` a
+  required companion of `ENABLE_DEBUG_DYLIB` and floated retiring `SPMLibraries`.
+  Both now state the shape the templates ship and `fosmvvm-doctor` audits: one
+  `SPMLibraries` doorway, app-only embed with re-sign, hardened runtime off in
+  Debug only, `ENABLE_DEBUG_DYLIB` unset, no entitlement. Surfaced by the first
+  customer doctor run, where the stale note read as a doctrine conflict.
 - **The scaffold's witnessed-tap helper retires** — the UI-test support templates
   drop their hand-rolled `tap(_:until:)`/`poll` pair, and the generated tests call
   FOSTestingUI's `tap(provenBy:)` directly: 0.15.0 ships the framework form, and

@@ -36,6 +36,35 @@ public enum Severity: String, Sendable, Equatable, CaseIterable, Codable {
     case warning
 }
 
+/// A doctor rule a project may deliberately disable, named the way SwiftLint
+/// names its rules so the identifier reads the same in a config file.
+///
+/// Most findings are defects. A few report a rule the generated shape always
+/// satisfies but an app can have reasons to break. An ops tool that must
+/// reach local Docker or ssh runs unsandboxed on purpose. Such a finding still
+/// reports, at its full severity, but it carries a `DisableableRule` so the
+/// project can disable that rule for that target in `.fosmvvm-review.yml`:
+///
+/// ```yaml
+/// doctor:
+///   disabled_rules:
+///     - rule: app_sandbox
+///       target: PalettePress
+///       reason: Talks to the local Docker socket; sandboxing blocks it.
+/// ```
+///
+/// `fosmvvm-review` then reports it as a warning with the reason beside it,
+/// and its tier-2 review dispatches instead of halting. Findings without a
+/// rule identifier cannot be disabled — a wrong embed, a missing test host, or
+/// a deployment target below the floor is broken, not chosen.
+///
+/// > Note: `Doctor` itself never reads the config. Its report is the facts;
+/// > the review skill applies the project's word to them.
+public enum DisableableRule: String, Sendable, Equatable, CaseIterable, Codable {
+    /// The app carries `com.apple.security.app-sandbox`.
+    case appSandbox = "app_sandbox"
+}
+
 /// One thing `Doctor` found wrong, and what to do about it.
 ///
 /// ```swift
@@ -61,10 +90,15 @@ public struct Finding: Sendable, Equatable, Codable {
     /// What to do about it — the setting and value, or the action to take.
     public let remedy: String
 
-    public init(severity: Severity, target: String? = nil, summary: String, remedy: String) {
+    /// The rule this finding reports against, when the project may
+    /// deliberately disable it; nil for every finding that is simply wrong.
+    public let rule: DisableableRule?
+
+    public init(severity: Severity, target: String? = nil, summary: String, remedy: String, rule: DisableableRule? = nil) {
         self.severity = severity
         self.target = target
         self.summary = summary
         self.remedy = remedy
+        self.rule = rule
     }
 }
