@@ -111,7 +111,8 @@ public extension Doctor {
         ///
         /// Both front ends print exactly this under `--json`. The shape is part
         /// of the contract: `findings` (each with `severity` — `error` or
-        /// `warning` — an optional `target`, `summary`, and `remedy`),
+        /// `warning` — an optional `target`, `summary`, `remedy`, and, on the
+        /// findings a project may disable, a `rule` — see ``DisableableRule``),
         /// `unchecked`, and `hasErrors`. Keys are sorted, so output is stable
         /// across runs for diffing and CI.
         public var json: String {
@@ -147,6 +148,9 @@ public extension Doctor {
                     lines.append("  \(finding.target ?? "(project)")")
                     lines.append("    \(finding.summary)")
                     lines.append("    → \(finding.remedy)")
+                    if let rule = finding.rule {
+                        lines.append("    ↳ Deliberate? Disable rule \(rule.rawValue) for this target in .fosmvvm-review.yml.")
+                    }
                 }
             }
 

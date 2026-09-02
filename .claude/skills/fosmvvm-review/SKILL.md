@@ -52,6 +52,7 @@ Look for `.fosmvvm-review.yml` at the repo root. If present, parse:
 - `disabled_checks:` — list of check names to skip globally.
 - `severity_overrides:` — map of `check-name: severity` (blocker | warning | nit).
 - `excluded_paths:` — list of glob patterns; matching files are removed from scope.
+- `doctor:` → `disabled_rules:` — list of `{rule, target, reason}` entries disabling one doctor rule for one target, the way SwiftLint's `disabled_rules` names rules (Step 2). `rule` is the identifier doctor prints on the finding (`app_sandbox`), `target` the Xcode target it names, `reason` one sentence. An entry without a reason is malformed. Nested under `doctor:` so it never reads as a sibling of `disabled_checks`, which governs tier 2.
 
 If the file is missing or any key is absent, use defaults. If the file is malformed (invalid YAML, unknown top-level keys), print a warning and continue with defaults.
 
@@ -69,9 +70,11 @@ Before any triage, run the deterministic structural audit. `fosmvvm-doctor` chec
 Both routes exit non-zero when doctor finds errors — capture stdout regardless of exit status (append `|| true`).
 3. Neither available (no macOS, no checkout): tier 1 is **unavailable**. Record it as such below and continue to Step 3 — the absence is stated in the report, never silent. Name the enabling route (the `CreatingAProject` DocC article, § Diagnosing an existing project).
 
-**Parse the JSON:** `findings` (each carrying `severity` — `error` | `warning` — an optional `target`, `summary`, `remedy`), `unchecked`, and `hasErrors`.
+**Parse the JSON:** `findings` (each carrying `severity` — `error` | `warning` — an optional `target`, `summary`, `remedy`, and on the few findings a project may disable a `rule` identifier), `unchecked`, and `hasErrors`.
 
-**The gate (ruled 2026-08-25): structural errors halt tier 2.** When `hasErrors` is true, do not dispatch any area subagent — fix structure first, so that the area reviews find what they expect where they expect. Skip to Step 7 and emit the report now, with:
+**Apply the project's disabled doctor rules (ruled 2026-09-02).** For each `doctor.disabled_rules` entry, find the doctor finding whose `rule` and `target` both match. A matched finding is reported at `warning` with `disabled: <reason>` beside it, and it no longer counts toward the gate below. An entry that matches no finding, or names a rule doctor did not print on that target, is reported in the Configuration line as unmatched and otherwise ignored — it never silences anything. Only findings that carry a `rule` identifier can be disabled; every other doctor finding is a defect and stays as reported. Recompute the gate from the findings that remain at `error` — not from doctor's own `hasErrors`, which predates the config.
+
+**The gate (ruled 2026-08-25): structural errors halt tier 2.** When any doctor finding remains at `error` after the disabled rules are applied, do not dispatch any area subagent — fix structure first, so that the area reviews find what they expect where they expect. Skip to Step 7 and emit the report now, with:
 
 - the `structure` section carrying every doctor finding and the `unchecked` list,
 - `summary.by_area.structure` and `summary.total` counting them (severity mapping: doctor `error` → `blocker`, `warning` → `warning`),
@@ -79,7 +82,7 @@ Both routes exit non-zero when doctor finds errors — capture stdout regardless
 
 When doctor reports only warnings, or nothing: record the results in the same `structure` section and continue to Step 3.
 
-Doctor findings are deterministic facts, not review judgments: they are exempt from `.fosmvvm-review.yml` overrides and inline suppression, and they carry no check names — each finding's `remedy` is the action.
+Doctor findings are deterministic facts, not review judgments: `disabled_checks`, `severity_overrides`, and inline suppression do not reach them, and they carry no check names — each finding's `remedy` is the action. The one door is `doctor.disabled_rules`, and it opens only on findings doctor itself marked with a `rule` identifier: the project is recording a choice, with a reason, not overriding a verdict.
 
 ### Step 3: Load Check Files
 
@@ -166,11 +169,12 @@ If a subagent returned an error or timeout, record the area as `ERROR` with the 
 **Tier 2:** (only when halted) halted — doctor reported structural errors; fix structure first, then re-run
 **Areas triaged:** {comma-separated areas, or "none — tier 2 halted"}
 **Fail-on threshold:** {threshold}
-**Configuration applied:** (omit line if no config) disabled checks: {names}; severity overrides: {name=severity, ...}; excluded paths: {N}
+**Configuration applied:** (omit line if no config) disabled checks: {names}; severity overrides: {name=severity, ...}; excluded paths: {N}; doctor disabled rules: {N} ({M} unmatched: {rule@target, ...})
 
 ## Structure (doctor)
 (omit the section when tier 1 ran clean with nothing unchecked)
 - {❌ error | ⚠️ warning} {target or (project)}: {summary} → {remedy}
+- ⚠️ {target}: {summary} — disabled ({rule}): {reason}   (a disabled doctor rule, reported at warning)
 - Not checked: {each unchecked entry, one line}
 
 ## Findings by area
@@ -218,7 +222,9 @@ mistaken for a clean one.
   "tier2": "ran",
   "structure": {
     "findings": [
-      { "severity": "error", "target": "SPMLibraries", "summary": "...", "remedy": "..." }
+      { "severity": "error", "target": "SPMLibraries", "summary": "...", "remedy": "..." },
+      { "severity": "warning", "target": "PalettePress", "summary": "...", "remedy": "...",
+        "rule": "app_sandbox", "disabled": "Talks to the local Docker socket." }
     ],
     "unchecked": ["entitlements match the project shape (needs --shape)"]
   },
@@ -227,7 +233,8 @@ mistaken for a clean one.
     "fail_on": "blocker",
     "disabled_checks": ["..."],
     "severity_overrides": { "<check>": "<severity>" },
-    "excluded_paths_count": 0
+    "excluded_paths_count": 0,
+    "doctor_disabled_rules": { "applied": 1, "unmatched": [] }
   },
   "summary": {
     "by_area": { "structure": { "blocker": 1, "warning": 0, "nit": 0 }, "viewmodel": { "blocker": 1, "warning": 2, "nit": 0 }, "...": {} },

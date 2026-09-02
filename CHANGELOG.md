@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A doctor finding can name a rule the project may disable** — `Finding.rule`
+  (`DisableableRule`, one case: `app_sandbox`) marks the few findings a project
+  may hold on purpose, such as an ops app that runs unsandboxed to reach local
+  infrastructure. The JSON carries the identifier on those findings only, and the
+  text report prints it under the finding. `fosmvvm-review` gains
+  `doctor.disabled_rules` in `.fosmvvm-review.yml` (`rule`, `target`, `reason`),
+  SwiftLint's vocabulary: a matched finding reports at warning with the reason
+  beside it and no longer halts tier 2. Doctor's own verdict is unchanged — it
+  reports facts; the skill applies the project's word. Plugin 2.64.0.
+
 ### Changed
 
 - **Seeded memories state the settled signing shape** — the scaffold's

@@ -149,6 +149,28 @@ public enum Severity: Sendable { case error, warning }
 
 **`Finding` carries no rule identity.** The human reader wants prose, the generator skill wants the exit code, and the conformance test wants the list empty. Nobody needs to name a rule programmatically yet, so it is not on the surface. Add it when a caller exists.
 
+### DisableableRule — the one thing a finding names (addendum, ruled 2026-09-02)
+
+The first customer run halted on a finding the customer holds on purpose: an ops app that runs unsandboxed because it must reach local infrastructure. Doctor findings are exempt from every review override, so that project could never reach tier 2. Ruled: the disablement lives in `.fosmvvm-review.yml`, it opens only on findings doctor itself marks, and the vocabulary is SwiftLint's — rules, snake_case rule identifiers, `disabled_rules` — so nothing has to be learned.
+
+The caller that exists needs to name a *disableable rule*, not a table row. A table-row identity would be the wrong grain — R7 emits three different findings for one target, only one of which is a choice — and a per-finding identity catalog would be thirty names nobody asked for. So `Finding` gains one optional field:
+
+```swift
+public struct Finding {
+    public let rule: DisableableRule?   // nil on every finding that is simply wrong
+}
+
+public enum DisableableRule: String, CaseIterable, Codable {
+    case appSandbox = "app_sandbox"
+}
+```
+
+`DisableableRule` is the closed set of rules the generated shape always satisfies but an app may break on purpose. It has one case. `network.client` is not one (without it a client-server app cannot reach its own server); `disable-library-validation` is not (it is a symptom); hardened runtime in Debug is not (it kills UI testing); linkage and embedding are never choices. New cases are ruled onto the enum one at a time, on field evidence, the way rules are ruled onto the table.
+
+The config nests under `doctor:` — `doctor.disabled_rules`, entries of `rule`, `target`, `reason` — so it never sits beside tier 2's `disabled_checks` as a near-twin key. The JSON carries the identifier verbatim on the findings that have one, and omits the key elsewhere, so parsers written against the earlier shape are unaffected. `Report.text` appends one line under such a finding naming the identifier, so the person reading the terminal knows what to write. Doctor's own verdict does not change: `hasErrors` stays true, the exit code stays non-zero, because doctor reports facts. The review skill applies the config — a matched finding reports at warning with the reason beside it, and the skill recomputes its gate from what remains — and an entry naming a rule doctor did not print is reported as unmatched, never honored.
+
+**The fuller alignment, not taken yet.** SwiftLint stamps every violation with its rule identifier. Giving all fourteen doctor rules identifiers would let `disabled_rules` and future reporters address any of them; it is fourteen names to arbitrate and no caller asks for it. It waits, like the rest, for a caller.
+
 **`Report.text` renders once, in the library.** Both front ends print the same thing. This follows `HandoffChecklist.text(for:projectName:)`, which is already the repo's shape for this.
 
 **`unchecked` is display prose, not identity** — entries read like "entitlements posture (needs --shape)". It is a message, in the same category as `summary` and `remedy`, so it is not the stringly-typing the encapsulation rule forbids.

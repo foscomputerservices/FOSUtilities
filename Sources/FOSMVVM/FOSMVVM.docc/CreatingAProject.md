@@ -85,6 +85,16 @@ The first run builds the scaffolder, so it takes a few minutes; later runs are i
 
 > Note: A standalone binary you could install once, without the checkout, is planned. Until it ships, the checkout is the supported route for Xcode-only projects.
 
+A finding is a defect until you say otherwise, and for most there is no otherwise. The exception is a rule the generated shape always satisfies but an app can break on purpose, such as the sandbox on a tool that must reach local Docker. Doctor still reports it, and prints the rule identifier under the finding. Disable that rule for that target in `.fosmvvm-review.yml` at the repo root, the way you would in `.swiftlint.yml`, and `fosmvvm-review` reports it as a warning with your reason instead of halting:
+
+```yaml
+doctor:
+  disabled_rules:
+    - rule: app_sandbox
+      target: MyApp
+      reason: Talks to the local Docker socket; sandboxing blocks it.
+```
+
 Reach for it after adding a framework target by hand, or when adopting FOSUtilities in a project the scaffolder never created. The settings it checks are the ones that fail far from their cause: a second direct link to a FOS product (two non-identical copies of the same types, so `is` and `as?` fail across target boundaries at runtime), a misspelled `BUILD_LIBRARY_FOR_DISTRIBUTION` that Xcode silently ignores, a missing `DEVELOPMENT_TEAM` that surfaces as a dyld rejection at launch, a deployment target below the FOSUtilities floor, and a test plan pointing at target identifiers a regeneration re-minted. It also audits the shared-module doctrine: ViewModels declared outside a shared ViewModels module, and server imports (Vapor, Fluent) inside one.
 
 Every finding names the setting and the value to use, because fixing it is yours to do.

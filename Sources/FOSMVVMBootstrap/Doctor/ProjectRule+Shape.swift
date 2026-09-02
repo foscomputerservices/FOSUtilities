@@ -54,7 +54,8 @@ extension ProjectRule {
                             severity: .error,
                             target: target.name,
                             summary: "entitlements do not enable \(required).",
-                            remedy: Self.entitlementRemedy(required, shape: shape)
+                            remedy: Self.entitlementRemedy(required, shape: shape),
+                            rule: Self.disableableRule(behind: required)
                         )
                     )
                 }
@@ -83,6 +84,13 @@ extension ProjectRule {
         case .sharedLibrary:
             []
         }
+    }
+
+    /// The sandbox is the one required entitlement an app can withhold on
+    /// purpose; `network.client` is not — without it a client-server app
+    /// cannot reach its own server.
+    private static func disableableRule(behind entitlement: String) -> DisableableRule? {
+        entitlement == "com.apple.security.app-sandbox" ? .appSandbox : nil
     }
 
     private static func entitlementRemedy(_ entitlement: String, shape: ProjectShape) -> String {
