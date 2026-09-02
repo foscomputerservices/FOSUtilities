@@ -380,7 +380,7 @@ private extension FormFieldView where Value == String {
                 #endif
 
             default:
-                Text("The FormInputType \(inputType.rawValue) is NYI!")
+                Text("The FormInputType \(inputType) is NYI!")
             }
 
         default:
@@ -493,7 +493,7 @@ private extension FormFieldView where Value == String? {
                 #endif
 
             default:
-                Text("The FormInputType \(inputType.rawValue) is NYI!")
+                Text("The FormInputType \(inputType) is NYI!")
             }
 
         default:

@@ -471,12 +471,12 @@ public struct Simple{Entity}Error: ServerRequestError {
     public let code: ErrorCode
     public let message: LocalizableString
 
-    public enum ErrorCode: String, Codable, Sendable {
+    public enum ErrorCode: Codable, Sendable {
         case notFound
         case permissionDenied
 
         var message: LocalizableString {
-            .localized(for: Self.self, parentType: Simple{Entity}Error.self, propertyName: rawValue)
+            .localized(case: self, parentType: Simple{Entity}Error.self)
         }
     }
 
@@ -664,12 +664,12 @@ public struct PermissionError: ServerRequestError {
     public let code: ErrorCode
     public let message: LocalizableString
 
-    public enum ErrorCode: String, Codable, Sendable {
+    public enum ErrorCode: Codable, Sendable {
         case insufficientRole
         case accountSuspended
 
         var message: LocalizableString {
-            .localized(for: Self.self, parentType: PermissionError.self, propertyName: rawValue)
+            .localized(case: self, parentType: PermissionError.self)
         }
     }
 

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`LocalizableString.localized(case:parentType:)`** — localizes an enum case by
+  the case itself: the YAML key is the enum's type under its parent and the leaf
+  is the case name, with no string in user code. The replacement for feeding a
+  raw value into `propertyName:`.
+- **`fosmvvm-review` gains `no-string-backed-enums`** (cross-cutting, blocker) —
+  an enum never takes a `String` raw value: the raw value is a public string door
+  anyone can mint or parse, and it makes the case's spelling the user-facing text,
+  which cannot localize. The truth statement is now in the architecture doc; the
+  serverrequest, fields, and viewmodel generators and both DocC articles teach the
+  plain-enum form. Plugin 2.66.0.
+
+### Changed
+
+- **The framework's own enums drop their `String` raw values** —
+  `ServerRequestAction`, `FormInputType`, `FormInputOption.Autocapitalize` and
+  `.Autocomplete`, and `CredentialRejectedError.Code` are plain enums with
+  synthesized `Codable`. Their wire form is now the case-keyed object Swift
+  synthesizes rather than a bare string; anything that decoded the old form
+  needs the new one. `rawValue` on these types no longer exists.
+
 ### Fixed
 
 - **`fosmvvm-review` evaluates project-scope clauses once** — a large area is

@@ -719,12 +719,12 @@ public final class IdeaMoveRequest: UpdateRequest, @unchecked Sendable {
         public let code: ErrorCode
         public let message: LocalizableString
 
-        public enum ErrorCode: String, Codable, Sendable {
+        public enum ErrorCode: Codable, Sendable {   // never `: String` — a raw value is a public string door and cannot localize
             case ideaNotFound
             case invalidTransition
 
             var message: LocalizableString {
-                .localized(for: Self.self, parentType: ResponseError.self, propertyName: rawValue)
+                .localized(case: self, parentType: ResponseError.self)
             }
         }
 

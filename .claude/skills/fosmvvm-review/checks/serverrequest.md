@@ -34,7 +34,7 @@ struct MyError: ServerRequestError {
     let reason: String                       // free-text only — string-puns with any abort body
 }
 
-enum ErrorCode: String, Codable, Sendable {
+enum ErrorCode: Codable, Sendable {
     case unauthorized401                     // status-named — transport leaked into semantics
     case badRequest
 }

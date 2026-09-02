@@ -352,7 +352,7 @@ Block scope:
 
 The coverage ledger's register is closed — every gap it identified has a shipped check (most recently G22–G26 in 2.62.0). As of plugin 2.62.0:
 
-- **Covered:** `cross-cutting` (20 checks), `viewmodel` (13), `view` (9 — multi-surface: SwiftUI/Leaf/React), `serverrequest` (9), `swiftui-app-setup` (6), `datamodel` (5), `viewmodel-test` (5), `ui-tests` (4), `fields` (4), `serverrequest-test` (2).
+- **Covered:** `cross-cutting` (21 checks), `viewmodel` (13), `view` (9 — multi-surface: SwiftUI/Leaf/React), `serverrequest` (9), `swiftui-app-setup` (6), `datamodel` (5), `viewmodel-test` (5), `ui-tests` (4), `fields` (4), `serverrequest-test` (2).
 - **Retired:** `viewmodelrequest`. The rule set names `ServerRequest`, not `ViewModelRequest` — the latter is a `ShowRequest` specialization, so its wire contract is `serverrequest`'s and the VM↔Request pairing is `viewmodel`'s (`viewmodel-request-pairing`).
 
 Violations no check covers still surface as `uncovered-{area}` findings rather than under invented names, so any remaining gap shows up in every report instead of hiding behind official-looking labels — an `uncovered-*` finding is now also a signal that the coverage ledger (`coverage-ledger.md`, beside the checks) may need a new entry.

@@ -48,6 +48,21 @@ static var modelNamespace: ModelNamespace { .init(stringLiteral: "User") }      
 ```
 **Detection:** Flag: (a) a `public`/`internal` `var`/`func` on a sealed identity/namespace/token type that returns `String`/`UUID` of its private storage; (b) a raw `String`/`UUID` parameter or stored property used as an identity/route/key/token where a typed value exists; (c) constructing an identity/namespace from a string literal rather than a type. Exempt: the single owner-scoped computed that *consumes* the string to build a typed value and never returns it.
 
+## Check: no-string-backed-enums
+**Severity:** blocker
+**What:** An enum never takes a `String` raw value. A raw value opens a public string door — `Reason(rawValue: "invalid")` — that anyone can mint or parse, and it makes the case's spelling the user-facing text, which cannot localize. Cases localize through the YAML tree keyed by type and case; the wire carries the case, not a string the type published.
+**Anti-pattern:**
+```swift
+enum ErrorCode: String, Codable, Sendable {          // a public string door + an unlocalizable spelling
+    case serverFailed
+
+    var message: LocalizableString {
+        .localized(for: Self.self, parentType: SimpleError.self, propertyName: rawValue)   // the raw value IS the key
+    }
+}
+```
+**Detection:** Flag every `enum … : String` (and `: Int` when the raw value is anything but an ordinal the type itself consumes) — public or internal, wire-crossing or not. The remedy is the plain enum with synthesized `Codable`; a case's localized text comes from `LocalizableString.localized(case:parentType:)`, which derives the YAML key from the case with no string in user code. Exempt: `CodingKeys` (Swift's own coding contract) and a `String`-backed enum whose raw value is consumed only by a system API that demands `RawRepresentable<String>` — name the API in the finding when this exemption is claimed, and treat a `rawValue` read anywhere else as the hole. When the framework pin predates `localized(case:parentType:)` (shipped 0.16.0), report as correct at time of writing, now fixable.
+
 ## Check: status-interpreted-as-result
 **Severity:** blocker
 **What:** Client code reading an HTTP status to interpret an operation's *result*. Statuses govern transport consequences only (logging, caching, retry/backoff); result semantics ride the typed error path — the server `throw`s a `ServerRequestError` and the client catches the typed case. Branching business behavior on a status number is the stringly-typed break applied to errors: any failure can wear a 401, so the client learns nothing typed. See [Architecture Patterns → Typed Errors Are the Operation's Throw](../../shared/architecture-patterns.md).

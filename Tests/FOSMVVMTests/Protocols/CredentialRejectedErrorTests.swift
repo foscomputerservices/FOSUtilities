@@ -48,7 +48,7 @@ struct CredentialRejectedErrorTests {
             #"{"error":true,"reason":"Unauthorized"}"#,
             #""Invalid bearer credential""#,
             "{}",
-            #"{"__fosServerError":"someOtherError","code":"invalid"}"#
+            #"{"__fosServerError":"someOtherError","code":{"invalid":{}}}"#
         ] {
             let decoded: CredentialRejectedError? = try? body.fromJSON()
             #expect(decoded == nil, "must not decode from: \(body)")
@@ -57,7 +57,7 @@ struct CredentialRejectedErrorTests {
 
     @Test("Unknown code value is rejected")
     func unknownCode() {
-        let body = #"{"__fosServerError":"credentialRejected","code":"bogus"}"#
+        let body = #"{"__fosServerError":"credentialRejected","code":{"bogus":{}}}"#
         let decoded: CredentialRejectedError? = try? body.fromJSON()
         #expect(decoded == nil)
     }
@@ -66,7 +66,7 @@ struct CredentialRejectedErrorTests {
     func forwardCompat() throws {
         // INTERNAL representation pin (golden blob). The ONE place the envelope
         // shape is asserted — see the maintainer comment beside CodingKeys.
-        let committedWireForm = #"{"__fosServerError":"credentialRejected","code":"invalid"}"#
+        let committedWireForm = #"{"__fosServerError":"credentialRejected","code":{"invalid":{}}}"#
         let decoded: CredentialRejectedError = try committedWireForm.fromJSON()
         #expect(decoded.code == .invalid)
     }

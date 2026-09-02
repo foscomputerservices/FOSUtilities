@@ -222,3 +222,48 @@ struct LocalizableStringTests: LocalizableTestCase {
         )
     }
 }
+
+/// `localized(case:parentType:)` — an enum case localizes by the case, with
+/// no raw value and no string in the caller's code.
+struct LocalizableStringCaseTests {
+    @Test func localizedCase_keyIsTypeAndCase() {
+        switch LocalizableString.localized(case: Owner.Choice.optionOne, parentType: Owner.self) {
+        case .empty, .constant:
+            #expect(Bool(false), "Expected localized")
+        case .localized(let ref):
+            switch ref {
+            case .value(let key):
+                #expect(key == "Owner.Choice.optionOne")
+            case .arrayValue:
+                #expect(Bool(false), "Expected .value")
+            }
+        }
+    }
+
+    @Test func localizedCase_noParent() {
+        switch LocalizableString.localized(case: Owner.Choice.optionTwo) {
+        case .empty, .constant:
+            #expect(Bool(false), "Expected localized")
+        case .localized(let ref):
+            switch ref {
+            case .value(let key):
+                #expect(key == "Choice.optionTwo")
+            case .arrayValue:
+                #expect(Bool(false), "Expected .value")
+            }
+        }
+    }
+
+    @Test func localizedCase_matchesTheStringForm() {
+        let byCase = LocalizableString.localized(case: Owner.Choice.optionOne, parentType: Owner.self)
+        let byName = LocalizableString.localized(for: Owner.Choice.self, parentType: Owner.self, propertyName: "optionOne")
+        #expect(byCase == byName)
+    }
+}
+
+private enum Owner {
+    enum Choice: Codable, Sendable {
+        case optionOne
+        case optionTwo
+    }
+}

@@ -240,6 +240,8 @@ Ordered by damage; this is the work queue for the coming check-authoring stages.
 
 **G26 · SHIPPED 2026-08-25** as `views-dont-mint-prose` (`view`, SwiftUI surface, plugin 2.62.0). Warning, the narrowed ruled form with its three carve-outs (user-authored input, typed values, machine text) plus the `#Preview` exemption. The view generator's Hardcoding Text section learned the operation-argument extension in the same stage. Falsifier clean (no prose literals flow into ops); the true positive is banked from the scaffold's "New Card" literal (which itself remains the queued G26-shaped template follow-up: the default title belongs on the VM, localized).
 
+**G27 · SHIPPED 2026-09-02** as `no-string-backed-enums` (`cross-cutting`, blocker, plugin 2.66.0). The truth statement was authored the same day into FOSMVVMArchitecture.md (§ Enums never take a `String` raw value) — check-may-lead in reverse: the rule had been stated in review many times and never written down, and the architecture doc's own "Simple Errors" section taught the anti-pattern. Surfaced by a review of the framework's own `CredentialRejectedError`. The same stage swept the framework's five String-backed FOSMVVM enums, the seven teaching sites (architecture doc, three generator references, the serverrequest generator, the serverrequest check's example, two DocC articles), and shipped `LocalizableString.localized(case:parentType:)` so a case localizes without a string in user code.
+
 ## Minor uncovered clauses
 
 Recorded for completeness; none warrants its own stage — fold each into the nearest stage's authoring:

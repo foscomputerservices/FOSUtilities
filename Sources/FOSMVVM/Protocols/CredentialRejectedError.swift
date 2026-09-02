@@ -48,7 +48,7 @@ public struct CredentialRejectedError: ServerRequestError {
     /// has no `ClientCredentialProvider` configured (or it returned no headers).
     /// `.invalid` — a credential was presented and the server's verifier refused
     /// it; refresh the credential and retry.
-    public enum Code: String, Codable, Sendable {
+    public enum Code: Codable, Sendable {
         case missing
         case invalid
     }

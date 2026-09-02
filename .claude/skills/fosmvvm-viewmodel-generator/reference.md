@@ -576,7 +576,7 @@ public extension SettingsViewModel {
     }
 }
 
-public enum Theme: String, Codable, Sendable {
+public enum Theme: Codable, Sendable {
     case light, dark, system
 }
 ```
