@@ -188,6 +188,7 @@ Pairs with `deployment-urls-distinguish-environments` (`swiftui-app-setup`) — 
 
 ## Check: behavioral-suite-standing
 **Severity:** warning
+**Scope:** project (clause 1, standing); site (clause 2, isolation)
 **What:** The behavioral-test channel's **standing and isolation** — and nothing else. Behavioral suites project from requirements + ratified design in a context that never saw the implementation (execution-model's dedicated second channel; the `fosmvvm-behavioral-test-generator` skill). Review verifies that the suite exists and that its isolation held; **review NEVER judges a behavioral suite's assertions against the implementation** (ruled 2026-08-25) — a reviewer proposing to "fix" a behavioral assertion to match the code is committing exactly the contamination the channel exists to prevent. When a behavioral assertion and the code disagree, that is channel disagreement, classified upward (code defect / payload defect / ambiguous requirement) — never a review finding against the test.
 **Anti-pattern:** A `*BehavioralTests.swift` suite with `@testable import` of the module under test; a behavioral suite importing an app or server target; a project whose truth layer carries requirements while no behavioral suite exists.
 **Detection:** Behavioral suites are identified by the generator's conventions — `{Name}BehavioralTests.swift`, suites named `"{Name} — {REQ} behavioral"`, per-test `// REQ-nn:` traceability comments. Two clauses:

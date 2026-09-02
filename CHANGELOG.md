@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`fosmvvm-review` evaluates project-scope clauses once** — a large area is
+  now partitioned by module explicitly (about 100 files per dispatch), and the
+  clauses that answer a question about the whole project ("no behavioral suite
+  exists", "no committed `.VersionedTestJSON`", "the boot path never installs
+  the error middleware") carry a `**Scope:** project` mark and run in exactly one
+  partition; the aggregator collapses any duplicate that slips. Surfaced by the
+  first full-project run, which split cross-cutting eight ways and reported one
+  standing gap seven times. Plugin 2.65.0.
+
 ## [0.15.2] - 2026-09-02
 
 ### Changed

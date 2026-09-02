@@ -104,6 +104,10 @@ Areas with no matched files (other than `cross-cutting`) are skipped.
 
 For each area in the dispatch list, dispatch a Task tool subagent (general-purpose) with the prompt template below. Run up to **4 subagents in parallel** (cap chosen to balance throughput against token usage; tune in a future plan if needed).
 
+**Partitioning a large area.** One subagent must read every file it is given in full. When an area's file list exceeds about 100 files, split it into partitions by top-level module directory (`Sources/<Module>`, `Tests/<Module>`), keeping each partition under that size, and dispatch each partition as its own subagent for the same area with the same checks. A partition is a unit of reading, not a unit of judgment: the area's report is the union of its partitions.
+
+**Project-scope clauses run once.** Some checks, or clauses within them, answer a question about the whole project rather than about a site — "no behavioral suite exists", "no `.VersionedTestJSON` directory is committed", "the boot path never installs the error middleware". A check file marks these with a `**Scope:** project` line (see `reference.md`); everything unmarked is site scope. When an area is partitioned, exactly one partition — the first — is the **project-scope dispatch** and evaluates those clauses; every other partition is told to skip them. Otherwise each partition re-discovers the same absence and the report carries one fact eight times.
+
 #### Subagent Prompt Template
 
 ```
@@ -123,6 +127,9 @@ The "right way" lives in the `{generator_skill}` skill. Treat its SKILL.md as th
 
 ## Checks to run
 {full_check_section_text}
+
+## Project-scope clauses
+{project_scope_instruction}
 
 ## Instructions
 1. For each file in scope, evaluate every check against every relevant code construct in the file.
@@ -149,11 +156,16 @@ Format each finding as:
   Prevention: {generator-skill}
 ```
 
-Substitute `{area}`, `{file_list}`, `{reviewer_guidance_section_or_"(none)"}`, `{generator_skill}`, and `{full_check_section_text}` from the loaded check file before dispatching.
+Substitute `{area}`, `{file_list}`, `{reviewer_guidance_section_or_"(none)"}`, `{generator_skill}`, and `{full_check_section_text}` from the loaded check file before dispatching. Substitute `{project_scope_instruction}` with one of:
+
+- Unpartitioned area, or the project-scope dispatch of a partitioned one: "Evaluate the checks and clauses marked `**Scope:** project` once, for the whole project, and report each at most once."
+- Any other partition: "Skip every check and clause marked `**Scope:** project` — another dispatch of this area holds them. Report site-scope findings only."
 
 ### Step 6: Aggregate Findings
 
 Collect each subagent's findings. Parse them into structured records: `{severity, area, file, line, check, message, prevention}`.
+
+**Collapse duplicates across partitions.** Two records with the same `check`, `file`, and `line` are one finding — keep the first. A project-scope finding (its check or clause is marked `**Scope:** project`) reported by more than one dispatch collapses to one record regardless of `file`; if a partition reported it despite the skip instruction, that is the partition's error, not a second finding.
 
 If a subagent returned an error or timeout, record the area as `ERROR` with the failure message; do not abort other areas.
 
@@ -167,7 +179,7 @@ If a subagent returned an error or timeout, record the area as `ERROR` with the 
 **Scope:** {scope description} ({N} files)
 **Tier 1 (doctor):** {ran | unavailable — reason and the enabling route}
 **Tier 2:** (only when halted) halted — doctor reported structural errors; fix structure first, then re-run
-**Areas triaged:** {comma-separated areas, or "none — tier 2 halted"}
+**Areas triaged:** {comma-separated areas, each followed by " ({N} partitions)" when it was partitioned, or "none — tier 2 halted"}
 **Fail-on threshold:** {threshold}
 **Configuration applied:** (omit line if no config) disabled checks: {names}; severity overrides: {name=severity, ...}; excluded paths: {N}; doctor disabled rules: {N} ({M} unmatched: {rule@target, ...})
 
