@@ -1,33 +1,12 @@
 ---
 name: xcode16-dynamic-spm-packages
-description: Xcode 16+ ENABLE_DEBUG_DYLIB forces SPM packages dynamic — implications for SPMLibraries and signing
+description: ENABLE_DEBUG_DYLIB was evaluated as a replacement for SPMLibraries and is not the scaffold's shape — leave it unset; SPMLibraries stands
 metadata:
   type: project
 ---
 
-When `ENABLE_DEBUG_DYLIB = YES` is set on an app target, Xcode 16+ builds SPM
-`.automatic` packages as **dynamic frameworks** in `PackageFrameworks/` rather
-than as static libs compiled into the consuming framework.
+**Do not set `ENABLE_DEBUG_DYLIB` on the app target.** Leave it unset, as the scaffold ships it.
 
-**Why:** The debug dylib feature splits the compiled app into a stub +
-`.debug.dylib`. All dependencies must be separately loadable as dynamic
-frameworks to support this split.
+When `ENABLE_DEBUG_DYLIB = YES`, Xcode 16+ builds SPM `.automatic` packages as separate dynamic frameworks under `PackageFrameworks/` instead of compiling them into the consuming framework. Those frameworks are linker-signed ad-hoc, so a hardened-runtime process refuses to load them and the app dies in dyld before `main()`. Working around that requires the `disable-library-validation` entitlement, which is a symptom, not a shape (see [[entitlement-disable-library-validation]]).
 
-**Implication for SPMLibraries:** The SPMLibraries umbrella was created to solve
-the static-SPM type-identity problem (multiple targets → multiple static copies
-→ `TypeA != TypeA`). With dynamic SPM packages, the OS dynamic linker loads each
-package once per process — the type-identity problem is solved natively. This
-means **SPMLibraries may be obsolete for Xcode 16+ projects**.
-
-**Known cons of SPMLibraries that go away with dynamic packages:**
-- Xcode dependency scanner warnings: `'FOSMVVM' is missing a dependency on 'Yams'`
-- Spurious stale-build failures (graph opacity)
-- Shape confusion for tools and people reading the project
-
-**Signing side-effect:** Dynamic PackageFrameworks are linker-signed (ad-hoc).
-With `ENABLE_HARDENED_RUNTIME = YES`, this requires the
-`com.apple.security.cs.disable-library-validation` entitlement.
-See [[entitlement-disable-library-validation]].
-
-**Status (2026-08-08):** Under active evaluation. TestLocalOnly is the test bed.
-SPMLibraries retirement is being considered for all Xcode 16+ FOS projects.
+This route was evaluated (2026-08-08, on a local-only test bed) as a way to retire `SPMLibraries`, on the theory that dynamic packages give one copy per process and so solve type identity natively. The scaffold did not take it. `SPMLibraries` remains the one doorway for SPM products, the app alone embeds and re-signs it, and hardened runtime is off in Debug only. That shape needs no entitlement and no `ENABLE_DEBUG_DYLIB`, and it is the shape `fosmvvm-doctor` audits against. See [[spm-libraries-settled]].
