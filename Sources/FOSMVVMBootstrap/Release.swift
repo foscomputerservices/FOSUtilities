@@ -23,5 +23,5 @@
 /// release-stamp test in FOSMVVMBootstrapTests compares it against the topmost
 /// stamped CHANGELOG release and fails CI when they disagree.
 public enum Release {
-    public static let version = "0.15.0"
+    public static let version = "0.15.1"
 }
