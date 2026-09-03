@@ -16,8 +16,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # SwiftFormat is PINNED, not brewed: a new SwiftFormat release changes
+      # what "formatted" means (0.63.0 re-indented every modifier inside an
+      # `#if` block), and a brew-latest CI reds an unrelated PR the morning it
+      # ships. Bump SWIFTFORMAT_VERSION here and `brew upgrade swiftformat`
+      # locally together; `swiftformat .` then lands the new rules as their own
+      # commit. SwiftLint stays on brew until it bites.
       - name: Install linters
-        run: brew install swiftformat swiftlint
+        env:
+          SWIFTFORMAT_VERSION: 0.63.0
+        run: |
+          brew install swiftlint
+          curl -sSL -o "$RUNNER_TEMP/swiftformat.zip" \
+            "https://github.com/nicklockwood/SwiftFormat/releases/download/$SWIFTFORMAT_VERSION/swiftformat.artifactbundle.zip"
+          unzip -qo "$RUNNER_TEMP/swiftformat.zip" -d "$RUNNER_TEMP/swiftformat"
+          echo "$RUNNER_TEMP/swiftformat/swiftformat.artifactbundle/swiftformat-$SWIFTFORMAT_VERSION-macos/bin" >> "$GITHUB_PATH"
+
+      - name: SwiftFormat version
+        run: swiftformat --version
 
       # --lint reports without writing. `swiftformat .` is the fix.
       # fileHeader is excluded here, not in .swiftformat: its template year is

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **CI pins SwiftFormat** — `SWIFTFORMAT_VERSION` in `ci.yml` (0.63.0) installs
+  the release artifact instead of brew's latest, so a new SwiftFormat release
+  cannot red an unrelated PR the morning it ships. The 0.63.0 re-indent of
+  modifiers inside `#if` blocks lands here as its own commit.
 - **Skill text teaches the envelope, not the decode order** — the serverrequest
   generator's credential-rejection section and the review's
   `no-defensive-error-for-credential-rejection` check both described the retired

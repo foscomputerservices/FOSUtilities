@@ -16,6 +16,8 @@ swift test
 swift test --filter TestClassName
 
 # Format code (auto-adds Apache 2.0 license header)
+# CI pins SwiftFormat (SWIFTFORMAT_VERSION in .github/workflows/ci.yml); keep the
+# local install at that version — a newer one formats differently and CI will say so.
 swiftformat .
 
 # Lint code
