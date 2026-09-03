@@ -186,11 +186,11 @@ private struct TestingView<BaseView: View>: View {
 
     var body: some View {
         testView
-        #if os(iOS)
-        .onAppear {
-            DismissKeyboardWindow.install()
-        }
-        #endif
+            #if os(iOS)
+            .onAppear {
+                DismissKeyboardWindow.install()
+            }
+            #endif
     }
 
     init(baseView: BaseView) {
@@ -350,32 +350,25 @@ enum TestHostDiagnostic {
 
         return """
         ================================================================================
-        FOSMVVM testHost(): cannot present the view under test.
-
+        FOSMVVM testHost(): cannot present the view under test.\n
         The test harness asked for the view whose ViewModel is:
-          \(viewModelType)
-
+          \(viewModelType)\n
         Registered ViewModels:
-        \(registeredList)
-
-        \(cause)
-
-        To fix, register the *View* (not the ViewModel) from your App's init():
-
+        \(registeredList)\n
+        \(cause)\n
+        To fix, register the *View* (not the ViewModel) from your App's init():\n
             @main struct MyApp: App {
                 init() {
                     MVVMEnvironment.registerTestingViews()
                 }
-            }
-
+            }\n
             private extension MVVMEnvironment {
                 @MainActor static func registerTestingViews() {
                     #if DEBUG
                     registerTestView(MyView.self)   // where MyView.VM == \(viewModelType)
                     #endif
                 }
-            }
-
+            }\n
         See the documentation for MVVMEnvironment.registerTestView(_:).
         ================================================================================
         """
@@ -391,19 +384,15 @@ enum TestHostDiagnostic {
     static func undecodableViewModel(viewModelType: String, error: any Error) -> String {
         """
         ================================================================================
-        FOSMVVM testHost(): cannot decode the ViewModel for the view under test.
-
+        FOSMVVM testHost(): cannot decode the ViewModel for the view under test.\n
         ViewModel type requested by the test harness:
-          \(viewModelType)
-
+          \(viewModelType)\n
         Decoding error:
-          \(error)
-
+          \(error)\n
         The view registered for '\(viewModelType)' has a different VM associated type than the
         payload the test sent, or that payload is not valid JSON for it. Check that the view passed
         to MVVMEnvironment.registerTestView(_:) is the one whose VM is '\(viewModelType)', and that
-        the test's ViewModel generic argument matches it.
-
+        the test's ViewModel generic argument matches it.\n
         See the documentation for MVVMEnvironment.registerTestView(_:).
         ================================================================================
         """

@@ -165,29 +165,30 @@ A rejected credential reaches the client as `CredentialRejectedError`, a
 FOS-owned error, **regardless of what your `ResponseError` is**. Catch it; never
 branch on the 401.
 
-This matters because of the decode order. `WireError` tries the well-known
-surface errors *strictly before* the request's own `ResponseError`:
+This holds because of the wire's shape, not a decode order. Every error body
+crosses inside one typed envelope (0.16.0) — exactly one of the surface
+rejection or the request's own `ResponseError` — encoded by the server's
+`ErrorMiddleware` and decoded by the client:
 
 ```swift
-package init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    if let rejection = try? container.decode(CredentialRejectedError.self) {
-        self = .surface(rejection)
-    } else {
-        self = try .response(container.decode(E.self))
-    }
+package enum WireError<E: ServerRequestError>: Error, Codable {
+    case surface(CredentialRejectedError)
+    case response(E)
 }
 ```
 
-`CredentialRejectedError` wins that race unconditionally. So:
+The envelope names which one it carries, so nothing is tried and nothing can
+be mistaken for anything else — a permissive `ResponseError` (`EmptyError`
+decodes from anything) cannot swallow a rejection, and a request error with a
+field named `reason` cannot pun into one. So:
 
 - ✅ `EmptyError` is safe on a request behind a credential middleware. It cannot
-  swallow a rejection — the rejection is decoded first and never reaches it.
+  swallow a rejection — the envelope carries the rejection in its own case, and
+  `EmptyError` is only ever asked to decode the `response` case.
 - ❌ Do **not** add a permissive `String` field to a `ResponseError` "so a 401
-  isn't swallowed." That was never a real risk, and the permissive field creates
-  a different one: an error that decodes anything will happily decode any
-  `Abort(reason:)` body as a successful match, so unrelated failures arrive
-  wearing your operation's error type.
+  isn't swallowed." That was never a real risk, and the field buys nothing: a
+  body that is not the envelope — Vapor's stock abort, a proxy's error page —
+  never reaches your error type at all; it falls to the status path.
 
 If your operation has no well-defined throw, use `EmptyError`. A required
 free-text `reason: String` is not a lighter-weight error — it is an error with

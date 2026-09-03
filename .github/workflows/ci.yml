@@ -16,8 +16,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # `brew install` leaves a preinstalled older formula alone, and the
+      # macos-latest image pool has carried two SwiftFormat versions at once;
+      # `brew upgrade` makes latest mean latest on every runner.
       - name: Install linters
-        run: brew install swiftformat swiftlint
+        run: |
+          brew update
+          brew install swiftformat swiftlint
+          brew upgrade swiftformat swiftlint
 
       # --lint reports without writing. `swiftformat .` is the fix.
       # fileHeader is excluded here, not in .swiftformat: its template year is

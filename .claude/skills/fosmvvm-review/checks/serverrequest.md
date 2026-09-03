@@ -71,7 +71,7 @@ public struct ResponseError: ServerRequestError {
     public let reason: String
 }
 ```
-**Detection:** Grep the `ResponseError` declarations and their documentation for reasoning about 401s, credential rejection, or `EmptyError` swallowing errors. Flag it: `WireError` decodes `CredentialRejectedError` strictly before the request's own error type, so the rejection is never reachable by the `ResponseError` and the defensive shape buys nothing. It also costs something — a permissive error decodes any abort body, so unrelated failures arrive wearing this operation's type.
+**Detection:** Grep the `ResponseError` declarations and their documentation for reasoning about 401s, credential rejection, or `EmptyError` swallowing errors. Flag it: every error body crosses inside one typed envelope that names whether it carries the surface rejection or the request's own error (0.16.0; before that, the rejection was decoded strictly first), so the rejection is never reachable by the `ResponseError` and the defensive shape buys nothing. It also costs something — a permissive error decodes any abort body, so unrelated failures arrive wearing this operation's type.
 
 **Report this once for the whole area when the rationale has propagated**, listing every site in the body. A copied justification is one belief, not N defects, and filing it per request buries the fact that it spread.
 

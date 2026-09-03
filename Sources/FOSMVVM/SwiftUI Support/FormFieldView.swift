@@ -276,7 +276,7 @@ private extension FormFieldView where Value == String {
                 }
                 .textContentType(.password)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(.never)
+                .textInputAutocapitalization(.never)
                 #endif
 
             case .text, .location, .fullStreetAddress, .streetAddressLine1, .streetAddressLine2:
@@ -293,10 +293,10 @@ private extension FormFieldView where Value == String {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(
-                        fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .sentences
-                    )
-                    .textContentType(fieldModel.formField.textContentType)
+                .textInputAutocapitalization(
+                    fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .sentences
+                )
+                .textContentType(fieldModel.formField.textContentType)
                 #endif
 
             case .name, .namePrefix, .givenName, .middleName, .familyName, .nameSuffix, .nickname,
@@ -314,10 +314,10 @@ private extension FormFieldView where Value == String {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(
-                        fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .words
-                    )
-                    .textContentType(fieldModel.formField.textContentType)
+                .textInputAutocapitalization(
+                    fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .words
+                )
+                .textContentType(fieldModel.formField.textContentType)
                 #endif
 
             case .postalCode, .creditCardNumber, .oneTimeCode:
@@ -334,8 +334,8 @@ private extension FormFieldView where Value == String {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .never)
-                    .textContentType(fieldModel.formField.textContentType)
+                .textInputAutocapitalization(fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .never)
+                .textContentType(fieldModel.formField.textContentType)
                 #endif
 
             case .telephoneNumber:
@@ -352,7 +352,7 @@ private extension FormFieldView where Value == String {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || targetEnvironment(macCatalyst)
-                    .keyboardType(.phonePad)
+                .keyboardType(.phonePad)
                 #endif
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
                 .textContentType(fieldModel.formField.textContentType)
@@ -372,7 +372,7 @@ private extension FormFieldView where Value == String {
                 }
                 .disableAutocorrection(true)
                 #if os(iOS) || os(tvOS) || os(visionOS) || targetEnvironment(macCatalyst)
-                    .keyboardType(.emailAddress)
+                .keyboardType(.emailAddress)
                 #endif
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
                 .textContentType(fieldModel.formField.textContentType)
@@ -408,8 +408,8 @@ private extension FormFieldView where Value == String? {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .sentences)
-                    .textContentType(fieldModel.formField.textContentType)
+                .textInputAutocapitalization(fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .sentences)
+                .textContentType(fieldModel.formField.textContentType)
                 #endif
 
             case .name, .namePrefix, .givenName, .middleName, .familyName, .nameSuffix, .nickname,
@@ -427,8 +427,8 @@ private extension FormFieldView where Value == String? {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .words)
-                    .textContentType(fieldModel.formField.textContentType)
+                .textInputAutocapitalization(fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .words)
+                .textContentType(fieldModel.formField.textContentType)
                 #endif
 
             case .postalCode, .creditCardNumber, .oneTimeCode:
@@ -445,10 +445,10 @@ private extension FormFieldView where Value == String? {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
-                    .textInputAutocapitalization(
-                        fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .never
-                    )
-                    .textContentType(fieldModel.formField.textContentType)
+                .textInputAutocapitalization(
+                    fieldModel.formField.autocapitalize?.textAutocapitalizationType ?? .never
+                )
+                .textContentType(fieldModel.formField.textContentType)
                 #endif
 
             case .telephoneNumber:
@@ -465,7 +465,7 @@ private extension FormFieldView where Value == String? {
                 }
                 .disableAutocorrection(fieldModel.formField.autocomplete == .off)
                 #if os(iOS) || os(tvOS) || os(visionOS) || targetEnvironment(macCatalyst)
-                    .keyboardType(.phonePad)
+                .keyboardType(.phonePad)
                 #endif
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
                 .textContentType(fieldModel.formField.textContentType)
@@ -485,7 +485,7 @@ private extension FormFieldView where Value == String? {
                 }
                 .disableAutocorrection(true)
                 #if os(iOS) || os(tvOS) || os(visionOS) || targetEnvironment(macCatalyst)
-                    .keyboardType(.emailAddress)
+                .keyboardType(.emailAddress)
                 #endif
                 #if os(iOS) || os(tvOS) || os(visionOS) || os(watchOS) || targetEnvironment(macCatalyst)
                 .textContentType(fieldModel.formField.textContentType)
