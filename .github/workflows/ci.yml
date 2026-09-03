@@ -21,6 +21,7 @@ jobs:
       # `brew upgrade` makes latest mean latest on every runner.
       - name: Install linters
         run: |
+          brew update
           brew install swiftformat swiftlint
           brew upgrade swiftformat swiftlint
 
