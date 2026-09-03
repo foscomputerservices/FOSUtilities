@@ -186,11 +186,11 @@ private struct TestingView<BaseView: View>: View {
 
     var body: some View {
         testView
-        #if os(iOS)
-        .onAppear {
-            DismissKeyboardWindow.install()
-        }
-        #endif
+            #if os(iOS)
+            .onAppear {
+                DismissKeyboardWindow.install()
+            }
+            #endif
     }
 
     init(baseView: BaseView) {
