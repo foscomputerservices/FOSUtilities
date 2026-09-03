@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Skill text teaches the envelope, not the decode order** — the serverrequest
+  generator's credential-rejection section and the review's
+  `no-defensive-error-for-credential-rejection` check both described the retired
+  trial-decode; both now state the typed envelope 0.16.0 ships. Plugin 2.67.0.
+
 ## [0.16.0] - 2026-09-03
 
 ### Added
