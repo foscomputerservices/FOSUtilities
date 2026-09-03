@@ -21,53 +21,35 @@ import Testing
 
 @Suite("CredentialRejectedError contract")
 struct CredentialRejectedErrorTests {
-    @Test("Round-trips through JSON: code preserved, challenge transient")
+    @Test("Round-trips through JSON with its reason and challenge")
     func roundTrip() throws {
-        let original = CredentialRejectedError(code: .invalid, challenge: "Bearer")
+        let original = CredentialRejectedError(reason: .invalid, challenge: .bearerRealm("api"))
         let decoded: CredentialRejectedError = try original.toJSON().fromJSON()
 
-        #expect(decoded.code == .invalid)
-        #expect(decoded.challenge == nil) // transient: never crosses the wire
+        #expect(decoded == original)
     }
 
-    @Test("Both codes round-trip")
-    func bothCodes() throws {
-        for code in [CredentialRejectedError.Code.missing, .invalid] {
-            let decoded: CredentialRejectedError =
-                try CredentialRejectedError(code: code).toJSON().fromJSON()
-            #expect(decoded.code == code)
+    @Test("Both reasons and every challenge round-trip")
+    func reasonsAndChallenges() throws {
+        let challenges: [CredentialChallenge?] = [nil, .bearer, .bearerRealm("api"), .basicRealm("api")]
+        for reason in [CredentialRejectedError.Reason.missing, .invalid] {
+            for challenge in challenges {
+                let original = CredentialRejectedError(reason: reason, challenge: challenge)
+                let decoded: CredentialRejectedError = try original.toJSON().fromJSON()
+                #expect(decoded == original)
+            }
         }
     }
 
-    @Test("Does NOT decode from bodies lacking the envelope")
+    @Test("A body that is not a rejection does not decode as one")
     func strictDecode() {
-        // Vapor's stock abort body, a plain reason string, an empty object,
-        // and a wrong discriminator VALUE must all fail — nothing puns into
-        // the rejection.
         for body in [
             #"{"error":true,"reason":"Unauthorized"}"#,
             #""Invalid bearer credential""#,
-            "{}",
-            #"{"__fosServerError":"someOtherError","code":"invalid"}"#
+            "{}"
         ] {
             let decoded: CredentialRejectedError? = try? body.fromJSON()
             #expect(decoded == nil, "must not decode from: \(body)")
         }
-    }
-
-    @Test("Unknown code value is rejected")
-    func unknownCode() {
-        let body = #"{"__fosServerError":"credentialRejected","code":"bogus"}"#
-        let decoded: CredentialRejectedError? = try? body.fromJSON()
-        #expect(decoded == nil)
-    }
-
-    @Test("Forward-compat: the committed wire form still decodes")
-    func forwardCompat() throws {
-        // INTERNAL representation pin (golden blob). The ONE place the envelope
-        // shape is asserted — see the maintainer comment beside CodingKeys.
-        let committedWireForm = #"{"__fosServerError":"credentialRejected","code":"invalid"}"#
-        let decoded: CredentialRejectedError = try committedWireForm.fromJSON()
-        #expect(decoded.code == .invalid)
     }
 }

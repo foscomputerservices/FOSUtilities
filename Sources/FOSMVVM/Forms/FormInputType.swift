@@ -20,13 +20,13 @@
 /// > SwiftUI controls.
 ///
 /// - See also: https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input
-public enum FormInputType: String, Codable, Sendable {
+public enum FormInputType: Codable, Sendable {
     case button
     case checkbox
     case color
     case date
-    case datetimeLocal = "datetime-local"
-    case emailAddress = "email"
+    case datetimeLocal
+    case emailAddress
     case file
     case hidden
     case image
@@ -186,3 +186,20 @@ extension FormInputType {
     }
 }
 #endif
+
+public extension FormInputType {
+    /// The token HTML's `<input type="…">` takes for this input
+    ///
+    /// ```leaf
+    /// <input type="#(field.inputType.htmlAttributeValue)">
+    /// ```
+    ///
+    /// Only an HTML surface needs this. SwiftUI reads the case.
+    var htmlAttributeValue: String {
+        switch self {
+        case .datetimeLocal: "datetime-local"
+        case .emailAddress: "email"
+        default: String(describing: self)
+        }
+    }
+}

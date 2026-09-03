@@ -60,7 +60,7 @@ struct ClientCredentialProviderTests {
         let provider = BearerCredentialProvider { "abc" }
 
         let refreshed = await provider.credentialHeaders(
-            afterRejection: CredentialRejectedError(code: .invalid)
+            afterRejection: CredentialRejectedError(reason: .invalid)
         )
 
         #expect(refreshed == nil)
@@ -71,7 +71,7 @@ struct ClientCredentialProviderTests {
         let provider = RefreshingProvider(refreshedTo: "fresh")
 
         let refreshed = await provider.credentialHeaders(
-            afterRejection: CredentialRejectedError(code: .invalid)
+            afterRejection: CredentialRejectedError(reason: .invalid)
         )
 
         #expect(refreshed?.count == 1)

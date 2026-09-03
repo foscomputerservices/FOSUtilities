@@ -48,6 +48,21 @@ static var modelNamespace: ModelNamespace { .init(stringLiteral: "User") }      
 ```
 **Detection:** Flag: (a) a `public`/`internal` `var`/`func` on a sealed identity/namespace/token type that returns `String`/`UUID` of its private storage; (b) a raw `String`/`UUID` parameter or stored property used as an identity/route/key/token where a typed value exists; (c) constructing an identity/namespace from a string literal rather than a type. Exempt: the single owner-scoped computed that *consumes* the string to build a typed value and never returns it.
 
+## Check: no-string-backed-enums
+**Severity:** blocker
+**What:** An enum never takes a `String` raw value. A raw value opens a public string door — `Reason(rawValue: "invalid")` — that anyone can mint or parse, and it makes the case's spelling the user-facing text, which cannot localize. Cases localize through the YAML tree keyed by type and case; the wire carries the case, not a string the type published.
+**Anti-pattern:**
+```swift
+enum ErrorCode: String, Codable, Sendable {          // a public string door + an unlocalizable spelling
+    case serverFailed
+
+    var message: LocalizableString {
+        .localized(for: Self.self, parentType: SimpleError.self, propertyName: rawValue)   // the raw value IS the key
+    }
+}
+```
+**Detection:** Flag every `enum … : String` (and `: Int` when the raw value is anything but an ordinal the type itself consumes) — public or internal, wire-crossing or not. The remedy is the plain enum with synthesized `Codable`; a case's localized text comes from `LocalizableString.localized(case:parentType:)`, which derives the YAML key from the case with no string in user code. Exempt: `CodingKeys` (Swift's own coding contract); a `String`-backed enum whose raw value is consumed only by a system API that demands `RawRepresentable<String>` — name the API in the finding when this exemption is claimed, and treat a `rawValue` read anywhere else as the hole; and **tools, not libraries** (ruled 2026-09-02) — a CLI's argument and config-file tokens (`--shape clientServer`, a bootstrap config's `"shape"`) are typed by a human at a prompt, not carried on a wire or shown to a user, so the rule does not reach them. When the framework pin predates `localized(case:parentType:)` (shipped 0.16.0), report as correct at time of writing, now fixable.
+
 ## Check: status-interpreted-as-result
 **Severity:** blocker
 **What:** Client code reading an HTTP status to interpret an operation's *result*. Statuses govern transport consequences only (logging, caching, retry/backoff); result semantics ride the typed error path — the server `throw`s a `ServerRequestError` and the client catches the typed case. Branching business behavior on a status number is the stringly-typed break applied to errors: any failure can wear a 401, so the client learns nothing typed. See [Architecture Patterns → Typed Errors Are the Operation's Throw](../../shared/architecture-patterns.md).
@@ -188,6 +203,7 @@ Pairs with `deployment-urls-distinguish-environments` (`swiftui-app-setup`) — 
 
 ## Check: behavioral-suite-standing
 **Severity:** warning
+**Scope:** project (clause 1, standing); site (clause 2, isolation)
 **What:** The behavioral-test channel's **standing and isolation** — and nothing else. Behavioral suites project from requirements + ratified design in a context that never saw the implementation (execution-model's dedicated second channel; the `fosmvvm-behavioral-test-generator` skill). Review verifies that the suite exists and that its isolation held; **review NEVER judges a behavioral suite's assertions against the implementation** (ruled 2026-08-25) — a reviewer proposing to "fix" a behavioral assertion to match the code is committing exactly the contamination the channel exists to prevent. When a behavioral assertion and the code disagree, that is channel disagreement, classified upward (code defect / payload defect / ambiguous requirement) — never a review finding against the test.
 **Anti-pattern:** A `*BehavioralTests.swift` suite with `@testable import` of the module under test; a behavioral suite importing an app or server target; a project whose truth layer carries requirements while no behavioral suite exists.
 **Detection:** Behavioral suites are identified by the generator's conventions — `{Name}BehavioralTests.swift`, suites named `"{Name} — {REQ} behavioral"`, per-test `// REQ-nn:` traceability comments. Two clauses:

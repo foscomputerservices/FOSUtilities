@@ -50,7 +50,7 @@ struct TestingServerRequestResponseTests {
                 headers: ["Authorization": "Bearer nope"]
             ) { response in
                 #expect(response.status == .unauthorized) // transport contract
-                #expect(response.credentialRejection?.code == .invalid) // the semantics
+                #expect(response.credentialRejection?.reason == .invalid) // the semantics
                 #expect(response.error == nil) // EmptyError does NOT swallow
                 #expect(response.body == nil)
             }

@@ -66,6 +66,7 @@ Say which locale, which fixture, and which keys — the failure mode is a test t
 
 ## Check: versioned-baseline-committed
 **Severity:** warning
+**Scope:** project
 **What:** Every non-client-hosted ViewModel under versioned test has at least one **committed** `.VersionedTestJSON` baseline (ruled 2026-08-25; the generator's Conceptual Foundation states the committed-artifact rule). Without one, `expectVersionedViewModel` takes its write-once branch on every clean checkout and then re-decodes only the baseline it just wrote — the wire-shape canary can never fire.
 **Anti-pattern:** A test target calling `expectFullViewModelTests(SomeViewModel.self)` with no `.VersionedTestJSON` directory anywhere in its tree.
 **Detection:** For each test target exercising `expectFullViewModelTests`/`expectVersionedViewModel`, check that a `.VersionedTestJSON` directory exists in the target's tree, is tracked (not ignored), and holds at least one baseline per non-client-hosted ViewModel under test. `clientHostedFactory` ViewModels are exempt — they carry no server wire contract to pin. Destroying or regenerating existing baselines is `versioned-baselines-not-regenerated`'s finding; this check fires on never having had them.

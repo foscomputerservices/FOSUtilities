@@ -145,7 +145,7 @@ struct MoveIdeaErrorViewModel {
     // Takes the specific ResponseError - tight coupling is good here
     init(responseError: MoveIdeaRequest.ResponseError) {
         self.message = responseError.message
-        self.errorCode = responseError.code.rawValue
+        self.errorCode = "\(responseError.code)"
     }
 }
 

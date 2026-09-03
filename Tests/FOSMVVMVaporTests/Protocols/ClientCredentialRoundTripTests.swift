@@ -167,7 +167,7 @@ struct ClientCredentialRoundTripTests {
                 try await request.processRequest(mvvmEnv: env)
                 Issue.record("Expected the original rejection to be rethrown")
             } catch let rejection as CredentialRejectedError {
-                #expect(rejection.code == .invalid)
+                #expect(rejection.reason == .invalid)
             } catch {
                 Issue.record("Expected CredentialRejectedError, got \(error)")
             }
@@ -436,7 +436,7 @@ private struct RejectingCredentialProvider: ClientCredentialProvider {
     let refreshTally: RequestTally
 
     func credentialHeaders() async throws -> [(field: String, value: String)] {
-        throw CredentialRejectedError(code: .missing)
+        throw CredentialRejectedError(reason: .missing)
     }
 
     func credentialHeaders(afterRejection: CredentialRejectedError) async -> [(field: String, value: String)]? {

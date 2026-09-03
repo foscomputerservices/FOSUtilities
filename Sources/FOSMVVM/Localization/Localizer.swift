@@ -23,6 +23,10 @@ public enum LocalizerError: Error, CustomDebugStringConvertible {
     /// Localization occurs during encode/init(from:).  If encoding/decoding has not taken place, then this error will result.
     case localizationUnbound
 
+    /// A strict encoder (see `JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)`)
+    /// met a key the store could not resolve in the given locale
+    case missingTranslation(_ localizable: String, locale: String)
+
     public var debugDescription: String {
         switch self {
         case .unknownLocalizationType(let type):
@@ -31,6 +35,8 @@ public enum LocalizerError: Error, CustomDebugStringConvertible {
             "LocalizerError: Localization store is missing"
         case .localizationUnbound:
             "LocalizerError: Localization occurs during encode/init(from:), but encoding/decoding has not taken place"
+        case .missingTranslation(let localizable, let locale):
+            "LocalizerError: Missing translation for \(localizable) in locale '\(locale)'"
         }
     }
 

@@ -16,25 +16,15 @@
 
 import Foundation
 
-// swiftformat:disable docComments
-// The client-side decode order for a ServerRequest error body: the well-known
-// surface errors (closed, FOS-owned list — CredentialRejectedError today) are
-// tried STRICTLY before the request's own ResponseError. Passed to DataFetch
-// as the ONE existing `errorType:` — FOSFoundation stays untouched; add a
-// future surface error HERE, nowhere else.
-// `package`: the decode chain is defined once here and consumed by both the
-// client fetch path (FOSMVVM) and the test harness (FOSTestingVapor) — spec §3.4.
-package enum WireError<E: ServerRequestError>: Error, Decodable {
+// The wire form of every ServerRequest error body: exactly one of the
+// well-known surface errors (closed, FOS-owned list — CredentialRejectedError
+// today) or the request's own ResponseError. The server's ErrorMiddleware
+// encodes it; the client fetch path and the FOSTestingVapor harness decode it.
+// Synthesized Codable keys the body by case, so the discrimination lives here
+// and never inside a payload. Add a future surface error HERE, nowhere else.
+// `package`: one definition, consumed by FOSMVVM, FOSMVVMVapor, and
+// FOSTestingVapor.
+package enum WireError<E: ServerRequestError>: Error, Codable {
     case surface(CredentialRejectedError)
     case response(E)
-
-    // swiftformat:enable docComments
-    package init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let rejection = try? container.decode(CredentialRejectedError.self) {
-            self = .surface(rejection)
-        } else {
-            self = try .response(container.decode(E.self))
-        }
-    }
 }

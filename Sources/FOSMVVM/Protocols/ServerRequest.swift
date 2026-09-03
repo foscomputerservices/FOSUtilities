@@ -228,7 +228,7 @@ public extension ServerRequest {
 }
 
 /// A `ServerRequestAction` tells the server how to handle the data that is submitted
-public enum ServerRequestAction: String, Codable, CaseIterable, Hashable, Sendable {
+public enum ServerRequestAction: Codable, CaseIterable, Hashable, Sendable {
     /// Retrieve the requested information
     ///
     /// - Note: Creates a **GET** HTTP Request
@@ -443,12 +443,12 @@ public enum ServerRequestBodySize: Equatable, Hashable, Sendable {
 ///     let code: ErrorCode
 ///     let message: LocalizableString
 ///
-///     enum ErrorCode: String, Codable, Sendable {
+///     enum ErrorCode: Codable, Sendable {
 ///         case serverFailed
 ///         case applicationFailed
 ///
 ///         var message: LocalizableString {
-///             .localized(for: Self.self, parentType: MyError.self, propertyName: rawValue)
+///             .localized(case: self, parentType: MyError.self)
 ///         }
 ///     }
 ///

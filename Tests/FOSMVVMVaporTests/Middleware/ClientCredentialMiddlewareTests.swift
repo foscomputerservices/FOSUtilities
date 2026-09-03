@@ -25,7 +25,9 @@
 //   • the verifier is consulted PER REQUEST, so a credential revoked between two
 //     requests admits the first and rejects the second (rotation semantics,
 //     mirroring the client side),
-//   • rejections carry `WWW-Authenticate: Bearer` (RFC 7235) on the wire,
+//   • rejections carry `WWW-Authenticate` (RFC 7235) on the wire — `Bearer` for a
+//     missing credential, `Bearer error="invalid_token"` (RFC 6750 §3.1) for a
+//     refused one — dressed by FOS `ErrorMiddleware.default`, never by the error,
 //   • the Authorization parse edges are pinned: a lowercase `bearer` scheme admits;
 //     an empty token (`Bearer `) rejects,
 //   • the CLIENT-SIDE contract: through the REAL client (`processRequest(mvvmEnv:)`)
@@ -44,7 +46,7 @@
 //     unchanged.
 
 import FOSFoundation
-import FOSMVVM
+@testable import FOSMVVM
 import FOSMVVMVapor
 import Foundation
 #if canImport(FoundationNetworking)
@@ -98,8 +100,9 @@ struct ClientCredentialMiddlewareTests {
 
             #expect(reply.status == 401)
             #expect(!reply.body.contains(presentedToken))
-            // RFC 7235: the challenge header reaches the wire
-            #expect(reply.wwwAuthenticate == "Bearer")
+            // RFC 7235: the challenge header reaches the wire; RFC 6750 §3.1:
+            // a presented-and-refused token carries the error token
+            #expect(reply.wwwAuthenticate == #"Bearer error="invalid_token""#)
         }
     }
 
@@ -148,7 +151,7 @@ struct ClientCredentialMiddlewareTests {
                 try await request.processRequest(mvvmEnv: env)
                 Issue.record("Expected CredentialRejectedError, but the request succeeded")
             } catch let rejection as CredentialRejectedError {
-                #expect(rejection.code == .invalid)
+                #expect(rejection.reason == .invalid)
             } catch {
                 Issue.record("Expected CredentialRejectedError, got \(error)")
             }
@@ -169,7 +172,7 @@ struct ClientCredentialMiddlewareTests {
                 try await request.processRequest(mvvmEnv: env)
                 Issue.record("Expected CredentialRejectedError")
             } catch let rejection as CredentialRejectedError {
-                #expect(rejection.code == .missing)
+                #expect(rejection.reason == .missing)
             } catch {
                 Issue.record("Expected CredentialRejectedError, got \(error)")
             }
@@ -191,7 +194,7 @@ struct ClientCredentialMiddlewareTests {
                 try await request.processRequest(mvvmEnv: env)
                 Issue.record("Expected CredentialRejectedError, but the request succeeded")
             } catch let rejection as CredentialRejectedError {
-                #expect(rejection.code == .invalid)
+                #expect(rejection.reason == .invalid)
             } catch {
                 Issue.record("Expected CredentialRejectedError, got \(error) — the swallow is back")
             }
@@ -255,37 +258,9 @@ struct ClientCredentialMiddlewareTests {
                 try await request.processRequest(mvvmEnv: env)
                 Issue.record("Expected CredentialRejectedError")
             } catch let rejection as CredentialRejectedError {
-                #expect(rejection.code == .invalid)
+                #expect(rejection.reason == .invalid)
             } catch {
                 Issue.record("Expected CredentialRejectedError, got \(error)")
-            }
-        }
-    }
-
-    @Test("Skew fallback: a plain 401 without the envelope behaves as today")
-    func plain401WithoutEnvelopeFallsBack() async throws {
-        try await withRunningServer { app in
-            // Vapor's STOCK middleware — the old-server wire shape (no envelope)
-            let protected = app.grouped(
-                ClientCredentialMiddleware(verifier: BearerCredentialVerifier { _ in false })
-            )
-            try protected.register(collection: RoundTripController<ShowStrictErrorReplyRequest>(actions: [
-                .show: { _, _ in GrantedReply(message: "granted") }
-            ]))
-        } _: { base in
-            let env = Self.environment(
-                base: base,
-                provider: BearerCredentialProvider { "revoked-token" }
-            )
-
-            let request = ShowStrictErrorReplyRequest()
-            do {
-                try await request.processRequest(mvvmEnv: env)
-                Issue.record("Expected a failure")
-            } catch DataFetchError.badStatus(httpStatusCode: let code) {
-                #expect(code == 401) // pre-envelope fallback, unchanged
-            } catch {
-                Issue.record("Expected badStatus(401) fallback, got \(error)")
             }
         }
     }
@@ -303,19 +278,28 @@ struct ClientCredentialMiddlewareTests {
             )
 
             #expect(rejected.status == 401) // transport dressing
-            #expect(rejected.wwwAuthenticate == "Bearer") // RFC 7235 preserved
-            let typed: CredentialRejectedError = try rejected.body.fromJSON()
-            #expect(typed.code == .invalid) // the semantics
+            #expect(rejected.wwwAuthenticate == #"Bearer error="invalid_token""#) // RFC 6750 §3.1
+            let typed: WireError<EmptyError> = try rejected.body.fromJSON()
+            guard case .surface(let rejection) = typed else {
+                Issue.record("Expected the surface rejection, got \(typed)"); return
+            }
+            #expect(rejection.reason == .invalid) // the semantics
+            #expect(rejection.challenge == .bearer) // the typed challenge crosses
 
             let missing = try await Self.send(to: base, headers: [:])
-            let missingTyped: CredentialRejectedError = try missing.body.fromJSON()
-            #expect(missingTyped.code == .missing)
+            let missingTyped: WireError<EmptyError> = try missing.body.fromJSON()
+            guard case .surface(let missingRejection) = missingTyped else {
+                Issue.record("Expected the surface rejection, got \(missingTyped)"); return
+            }
+            #expect(missingRejection.reason == .missing)
         }
     }
 
     @Test("A custom ServerCredentialVerifier conformance is honored — the protocol seam")
     func customVerifierIsHonored() async throws {
         try await withRunningServer { app in
+            app.middleware = .init()
+            app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
             let protected = app.grouped(
                 ClientCredentialMiddleware(verifier: ApiKeyVerifier(expectedKey: "the-key"))
             )
@@ -363,10 +347,16 @@ struct ClientCredentialMiddlewareTests {
 private extension ClientCredentialMiddlewareTests {
     /// Registers `GET /protected` behind a ``ClientCredentialMiddleware`` running the stock
     /// bearer verifier over `isValid`.
+    /// Every FOSMVVM server installs FOS `ErrorMiddleware.default` (the review's
+    /// `server-installs-the-error-middleware` blocker); it is what turns a
+    /// `CredentialRejectedError` into 401 + WWW-Authenticate.
     static func registerProtectedRoute(
         _ app: Application,
         isValid: @Sendable @escaping (String) async -> Bool
     ) {
+        app.middleware = .init()
+        app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
+
         let protected = app.grouped(
             ClientCredentialMiddleware(verifier: BearerCredentialVerifier(isValid: isValid))
         )
@@ -499,10 +489,8 @@ private actor TokenRegistry {
     }
 }
 
-/// Same `.show` shape; its `ResponseError` cannot decode from a rejection body,
-/// so under stock (non-FOS) middleware the raw 401 surfaces
-/// (`plain401WithoutEnvelopeFallsBack`), and under FOS `ErrorMiddleware` the
-/// typed rejection wins.
+/// Same `.show` shape with a `ResponseError` that cannot decode from a rejection
+/// body — the envelope, not a trial decode, is what makes the typed rejection win.
 private final class ShowStrictErrorReplyRequest: ServerRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias Fragment = EmptyFragment

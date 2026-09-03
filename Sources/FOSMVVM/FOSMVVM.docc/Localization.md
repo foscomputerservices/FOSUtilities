@@ -79,12 +79,12 @@ provides support for these situations.  Consider the following ``ViewModel``:
 
 ```swift
 struct ParentViewModel: ViewModel {
-  enum NestedEnum: String {
+  enum NestedEnum {
      case option1
      case option2
 
      var display: LocalizableString {
-         .localized(.init(for: Self.self, parentType: ParentViewModel.self, propertyName: rawValue))
+         .localized(case: self, parentType: ParentViewModel.self)
      }
   }
 }

@@ -197,7 +197,7 @@ decodes them back into the ServerRequest's typed `ResponseError` and throws
 them in context (form validation, for example); other errors degrade to
 status + reason, hiding details in release builds. An error that is both
 `Encodable` and `AbortError` is served with its typed body and its own status
-and headers (e.g. `CredentialRejectedError` → 401 + `WWW-Authenticate`).
+and headers; every `ServerRequestError` body rides inside the one typed envelope the client decodes, and a `CredentialRejectedError` is dressed here as 401 + `WWW-Authenticate` (the rejection itself is plain data, not an `AbortError`).
 Don't keep Vapor's stock ErrorMiddleware — it flattens typed ResponseErrors
 into plain-text reasons the client cannot decode.
 

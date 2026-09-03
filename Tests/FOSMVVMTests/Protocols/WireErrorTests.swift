@@ -23,38 +23,40 @@ private struct StrictError: ServerRequestError {
     let errorCode: Int
 }
 
-@Suite("WireError decode precedence")
+@Suite("WireError envelope")
 struct WireErrorTests {
-    @Test("A rejection body decodes .surface — even when E is EmptyError")
-    func rejectionBeatsEmptyError() throws {
-        let rejection = try CredentialRejectedError(code: .invalid).toJSON()
+    @Test("A surface rejection round-trips, whatever E is")
+    func surfaceRoundTrips() throws {
+        let rejection = CredentialRejectedError(reason: .invalid, challenge: .bearer)
+        let encoded = try WireError<StrictError>.surface(rejection).toJSON()
 
-        let strict: WireError<StrictError> = try rejection.fromJSON()
-        guard case .surface(let error) = strict else {
+        let strict: WireError<StrictError> = try encoded.fromJSON()
+        guard case .surface(let decoded) = strict else {
             Issue.record("Expected .surface, got \(strict)"); return
         }
-        #expect(error.code == .invalid)
+        #expect(decoded == rejection)
 
-        // EmptyError decodes from ANYTHING — the wrapper must claim the
-        // rejection FIRST (this retires the documented swallow).
-        let permissive: WireError<EmptyError> = try rejection.fromJSON()
+        // The envelope, not a trial decode, decides — so a permissive E
+        // (EmptyError decodes from anything) cannot swallow the rejection.
+        let permissive: WireError<EmptyError> = try encoded.fromJSON()
         guard case .surface = permissive else {
             Issue.record("EmptyError swallowed the rejection"); return
         }
     }
 
-    @Test("A request-error body decodes .response")
-    func responseErrorPassesThrough() throws {
-        let wire: WireError<StrictError> = try #"{"errorCode":42}"#.fromJSON()
+    @Test("A request error round-trips as .response")
+    func responseRoundTrips() throws {
+        let encoded = try WireError<StrictError>.response(StrictError(errorCode: 42)).toJSON()
+        let wire: WireError<StrictError> = try encoded.fromJSON()
         guard case .response(let error) = wire else {
             Issue.record("Expected .response, got \(wire)"); return
         }
         #expect(error.errorCode == 42)
     }
 
-    @Test("A body matching neither type fails to decode")
-    func neitherFallsThrough() {
-        let wire: WireError<StrictError>? = try? #"{"unrelated":true}"#.fromJSON()
+    @Test("A bare error body — the pre-envelope form — does not decode")
+    func bareBodyFallsThrough() {
+        let wire: WireError<StrictError>? = try? #"{"errorCode":42}"#.fromJSON()
         #expect(wire == nil)
     }
 }

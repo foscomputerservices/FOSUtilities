@@ -41,7 +41,10 @@ Free-form meta-instructions read by the subagent BEFORE running checks. Use for:
 
 ### `## Check: <name>` (zero or more)
 
-Each check has four required fields:
+Each check has four required fields, and one optional:
+
+- `**Scope:** project` (optional; default is site) — the check, or the named clause of it, answers a question about the whole project rather than about a site, so it is evaluated once per run by the project-scope dispatch and skipped by every other partition of the area (SKILL.md Step 5). Write `**Scope:** project (clause 1); site (clause 2)` when a check mixes the two.
+
 
 - **Severity:** `blocker` | `warning` | `nit`
 - **What:** one-sentence description of the rule.

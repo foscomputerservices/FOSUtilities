@@ -40,3 +40,43 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 **Why it was deferred:** placing a field at a fixed offset above the keyboard's top is device- and keyboard-height-dependent, so a deterministic fixture needs layout that measures the keyboard at runtime — more machinery than the round's scope. The failure mode is guarded by an arbiter, not by geometry, so the fix does not silently depend on the un-pinned case.
 
 **What reopens it:** a regression report where the menu-rise re-scroll fails on a margin-occluded field; or the next probe-fixture round, where a runtime-measured margin field should join the composite card so all three geometries are forced in-house.
+
+## `CredentialRejectedError` has no user-presentable localized message
+
+**Recorded:** 2026-09-02, at David's direction, during the credential-rejection redesign.
+
+**What it is:** the rejection carries typed data (`reason`, `challenge`) but no `LocalizableError` conformance, so `.alert(error:)` presents its debug description rather than a sentence in the user's language. The shape that would fix it is the canonical one — `@LocalizableError` with a `@LocalizedSubs` message substituting the reason and the challenge's realm, resolved by the server's localizing encoder so the client decodes it already localized.
+
+**Why it was deferred:** the message needs YAML at the server's localization store, and FOSUtilities ships no localization YAML of its own today. A framework-owned bundle is its own design: how it reaches the store the app initialized (`initYamlLocalization(bundle:resourceDirectoryName:)` takes one bundle), and whether an app's YAML may override the framework's words. The substituted message rides on that design, not ahead of it.
+
+**What reopens it:** the framework-localization-bundle design; or a second framework-owned error that needs a user-facing message, at which point the bundle stops being a one-type question.
+
+## No request door for a write that has no Fluent model behind it
+
+**Recorded:** 2026-09-02, at David's direction. Surfaced by the `server-calls-use-the-request-door` stage (2026-08-25) and confirmed by the first full customer review.
+
+**What it is:** every write registration on `RoutesBuilder` — `register(request:app:)` for `CreateRequest`, `UpdateRequest`, `DeleteRequest` — requires `RequestBody: DataModelWriter`, whose `Target` is a `DataModel`. A write whose effect is not a Fluent record (rotate a token, replace a secret held elsewhere, destroy an external resource) has no door and rides a hand-written `ServerRequestController`, which the review then grades as the request door bypassed.
+
+**Why it was deferred:** the shape is a design question — a write door whose handler is a plain `(Request, RequestBody) async throws -> ResponseBody`, or `ServerRequestController` promoted to the documented path for non-model writes — and it touches the containment model that derives response plans. It waits for the design, not for a patch.
+
+**What reopens it:** the design brief for non-model writes; or a second consumer with the same shape.
+
+## No typed rejection for a socket-channel upgrade, and no ruled socket transport
+
+**Recorded:** 2026-09-02, at David's direction. Surfaced by the same stage; the socket-channel gap.
+
+**What it is:** FOS's live channel is SSE. A project that dials its own WebSocket channel gets no typed rejection when the upgrade is refused — the response has no body, so the client branches on `401`/`426` — and no ruling on whether such a channel should sit on `URLSession` with `FOSNetworkSecurity`'s mutual-TLS session (`URLSession.session(config:mutualTLS:)` and `URLSessionWebSocketTask` exist) or on a NIO dial, which today means forking WebSocketKit's upgrade handler to verify a pinned server.
+
+**Why it was deferred:** two rulings, both design-sized — a header-borne rejection reason the middleware sets and a client decodes from the upgrade response head (the `426` + `SystemVersion.httpHeader` handshake is the precedent), and the transport itself, incl. reconnect and backoff.
+
+**What reopens it:** the socket-channel design brief; or FOS itself needing a client-dialed socket.
+
+## No front door for a raw-bytes or streaming transfer
+
+**Recorded:** 2026-09-02, at David's direction. Surfaced by the same stage.
+
+**What it is:** `DataFetch`'s doors are JSON-shaped (`fetch`, `send(data:)`, `delete(data:)`). An octet-stream object transfer, a ranged read, or a streamed body has no door, so a project that needs one hand-builds a `URLSession` call and suppresses the review finding by naming this gap.
+
+**Why it was deferred:** David ruled (2026-09-02) that the one consumer's transfer stays as-is — special-purpose, with its own retry characteristics — so there is no consumer asking for a general door. Known, not planned.
+
+**What reopens it:** a second consumer with the shape; or the first one asking to converge.

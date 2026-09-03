@@ -80,7 +80,7 @@ public enum FormInputOption<Value: Codable & Hashable>: Codable, Sendable {
 }
 
 public extension FormInputOption {
-    enum Autocapitalize: String, Codable, CaseIterable, Sendable {
+    enum Autocapitalize: Codable, CaseIterable, Sendable {
         case characters
         case sentences
         case words
@@ -90,58 +90,58 @@ public extension FormInputOption {
     /// The input's autocomplete  value
     ///
     /// - See also: https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/autocomplete
-    enum Autocomplete: String, Codable, CaseIterable, Sendable {
+    enum Autocomplete: Codable, CaseIterable, Sendable {
         case off
         case on
         case name
-        case honorificPrefix = "honorific-prefix"
-        case givenName = "given-name"
-        case additionalName = "additional-name"
-        case familyName = "family-name"
-        case honorificSuffix = "honorific-suffix"
+        case honorificPrefix
+        case givenName
+        case additionalName
+        case familyName
+        case honorificSuffix
         case nickname
         case email
         case username
-        case newPassword = "new-password"
-        case currentPassword = "current-password"
-        case oneTimeCode = "one-time-code"
-        case organizationTitle = "organization-title"
+        case newPassword
+        case currentPassword
+        case oneTimeCode
+        case organizationTitle
         case organization
-        case streetAddress = "street-address"
-        case addressLine1 = "address-line-1"
-        case addressLine2 = "address-line-2"
-        case addressLine3 = "address-line-3"
-        case addressLevel1 = "address-level-1"
-        case addressLevel2 = "address-level-2"
-        case addressLevel3 = "address-level-3"
-        case addressLevel4 = "address-level-4"
+        case streetAddress
+        case addressLine1
+        case addressLine2
+        case addressLine3
+        case addressLevel1
+        case addressLevel2
+        case addressLevel3
+        case addressLevel4
         case country
-        case country_name = "country-name"
-        case postal_code = "postal-code"
-        case ccName = "cc-name"
-        case ccGivenName = "cc-given-name"
-        case ccFamilyName = "cc-family-name"
-        case ccNumber = "cc-number"
-        case ccExp = "cc-exp"
-        case ccExpMonth = "cc-exp-month"
-        case ccExpYear = "cc-exp-year"
-        case ccCSC = "cc-csc"
-        case ccType = "cc-type"
-        case transactionCurrency = "transaction-currency"
-        case transactionAmount = "transaction-amount"
+        case country_name
+        case postal_code
+        case ccName
+        case ccGivenName
+        case ccFamilyName
+        case ccNumber
+        case ccExp
+        case ccExpMonth
+        case ccExpYear
+        case ccCSC
+        case ccType
+        case transactionCurrency
+        case transactionAmount
         case language
-        case birthDay = "bday"
-        case birthDayDay = "bday-day"
-        case birthDayMonth = "bday-month"
-        case birthDayYear = "bday-year"
+        case birthDay
+        case birthDayDay
+        case birthDayMonth
+        case birthDayYear
         case sex
-        case telephone = "tel"
-        case telephoneCountryCode = "tel-country-code"
-        case telephoneNational = "tel-national"
-        case telephoneAreaCode = "tel-area-code"
-        case telephoneLocal = "tel-local"
-        case telephoneExtension = "tel-extension"
-        case instantMessagingProtocolEndpoint = "impp"
+        case telephone
+        case telephoneCountryCode
+        case telephoneNational
+        case telephoneAreaCode
+        case telephoneLocal
+        case telephoneExtension
+        case instantMessagingProtocolEndpoint
         case url
         case photo
     }
@@ -172,3 +172,59 @@ public extension FormInputOption<String?>.Autocapitalize {
     }
 }
 #endif
+
+public extension FormInputOption.Autocomplete {
+    /// The token HTML's `autocomplete` attribute takes for this value
+    ///
+    /// ```leaf
+    /// <input autocomplete="#(option.htmlAttributeValue)">
+    /// ```
+    ///
+    /// Only an HTML surface needs this. SwiftUI reads the case.
+    var htmlAttributeValue: String {
+        switch self {
+        case .honorificPrefix: "honorific-prefix"
+        case .givenName: "given-name"
+        case .additionalName: "additional-name"
+        case .familyName: "family-name"
+        case .honorificSuffix: "honorific-suffix"
+        case .newPassword: "new-password"
+        case .currentPassword: "current-password"
+        case .oneTimeCode: "one-time-code"
+        case .organizationTitle: "organization-title"
+        case .streetAddress: "street-address"
+        case .addressLine1: "address-line-1"
+        case .addressLine2: "address-line-2"
+        case .addressLine3: "address-line-3"
+        case .addressLevel1: "address-level-1"
+        case .addressLevel2: "address-level-2"
+        case .addressLevel3: "address-level-3"
+        case .addressLevel4: "address-level-4"
+        case .country_name: "country-name"
+        case .postal_code: "postal-code"
+        case .ccName: "cc-name"
+        case .ccGivenName: "cc-given-name"
+        case .ccFamilyName: "cc-family-name"
+        case .ccNumber: "cc-number"
+        case .ccExp: "cc-exp"
+        case .ccExpMonth: "cc-exp-month"
+        case .ccExpYear: "cc-exp-year"
+        case .ccCSC: "cc-csc"
+        case .ccType: "cc-type"
+        case .transactionCurrency: "transaction-currency"
+        case .transactionAmount: "transaction-amount"
+        case .birthDay: "bday"
+        case .birthDayDay: "bday-day"
+        case .birthDayMonth: "bday-month"
+        case .birthDayYear: "bday-year"
+        case .telephone: "tel"
+        case .telephoneCountryCode: "tel-country-code"
+        case .telephoneNational: "tel-national"
+        case .telephoneAreaCode: "tel-area-code"
+        case .telephoneLocal: "tel-local"
+        case .telephoneExtension: "tel-extension"
+        case .instantMessagingProtocolEndpoint: "impp"
+        default: String(describing: self)
+        }
+    }
+}

@@ -17,23 +17,31 @@
 import FOSMVVM
 import Vapor
 
-/// Dresses the rejection for the transport: `401 Unauthorized` with the
-/// verifier's authentication challenge (for example `WWW-Authenticate:
-/// Bearer`). The response *body* remains the typed error — FOSMVVM clients
-/// decode and rethrow it; the status exists for proxies, logs, and RFC 7235
-/// conformance, never for client branching.
-extension CredentialRejectedError: AbortError {
-    public var status: HTTPResponseStatus {
-        .unauthorized
-    }
+/// The transport dressing for a credential rejection: 401 Unauthorized with the
+/// challenge rendered as WWW-Authenticate. Applied by ErrorMiddleware, which is
+/// the one place a ServerRequestError becomes a Response — the rejection itself
+/// is plain data and carries no Vapor conformance. The body remains the typed
+/// error inside the WireError envelope; the status exists for proxies, logs,
+/// and RFC 7235 conformance, never for client branching.
+extension CredentialRejectedError {
+    static let transportStatus: HTTPResponseStatus = .unauthorized
 
-    public var headers: HTTPHeaders {
+    var transportHeaders: HTTPHeaders {
         guard let challenge else { return [:] }
-        return ["WWW-Authenticate": challenge]
+        return ["WWW-Authenticate": Self.headerValue(for: challenge, reason: reason)]
     }
 
-    public var reason: String {
-        // Constant — a rejection reason must never echo the presented credential
-        "Credential rejected"
+    /// RFC 7235 challenge text, rendered in exactly one place. The error token
+    /// follows the reason (RFC 6750 §3.1: no error token when no credential
+    /// was presented), so a challenge cannot contradict its rejection.
+    static func headerValue(for challenge: CredentialChallenge, reason: Reason) -> String {
+        switch challenge {
+        case .bearer:
+            reason == .invalid ? #"Bearer error="invalid_token""# : "Bearer"
+        case .bearerRealm(let realm):
+            reason == .invalid ? #"Bearer realm="\(realm)", error="invalid_token""# : #"Bearer realm="\(realm)""#
+        case .basicRealm(let realm):
+            #"Basic realm="\(realm)""#
+        }
     }
 }

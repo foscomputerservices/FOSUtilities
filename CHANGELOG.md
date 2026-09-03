@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`expectFullViewModelTests(_:locales:version:)`** — the one-liner forwards a
+  `version:` to `expectVersionedViewModel`, so a project whose version line is not
+  `1.0.0` mints and checks baselines off its real line without hand-assembling
+  the three primitives.
+- **`expectTranslations` walks child ViewModels** — stored child ViewModels,
+  optionals, and collections are descended, so a missing or blank translation on
+  a row fails the parent's pass and names the path (`rows[0].label`).
+- **The test encoder is strict** — `LocalizableTestCase.encoder(locale:)` now
+  fails an encode on a key the store cannot resolve
+  (`LocalizerError.missingTranslation`) instead of encoding an empty string;
+  `JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)`
+  exposes the switch. Production encoding is unchanged.
+- **A UI-test harness with no YAML fails loudly** — `setUp(bundles:)` throws
+  `RunError.noLocalizationYAML` when the bundles given yield no YAML; pass
+  `bundles: []` to run key-echo on purpose. Key-echo is for a missing key, not a
+  missing harness.
+
+- **`CredentialChallenge`** — what a server demands of a credential, typed: `.bearer`,
+  `.bearerRealm(_:)`, `.basicRealm(_:)`. A `ServerCredentialVerifier` attaches it to
+  the rejection it throws; the transport renders `WWW-Authenticate` from it (the
+  error token follows the rejection's reason, per RFC 6750), and the client reads
+  the same typed value on the decoded error.
+
+- **`LocalizableString.localized(case:parentType:)`** — localizes an enum case by
+  the case itself: the YAML key is the enum's type under its parent and the leaf
+  is the case name, with no string in user code. The replacement for feeding a
+  raw value into `propertyName:`.
+- **`fosmvvm-review` gains `no-string-backed-enums`** (cross-cutting, blocker) —
+  an enum never takes a `String` raw value: the raw value is a public string door
+  anyone can mint or parse, and it makes the case's spelling the user-facing text,
+  which cannot localize. The truth statement is now in the architecture doc; the
+  serverrequest, fields, and viewmodel generators and both DocC articles teach the
+  plain-enum form. Plugin 2.66.0.
+
+### Changed
+
+- **`CredentialRejectedError` is plain data with synthesized `Codable`** — `reason`
+  (`Reason.missing` / `.invalid`, replacing `code`/`Code`) and `challenge`
+  (`CredentialChallenge?`, now carried across the wire). The hand-rolled
+  discriminator envelope is gone. **Every `ServerRequest` error body now crosses
+  the wire inside one typed envelope** encoded by `FOSMVVMVapor.ErrorMiddleware`
+  and decoded by the client and the `FOSTestingVapor` harness, so the client
+  never trial-decodes a body. Wire contract: a client and server on either side
+  of this release see each other's error bodies as undecodable and fall to the
+  status path; upgrade both together. The rejection no longer conforms to
+  Vapor's `AbortError`: its 401 and `WWW-Authenticate` are assigned by
+  `FOSMVVMVapor.ErrorMiddleware`, the one place an error becomes a response. A
+  server that never installed it — a shape the review already blocks — now
+  answers a rejection with Vapor's stock 500 instead of a plain 401; the
+  pre-envelope skew fallback that relied on that plain 401 is retired with it.
+- **The framework's own enums drop their `String` raw values** —
+  `ServerRequestAction`, `FormInputType`, `FormInputOption.Autocapitalize` and
+  `.Autocomplete`, and `CredentialRejectedError.Code` are plain enums with
+  synthesized `Codable`. Their wire form is now the case-keyed object Swift
+  synthesizes rather than a bare string; anything that decoded the old form
+  needs the new one. `rawValue` on these types no longer exists.
+
+### Fixed
+
+- **`fosmvvm-review` evaluates project-scope clauses once** — a large area is
+  now partitioned by module explicitly (about 100 files per dispatch), and the
+  clauses that answer a question about the whole project ("no behavioral suite
+  exists", "no committed `.VersionedTestJSON`", "the boot path never installs
+  the error middleware") carry a `**Scope:** project` mark and run in exactly one
+  partition; the aggregator collapses any duplicate that slips. Surfaced by the
+  first full-project run, which split cross-cutting eight ways and reported one
+  standing gap seven times. Plugin 2.65.0.
+
 ## [0.15.2] - 2026-09-02
 
 ### Changed

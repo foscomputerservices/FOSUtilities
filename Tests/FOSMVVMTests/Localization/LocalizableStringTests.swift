@@ -122,8 +122,16 @@ struct LocalizableStringTests: LocalizableTestCase {
 
     @Test func codable_localized_unknownKey() throws {
         let localized = LocalizableString.localized(key: "lkjoipuew")
-        let decodedLoc: LocalizableString = try localized.toJSON(encoder: encoder()).fromJSON()
+
+        // The production encoder encodes an unknown key as an empty string …
+        let lenient = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let decodedLoc: LocalizableString = try localized.toJSON(encoder: lenient).fromJSON()
         #expect(try decodedLoc.localizedString == "")
+
+        // … and the test encoder is strict about it.
+        #expect(throws: LocalizerError.self) {
+            _ = try localized.toJSON(encoder: encoder())
+        }
     }
 
     // MARK: Identifiable Protocol
@@ -220,5 +228,50 @@ struct LocalizableStringTests: LocalizableTestCase {
             bundle: Bundle.module,
             resourceDirectoryName: "TestYAML"
         )
+    }
+}
+
+/// `localized(case:parentType:)` — an enum case localizes by the case, with
+/// no raw value and no string in the caller's code.
+struct LocalizableStringCaseTests {
+    @Test func localizedCase_keyIsTypeAndCase() {
+        switch LocalizableString.localized(case: Owner.Choice.optionOne, parentType: Owner.self) {
+        case .empty, .constant:
+            #expect(Bool(false), "Expected localized")
+        case .localized(let ref):
+            switch ref {
+            case .value(let key):
+                #expect(key == "Owner.Choice.optionOne")
+            case .arrayValue:
+                #expect(Bool(false), "Expected .value")
+            }
+        }
+    }
+
+    @Test func localizedCase_noParent() {
+        switch LocalizableString.localized(case: Owner.Choice.optionTwo) {
+        case .empty, .constant:
+            #expect(Bool(false), "Expected localized")
+        case .localized(let ref):
+            switch ref {
+            case .value(let key):
+                #expect(key == "Choice.optionTwo")
+            case .arrayValue:
+                #expect(Bool(false), "Expected .value")
+            }
+        }
+    }
+
+    @Test func localizedCase_matchesTheStringForm() {
+        let byCase = LocalizableString.localized(case: Owner.Choice.optionOne, parentType: Owner.self)
+        let byName = LocalizableString.localized(for: Owner.Choice.self, parentType: Owner.self, propertyName: "optionOne")
+        #expect(byCase == byName)
+    }
+}
+
+private enum Owner {
+    enum Choice: Codable, Sendable {
+        case optionOne
+        case optionTwo
     }
 }

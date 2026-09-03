@@ -94,12 +94,12 @@ public enum LocalizedPropertyError: Error, CustomDebugStringConvertible {
 //
 // ```swift
 // struct ParentViewModel: ViewModel {
-//   enum NestedEnum: String {
+//   enum NestedEnum {
 //      case option1
 //      case option2
 //
 //      var display: LocalizableString {
-//          .localized(.init(for: Self.self, parentType: ParentViewModel.self, propertyName: rawValue))
+//          .localized(case: self, parentType: ParentViewModel.self)
 //      }
 //   }
 // }
@@ -169,6 +169,18 @@ public extension RetrievablePropertyNames {
     typealias LocalizedDate = _LocalizedProperty<Self, LocalizableDate>
     typealias LocalizedCompoundString = _LocalizedProperty<Self, LocalizableCompoundValue<LocalizableString>>
     typealias LocalizedSubs = _LocalizedProperty<Self, LocalizableSubstitutions>
+}
+
+/// The property wrapper seen without its generic parameters — what a translation walk
+/// needs from any `@LocalizedString`/`@LocalizedSubs`/… on any Model.
+package protocol LocalizedPropertyTranslation {
+    var translatedValue: any Localizable { get }
+}
+
+extension _LocalizedProperty: LocalizedPropertyTranslation {
+    package var translatedValue: any Localizable {
+        wrappedValue
+    }
 }
 
 @propertyWrapper public struct _LocalizedProperty<Model: RetrievablePropertyNames, Value: Localizable>: Codable, Hashable, Sendable, Stubbable, Versionable {

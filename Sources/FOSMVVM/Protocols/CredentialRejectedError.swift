@@ -20,89 +20,54 @@ import Foundation
 ///
 /// Routes grouped behind `ClientCredentialMiddleware` verify the presented
 /// credential before the operation runs. When verification rejects the
-/// request, this error crosses the wire and is rethrown by
-/// ``ServerRequest/processRequest(mvvmEnv:)`` — catch it to recover:
+/// request, this error crosses the wire; the client first offers it to its
+/// ``ClientCredentialProvider/credentialHeaders(afterRejection:)`` — a provider
+/// that returns fresh headers has the request retried once, and the caller
+/// never sees the rejection. Only an unrecovered rejection is rethrown by
+/// ``ServerRequest/processRequest(mvvmEnv:)``:
 ///
 /// ```swift
 /// do {
 ///     try await request.processRequest(mvvmEnv: mvvmEnv)
-/// } catch let error as CredentialRejectedError {
-///     switch error.code {
+/// } catch let rejection as CredentialRejectedError {
+///     switch rejection.reason {
 ///     case .missing: break // no credential was presented — check the
 ///                          // MVVMEnvironment's clientCredentialProvider
-///     case .invalid: break // presented but refused — refresh the credential
-///                          // and retry (safe: the operation never ran)
+///     case .invalid: break // presented and refused, and the provider could
+///                          // not refresh — sign the user in again
 ///     }
 /// }
 /// ```
 ///
-/// The rejection happens **before** the operation runs, so retrying after
+/// The rejection happens **before** the operation runs, so a retry after
 /// recovery never duplicates the operation's effects.
 ///
-/// This error always throws to the call site — it is never routed to
-/// ``MVVMEnvironment/requestErrorHandler``.
-public struct CredentialRejectedError: ServerRequestError {
-    /// Why the credential seam rejected the request
-    ///
-    /// `.missing` — no credential accompanied the request; typically the client
-    /// has no `ClientCredentialProvider` configured (or it returned no headers).
-    /// `.invalid` — a credential was presented and the server's verifier refused
-    /// it; refresh the credential and retry.
-    public enum Code: String, Codable, Sendable {
+/// > Note: A rejection that reaches the call site is never routed to
+/// > ``MVVMEnvironment/requestErrorHandler``.
+public struct CredentialRejectedError: ServerRequestError, Equatable {
+    /// Why the credential seam refused the request
+    public enum Reason: Codable, Sendable, Equatable {
+        /// No credential accompanied the request; typically the client has
+        /// no `ClientCredentialProvider` configured, or it returned no headers
         case missing
+
+        /// A credential was presented and the server's verifier refused it
         case invalid
     }
 
-    /// Why the request was rejected
-    public let code: Code
+    public let reason: Reason
 
-    /// The authentication challenge the verifier answers with (for example
-    /// `"Bearer"`), used server-side to dress the response's
-    /// `WWW-Authenticate` header. Never crosses the wire — always `nil` on
-    /// a decoded value.
-    public let challenge: String?
+    /// What the server demands — rendered to `WWW-Authenticate` by the
+    /// transport, and readable here on the client as the same typed value
+    public let challenge: CredentialChallenge?
 
-    /// Creates the rejection thrown by a `ServerCredentialVerifier`
+    /// Creates the rejection a ``ServerCredentialVerifier`` throws
     ///
     /// - Parameters:
-    ///   - code: Why the request was rejected
-    ///   - challenge: The scheme for the response's `WWW-Authenticate`
-    ///     header (default: none)
-    public init(code: Code, challenge: String? = nil) {
-        self.code = code
+    ///   - reason: Why the request was refused
+    ///   - challenge: What the server demands (default: none)
+    public init(reason: Reason, challenge: CredentialChallenge? = nil) {
+        self.reason = reason
         self.challenge = challenge
-    }
-
-    // swiftformat:disable docComments
-    // Wire envelope — INTERNAL detail; never publish in DocC/CHANGELOG/README.
-    // The discriminator key + fixed value make the decode strict: init(from:)
-    // fails unless both match, so nothing puns into (or out of) this type.
-    // Shape pinned by CredentialRejectedErrorTests.forwardCompat.
-    private enum CodingKeys: String, CodingKey {
-        case discriminator = "__fosServerError"
-        case code
-    }
-
-    // swiftformat:enable docComments
-
-    private static let discriminatorValue = "credentialRejected"
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        guard try container.decode(String.self, forKey: .discriminator) == Self.discriminatorValue else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .discriminator,
-                in: container,
-                debugDescription: "Not a credential rejection"
-            )
-        }
-        self.code = try container.decode(Code.self, forKey: .code)
-        self.challenge = nil
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(Self.discriminatorValue, forKey: .discriminator)
-        try container.encode(code, forKey: .code)
     }
 }

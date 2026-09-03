@@ -89,10 +89,16 @@ public extension LocalizableTestCase {
     }
 
     /// Returns **JSONEncoder** that is configured to perform localization during encoding
+    ///
+    /// The encoder is **strict**: a key the store cannot resolve fails the encode with
+    /// `LocalizerError.missingTranslation` rather than encoding an empty string, so a
+    /// missing key on any ViewModel — a nested one, a row of a collection — is red here,
+    /// never a blank that ships.
     func encoder(locale: Locale = Self.en) -> JSONEncoder {
         JSONEncoder.localizingEncoder(
             locale: locale,
-            localizationStore: locStore
+            localizationStore: locStore,
+            strictLocalization: true
         )
     }
 
@@ -108,26 +114,54 @@ public extension LocalizableTestCase {
                 .toJSON(encoder: encoder)
                 .fromJSON()
 
-            let mirror = Mirror(reflecting: model)
+            try Self.expectTranslated(model, path: "\(Model.self)", locale: locale)
+        }
+    }
+
+    /// Walks a decoded value and its children — stored child ViewModels, optionals, and
+    /// collections included — so a missing translation on a row or a nested ViewModel fails
+    /// the parent's pass instead of shipping silently.
+    private static func expectTranslated(_ value: Any, path: String, locale: Locale) throws {
+        if let localizedProperty = value as? any LocalizedPropertyTranslation {
+            let localizable = localizedProperty.translatedValue
+            guard localizable.localizationStatus == .localized else {
+                throw FOSLocalizableError.error("\(path) -- Is pending localization")
+            }
+            guard !localizable.isEmpty else {
+                throw FOSLocalizableError.error("\(path) -- Missing Translation -- \(locale.identifier)")
+            }
+            return
+        }
+
+        if let localizable = value as? (any Localizable) {
+            guard !localizable.isEmpty else {
+                throw FOSLocalizableError.error("\(path) -- Missing Translation -- \(locale.identifier)")
+            }
+            return
+        }
+
+        let mirror = Mirror(reflecting: value)
+        switch mirror.displayStyle {
+        case .optional:
+            if let wrapped = mirror.children.first?.value {
+                try expectTranslated(wrapped, path: path, locale: locale)
+            }
+        case .collection, .set:
+            for (index, element) in mirror.children.enumerated() {
+                try expectTranslated(element.value, path: "\(path)[\(index)]", locale: locale)
+            }
+        case .struct, .class:
+            // Only ViewModels (and their kin) are walked — a Date, a URL, or a value type
+            // from Foundation has children too, but none of them localize.
+            guard value is any RetrievablePropertyNames else { return }
             for child in mirror.children {
                 guard let childName = child.label else { continue }
-
-                if let localizable = child.value as? (any Localizable) {
-                    guard !localizable.isEmpty else {
-                        throw FOSLocalizableError.error("\(childName) -- Missing Translation -- \(locale.identifier)")
-                    }
-                }
-
-                if let localizedProperty = child.value as? _LocalizedProperty<Model, LocalizableString> {
-                    guard localizedProperty.wrappedValue.localizationStatus == .localized else {
-                        throw FOSLocalizableError.error("\(childName) -- Is pending localization")
-                    }
-
-                    guard !localizedProperty.wrappedValue.isEmpty else {
-                        throw FOSLocalizableError.error("\(childName) -- Missing Translation -- \(locale.identifier)")
-                    }
-                }
+                // A property wrapper's storage is mirrored as `_name`; report the property.
+                let name = childName.hasPrefix("_") ? String(childName.dropFirst()) : childName
+                try expectTranslated(child.value, path: "\(path).\(name)", locale: locale)
             }
+        default:
+            return
         }
     }
 
@@ -164,12 +198,17 @@ public extension LocalizableTestCase {
     /// - Parameters:
     ///   - viewModelType: A *System.Type* of a type that conforms to **ViewModel**
     ///   - locales: An optional set of **Locale**s to test (default: LocalizableTestCase.locales)
-    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, file: String = #filePath, line: Int = #line) throws {
+    ///   - version: The version the baseline is minted and checked against (default:
+    ///     `SystemVersion.current`). Pass the project's own version line when the tests run
+    ///     without `setCurrentVersion` having been called — under `swift test` the default
+    ///     is `1.0.0`, which would mint baselines off the real line.
+    func expectFullViewModelTests(_ viewModelType: (some ViewModel & ViewModel).Type, locales: Set<Locale>? = nil, version: SystemVersion = .current, file: String = #filePath, line: Int = #line) throws {
         let vmEncoder = encoder(locale: locales?.first ?? self.locales.first ?? Self.en)
 
         try expectCodable(viewModelType, encoder: vmEncoder)
         try expectVersionedViewModel(
             viewModelType,
+            version: version,
             encoder: vmEncoder,
             file: file,
             line: line

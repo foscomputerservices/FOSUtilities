@@ -60,6 +60,50 @@ public enum LocalizableString: Codable, Hashable, Localizable, Identifiable, Stu
         )
     }
 
+    /// Localizes an enum case by the case itself — no raw value, no string
+    ///
+    /// ```swift
+    /// struct SimpleError: ServerRequestError {
+    ///     enum ErrorCode: Codable, Sendable {
+    ///         case serverFailed
+    ///         case applicationFailed
+    ///
+    ///         var message: LocalizableString {
+    ///             .localized(case: self, parentType: SimpleError.self)
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// ```yaml
+    /// en:
+    ///   SimpleError:
+    ///     ErrorCode:
+    ///       serverFailed: "The server failed"
+    ///       applicationFailed: "The application failed"
+    /// ```
+    ///
+    /// The YAML key is the enum's type name under `parentType`, and the leaf
+    /// is the case name. Use it on enums without associated values — a case
+    /// carrying a payload has no single key.
+    ///
+    /// - Parameters:
+    ///   - enumCase: The case to localize (`self`, from inside the enum)
+    ///   - parentType: The type the enum is nested in (default: none)
+    ///   - parentKeys: Intermediate YAML keys between the parent and the enum (default: none)
+    ///   - index: A position, when the localized value is one of a list (default: none)
+    public static func localized(case enumCase: some Any, parentType: Any.Type? = nil, parentKeys: String..., index: Int? = nil) -> Self {
+        .localized(
+            .init(
+                for: type(of: enumCase),
+                parentType: parentType,
+                parentKeys: parentKeys,
+                propertyName: String(describing: enumCase),
+                index: index
+            )
+        )
+    }
+
     public static func localized(for type: (some Any).Type, propertyName: String, messageGroup: String? = nil, messageKey: String) -> Self {
         .localized(
             .init(

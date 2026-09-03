@@ -50,7 +50,7 @@ struct GroupMountedRegistrationTests {
             // No credential → the middleware rejects before the route runs.
             try await app.testing().test(TestViewModelRequest()) { response in
                 #expect(response.status == .unauthorized)
-                #expect(response.credentialRejection?.code == .missing) // typed, not status alone
+                #expect(response.credentialRejection?.reason == .missing) // typed, not status alone
                 #expect(response.body == nil)
             }
 
@@ -109,7 +109,7 @@ struct GroupMountedRegistrationTests {
             )
             try await app.testing().test(unauthed) { response in
                 #expect(response.status == .unauthorized)
-                #expect(response.credentialRejection?.code == .missing) // typed, not status alone
+                #expect(response.credentialRejection?.reason == .missing) // typed, not status alone
             }
             // The record is untouched — the write never ran.
             let afterReject = try #require(try await Berth.find(berth.requireId(), on: db))

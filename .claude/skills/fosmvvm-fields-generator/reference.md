@@ -200,7 +200,7 @@ public protocol IdeaFields: ValidatableModel, Codable, Sendable {
     var ideaValidationMessages: IdeaFieldsMessages { get }
 }
 
-public enum Department: String, CaseIterable, Equatable, Codable, Sendable {
+public enum Department: CaseIterable, Equatable, Codable, Sendable {
     case strategic
     case product
     case content
@@ -208,7 +208,7 @@ public enum Department: String, CaseIterable, Equatable, Codable, Sendable {
     case operations
 }
 
-public enum IdeaStatus: String, CaseIterable, Equatable, Codable, Sendable {
+public enum IdeaStatus: CaseIterable, Equatable, Codable, Sendable {
     case queued
     case exploring
     case parking

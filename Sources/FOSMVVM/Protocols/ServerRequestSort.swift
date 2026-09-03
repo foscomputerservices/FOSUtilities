@@ -22,7 +22,7 @@ public protocol ServerRequestSort: Codable, Hashable, Sendable {}
 /// The sortable dimensions a container publishes to clients — *meanings*, never storage columns.
 ///
 /// ```swift
-/// enum BerthSortKey: String, SortKey { case number, dockName, updatedAt }
+/// enum CardSortKey: SortKey { case title, rank, updatedAt }
 /// ```
 ///
 /// The server maps each dimension to one or more sort keypaths; the client only ever names a dimension,

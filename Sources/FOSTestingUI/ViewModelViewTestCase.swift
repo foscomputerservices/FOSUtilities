@@ -247,12 +247,17 @@ import XCTest
     /// }
     /// ```
     ///
-    /// > View tests never require YAML to be present: any localized string that has no
-    /// > translation in *bundles* — a server-hosted *ViewModel*'s strings, for example —
+    /// > View tests never require every key to be present: any localized string that has
+    /// > no translation in *bundles* — a server-hosted *ViewModel*'s strings, for example —
     /// > resolves to visible placeholder text derived from its key, so the element keeps
     /// > its surface area and stays reachable by XCUI.  Do not assert on placeholder
     /// > content; localization completeness belongs in **LocalizableTestCase**'s
     /// > *expectTranslations()*.
+    ///
+    /// > Important: A harness whose *bundles* yield **no** YAML at all fails `setUp` with
+    /// > ``RunError/noLocalizationYAML`` — that is a missing harness, not a missing key,
+    /// > and every label would otherwise echo its key and compare equal to itself forever.
+    /// > To run deliberately without YAML, pass `bundles: []`.
     ///
     /// - Parameters:
     ///   - bundles: The test harness's application bundle and other custom bundles containing YAML files
@@ -274,7 +279,14 @@ import XCTest
                 )
             )
         } catch YamlStoreError.noResourcePaths {
-            // A harness with no YAML at all is supported: every string echoes its key
+            // Explicitly no bundles: every string echoes its key, by request.
+            // Bundles that yield nothing: a misconfigured harness — say so.
+            guard bundles.isEmpty else {
+                throw RunError.noLocalizationYAML(
+                    bundles: bundles.map(\.bundlePath),
+                    resourceDirectoryName: resourceDirectoryName
+                )
+            }
             locStore = KeyEchoLocalizationStore(wrapping: nil)
         }
         self.locales = locales ?? [Self.en]
@@ -417,6 +429,7 @@ public enum RunError: Error, CustomDebugStringConvertible {
     case setupNotCalled
     case badUrlString(_ str: String)
     case cannotRetrieveOperationsData
+    case noLocalizationYAML(bundles: [String], resourceDirectoryName: String)
 
     public var debugDescription: String {
         switch self {
@@ -428,6 +441,8 @@ public enum RunError: Error, CustomDebugStringConvertible {
             "RunError: Bad URL string: \(str)"
         case .cannotRetrieveOperationsData:
             "RunError: Cannot retrieve operations data"
+        case .noLocalizationYAML(let bundles, let resourceDirectoryName):
+            "RunError: No localization YAML found in \(bundles.count) bundle(s) under '\(resourceDirectoryName)' — the harness copies no YAML (\(bundles.joined(separator: ", "))). Add the YAML to the test target, or pass bundles: [] to run key-echo on purpose."
         }
     }
 }

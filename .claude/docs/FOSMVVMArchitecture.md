@@ -747,21 +747,21 @@ en:
       invalidCategory: "The category %{category} is not valid."
 ```
 
-**2. Simple Errors (String-Based Codes)**
+**2. Simple Errors (Case-Keyed Codes)**
 
-For simpler errors without associated values, use a `String` raw value enum:
+For simpler errors without associated values, use a plain enum — no raw value — and localize each case by the case itself:
 
 ```swift
 struct SimpleError: ServerRequestError {
     let code: ErrorCode
     let message: LocalizableString
 
-    enum ErrorCode: String, Codable, Sendable {
+    enum ErrorCode: Codable, Sendable {
         case serverFailed
         case applicationFailed
 
         var message: LocalizableString {
-            .localized(for: Self.self, parentType: SimpleError.self, propertyName: rawValue)
+            .localized(case: self, parentType: SimpleError.self)
         }
     }
 
@@ -779,6 +779,12 @@ en:
       serverFailed: "The server failed"
       applicationFailed: "The application failed"
 ```
+
+**Enums never take a `String` raw value** (ruled 2026-09-02)
+
+An enum never takes a `String` raw value. A raw value opens a public string door — `Reason(rawValue: "invalid")` — that anyone can mint or parse, and it makes the case's spelling the user-facing text, which cannot localize. Cases localize through the YAML tree keyed by type and case; the wire carries the case, not a string the type published.
+
+The shipped form is the plain enum above: Swift synthesizes its `Codable`, the wire carries the case name, and `LocalizableString.localized(case:parentType:)` derives the YAML key from the case. `enum X: String` is a review blocker (`no-string-backed-enums`).
 
 **3. Type-Safe Client Handling**
 
