@@ -54,6 +54,46 @@ struct OcclusionCardViewModel {
     }
 }
 
+@ViewModel
+struct ToolbarCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
+}
+
+@ViewModel
+struct UnparentedCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
+}
+
+/// Operations recorded by the toolbar card, so the pin can assert that a toolbar tap
+/// reached the ViewModel rather than merely that the gesture returned.
+struct ToolbarCardOps: ViewModelOperations {
+    var saveCount = 0
+    var resetCount = 0
+}
+
+@ViewModel
+struct ScrollingToolbarCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
+}
+
 /// Operations recorded by the occlusion card and shipped across the process boundary by
 /// its transporter — the reads OcclusionScrollTests verifies could not be read at all when
 /// the transporter was pruned under the scrollable wrapper.

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A view declares the production parents it was designed for** (FOSMVVM) —
+  `registerTestView(SettingsView.self, designedFor: .navigation)` presents the view under
+  test inside a `NavigationStack`, as production does. `.toolbar` items, `navigationTitle`,
+  `.searchable` and `NavigationLink` destinations are all preferences the *ancestor*
+  renders: with no navigation parent the view still appears while everything it declared
+  for the bar goes missing from the accessibility tree, and the test is told its identifier
+  is wrong — the one thing it is not. `.scrolling` is the existing scrolling-parent
+  declaration; `[.navigation, .scrolling]` nests navigation-outermost, matching production,
+  and is the honest declaration for any screen with both a toolbar and a focusable field.
+
+  One door rather than two flags. Independent `Bool`s spell one meaning in four ways and
+  leave the nesting order expressible only in prose; `ProductionParents` states it once and
+  keeps the ordering in the harness, where no call site can get it wrong.
+
+  > On macOS the window supplies a toolbar of its own, so `.toolbar` items render there
+  > whether or not `.navigation` is declared — `navigationTitle` and `NavigationLink`
+  > destinations still need it. Declare on the view's design, not on the platform being
+  > tested: a view that looks fine on macOS can be untestable on iOS.
+
+  Pinned in `Tools/UITestingProbe` by a registered/unregistered pair over one body, so the
+  only difference between them is what each declares: the toolbar item present, hittable
+  and reaching the ViewModel under `.navigation`; absent without it; both parents applied
+  together; and the item still reachable while a raised keyboard holds a field below it.
+
+- **The not-found message names a missing navigation parent** (FOSTestingUI) — when a
+  lookup fails and the view under test declared no navigation parent, the failure says so
+  and says what it costs, instead of sending the reader to audit an identifier that is
+  correct. Conditional, not standing: the sentence appears only when that is genuinely the
+  cause, so the two hypotheses that are usually right are not diluted on every platform for
+  every lookup. `testHost()` publishes what it resolved through the accessibility tree —
+  the route the operations transporter already uses — because the application knows the
+  registration and the test process cannot see it.
+
+### Deprecated
+
+- **`registerTestView(_:scrollable:)`** (FOSMVVM) — forwards to
+  `designedFor: .scrolling`. It carries no default value on purpose: with a default on both
+  overloads the bare `registerTestView(MyView.self)` is ambiguous and every existing call
+  site stops compiling, while without one those calls bind to the new signature silently
+  and only `scrollable:` call sites warn. Removal at 1.0, not in a minor — consumers pin
+  `upToNextMajorVersion`.
+
+
 ### Fixed
 
 - **`tap()` reaches a target covered by a navigation or tab bar** (FOSTestingUI) — content

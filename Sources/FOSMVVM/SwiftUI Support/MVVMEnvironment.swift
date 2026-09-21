@@ -129,7 +129,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     #if DEBUG
     struct TestViewRegistration {
         let factory: ViewFactory
-        let scrollable: Bool
+        let designedFor: ProductionParents
     }
 
     @MainActor static var registeredTestTypes: [String: TestViewRegistration] = [:]
@@ -183,47 +183,69 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// > Note: Registration is a no-op in release builds.
     ///
-    /// ## Views Designed for a Scrolling Parent
+    /// ## Declaring a View's Designed Parents
     ///
-    /// A view that lives inside a scrolling parent in production — a form card inside a
-    /// `ScrollView`, a section of a longer page — is taller than any window when presented
-    /// bare: the harness compresses and overlaps its content, burying controls where no tap
-    /// can reach them. Declare the design fact at registration and the harness presents the
-    /// view inside a vertical `ScrollView`, as production does:
+    /// A view is rarely designed to stand alone. One lives inside a `NavigationStack` and
+    /// puts its actions in the toolbar; another lives inside a `ScrollView` and is taller
+    /// than any window. Presented bare, each loses something silently — the toolbar items
+    /// never reach the accessibility tree, the buried controls sit beyond any tap. Declare
+    /// the design fact at registration and the harness supplies what production would:
     ///
     /// ```swift
-    /// registerTestView(DeviceCardView.self, scrollable: true)
+    /// registerTestView(SettingsView.self, designedFor: .navigation)
+    /// registerTestView(DeviceCardView.self, designedFor: .scrolling)
+    /// registerTestView(DeviceDetailView.self, designedFor: [.navigation, .scrolling])
     /// ```
     ///
-    /// The declaration also restores what a missing scroll parent silently disables:
-    /// XCUITest's automatic scroll-to-visible for off-screen elements, and keyboard
-    /// avoidance that scrolls instead of displacing the whole content.
+    /// Both parents together nest navigation-outermost, as production does. A view that
+    /// declares nothing is presented bare.
     ///
-    /// > Important: `scrollable: true` states the view's *designed* production environment —
-    /// > it matches the harness to the design. It is not an escape hatch for a view that
+    /// > Important: `designedFor:` states the view's *designed* production environment — it
+    /// > matches the harness to the design. It is not an escape hatch for a view that
     /// > overflows its production container too; that is a layout bug the harness should
     /// > keep surfacing. There is no per-test override: a suite that needs the same view
-    /// > presented both bare and scrolled is claiming the view has two designed
-    /// > environments — bring that evidence to FOSUtilities rather than working around
-    /// > the declaration.
+    /// > presented two ways is claiming the view has two designed environments — bring that
+    /// > evidence to FOSUtilities rather than working around the declaration.
     ///
     /// - Parameters:
     ///   - type: The *ViewModelView* to make available to *ViewModelDisplayTestCase*
-    ///   - scrollable: Declare `true` for a view designed to live inside a scrolling parent
-    ///     in production; the harness then presents it inside a vertical `ScrollView`
-    ///     (default: `false` — the view is presented bare, exactly as before).
+    ///   - designedFor: The production parents the view is designed to live inside
+    ///     (default: `[]` — the view is presented bare, exactly as before).
     @MainActor public static func registerTestView<V: ViewModelView>(
         _ type: V.Type,
-        scrollable: Bool = false
+        designedFor: ProductionParents = []
     ) {
         #if DEBUG
         registeredTestTypes[String(describing: V.VM.self)] = TestViewRegistration(
             factory: { @MainActor data in
                 try AnyView(V(viewModel: data.fromJSON()))
             },
-            scrollable: scrollable
+            designedFor: designedFor
         )
         #endif
+    }
+
+    // Deliberately NO default value. With a default on both overloads the bare
+    // `registerTestView(MyView.self)` is ambiguous and every existing call site stops
+    // compiling; without one, bare calls bind to the designedFor: signature silently and
+    // only `scrollable:` call sites warn — which is exactly the set that should.
+    // `renamed:` cannot express Bool -> OptionSet, so the migration rides in `message:`.
+
+    /// Registers a *ViewModelView* whose designed parent is a scrolling one
+    ///
+    /// - Parameters:
+    ///   - type: The *ViewModelView* to make available to *ViewModelDisplayTestCase*
+    ///   - scrollable: Declare `true` for a view designed to live inside a scrolling parent.
+    @available(
+        *,
+        deprecated,
+        message: "Declare the view's designed parents: scrollable: true becomes designedFor: .scrolling"
+    )
+    @MainActor public static func registerTestView(
+        _ type: (some ViewModelView).Type,
+        scrollable: Bool
+    ) {
+        registerTestView(type, designedFor: scrollable ? .scrolling : [])
     }
 
     /// A view to be presented when the ``ViewModel`` is being requested

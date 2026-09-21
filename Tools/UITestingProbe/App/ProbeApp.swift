@@ -465,7 +465,7 @@ struct CardContent: View {
 /// after a tapped async action populates them, an action row BELOW the fields, a
 /// transporter behind the card's opaque background, and enough height that the raised
 /// keyboard occludes the deeper targets — behind it, beyond the viewport bottom, and at
-/// its accessory margin, depending on device height. Registered `scrollable: true`, so
+/// its accessory margin, depending on device height. Registered `designedFor: .scrolling`, so
 /// the harness supplies the outer scrolling parent that makes all of it reachable.
 struct OcclusionCardContent: View {
     @State private var ops = OcclusionCardOps()
@@ -547,6 +547,88 @@ struct OcclusionCardView: ViewModelView {
     }
 }
 
+/// The body both navigation fixtures render. Identical content under both registrations:
+/// the ONLY difference between the pair is what each declares at registration, so anything
+/// that differs between them is the declaration's doing and nothing else.
+struct ToolbarCardContent: View {
+    let idPrefix: String
+    /// Taller than any window, so a declared scrolling parent has something to do and the
+    /// field sits where a raised keyboard would reach it.
+    var tall = false
+    @State private var ops = ToolbarCardOps()
+    @State private var amount = ""
+    @State private var repaintToggle = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(verbatim: "toolbar-card")
+                .uiTestingIdentifier("\(idPrefix)Body")
+
+            if tall {
+                Spacer().frame(height: 900)
+            }
+
+            TextField("amount", text: $amount)
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("\(idPrefix)Field")
+        }
+        .padding()
+        .navigationTitle(Text(verbatim: "card-title"))
+        // TWO items, because the reported failure needs a second tap after an operations
+        // read: tap one, read, edit the field, tap the other.
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {
+                    ops.saveCount += 1
+                    repaintToggle.toggle()
+                }) { Text(verbatim: "save") }
+                    .uiTestingIdentifier("\(idPrefix)SaveButton")
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button(action: {
+                    ops.resetCount += 1
+                    repaintToggle.toggle()
+                }) { Text(verbatim: "reset") }
+                    .uiTestingIdentifier("\(idPrefix)ResetButton")
+            }
+        }
+        .testDataTransporter(viewModelOps: ops, repaintToggle: $repaintToggle)
+    }
+}
+
+/// Registered `designedFor: .navigation`: the harness supplies the NavigationStack its
+/// toolbar needs.
+struct ToolbarCardView: ViewModelView {
+    let viewModel: ToolbarCardViewModel
+
+    var body: some View {
+        ToolbarCardContent(idPrefix: "toolbarCard")
+    }
+}
+
+/// The negative twin, registered with nothing. Same body, no declared parent — so its
+/// toolbar has no ancestor to render into and is absent from the accessibility tree. This
+/// is what pins the default, and documents the symptom for the next reader.
+struct UnparentedCardView: ViewModelView {
+    let viewModel: UnparentedCardViewModel
+
+    var body: some View {
+        ToolbarCardContent(idPrefix: "unparentedCard")
+    }
+}
+
+/// Registered `designedFor: [.navigation, .scrolling]`: both parents, nested
+/// navigation-outermost. Tall enough that the scrolling parent is load-bearing and the
+/// field sits under a raised keyboard.
+struct ScrollingToolbarCardView: ViewModelView {
+    let viewModel: ScrollingToolbarCardViewModel
+
+    var body: some View {
+        ToolbarCardContent(idPrefix: "scrollingToolbarCard", tall: true)
+    }
+}
+
 struct TallCardView: ViewModelView {
     let viewModel: TallCardViewModel
 
@@ -567,9 +649,15 @@ struct BareCardView: ViewModelView {
 struct UITestingProbeApp: App {
     init() {
         #if DEBUG
-        MVVMEnvironment.registerTestView(TallCardView.self, scrollable: true)
+        MVVMEnvironment.registerTestView(TallCardView.self, designedFor: .scrolling)
         MVVMEnvironment.registerTestView(BareCardView.self)
-        MVVMEnvironment.registerTestView(OcclusionCardView.self, scrollable: true)
+        MVVMEnvironment.registerTestView(OcclusionCardView.self, designedFor: .scrolling)
+        MVVMEnvironment.registerTestView(ToolbarCardView.self, designedFor: .navigation)
+        MVVMEnvironment.registerTestView(UnparentedCardView.self)
+        MVVMEnvironment.registerTestView(
+            ScrollingToolbarCardView.self,
+            designedFor: [.navigation, .scrolling]
+        )
         #endif
     }
 

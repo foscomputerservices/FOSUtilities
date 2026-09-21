@@ -164,8 +164,8 @@ private extension MVVMEnvironment {
     @MainActor static func registerTestingViews() {
         #if DEBUG
         registerTestView(LandingPageView.self)
-        registerTestView(SettingsView.self)
-        registerTestView(DeviceCardView.self, scrollable: true) // designed for a scrolling parent
+        registerTestView(DeviceCardView.self, designedFor: .scrolling)
+        registerTestView(SettingsView.self, designedFor: .navigation) // has a .toolbar
         // ... register all ViewModelViews for individual testing
         #endif
     }
@@ -177,7 +177,7 @@ private extension MVVMEnvironment {
 - Called from `init()`, and **only** from `init()`
 - Registers every ViewModelView for isolated testing
 - `#if DEBUG` goes **inside** the helper, not around the call — only `registerTestView(_:)`'s body is DEBUG-only, so the whole helper compiles away to a no-op in release and `init()` stays unguarded
-- **`scrollable: true` for views designed to live inside a scrolling parent in production** (a form card inside a `ScrollView`, a section of a longer page) — the harness then presents the view inside a vertical `ScrollView`, as production does. Presented bare, such a view is taller than the window: content compresses and overlaps, bottom controls sit beyond any tap's reach, and keyboard avoidance displaces the whole content instead of scrolling. The declaration is a fact about the view's *designed environment*, stated once at registration so no two tests can disagree about it (SRP: one truth, one home) — it is not an escape hatch for a view that overflows its production container too, and there is no per-test override
+- **`designedFor:` states the production parents a view was designed for** — `.scrolling` for a view that lives inside a `ScrollView` (a form card, a section of a longer page), `.navigation` for one that contributes to a navigation ancestor (`.toolbar` items, `navigationTitle`, `.searchable`, `NavigationLink` destinations), or both, which nest navigation-outermost as production does. Declared nothing, a scrolling-parent view compresses and buries its bottom controls beyond any tap's reach, and a navigation-parent view's toolbar items are absent from the accessibility tree — so the test is told its identifier is wrong, which is the one thing it is not. The declaration is a fact about the view's *designed environment*, stated once at registration so no two tests can disagree about it (SRP: one truth, one home) — not an escape hatch for a view that overflows its production container too, and there is no per-test override. `scrollable:` is deprecated; it forwards to `designedFor: .scrolling`. Declare it on the view's design, not on the platform you happen to be testing — macOS renders `.toolbar` items from the window whether or not `.navigation` is declared, so a view that looks fine there can be untestable on iOS
 
 **Timing is load-bearing.** `testHost()` resolves the view under test before the first render, so registration from a computed property (`var mvvmEnv`), from `.onAppear`, or from `.task` arrives too late. When that happens the app stops with a diagnostic on stderr naming the missing ViewModel, listing what *is* registered, and showing the `init()` fix — do not work around it by registering later. See `reference.md` → Pattern 3.
 

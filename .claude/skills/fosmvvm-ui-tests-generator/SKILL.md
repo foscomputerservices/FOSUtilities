@@ -472,16 +472,43 @@ func testSubmitButtonInvokesOperation() async throws {
 
 ### Navigation Tests
 
-Verify navigation flows work correctly:
+Two different things wear this name, and only one of them works without a declared parent.
+Decide which you have before writing the test.
+
+**In-view state change** — a tap swaps content *inside* the view under test. No parent
+needed; `testHost()` presents the view bare and this works today:
 
 ```swift
-func testNavigationToDetailView() async throws {
+func testSelectingAnItemRevealsItsDetail() async throws {
     let app = try presentView()
     app.uiTestingElement("itemRow").tap()
 
-    XCTAssertTrue(app.uiTestingElement("detailView").exists)
+    XCTAssertTrue(app.uiTestingElement("detailPanel").waitForExistence())
 }
 ```
+
+**Navigation push** — a `NavigationLink` pushes a destination. This needs a navigation
+ancestor, and the view must declare one at registration:
+
+```swift
+// In the App's init():
+registerTestView(ItemListView.self, designedFor: .navigation)
+
+func testSelectingAnItemPushesItsDetail() async throws {
+    let app = try presentView()
+    app.uiTestingElement("itemRow").tap()
+
+    XCTAssertTrue(app.uiTestingElement("detailView").waitForExistence())
+}
+```
+
+Without the declaration the push has no stack to push onto, and anything the destination
+contributes to the bar — a `.toolbar` item, a `navigationTitle` — never reaches the
+accessibility tree at all. The test is then told its identifier is wrong, which is the one
+thing it is not.
+
+> The back affordance belongs to the stack, not to your view. Do not tag it and do not
+> assert on it; assert that the content you navigated *to* arrived.
 
 ## When to Use This Skill
 

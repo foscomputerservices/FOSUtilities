@@ -69,11 +69,24 @@ simulator existed at all.
 - `FormFieldView` focus plumbing survives a real focus hand-off — two fields sharing the
   owner's `@FocusState`: focus, edit, blur (validation-on-blur), refocus, with un-waited
   value reads (`FormFocusProbeTests`, the `PROBE_SCENE=formFocus` scene)
-- a view registered `scrollable: true` is presented inside a vertical `ScrollView`: a field
+- a view registered `designedFor: .scrolling` is presented inside a vertical `ScrollView`: a field
   buried past the window's bottom is reachable (tap auto-scrolls, keyboard arrives, typing
   reads back), while the unregistered twin presents bare — the field exists but is not
   visible (`ScrollRegistrationTests` / `BarePresentationTests`, riding the full
   `ViewModelDisplayTestCase.presentView` transport with shared probe ViewModels)
+- a view registered `designedFor: .navigation` is presented inside a `NavigationStack`: its
+  `.toolbar` item is present, hittable, and its tap reaches the ViewModel, while the twin
+  registered with nothing has no toolbar item at all — not off screen, absent, because
+  `.toolbar` is a preference the ancestor renders (`NavigationRegistrationTests` /
+  `UnparentedCardTests`). Both parents together, a toolbar item reached while a raised
+  keyboard holds a field below it, and a mid-flow `viewModelOperations()` read that does not
+  cost the next tap, are in `CombinedParentsTests`
+- **the negative half is iOS-only, and that is measured**: on macOS the WINDOW supplies a
+  toolbar, so an undeclared `.toolbar` item still renders into it. With `testHost()`
+  presenting the view bare and no `NavigationStack` anywhere, `app.toolbars.count` is 1 and
+  the item sits inside that toolbar's rect. iOS has no window toolbar, so there a navigation
+  ancestor is the only thing that can render `.toolbar` at all
+  (`UnparentedCardMacTests`)
 - the same registration transport runs on **macOS** (`ScrollRegistrationMacTests` /
   `BarePresentationMacTests`). The Mac test bundle compiles the shared probe ViewModels and
   carries the YAML resource; without both, no `presentView()`-based test can exist on the

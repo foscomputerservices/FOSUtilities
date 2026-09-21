@@ -344,13 +344,14 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
 
     // MARK: Navigation Tests
 
-    func testNavigationToDetail() async throws {
+    // An in-view state change: the tap swaps content inside the view under test, so no
+    // declared parent is needed.
+    func testSelectingAnItemRevealsItsDetail() async throws {
         let app = try presentView()
 
         app.uiTestingElement("itemButton").tap()
-        app.uiTestingElement("viewDetailButton").tap()
 
-        XCTAssertTrue(app.uiTestingElement("detailView").exists)
+        XCTAssertTrue(app.uiTestingElement("detailPanel").waitForExistence())
     }
 
     // MARK: Error Handling Tests
@@ -1043,14 +1044,41 @@ func testErrorHandling() async throws {
 
 ## Pattern 4: Testing Navigation
 
+Two patterns share this name. The difference is whether the view needs a navigation
+ancestor, and the harness only supplies one if the registration asks for it.
+
+**In-view state change** — no declared parent required:
+
 ```swift
-func testNavigation() async throws {
+func testSelectingAnItemRevealsItsDetail() async throws {
     let app = try presentView()
 
     app.uiTestingElement("itemRow").tap()
-    XCTAssertTrue(app.uiTestingElement("detailView").waitForExistence())
 
-    app.uiTestingElement("backButton").tap()
-    XCTAssertTrue(app.uiTestingElement("listView").waitForExistence())
+    XCTAssertTrue(app.uiTestingElement("detailPanel").waitForExistence())
 }
 ```
+
+**Navigation push** — requires `designedFor: .navigation` at registration:
+
+```swift
+// In the App's init():
+registerTestView(ItemListView.self, designedFor: .navigation)
+
+func testSelectingAnItemPushesItsDetail() async throws {
+    let app = try presentView()
+
+    app.uiTestingElement("itemRow").tap()
+
+    XCTAssertTrue(app.uiTestingElement("detailView").waitForExistence())
+}
+```
+
+Two things that catch people:
+
+- **Do not tag or tap a back button.** It belongs to the stack, not to your view. Assert
+  that the content you navigated *to* arrived, and let the next test start fresh.
+- **A destination's `.toolbar` needs the same declaration.** Toolbar items and
+  `navigationTitle` are preferences the ancestor renders; with no ancestor they are absent
+  from the accessibility tree — not off screen, absent — and the failure reads as a wrong
+  identifier.

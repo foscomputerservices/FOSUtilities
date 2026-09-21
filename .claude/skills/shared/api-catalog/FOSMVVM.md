@@ -1048,7 +1048,7 @@ bindings from the bundle's YAML, and can set `@State` via `setStates:`.
 #Preview { UserView.previewHost() }
 ```
 
-### Host views for UI tests — `testHost()` / `testHostRequest` / `registerTestView()` <!-- apple-only -->
+### Host views for UI tests — `testHost()` / `registerTestView(_:designedFor:)` <!-- apple-only -->
 Reach for this when: wiring an app target for FOSTestingUI's
 ViewModelViewTestCase — wrap the root view in `testHost()` (optionally
 decorating the view under test with test bindings) and register each testable
@@ -1059,10 +1059,14 @@ from a computed property, `.onAppear`, or `.task` is too late and stops the app
 with a diagnostic. Only `registerTestView(_:)`'s body is DEBUG-only, so the helper
 compiles away to a no-op in release. On iOS the wrapper also plants the invisible
 control that `dismissKeyboard()` (FOSTesting.md § FOSTestingUI) taps — nothing to
-configure. A view designed to live inside a scrolling parent in production declares
-it at registration — `registerTestView(CardView.self, scrollable: true)` — and the
-harness presents it inside a vertical `ScrollView` as production does; presented
-bare, such a view compresses and buries its bottom controls beyond any tap's reach.
+configure. A view declares the production parents it was designed for at registration —
+`registerTestView(CardView.self, designedFor: .scrolling)`, `.navigation`, or
+`[.navigation, .scrolling]` — and the harness supplies them as production does,
+navigation outermost. Without `.scrolling` a view designed for a scrolling parent
+compresses and buries its bottom controls beyond any tap's reach; without
+`.navigation` its `.toolbar` items and `navigationTitle` are absent from the
+accessibility tree entirely on iOS (macOS renders toolbar items from the window
+regardless). `scrollable:` is deprecated in favour of `designedFor: .scrolling`.
 Scaffolded by `fosmvvm-ui-tests-generator`.
 
 ```swift
