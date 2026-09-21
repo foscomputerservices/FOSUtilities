@@ -547,6 +547,59 @@ struct OcclusionCardView: ViewModelView {
     }
 }
 
+/// The body both navigation fixtures render. Identical content under both registrations:
+/// the ONLY difference between the pair is what each declares at registration, so anything
+/// that differs between them is the declaration's doing and nothing else.
+struct ToolbarCardContent: View {
+    let idPrefix: String
+    @State private var ops = ToolbarCardOps()
+    @State private var repaintToggle = false
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(verbatim: "toolbar-card")
+                .uiTestingIdentifier("\(idPrefix)Body")
+
+            TextField("amount", text: .constant(""))
+                .textFieldStyle(.roundedBorder)
+                .uiTestingIdentifier("\(idPrefix)Field")
+        }
+        .padding()
+        .navigationTitle(Text(verbatim: "card-title"))
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {
+                    ops.saveCount += 1
+                    repaintToggle.toggle()
+                }) { Text(verbatim: "save") }
+                    .uiTestingIdentifier("\(idPrefix)SaveButton")
+            }
+        }
+        .testDataTransporter(viewModelOps: ops, repaintToggle: $repaintToggle)
+    }
+}
+
+/// Registered `designedFor: .navigation`: the harness supplies the NavigationStack its
+/// toolbar needs.
+struct ToolbarCardView: ViewModelView {
+    let viewModel: ToolbarCardViewModel
+
+    var body: some View {
+        ToolbarCardContent(idPrefix: "toolbarCard")
+    }
+}
+
+/// The negative twin, registered with nothing. Same body, no declared parent — so its
+/// toolbar has no ancestor to render into and is absent from the accessibility tree. This
+/// is what pins the default, and documents the symptom for the next reader.
+struct UnparentedCardView: ViewModelView {
+    let viewModel: UnparentedCardViewModel
+
+    var body: some View {
+        ToolbarCardContent(idPrefix: "unparentedCard")
+    }
+}
+
 struct TallCardView: ViewModelView {
     let viewModel: TallCardViewModel
 
@@ -570,6 +623,8 @@ struct UITestingProbeApp: App {
         MVVMEnvironment.registerTestView(TallCardView.self, designedFor: .scrolling)
         MVVMEnvironment.registerTestView(BareCardView.self)
         MVVMEnvironment.registerTestView(OcclusionCardView.self, designedFor: .scrolling)
+        MVVMEnvironment.registerTestView(ToolbarCardView.self, designedFor: .navigation)
+        MVVMEnvironment.registerTestView(UnparentedCardView.self)
         #endif
     }
 
