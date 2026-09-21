@@ -740,7 +740,7 @@ public extension XCUIApplication {
                 No text control resolved for "\(identifier)". Tag a text field or text view — \
                 or a composite containing one — and if the control is buried under sibling \
                 views when presented bare, register its view as designed for a scrolling \
-                parent: registerTestView(_:scrollable:).
+                parent: registerTestView(_:designedFor:).
                 """,
                 file: file, line: line
             )

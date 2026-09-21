@@ -64,7 +64,7 @@ the test client to display each view with a provided ``ViewModel`` for testing.
 This view modifier should be added at the top of the the application's view hierarchy.
 
 Finally, each View that inherits from ViewModelView must be registered with
-``MVVMEnvironment/registerTestView(_:scrollable:)`` from the application's `init()`.
+``MVVMEnvironment/registerTestView(_:designedFor:)`` from the application's `init()`.
 
 > Important: `init()` is the only supported place for these calls. ``testHost``
 > resolves the view under test *before the first render*, so registering from a
@@ -122,30 +122,37 @@ private extension MVVMEnvironment {
 }
 ```
 
-Only the *body* of ``MVVMEnvironment/registerTestView(_:scrollable:)`` is `#if DEBUG`, so the
+Only the *body* of ``MVVMEnvironment/registerTestView(_:designedFor:)`` is `#if DEBUG`, so the
 whole helper compiles away to a no-op in release builds — keeping the `#if DEBUG` inside it,
 rather than around the call in `init()`, is the tidier of the two. Either is correct.
 
-### Views Designed for a Scrolling Parent
+### Declaring a View's Designed Parents
 
-A view that lives inside a scrolling parent in production — a form card inside a
-`ScrollView`, a section of a longer page — is taller than any window when presented
-bare: content compresses and overlaps, controls end up buried where no tap can reach
-them, and keyboard avoidance displaces the whole content instead of scrolling. Declare
-the design fact where the view is registered, and the harness presents it inside a
-vertical `ScrollView`, as production does:
+A view is rarely designed to stand alone. One lives inside a `NavigationStack` and puts
+its actions in the toolbar; another lives inside a `ScrollView` and is taller than any
+window. Presented bare, each loses something silently: the toolbar items never reach the
+accessibility tree, and the buried controls sit beyond any tap's reach while keyboard
+avoidance displaces the whole content instead of scrolling. Declare the design fact
+where the view is registered, and the harness supplies what production would:
 
 ```swift
-registerTestView(DeviceCardView.self, scrollable: true)
+registerTestView(SettingsView.self, designedFor: .navigation)
+registerTestView(DeviceCardView.self, designedFor: .scrolling)
+registerTestView(DeviceDetailView.self, designedFor: [.navigation, .scrolling])
 ```
 
-The declaration also restores XCUITest's automatic scroll-to-visible — the harness
-finally has something to scroll — so off-screen elements come to a tap on their own.
-Views registered without it present bare, exactly as before.
+`.navigation` covers everything a view contributes to its navigation ancestor —
+`.toolbar` items, `navigationTitle`, `.searchable`, `NavigationLink` destinations — all
+of which are preferences the ancestor renders, and all of which are simply absent
+without one. `.scrolling` restores XCUITest's automatic scroll-to-visible, so off-screen
+elements come to a tap on their own.
 
-> Important: `scrollable: true` states the view's *designed* production environment. It
-> is not an escape hatch for a view that overflows its production container too — that
-> is a layout bug the harness should keep surfacing.
+Both together nest navigation-outermost, as production does. Views registered without
+either present bare, exactly as before.
+
+> Important: `designedFor:` states the view's *designed* production environment. It is
+> not an escape hatch for a view that overflows its production container too — that is a
+> layout bug the harness should keep surfacing.
 
 ## Display-Only Path
 
@@ -379,7 +386,7 @@ app.uiTestingElement("saveButton").tap()           // covered by it — cleared,
 
 This holds at every device size — the clearing scroll is load-bearing on the
 largest iPad as much as the smallest iPhone — and composes with
-`registerTestView(_:scrollable:)`: the scrolling parent that registration
+`registerTestView(_:designedFor:)`: the parents that registration
 supplies is what the clearing scroll rides.
 
 ## Dismissing the Keyboard

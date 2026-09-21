@@ -118,21 +118,72 @@ struct TestViewRegistrationTests {
         }
     }
 
-    @Test("The scrollable declaration reaches the registry — default false, declared true")
-    func scrollableDeclarationReachesTheRegistry() throws {
+    @Test("No declaration records no parents")
+    func noDeclarationRecordsNoParents() throws {
         try withRestoredRegistry {
             MVVMEnvironment.registeredTestTypes = [:]
 
             MVVMEnvironment.registerTestView(ProbeView.self)
-            MVVMEnvironment.registerTestView(OtherProbeView.self, scrollable: true)
 
             #expect(
                 MVVMEnvironment.registeredTestTypes[harnessKey(for: TestViewModel.self)]?
-                    .scrollable == false
+                    .designedFor == []
+            )
+        }
+    }
+
+    @Test("Each parent reaches the registry on its own, and both together")
+    func declaredParentsReachTheRegistry() throws {
+        try withRestoredRegistry {
+            MVVMEnvironment.registeredTestTypes = [:]
+
+            MVVMEnvironment.registerTestView(ProbeView.self, designedFor: .navigation)
+            MVVMEnvironment.registerTestView(OtherProbeView.self, designedFor: [.navigation, .scrolling])
+
+            let navigationOnly = MVVMEnvironment
+                .registeredTestTypes[harnessKey(for: TestViewModel.self)]?.designedFor
+            let both = MVVMEnvironment
+                .registeredTestTypes[harnessKey(for: OtherProbeViewModel.self)]?.designedFor
+
+            #expect(navigationOnly == .navigation)
+            #expect(both?.contains(.navigation) == true)
+            #expect(both?.contains(.scrolling) == true)
+        }
+    }
+
+    @Test("Declaring one parent does not imply the other")
+    func oneParentDoesNotImplyTheOther() throws {
+        try withRestoredRegistry {
+            MVVMEnvironment.registeredTestTypes = [:]
+
+            MVVMEnvironment.registerTestView(ProbeView.self, designedFor: .scrolling)
+
+            let declared = MVVMEnvironment
+                .registeredTestTypes[harnessKey(for: TestViewModel.self)]?.designedFor
+
+            #expect(declared?.contains(.scrolling) == true)
+            #expect(declared?.contains(.navigation) == false)
+        }
+    }
+
+    /// The deprecated spelling forwards rather than carrying its own registry shape, so the
+    /// two doors can never disagree about what a view declared.
+    @available(*, deprecated)
+    @Test("The deprecated scrollable: spelling forwards to the scrolling parent")
+    func deprecatedSpellingForwards() throws {
+        try withRestoredRegistry {
+            MVVMEnvironment.registeredTestTypes = [:]
+
+            MVVMEnvironment.registerTestView(ProbeView.self, scrollable: true)
+            MVVMEnvironment.registerTestView(OtherProbeView.self, scrollable: false)
+
+            #expect(
+                MVVMEnvironment.registeredTestTypes[harnessKey(for: TestViewModel.self)]?
+                    .designedFor == .scrolling
             )
             #expect(
                 MVVMEnvironment.registeredTestTypes[harnessKey(for: OtherProbeViewModel.self)]?
-                    .scrollable == true
+                    .designedFor == []
             )
         }
     }

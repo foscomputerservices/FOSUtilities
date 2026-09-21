@@ -23,7 +23,7 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
 /// The occlusion pin: a settled frame can still be an occluded frame. The card combines
 /// everything the original scrollable pin lacked — its own internal `ScrollView`, sections
 /// populated by a tapped async action, an action row below the fields, and a transporter
-/// behind the card's opaque background — registered `scrollable: true`. Built red-first:
+/// behind the card's opaque background — registered `designedFor: .scrolling`. Built red-first:
 /// on unpatched code these tests reproduce the 0.12.5 field failures (aims dispatched into
 /// the keyboard; the transporter pruned from the AX tree).
 @MainActor final class OcclusionScrollTests: ViewModelViewTestCase<OcclusionCardViewModel, OcclusionCardOps>, @unchecked Sendable {

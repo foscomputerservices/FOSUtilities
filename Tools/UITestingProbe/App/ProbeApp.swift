@@ -465,7 +465,7 @@ struct CardContent: View {
 /// after a tapped async action populates them, an action row BELOW the fields, a
 /// transporter behind the card's opaque background, and enough height that the raised
 /// keyboard occludes the deeper targets — behind it, beyond the viewport bottom, and at
-/// its accessory margin, depending on device height. Registered `scrollable: true`, so
+/// its accessory margin, depending on device height. Registered `designedFor: .scrolling`, so
 /// the harness supplies the outer scrolling parent that makes all of it reachable.
 struct OcclusionCardContent: View {
     @State private var ops = OcclusionCardOps()
@@ -567,9 +567,9 @@ struct BareCardView: ViewModelView {
 struct UITestingProbeApp: App {
     init() {
         #if DEBUG
-        MVVMEnvironment.registerTestView(TallCardView.self, scrollable: true)
+        MVVMEnvironment.registerTestView(TallCardView.self, designedFor: .scrolling)
         MVVMEnvironment.registerTestView(BareCardView.self)
-        MVVMEnvironment.registerTestView(OcclusionCardView.self, scrollable: true)
+        MVVMEnvironment.registerTestView(OcclusionCardView.self, designedFor: .scrolling)
         #endif
     }
 

@@ -51,7 +51,7 @@ public extension View {
     /// ```
     ///
     /// Every view to be tested individually must be registered from the application's `init()`
-    /// with ``MVVMEnvironment/registerTestView(_:scrollable:)``; this function resolves the view under test
+    /// with ``MVVMEnvironment/registerTestView(_:designedFor:)``; this function resolves the view under test
     /// before the first render, and stops with a diagnostic if it is not registered by then.
     ///
     /// On iOS the wrapper also plants the invisible control that
@@ -104,7 +104,7 @@ public extension View {
     /// ```
     ///
     /// Every view to be tested individually must be registered from the application's `init()`
-    /// with ``MVVMEnvironment/registerTestView(_:scrollable:)``; this function resolves the view under test
+    /// with ``MVVMEnvironment/registerTestView(_:designedFor:)``; this function resolves the view under test
     /// before the first render, and stops with a diagnostic if it is not registered by then.
     @MainActor func testHost() -> some View {
         testHost(decorator: { _, view in view })
@@ -156,11 +156,17 @@ private extension ProcessInfo {
         do {
             let view = try registration.factory(viewModelData)
 
-            // The registration declares the view is designed for a scrolling parent;
-            // the harness supplies the parent production would.
-            return registration.scrollable
+            // The registration declares the view's designed parents; the harness supplies
+            // what production would, innermost first. Navigation is the OUTER parent and
+            // scrolling the inner one — production nests NavigationStack { ScrollView { … } },
+            // and a bar inside a scroll view would scroll away with the content.
+            let scrolled = registration.designedFor.contains(.scrolling)
                 ? AnyView(ScrollView(.vertical) { view })
                 : view
+
+            return registration.designedFor.contains(.navigation)
+                ? AnyView(NavigationStack { scrolled })
+                : scrolled
         } catch {
             TestHostDiagnostic.reportAndStop(
                 TestHostDiagnostic.undecodableViewModel(

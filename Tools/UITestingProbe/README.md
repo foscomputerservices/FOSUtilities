@@ -69,7 +69,7 @@ simulator existed at all.
 - `FormFieldView` focus plumbing survives a real focus hand-off — two fields sharing the
   owner's `@FocusState`: focus, edit, blur (validation-on-blur), refocus, with un-waited
   value reads (`FormFocusProbeTests`, the `PROBE_SCENE=formFocus` scene)
-- a view registered `scrollable: true` is presented inside a vertical `ScrollView`: a field
+- a view registered `designedFor: .scrolling` is presented inside a vertical `ScrollView`: a field
   buried past the window's bottom is reachable (tap auto-scrolls, keyboard arrives, typing
   reads back), while the unregistered twin presents bare — the field exists but is not
   visible (`ScrollRegistrationTests` / `BarePresentationTests`, riding the full
