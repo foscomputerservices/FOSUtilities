@@ -17,17 +17,18 @@
 #if canImport(SwiftUI)
 import Foundation
 
-/// What `testHost()` publishes about the view it resolved, for a failing test to read back.
-///
-/// `package`, never `public`. Accessibility identifiers are transport infrastructure: the
-/// framework provides API built on them and does not hand them to the app. A consumer never
-/// types this string, never queries this element, and must not learn it exists — publishing
-/// it would make an implementation detail into a contract that could never change.
-///
-/// Why-required for `package`: FOSTestingUI runs in a different PROCESS and cannot read
-/// FOSMVVM's registry, so the only route is the accessibility tree; it is a separate target
-/// of the same package, and no consumer of either module needs this. See the repo's
-/// access-minimalism rule — `package` is earned by a definite requirement, not a hedge.
+// What `testHost()` publishes about the view it resolved, for a failing test to read back.
+//
+// `package`, never `public`. Accessibility identifiers are transport infrastructure: the
+// framework provides API built on them and does not hand them to the app. A consumer never
+// types this string, never queries this element, and must not learn it exists — publishing
+// it would make an implementation detail into a contract that could never change.
+//
+// Why-required for `package`: FOSTestingUI runs in a different PROCESS and cannot read
+// FOSMVVM's registry, so the only route is the accessibility tree; it is a separate target
+// of the same package, and no consumer of either module needs this. See the repo's
+// access-minimalism rule — `package` is earned by a definite requirement, not a hedge.
+
 package enum TestHostFacts {
     package static let accessibilityIdentifier = "__testing_host_facts__"
 
