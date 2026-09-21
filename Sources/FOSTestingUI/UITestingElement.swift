@@ -544,13 +544,13 @@ public extension XCUIApplication {
         // choosing any strategy, so every branch below aims from a cleared frame. The
         // existence checks honor the sharp edge: resolving .frame on an element that left
         // the tree (a menu row mid-scroll) fails the test hard, not degenerately.
-        if element.exists, !isAimable(element.frame) {
-            var lastFrame = element.frame
+        if element.exists, !isAimable(element.frame, hittable: element.isHittable) {
+            var last = (frame: element.frame, hittable: element.isHittable)
             scrollIntoBand {
                 if element.exists {
-                    lastFrame = element.frame
+                    last = (element.frame, element.isHittable)
                 }
-                return lastFrame
+                return last
             }
         }
         #endif
@@ -789,7 +789,10 @@ public extension XCUIApplication {
             // aim from it landing on keys. One native tap on the tagged element rides
             // XCUITest's scroll-to-visible with the keyboard staying up; the band scroll
             // clears what remains.
-            if !isAimable(target.frame) {
+            // The tag's hittability, not the resolved snapshot's — a snapshot has none, and
+            // the tag is the right proxy anyway: a `.searchable` field genuinely lives in the
+            // navigation bar and must not be scrolled at, while a field buried under one must.
+            if !isAimable(target.frame, hittable: xcuiElement.isHittable) {
                 xcuiElement.tap()
                 _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
                 if let fresh = taggedControl(hint: .textEntry) {
@@ -800,7 +803,7 @@ public extension XCUIApplication {
                     if let fresh = taggedControl(hint: .textEntry) {
                         target = fresh
                     }
-                    return target.frame
+                    return (target.frame, xcuiElement.isHittable)
                 }
             }
 
@@ -944,25 +947,94 @@ private extension UITestingElement {
     // non-existent firstMatch fails the test hard rather than returning a degenerate rect.
     // swiftformat:enable docComments
     private func aimableBand() -> CGRect {
-        var band = app.frame
+        var top = app.frame.minY
+        var bottom = app.frame.maxY
+
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists {
-            band.size.height = max(0, keyboard.frame.minY - Self.keyboardClearance - band.origin.y)
+            bottom = min(bottom, keyboard.frame.minY - Self.keyboardClearance)
         }
+        // No clearance term for either bar: a keyboard understates its extent by an
+        // accessory bar it does not report, while a bar's reported frame IS what it covers.
+        if let navBottom = barEdge(app.navigationBars, \.maxY) {
+            top = max(top, navBottom)
+        }
+        if let tabTop = barEdge(app.tabBars, \.minY) {
+            bottom = min(bottom, tabTop)
+        }
+
+        var band = app.frame
+        band.origin.y = top
+        band.size.height = max(0, bottom - top)
 
         return band
     }
 
-    private func isAimable(_ frame: CGRect) -> Bool {
-        // The band narrows only under a raised keyboard; without one there is no occlusion
-        // evidence, and every pre-existing aim path must stay untouched — the guard firing
-        // keyboardless was measured scrolling an open menu and failing rows that had left
-        // the tree.
-        guard app.keyboards.firstMatch.exists else { return true }
+    // swiftformat:disable docComments
+    // One edge of a system bar, or nil when there is none. An empty frame counts as none:
+    // a bar that exists with no extent occludes nothing, and clipping the band to it would
+    // collapse the band and strand every target. Reads stay behind `exists` for the reason
+    // the keyboard read does — resolving .frame on a non-existent firstMatch fails the test
+    // hard rather than returning a degenerate rect.
+    // swiftformat:enable docComments
+    private func barEdge(_ query: XCUIElementQuery, _ edge: KeyPath<CGRect, CGFloat>) -> CGFloat? {
+        let bar = query.firstMatch
+        guard bar.exists else { return nil }
+        let frame = bar.frame
+        guard !frame.isEmpty else { return nil }
+
+        return frame[keyPath: edge]
+    }
+
+    // swiftformat:disable docComments
+    // Does a system bar cover this point? Asked of the TARGET, never of the screen. Bars are
+    // permanent where a keyboard is transient, so "a bar exists" is not occlusion evidence
+    // the way "a keyboard is up" is — it is true for every target in every app that has one,
+    // including the ones nothing is covering.
+    // swiftformat:enable docComments
+    private func barsCover(_ point: CGPoint) -> Bool {
+        for query in [app.navigationBars, app.tabBars] {
+            let bar = query.firstMatch
+            if bar.exists, bar.frame.contains(point) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func isAimable(_ frame: CGRect, hittable: Bool) -> Bool {
+        let midpoint = CGPoint(x: frame.midX, y: frame.midY)
+        // Two kinds of occlusion evidence, and they are NOT symmetric.
+        //
+        // A raised keyboard is transient, so its mere presence is evidence and narrows the
+        // band for every target. Without one, every pre-existing aim path must stay
+        // untouched — the guard firing keyboardless was measured scrolling an open menu and
+        // failing rows that had left the tree.
+        //
+        // A navigation or tab bar is permanent, so its presence proves nothing: it is there
+        // for every target in an app that has one, including the ones it does not cover.
+        // Only a bar actually covering THIS target is evidence, which is why the question is
+        // asked of the midpoint rather than of the app. That keeps the keyboardless
+        // regression fixed: a menu row clear of the bars still reports aimable and no
+        // scroll is attempted.
+        //
+        // BOTH bars, not just the bottom one. Clipping only the tab bar was measured
+        // scrolling a covered target straight up into the navigation bar, where it was
+        // equally unreachable and the band called it aimable.
+        // A control that LIVES in a bar is not occluded by it — a toolbar item's midpoint is
+        // inside the navigation bar by construction, and no amount of scrolling will move it.
+        // Hittability separates the two, and only here: a bar-covered target reports false
+        // (measured), while a keyboard-covered one reports true (0.12.7's finding), so this
+        // signal is trustworthy for bars and useless for keyboards. Without the distinction a
+        // toolbar tap spends the full scroll budget dragging the content it sits above —
+        // measured at six futile strokes and 27s for one tap.
+        let barOcclusion = !hittable && barsCover(midpoint)
+        guard app.keyboards.firstMatch.exists || barOcclusion else { return true }
 
         let band = aimableBand()
 
-        return band.contains(CGPoint(x: frame.midX, y: frame.midY)) && frame.maxY <= band.maxY
+        return band.contains(midpoint) && frame.maxY <= band.maxY
     }
 
     // swiftformat:disable docComments
@@ -990,10 +1062,12 @@ private extension UITestingElement {
     // Scrolls the target into the aimable band, band membership as the arbiter, bounded.
     // frame() re-reads the target each attempt — the scroll is what moves it.
     // swiftformat:enable docComments
-    private func scrollIntoBand(of frame: () -> CGRect) {
+    private func scrollIntoBand(of probe: () -> (frame: CGRect, hittable: Bool)) {
         var attempts = 0
-        while attempts < Self.bandScrollAttempts, !isAimable(frame()) {
-            dragWithinBand(raisingTarget: frame().midY > aimableBand().midY)
+        while attempts < Self.bandScrollAttempts {
+            let current = probe()
+            guard !isAimable(current.frame, hittable: current.hittable) else { return }
+            dragWithinBand(raisingTarget: current.frame.midY > aimableBand().midY)
             attempts += 1
         }
     }

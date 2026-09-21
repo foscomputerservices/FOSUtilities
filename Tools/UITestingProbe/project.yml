@@ -25,13 +25,13 @@ targets:
   UITestingProbeUITests:
     type: bundle.ui-testing
     platform: iOS
-    # ScrollProbeShared.swift: presentView names the ViewModel type and ships an instance
+    # ProbeShared.swift: presentView names the ViewModel type and ships an instance
     # across, so the test bundle compiles the same ViewModel types the app registers.
     # Resources/probe.yml: ViewModelDisplayTestCase.setUp builds a YAML localization store
     # from this bundle and throws noResourcePaths when it holds no .yml at all.
     sources:
       - UITests
-      - App/ScrollProbeShared.swift
+      - App/ProbeShared.swift
       - path: UITests/Resources/probe.yml
         buildPhase: resources
     dependencies:
@@ -55,7 +55,14 @@ targets:
   UITestingProbeMacUITests:
     type: bundle.ui-testing
     platform: macOS
-    sources: [MacUITests]
+    # Same two additions the iOS bundle carries, and for the same reasons — without
+    # them no presentView()-based test can exist on macOS at all, which is why the
+    # registration suites had no Mac twin until now.
+    sources:
+      - MacUITests
+      - App/ProbeShared.swift
+      - path: UITests/Resources/probe.yml
+        buildPhase: resources
     settings:
       base:
         MACOSX_DEPLOYMENT_TARGET: "15.0"

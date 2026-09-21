@@ -1,4 +1,4 @@
-// ScrollProbeShared.swift
+// ProbeShared.swift
 //
 // Copyright 2024 FOS Computer Services, LLC
 //
@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Compiled into the app AND the UI-test bundle (project.yml lists it in both):
+// Compiled into the app AND both UI-test bundles (project.yml lists it in all three):
 // presentView names the ViewModel type and ships an instance across, so both
 // processes need the type.
 
