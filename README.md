@@ -4,6 +4,12 @@
 
 There are multiple libraries provided by the FOSUtilities package:  FOSFoundation, FOSMVVM, FOSTesting, FOSTestingUI, FOSMVVMVapor, FOSTestingVapor.
 
+## Toolchain
+
+**Xcode 26.3 or newer.** This is a *source* floor, separate from the runtime floors in `Package.swift` — the generated Localizable overloads are effectively a header, so they may only reference what the floor SDK declares. Some consumers cannot move past 26.3 without a newer macOS than their environment allows, which is why the floor is stated rather than left to drift.
+
+Raising it is a deliberate act with a CHANGELOG entry. The overload staleness gate checks the checked-in stamp against this floor on every CI run.
+
 ## Documentation
 
 For guides, articles, and API documentation see the 

@@ -60,7 +60,7 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **Why it was deferred:** regenerating at the floor needs an Xcode 26.3 installation, which the machine that raised this does not have.
 
-**What reopens it:** anyone with 26.3 regenerating and the gate's floor warning going quiet; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
+**What reopens it:** anyone with 26.3 regenerating, then lowering `verifiedSweepCeiling` in `scripts/localizable-overload-sweep.swift` to match — at which point the gate's floor warning goes quiet on its own; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
 
 ## A mid-flow operations read reportedly costs the next toolbar tap, unreproduced
 

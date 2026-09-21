@@ -1681,6 +1681,41 @@ struct InsertedSlot {
     let appleLabel: String
 }
 
+/// Attributes Apple carries on its own declarations that must NOT be mirrored
+/// onto ours.
+///
+/// A generated signature is Apple's declaration fragments concatenated verbatim,
+/// which is what makes the generic signatures match exactly — but it also carries
+/// through anything new Apple puts in the leading-attribute position.
+///
+/// `@export(implementation)` arrived with the 27 SDKs. It emits the body into the
+/// client, so the body may only reference public or `@usableFromInline` symbols —
+/// and EVERY generated body calls the internal
+/// `Localizable.defaultedLocalizedString(defaultValue:)`. Mirrored, it fails to
+/// compile across ten of the generated files.
+///
+/// The attribute is Apple's ABI and library-evolution concern. This package ships
+/// source, not a stable ABI, so the right move is to drop it rather than widen an
+/// internal helper to satisfy an attribute we never wanted. Add to this list when a
+/// future SDK introduces another export/ABI attribute in the same position.
+let unmirroredAttributes = [
+    "@export(implementation)"
+]
+
+/// Removes every ``unmirroredAttributes`` entry from an assembled signature.
+///
+/// Applied to the finished string rather than the fragment list on purpose: the
+/// transform stage addresses fragments by index (`replaceAt` / `insertAfter`), so
+/// dropping one would shift every position after it.
+func strippingUnmirroredAttributes(_ signature: String) -> String {
+    var result = signature
+    for attribute in unmirroredAttributes {
+        result = result.replacingOccurrences(of: attribute + " ", with: "")
+        result = result.replacingOccurrences(of: attribute, with: "")
+    }
+    return result.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 /// One generated overload, ready for Emit (Stage 6). `signatureText` is the
 /// member declaration without a body; `bodyText` is its single delegating
 /// expression. `api` rides along so Emit can render availability annotations.
@@ -1887,6 +1922,7 @@ func transform(_ classified: ClassifiedAPI) -> TransformVerdict {
         }
     }
     signature = signature.trimmingCharacters(in: .whitespacesAndNewlines)
+    signature = strippingUnmirroredAttributes(signature)
 
     let arguments = forwardedValues.joined(separator: ", ")
     let bodyText = switch api.kind {
@@ -2857,57 +2893,165 @@ func resolveSDKVersionsForCheck() throws -> [(platform: String, version: String?
     return result
 }
 
-/// Compares the runner's five SDK versions against the checked-in stamp and
-/// prints a per-platform verdict. Returns true only when EVERY platform matches
-/// (the byte-compare should run); false when any platform's SDK version differs
-/// from the stamp, its SDK is missing, or the stamp names a platform that is no
-/// longer required (informational SKIP — regeneration is a deliberate act). A
-/// byte-compare on a different SDK would flag all files as
-/// drifted, indistinguishable from real drift, so the mismatch path never fails
-/// the gate. Runs BEFORE the expensive extraction so a skip is cheap.
-func stampComparisonPasses(packageRoot: URL) throws -> Bool {
+/// The oldest Xcode FOSUtilities promises to compile on, as an SDK version.
+///
+/// Not a runtime floor — `Package.swift`'s platform list covers that. This is the
+/// SOURCE floor: the generated overload tree is effectively a header, so it may only
+/// reference what this SDK declares. A tree generated above the floor can fail to compile
+/// for a consumer sitting on it, which is not a version-skew annoyance but a hard build
+/// break (measured: SDK 27's `@ContentBuilder`, absent below 27, on an API years old).
+///
+/// Stated because some consumers cannot move: Xcode past this point requires a newer macOS
+/// than their toolchain allows. Raising it is a deliberate act with a CHANGELOG line, never
+/// a side effect of whichever machine last ran this script.
+let declaredSDKFloor = SemVer(26, 3)
+
+/// The highest SDK the checked-in tree is permitted to have been swept at.
+///
+/// Two numbers, because there are two different facts. ``declaredSDKFloor`` is what the
+/// package PROMISES; this is what the tree has actually been VERIFIED at. Ideally they are
+/// equal — sweep at the floor and the promise is self-evidently kept.
+///
+/// They are not equal today: the tree is stamped 26.5 and the floor is 26.3, so the promise
+/// rests on inspection rather than on a sweep (the tree's highest availability floor is iOS
+/// 26.0 and its attribute vocabulary is entirely pre-26, so nothing in it should need 26.5).
+/// That gap is recorded in `docs/deferrals.md` and closes when someone with a floor
+/// toolchain regenerates and lowers this constant to match.
+///
+/// Keeping the two separate is what lets the gate be useful in the meantime: a stamp above
+/// THIS number is new drift and fails, while the known 26.5/26.3 gap warns. Collapsing them
+/// would either block every build on a condition nobody can currently fix, or wave through
+/// the next sweep-above-the-floor exactly as the original skip did.
+let verifiedSweepCeiling = SemVer(26, 5)
+
+/// The outcome of comparing the checked-in stamp against the declared floor, and against
+/// the runner's five SDK versions.
+enum StampVerdict {
+    /// The stamp matches the runner exactly — run the byte-compare.
+    case matches
+    /// Nothing fatal. The stamp and the runner differ, but not in a way anyone here can or
+    /// should act on; whatever is worth saying has already been printed as a warning.
+    case reported
+    /// The tree was swept above ``verifiedSweepCeiling``: new drift, and it may reference
+    /// symbols a consumer on the floor toolchain does not have. No runner's opinion changes
+    /// that.
+    case sweptAboveTheCeiling(platforms: [String])
+}
+
+/// Compares the checked-in stamp against the declared SDK floor and the runner's SDKs, and
+/// prints a per-platform verdict.
+///
+/// The invariant that matters is **stamp ≤ floor**, not stamp ≤ runner.
+///
+/// What made the measured disaster a disaster was not that a runner trailed the stamp — it
+/// was that the tree had been swept ABOVE the floor the package promises, which strands
+/// every consumer sitting on that floor no matter what the machine building it happens to
+/// have. A sweep against SDK 27 emitted `@ContentBuilder`, absent below 27, onto an API
+/// years old. Keying the failure to the runner instead would fail for a contributor working
+/// AT the floor — the very person the floor exists to protect — telling them their tree is
+/// unbuildable when their build is fine, and handing them nothing they can act on.
+///
+/// So the runner comparison is informational in both directions:
+///
+/// - runner AHEAD of the stamp — the tree misses what newer SDKs added. Real, but a
+///   maintainer's deliberate act, and hosted runner images bump Xcode on their own
+///   schedule; failing here would red every unrelated PR the day they do.
+/// - runner BEHIND the stamp — worth saying, because a compile failure in the generated
+///   tree would be explained by it, but not worth failing: the floor check above already
+///   covers the case where that is actually our fault.
+///
+/// Runs BEFORE the expensive extraction, so every non-matching path stays cheap.
+func stampComparison(packageRoot: URL) throws -> StampVerdict {
     let stamp = try readCheckedInSDKStamp(packageRoot: packageRoot)
     let resolved = try resolveSDKVersionsForCheck()
 
     print("== Staleness gate: SDK stamp comparison ==")
+    print("  declared floor: \(declaredSDKFloor.display)")
     var allMatch = true
+    var runnerAhead: [String] = []
+    var runnerBehind: [String] = []
+    var aboveFloor: [String] = []
+    var aboveCeiling: [String] = []
     // Verdict column is 13 wide: the longest label ("NOT IN STAMP", 12) must
     // still leave a separator space before the detail text.
     for (platform, runnerVersion) in resolved {
         let stampVersion = stamp[platform]
+        if let stamped = stampVersion, parseSDKVersion(stamped) > verifiedSweepCeiling {
+            aboveCeiling.append(platform)
+        } else if let stamped = stampVersion, parseSDKVersion(stamped) > declaredSDKFloor {
+            aboveFloor.append(platform)
+        }
         let verdict: String
         switch (stampVersion, runnerVersion) {
         case (let stamped?, let runner?) where stamped == runner:
             verdict = pad("MATCH", 13) + "stamp \(stamped)   runner \(runner)"
         case (let stamped?, let runner?):
-            verdict = pad("MISMATCH", 13) + "stamp \(stamped)   runner \(runner)"
+            let runnerIsNewer = parseSDKVersion(stamped) < parseSDKVersion(runner)
+            verdict = pad(runnerIsNewer ? "AHEAD" : "BEHIND", 13) +
+                "stamp \(stamped)   runner \(runner)"
             allMatch = false
+            if runnerIsNewer {
+                runnerAhead.append(platform)
+            } else {
+                runnerBehind.append(platform)
+            }
         case (let stamped?, nil):
             verdict = pad("SDK MISSING", 13) + "stamp \(stamped)   runner (not installed)"
             allMatch = false
+            runnerBehind.append(platform)
         case (nil, let runner?):
             verdict = pad("NOT IN STAMP", 13) + "runner \(runner)"
             allMatch = false
+            runnerAhead.append(platform)
         case (nil, nil):
             verdict = "SDK MISSING + NOT IN STAMP"
             allMatch = false
+            runnerBehind.append(platform)
         }
         print("  \(pad(platform, 12))\(verdict)")
     }
     // Reverse direction: a stamp entry for a platform this script no longer
-    // requires means the stamp predates a requiredSDKs change — the checked-in
-    // output cannot be trusted against today's platform set, so skip.
+    // requires means the stamp predates a requiredSDKs change.
     for platform in stamp.keys.sorted() where !requiredSDKs.contains(platform) {
         print("  \(pad(platform, 12))\(pad("STAMP ONLY", 13))stamp \(stamp[platform]!)   " +
             "(not a required SDK anymore)")
         allMatch = false
+        runnerAhead.append(platform)
+    }
+
+    if !runnerAhead.isEmpty {
+        print("")
+        print("::warning::Generated Localizable overloads trail the runner's SDKs on " +
+            "\(runnerAhead.sorted().joined(separator: ", ")). Regenerate — at or below the " +
+            "declared floor — to cover what they added.")
+    }
+    if !runnerBehind.isEmpty {
+        print("")
+        print("  The stamp is above this toolchain on " +
+            "\(runnerBehind.sorted().joined(separator: ", ")).")
+        print("  Not a failure: working below the stamp is supported as long as the stamp is")
+        print("  at or below the declared floor. If a build fails inside")
+        print("  Sources/FOSMVVM/SwiftUI Support/Generated/, this is the first thing to check.")
+    }
+
+    if !aboveFloor.isEmpty {
+        print("")
+        print("::warning::The checked-in tree is swept at a higher SDK than the declared "
+            + "floor (\(declaredSDKFloor.display)) on: "
+            + "\(aboveFloor.sorted().joined(separator: ", "))")
+        print("  Believed-compatible, not verified. Closes when a floor toolchain")
+        print("  regenerates and lowers verifiedSweepCeiling to match. See docs/deferrals.md.")
+    }
+
+    if !aboveCeiling.isEmpty {
+        return .sweptAboveTheCeiling(platforms: aboveCeiling.sorted())
     }
     if allMatch {
-        print("  all five SDKs match the checked-in stamp — running byte-compare")
-    } else {
-        print("\n  staleness gate SKIPPED (SDK mismatch — regeneration is a deliberate act)")
+        print("\n  stamp matches the runner — running byte-compare")
+        return .matches
     }
-    return allMatch
+
+    return .reported
 }
 
 /// Left-justifies `text` to `width` columns for the verdict listing.
@@ -2962,7 +3106,7 @@ struct DriftReport {
 /// and returns the drift list (empty when clean). Missing, differing, and
 /// stale (checked in but no longer generated) files all count. The SDK/Xcode
 /// stamp lines participate in the byte-compare, but only after
-/// `stampComparisonPasses` has confirmed every runner SDK matches the stamp —
+/// `stampComparison` has confirmed every runner SDK matches the stamp —
 /// so a stamp-line difference here can only be real drift, never an SDK skew.
 func driftReport(_ output: EmitOutput, packageRoot: URL) -> DriftReport {
     var expected: [String: String] = [:]
@@ -3063,15 +3207,44 @@ func main(options: Options) throws -> Int32 {
     // informational SKIP (exit 0) — regeneration is a deliberate act, and a
     // byte-compare on a different SDK would flag every file as drifted,
     // indistinguishable from real drift. Only when all five match does the full
-    // pipeline + byte-compare run.
+    // pipeline + byte-compare run. A runner whose SDKs are NEWER than the stamp
+    // needs no byte-compare to be judged: the checked-in output is stale by
+    // definition, and the gate fails there rather than skipping.
     if options.check {
         guard FileManager.default.fileExists(
             atPath: packageRoot.appendingPathComponent("Package.swift").path
         ) else {
             throw Failure("run from the package root — no Package.swift in \(packageRoot.path)")
         }
-        guard try stampComparisonPasses(packageRoot: packageRoot) else {
+        switch try stampComparison(packageRoot: packageRoot) {
+        case .matches:
+            break
+        case .reported:
             return 0
+        case .sweptAboveTheCeiling(let platforms):
+            let list = platforms.joined(separator: ", ")
+            // ::error:: renders as an annotation on the GitHub Actions run, so the cause
+            // lands on the PR rather than staying buried in a job log.
+            print("::error::Generated Localizable overloads were swept above the verified "
+                + "ceiling (\(verifiedSweepCeiling.display)) on: \(list)")
+            print("")
+            print("== Staleness gate: FAILED ==")
+            print("")
+            print("  Swept above the verified ceiling on:")
+            print("      \(list)")
+            print("")
+            print("  The generated tree is effectively a header: it may only reference what")
+            print("  the floor SDK declares. Swept above it, it can fail to compile for a")
+            print("  consumer sitting on the floor — a build break, not a coverage gap, and")
+            print("  one no runner's SDK version can talk you out of. Measured once already:")
+            print("  a sweep against SDK 27 emitted @ContentBuilder, absent below 27, onto an")
+            print("  API years old.")
+            print("")
+            print("  Regenerate on a toolchain whose SDKs are at or below the floor:")
+            print("")
+            print("      swift scripts/localizable-overload-sweep.swift")
+            print("")
+            return 1
         }
     }
 
