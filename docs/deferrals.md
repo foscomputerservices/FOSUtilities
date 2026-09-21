@@ -16,20 +16,63 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **What reopens it:** a user hitting the wall and saying so; or the Plan 5 prebuilt-binary/Homebrew item being scheduled for its own reasons.
 
-## The inert coordinate tap on iOS 27 (the "Fact A ghost")
+## The macOS chrome is unmeasured for bar occlusion
 
-**Recorded:** 2026-08-20, at David's direction, during the aimable-band occlusion round.
+**Recorded:** 2026-09-21, when the bar-occlusion fix shipped.
 
-**What it is:** a synthesized coordinate tap dispatches at the demonstrably correct screen point and the control's action never fires — no press visual, no state change, intermittently but with a strong failure bias. First reported by a consumer as a deterministic launch-time failure under a scrollable-registered card on 0.12.5 (their "Fact A": `tap()` de-routed to its coordinate path and the dispatch was inert); their later probe on 0.12.6 could not reproduce it and changed two variables at once, so it was classified absorbed-not-explained.
+**What it is:** `tap()` now clips its aimable band at a navigation bar and a tab bar, so a target covered by either is scrolled clear before it is aimed at. The guard is `#if os(iOS)`. macOS has its own chrome and its own pointer verb (`tap()` dispatches `click()` there since the 2026-08-22 re-measure), and none of it has been measured for the same defect.
 
-**Why it is real:** our own probe now shows the same shape on **unmodified main** (0.12.6, `45763f3`): `UITestingElementTests.testExistenceFollowsTheViewHierarchy` and `testWaitsForAViewToLeaveTheHierarchy` fail intermittently on the iPhone 17 Pro simulator (iOS 27 beta) — the trace shows the `[0.50, 0.50]` element-anchored coordinate fallback synthesizing the event and the derived banner never appearing. Bisect-proven not caused by the occlusion branch. The iPhone 17e leg runs the same suite 55/55 green, so the failure is geometry-correlated (the affected control sits low in the main probe tree, near the iOS 27 tab bar — the neighborhood of the documented 2026-08-18 "never crowd the main probe tree" lesson).
+**Why it matters:** the iOS defect was silent — a gesture dispatched into a bar returns successfully and the action never runs, so the failure surfaces later somewhere unrelated. If macOS has the same shape, it is failing the same way and nobody has looked.
 
-**Current standing:** documented as the iOS gate baseline for the 17 Pro leg (precedent: the macOS 27 beta 3-failure baseline). The occlusion round's premise re-check narrows exposure — a premise-gone tap on a *hittable* element now takes the native path — but the non-hittable coordinate fallback remains the dispatch of last resort and is the path that goes inert.
+**Why it was deferred:** the fix shipped with its gap stated rather than assumed closed. Measuring macOS is a fixture round of its own: the window toolbar is a different ancestor from an in-view bar (see the platform difference `UnparentedCardMacTests` now pins), and whether content can sit under it at all needs measuring before a guard is written for it.
 
-**Reopen triggers:**
-- Any consumer-side recurrence after 0.12.7 (the consumer's acceptance runs are the live watch).
-- The baseline spreading to more tests, another device geometry, or a non-beta iOS.
-- Starting the investigation arc proper: first steps would be pinning whether hit-testing routes the dispatch into the tab bar / an overlay at that geometry, and whether an app-anchored aimed dispatch at the same point behaves differently (the traces suggest it may).
+**What reopens it:** a macOS consumer reporting a tap that dispatches and does nothing; or the next probe-fixture round, where a Mac card whose control sits under the window toolbar would settle it in one run.
+
+## No per-capability, per-platform certification register
+
+**Recorded:** 2026-09-21, when the UI-testing probe joined CI.
+
+**What it is:** what is proven on which platform lives in three places that nothing reconciles — CHANGELOG prose, the probe README's hand-measured Xcode × OS matrix, and `@available` floors in code. The shipped pattern has been "iOS-certified; other platforms fail loudly until a fixture pins them", stated per feature and never collected.
+
+**Why it matters:** nothing fails when the three drift. The macOS test bundle could not host `presentView()` at all until 2026-09-21, which meant a whole class of test was structurally impossible on that platform and the gap was invisible for months.
+
+**Why it was deferred:** the probe joining CI was the urgent half. A register is bookkeeping that is only worth building once there is something to enforce it with.
+
+**What reopens it:** another gap of the same kind surfacing; or a platform's coverage being claimed in a release note that turns out not to exist.
+
+## visionOS is unmeasured for the UI-testing contract
+
+**Recorded:** 2026-09-21, when the UI-testing probe joined CI.
+
+**What it is:** the probe README records "Not measured: visionOS (the run was lost when the VM hosting it was recycled)". The tab-bar identifier matrix covers iOS, macOS and tvOS; visionOS keeps Apple's declared floors rather than a measured one.
+
+**Why it was deferred:** it needs a visionOS host to run against, and the CI legs build for visionOS without testing on it.
+
+**What reopens it:** a visionOS consumer; or the certification register above, which would make the hole explicit rather than a README aside.
+
+## The generated overloads have never been swept at the declared SDK floor
+
+**Recorded:** 2026-09-21, when the floor was declared.
+
+**What it is:** the README now promises Xcode 26.3. The checked-in overload tree is stamped 26.5 — swept above the floor, on whichever machine last ran the generator. The staleness gate warns about exactly this, and the warning is honest: the floor is *believed*-compatible, not verified. The evidence for believing it is that the tree's highest availability floor is iOS 26.0 / macOS 15.0 and its attribute vocabulary is entirely pre-26 (`@ViewBuilder`, `@escaping`, `@Sendable`, `@TableRowBuilder`), so nothing in it should need 26.5.
+
+**Why it matters:** a regeneration above the floor is how an unbuildable tree reaches a consumer. Measured once already: a sweep against SDK 27 emitted `@ContentBuilder`, absent below 27, onto an API years old, and it failed to compile on CI's own toolchain.
+
+**Why it was deferred:** regenerating at the floor needs an Xcode 26.3 installation, which the machine that raised this does not have.
+
+**What reopens it:** anyone with 26.3 regenerating and the gate's floor warning going quiet; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
+
+## A mid-flow operations read reportedly costs the next toolbar tap, unreproduced
+
+**Recorded:** 2026-09-21, during the designed-parents arc.
+
+**What it is:** a consumer reported, deterministically and with single-variable isolation, that reading `viewModelOperations()` *between* interactions leaves the hosted tree in a state where a subsequent toolbar tap cannot find its target. It reproduced only with a scrolling parent declared; a near-twin test without the mid-flow read passed under both registrations.
+
+**Why it matters:** if real, it is a constraint no documentation states, and the failure presents as a missing identifier — the same misleading shape this whole arc was about.
+
+**Why it was deferred:** not reproduced in-house. `CombinedParentsTests.testAToolbarTapSurvivesAMidFlowOperationsRead` holds the reported sequence — two toolbar items, an editable field, filler enough that the scroll parent is load-bearing, both parents declared — and passes. Four conditions of the original remain uncaptured: the report was measured on 0.12.7 (below everything since), against a hand-added `NavigationStack` rather than the harness's, on a formatter-backed numeric field, using `setText(_:expecting:)` rather than `type`.
+
+**What reopens it:** the reporting app re-running its isolated pair on a current pin. That is the one measurement that settles it, and it belongs to them because theirs is the ground that cannot be recreated here.
 
 ## The accessory-margin occlusion geometry is not deterministically pinned
 
