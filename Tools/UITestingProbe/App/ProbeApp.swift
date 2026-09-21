@@ -308,6 +308,7 @@ struct ProbeView: View {
                 // Existence across a conditional branch
                 Button(action: { showsBanner.toggle() }) { Text(verbatim: "toggle") }
                     .uiTestingIdentifier("bannerToggle")
+                    .background(FrameReporter(identifier: "bannerToggleFrame"))
                 if showsBanner {
                     Text(verbatim: "saved").uiTestingIdentifier("savedBanner")
                 }
@@ -332,6 +333,35 @@ struct ProbeView: View {
                 Text(verbatim: "far below").uiTestingIdentifier("offscreenLabel")
             }
             .padding()
+        }
+    }
+}
+
+/// Publishes where a view actually renders, so a diagnostic can compare it against the
+/// frame XCUITest reports for the same view.
+///
+/// Attached as a `.background`, which takes the host's size without participating in
+/// layout, so measuring cannot move what is being measured. The value is a bare
+/// "x,y,width,height" in global coordinates: a diagnostic channel read by one test, never
+/// a contract — nothing outside the probe should parse it.
+///
+/// The 1x1 footprint with hit-testing refused and accessibility pinned visible is the
+/// shape TestDataTransporter arrived at the hard way: a zero-sized element inside a
+/// ScrollView is culled from the accessibility tree and its value becomes unreadable.
+struct FrameReporter: View {
+    let identifier: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame = proxy.frame(in: .global)
+            Text(verbatim: "")
+                .accessibilityIdentifier(identifier)
+                .accessibilityValue(
+                    "\(frame.minX),\(frame.minY),\(frame.width),\(frame.height)"
+                )
+                .frame(width: 1, height: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(false)
         }
     }
 }
@@ -556,6 +586,12 @@ struct UITestingProbeApp: App {
                     RowResolutionProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "formFocus" {
                     FormFocusProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "untabbed" {
+                    // The pre-iOS-27 tree on any runtime. The root below is chosen by OS
+                    // version, so a behaviour that only appears on a new OS is confounded
+                    // with the change of root; this scene holds the root fixed so the two
+                    // can be measured apart.
+                    ToolbarProbe()
                 } else if #available(iOS 27.0, macOS 15.0, visionOS 2.0, *) {
                     ProbeTabs()
                 } else {
