@@ -28,8 +28,13 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
 // displace anything — and the bar-occlusion guard is `#if os(iOS)`, so nothing in this file
 // exercises it.
 //
-// What must hold on both platforms is the contract itself: a declared navigation parent
-// renders the toolbar and a tap on it reaches the ViewModel; declaring nothing does not.
+// What must hold on both platforms is the positive half: a declared navigation parent
+// renders the toolbar and a tap on it reaches the ViewModel.
+//
+// The negative half does NOT carry across, and that is measured rather than assumed. On
+// macOS the WINDOW renders `.toolbar` whether or not a navigation parent was declared, so
+// the iOS claim "declare nothing and the item is absent" is an iOS claim, not a universal
+// one. `UnparentedCardMacTests` pins what this platform actually does.
 
 @MainActor final class NavigationRegistrationMacTests: ViewModelViewTestCase<ToolbarCardViewModel, ToolbarCardOps>, @unchecked Sendable {
     override func setUp() async throws {
@@ -104,14 +109,31 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
         XCTAssertTrue(app.uiTestingElement("unparentedCardBody").waitForExistence())
     }
 
-    /// Declared nothing, so there is no ancestor to render the toolbar into.
-    func testToolbarItemIsAbsentWithoutTheDeclaration() throws {
+    /// On macOS an undeclared toolbar item is STILL rendered — by the window.
+    ///
+    /// This is where the platforms genuinely differ, and the iOS twin's negative case fails
+    /// here because of it. Measured: with `testHost()` presenting the view bare and no
+    /// `NavigationStack` anywhere, `app.toolbars.count` is 1 and the item sits inside that
+    /// toolbar's rect — the window's own top strip. iOS has no window toolbar, so there a
+    /// navigation ancestor is the only thing that can render `.toolbar` at all.
+    ///
+    /// Pinned rather than deleted: the difference is the contract on this platform, and an
+    /// undocumented platform difference is the thing that costs the next reader a day.
+    func testAnUndeclaredToolbarItemIsRenderedByTheWindow() throws {
         let app = try presentView()
         XCTAssertTrue(app.uiTestingElement("unparentedCardBody").waitForExistence())
 
-        XCTAssertFalse(
-            app.uiTestingElement("unparentedCardSaveButton").exists,
-            "the toolbar item resolved without a declared navigation parent — the default changed"
+        let item = app.uiTestingElement("unparentedCardSaveButton")
+        XCTAssertTrue(
+            item.waitForExistence(),
+            "macOS stopped rendering an undeclared toolbar item — the platform difference changed"
+        )
+
+        let toolbar = app.toolbars.firstMatch
+        XCTAssertTrue(toolbar.exists, "no window toolbar, yet the item resolved")
+        XCTAssertTrue(
+            toolbar.frame.contains(CGPoint(x: item.xcuiElement.frame.midX, y: item.xcuiElement.frame.midY)),
+            "the item resolved but not from the window toolbar — the mechanism changed"
         )
     }
 }

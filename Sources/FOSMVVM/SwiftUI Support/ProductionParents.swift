@@ -43,8 +43,14 @@ public struct ProductionParents: OptionSet, Sendable {
     /// Declare it for any view that contributes to its navigation ancestor: `.toolbar`
     /// items, `navigationTitle`, `.searchable`, or `NavigationLink` destinations. All of
     /// those are preferences the *ancestor* renders, so presented with no navigation parent
-    /// the view still appears — but everything it declared for the bar is absent from the
-    /// accessibility tree, and a test looking for a toolbar button finds nothing.
+    /// the view still appears while everything it declared for the bar goes missing — a test
+    /// looking for a toolbar button is told the identifier is wrong, which is the one thing
+    /// it is not.
+    ///
+    /// > Note: On macOS the window supplies a toolbar of its own, so `.toolbar` items render
+    /// > there whether or not this is declared. `navigationTitle` and `NavigationLink`
+    /// > destinations still need it. Declare it on the view's design, not on the platform
+    /// > you happen to be testing — the declaration is a fact about the view.
     public static let navigation = ProductionParents(rawValue: 1 << 0)
 
     /// The view is designed to live inside a scrolling parent
