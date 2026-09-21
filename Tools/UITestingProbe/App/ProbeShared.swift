@@ -80,6 +80,18 @@ struct UnparentedCardViewModel {
 /// reached the ViewModel rather than merely that the gesture returned.
 struct ToolbarCardOps: ViewModelOperations {
     var saveCount = 0
+    var resetCount = 0
+}
+
+@ViewModel
+struct ScrollingToolbarCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
 }
 
 /// Operations recorded by the occlusion card and shipped across the process boundary by

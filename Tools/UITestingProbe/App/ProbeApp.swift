@@ -552,7 +552,11 @@ struct OcclusionCardView: ViewModelView {
 /// that differs between them is the declaration's doing and nothing else.
 struct ToolbarCardContent: View {
     let idPrefix: String
+    /// Taller than any window, so a declared scrolling parent has something to do and the
+    /// field sits where a raised keyboard would reach it.
+    var tall = false
     @State private var ops = ToolbarCardOps()
+    @State private var amount = ""
     @State private var repaintToggle = false
 
     var body: some View {
@@ -560,12 +564,18 @@ struct ToolbarCardContent: View {
             Text(verbatim: "toolbar-card")
                 .uiTestingIdentifier("\(idPrefix)Body")
 
-            TextField("amount", text: .constant(""))
+            if tall {
+                Spacer().frame(height: 900)
+            }
+
+            TextField("amount", text: $amount)
                 .textFieldStyle(.roundedBorder)
                 .uiTestingIdentifier("\(idPrefix)Field")
         }
         .padding()
         .navigationTitle(Text(verbatim: "card-title"))
+        // TWO items, because the reported failure needs a second tap after an operations
+        // read: tap one, read, edit the field, tap the other.
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: {
@@ -573,6 +583,14 @@ struct ToolbarCardContent: View {
                     repaintToggle.toggle()
                 }) { Text(verbatim: "save") }
                     .uiTestingIdentifier("\(idPrefix)SaveButton")
+            }
+
+            ToolbarItem(placement: .automatic) {
+                Button(action: {
+                    ops.resetCount += 1
+                    repaintToggle.toggle()
+                }) { Text(verbatim: "reset") }
+                    .uiTestingIdentifier("\(idPrefix)ResetButton")
             }
         }
         .testDataTransporter(viewModelOps: ops, repaintToggle: $repaintToggle)
@@ -597,6 +615,17 @@ struct UnparentedCardView: ViewModelView {
 
     var body: some View {
         ToolbarCardContent(idPrefix: "unparentedCard")
+    }
+}
+
+/// Registered `designedFor: [.navigation, .scrolling]`: both parents, nested
+/// navigation-outermost. Tall enough that the scrolling parent is load-bearing and the
+/// field sits under a raised keyboard.
+struct ScrollingToolbarCardView: ViewModelView {
+    let viewModel: ScrollingToolbarCardViewModel
+
+    var body: some View {
+        ToolbarCardContent(idPrefix: "scrollingToolbarCard", tall: true)
     }
 }
 
@@ -625,6 +654,10 @@ struct UITestingProbeApp: App {
         MVVMEnvironment.registerTestView(OcclusionCardView.self, designedFor: .scrolling)
         MVVMEnvironment.registerTestView(ToolbarCardView.self, designedFor: .navigation)
         MVVMEnvironment.registerTestView(UnparentedCardView.self)
+        MVVMEnvironment.registerTestView(
+            ScrollingToolbarCardView.self,
+            designedFor: [.navigation, .scrolling]
+        )
         #endif
     }
 
