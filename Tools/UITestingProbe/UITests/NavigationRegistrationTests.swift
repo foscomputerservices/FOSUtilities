@@ -66,6 +66,29 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
         XCTAssertTrue(app.staticTexts["card-title"].waitForExistence(timeout: 10))
     }
 
+    /// The hypothesis stays silent when a navigation parent IS declared.
+    ///
+    /// This is the half that justifies asking about the target instead of appending a
+    /// standing sentence to every not-found failure: a message that always says the same
+    /// thing teaches nothing, and dilutes the two hypotheses that are usually right.
+    func testTheMessageStaysSilentWhenTheParentIsDeclared() throws {
+        let app = try presentView()
+        XCTAssertTrue(app.uiTestingElement("toolbarCardBody").waitForExistence())
+
+        var captured = ""
+        XCTExpectFailure("a deliberate miss against a declared-parent host") { issue in
+            captured = issue.compactDescription
+            return true
+        }
+        app.uiTestingElement("noSuchTagAnywhere").tap()
+
+        XCTAssertFalse(captured.isEmpty, "no failure was captured")
+        XCTAssertFalse(
+            captured.contains("declares no navigation parent"),
+            "the hypothesis fired for a view that has a navigation parent: \(captured)"
+        )
+    }
+
     /// The transporter survives the navigation parent.
     ///
     /// `registerTestView(_:scrollable:)` shipped in 0.12.4 and needed a fix in 0.12.7
@@ -107,6 +130,72 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
         XCTAssertFalse(
             app.uiTestingElement("unparentedCardSaveButton").exists,
             "the toolbar item resolved without a declared navigation parent — the default changed"
+        )
+    }
+}
+
+/// The not-found message names the missing navigation parent — and only when that is
+/// actually the cause.
+///
+/// The failure this whole arc started from was legible but misleading: a toolbar item
+/// dropped for want of an ancestor reports as a wrong identifier, sending the reader to
+/// audit the one thing that is correct. The harness knows the registration; the test
+/// process does not, so `testHost()` publishes it and the message reads it back.
+///
+/// These tests assert on the message text rather than on a failure, so they never need a
+/// deliberately failing assertion to observe it.
+@MainActor final class NotFoundHypothesisTests: ViewModelDisplayTestCase<UnparentedCardViewModel>, @unchecked Sendable {
+    override func setUp() async throws {
+        try await super.setUp(
+            bundle: Bundle(for: NotFoundHypothesisTests.self),
+            appBundleIdentifier: probeBundleId
+        )
+        continueAfterFailure = true
+    }
+
+    /// The host publishes what it resolved, so the test process can tell a missing parent
+    /// from a missing identifier.
+    func testTheHostPublishesTheResolvedParents() throws {
+        let app = try presentView()
+        XCTAssertTrue(app.uiTestingElement("unparentedCardBody").waitForExistence())
+
+        let facts = app.descendants(matching: .any)
+            .matching(identifier: "__testing_host_facts__")
+            .firstMatch
+
+        XCTAssertTrue(facts.waitForExistence(timeout: 10), "the host published nothing")
+        // This view declares no parents, so the published set is empty.
+        XCTAssertEqual(facts.value as? String, "0")
+    }
+
+    /// The hypothesis reaches the message, and names the missing parent.
+    ///
+    /// The only way to observe a failure message is to cause one, so the lookup below is
+    /// deliberately for a tag that does not exist and the failure is caught rather than
+    /// reported. `XCTExpectFailure` returns the issues it swallowed, which is what makes the
+    /// text assertable instead of merely visible in a log.
+    ///
+    /// Worth the oddity: this arc began because a message was accurate and misleading at the
+    /// same time — "check the identifier" when the identifier was the one correct thing. An
+    /// unpinned message drifts back to that silently.
+    func testTheMessageNamesTheMissingNavigationParent() throws {
+        let app = try presentView()
+        XCTAssertTrue(app.uiTestingElement("unparentedCardBody").waitForExistence())
+
+        var captured = ""
+        XCTExpectFailure("a deliberate miss, to read the message it produces") { issue in
+            captured = issue.compactDescription
+            return true
+        }
+        app.uiTestingElement("unparentedCardSaveButton").tap()
+
+        XCTAssertTrue(
+            captured.contains("declares no navigation parent"),
+            "the message did not name the missing parent: \(captured)"
+        )
+        XCTAssertTrue(
+            captured.contains(".toolbar"),
+            "the message did not say what a missing parent costs: \(captured)"
         )
     }
 }

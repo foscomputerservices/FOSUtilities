@@ -136,7 +136,9 @@ private extension ProcessInfo {
         return str.data(using: .utf8)
     }
 
-    @MainActor func view(registeredTypes: [String: MVVMEnvironment.TestViewRegistration]) -> AnyView? {
+    @MainActor func view(
+        registeredTypes: [String: MVVMEnvironment.TestViewRegistration]
+    ) -> (view: AnyView, designedFor: ProductionParents)? {
         guard
             let vmTypeStr = viewModelType,
             let viewModelData
@@ -163,10 +165,11 @@ private extension ProcessInfo {
             let scrolled = registration.designedFor.contains(.scrolling)
                 ? AnyView(ScrollView(.vertical) { view })
                 : view
-
-            return registration.designedFor.contains(.navigation)
+            let presented = registration.designedFor.contains(.navigation)
                 ? AnyView(NavigationStack { scrolled })
                 : scrolled
+
+            return (presented, registration.designedFor)
         } catch {
             TestHostDiagnostic.reportAndStop(
                 TestHostDiagnostic.undecodableViewModel(
@@ -189,20 +192,43 @@ extension ViewModelView {
 @MainActor
 private struct TestingView<BaseView: View>: View {
     private let testView: AnyView
+    private let resolvedParents: ProductionParents?
 
     var body: some View {
-        testView
-            #if os(iOS)
-            .onAppear {
-                DismissKeyboardWindow.install()
+        ZStack {
+            testView
+
+            // Fronting the host, 1x1, hit-testing refused: TestDataTransporter's shape, for
+            // TestDataTransporter's reason — a zero-sized element behind opaque content
+            // inside a ScrollView is culled from the accessibility tree and its value
+            // becomes unreadable, which is exactly when a diagnostic is most needed.
+            if let resolvedParents {
+                Text(verbatim: "")
+                    .accessibilityIdentifier(TestHostFacts.accessibilityIdentifier)
+                    .accessibilityValue(TestHostFacts.value(for: resolvedParents))
+                    .frame(width: 1, height: 1)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(false)
             }
-            #endif
+        }
+        #if os(iOS)
+        .onAppear {
+            DismissKeyboardWindow.install()
+        }
+        #endif
     }
 
     init(baseView: BaseView) {
-        self.testView = ProcessInfo.processInfo.view(
+        let resolved = ProcessInfo.processInfo.view(
             registeredTypes: MVVMEnvironment.registeredTestTypes
-        ) ?? AnyView(baseView)
+        )
+        self.testView = resolved?.view ?? AnyView(baseView)
+        // Only a view the harness actually resolved has declared parents to report. The
+        // application's own tree — the probe's case, and any app launched without the
+        // __FOS_ environment — plants nothing, so an absent element means "not under test"
+        // rather than "declared nothing", and the reader is told nothing rather than
+        // something wrong.
+        self.resolvedParents = resolved?.designedFor
     }
 }
 

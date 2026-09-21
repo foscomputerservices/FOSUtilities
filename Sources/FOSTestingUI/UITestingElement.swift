@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #if os(iOS) || os(tvOS) || os(watchOS) || os(macOS) || os(visionOS)
+import FOSMVVM
 import XCTest
 
 public extension XCUIApplication {
@@ -531,7 +532,7 @@ public extension XCUIApplication {
     public func tap(file: StaticString = #filePath, line: UInt = #line) {
         // Waiting through the public wait keeps one default governing both it and the call site.
         guard waitForExistence() else {
-            XCTFail(Self.notFound(identifier), file: file, line: line)
+            XCTFail(notFound(identifier), file: file, line: line)
             return
         }
 
@@ -647,8 +648,36 @@ public extension XCUIApplication {
         return !bounds.isEmpty && app.frame.contains(CGPoint(x: bounds.midX, y: bounds.midY))
     }
 
-    private static func notFound(_ identifier: String) -> String {
-        "No view is tagged \"\(identifier)\". Check the identifier given to uiTestingIdentifier(_:), and that the view is on screen."
+    /// An instance method, not static, because the third hypothesis needs `app`: it is true
+    /// only for a view the harness resolved WITHOUT a navigation parent, and asking the
+    /// application is the only way to know that from this process.
+    private func notFound(_ identifier: String) -> String {
+        let base = "No view is tagged \"\(identifier)\". Check the identifier given to " +
+            "uiTestingIdentifier(_:), and that the view is on screen."
+
+        guard let declared = hostedViewParents(), !declared.contains(.navigation) else {
+            return base
+        }
+
+        return base + "\n\nThe view under test declares no navigation parent " +
+            "(registerTestView(_:designedFor:) omitted .navigation). A control declared in " +
+            ".toolbar, or a navigationTitle, is absent from the accessibility tree without " +
+            "one — present nowhere, rather than off screen."
+    }
+
+    // swiftformat:disable docComments
+    // The parents testHost() resolved for the view under test, or nil when nothing is under
+    // test — a probe driving the application's own tree plants no facts. Absent means "not
+    // hosted", never "declared nothing", so the hypothesis above stays silent rather than
+    // guessing at a screen the harness never presented.
+    // swiftformat:enable docComments
+    private func hostedViewParents() -> ProductionParents? {
+        let facts = app.descendants(matching: .any)
+            .matching(identifier: TestHostFacts.accessibilityIdentifier)
+            .firstMatch
+        guard facts.exists, let value = facts.value as? String else { return nil }
+
+        return TestHostFacts.parents(from: value)
     }
 
     /// Types text into the tagged view, appending at the caret
@@ -668,7 +697,7 @@ public extension XCUIApplication {
     /// - Parameter text: The text to type.
     public func type(_ text: String, file: StaticString = #filePath, line: UInt = #line) {
         guard waitForExistence() else {
-            XCTFail(Self.notFound(identifier), file: file, line: line)
+            XCTFail(notFound(identifier), file: file, line: line)
             return
         }
 
@@ -726,7 +755,7 @@ public extension XCUIApplication {
     ) {
         #if os(iOS)
         guard waitForExistence() else {
-            XCTFail(Self.notFound(identifier), file: file, line: line)
+            XCTFail(notFound(identifier), file: file, line: line)
             return
         }
 
@@ -1250,7 +1279,7 @@ public extension UITestingElement {
     ) {
         #if os(iOS)
         guard waitForExistence() else {
-            XCTFail(Self.notFound(identifier), file: file, line: line)
+            XCTFail(notFound(identifier), file: file, line: line)
             return
         }
 

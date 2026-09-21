@@ -107,4 +107,22 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
             "the second toolbar tap did not land after a mid-flow operations read"
         )
     }
+
+    /// The declared-parent case publishes both bits, which is what keeps the hypothesis
+    /// silent for a view that has a navigation parent: absent evidence, not a standing guess.
+    func testTheHostPublishesBothDeclaredParents() throws {
+        let app = try presentView()
+        XCTAssertTrue(app.uiTestingElement("scrollingToolbarCardBody").waitForExistence())
+
+        let facts = app.descendants(matching: .any)
+            .matching(identifier: "__testing_host_facts__")
+            .firstMatch
+
+        XCTAssertTrue(facts.waitForExistence(timeout: 10))
+        // .navigation | .scrolling — the contract is that both bits round-trip, not the
+        // number, which is why the assertion reads it back through the option set.
+        let published = ProductionParents(rawValue: Int(facts.value as? String ?? "") ?? 0)
+        XCTAssertTrue(published.contains(.navigation))
+        XCTAssertTrue(published.contains(.scrolling))
+    }
 }
