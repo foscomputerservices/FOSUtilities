@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`tap()` reaches a target covered by a navigation or tab bar** (FOSTestingUI) — content
+  scrolls *under* both bars, and every signal XCUITest offers says such a target is fine:
+  it exists, its frame is stable, and that frame is measured correctly. Only `isHittable`
+  dissents, and the coordinate fallback ignored it and dispatched into the bar — the
+  gesture succeeded, the action never ran, and the failure surfaced later as a missing
+  element somewhere unrelated. The aimable band now clips at both bars as well as the
+  keyboard, and the three cases stay distinct: a keyboard is transient, so its presence
+  narrows the band for every target; a bar is permanent, so it counts only when it covers
+  *this* target's midpoint; and a control that *lives* in a bar — a toolbar item, a
+  `.searchable` field — is not occluded at all, which hittability separates (a bar-covered
+  target reports `false`, a keyboard-covered one reports `true`). Without that last
+  distinction a toolbar tap spent the whole scroll budget dragging the content beneath it:
+  six futile strokes, 27s for one tap. Clipping only the tab bar is not enough either, and
+  was tried first — it scrolled the covered target up into the navigation bar, equally
+  unreachable. Pinned in `Tools/UITestingProbe` by a target under the bar whose tap is
+  asserted on its effect, not on the gesture returning, and verified to fail without the
+  fix. iOS-certified; the macOS chrome and pointer verb are unmeasured.
+
+### Changed
+
+- **The UI-testing probe runs in CI on iOS and macOS** — the probe pins the FOSTestingUI
+  capability contract (`waitForStableFrame`, `selectPickerItem`, `setText`, `setToggle`,
+  `dismissKeyboard`, and the `registerTestView` presentation declarations), none of which a
+  unit test can reach, because the accessibility tree exists only while an application runs
+  under XCUITest. Until now it ran only by hand, so those fixtures were pins that could not
+  fail; it found two real defects on its first automated outing. The macOS test bundle
+  gained the shared probe ViewModels and the YAML resource it needs to host
+  `presentView()` at all, which is why the registration suites had no Mac twin before.
+
 ## [0.16.1] - 2026-09-03
 
 ### Fixed
