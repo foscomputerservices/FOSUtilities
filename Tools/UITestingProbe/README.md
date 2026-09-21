@@ -12,13 +12,23 @@ running under XCUITest. This harness is where that contract is checked.
 ```bash
 cd Tools/UITestingProbe
 xcodegen generate
+
+# iOS
 xcodebuild test -project UITestingProbe.xcodeproj -scheme UITestingProbe \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+
+# macOS
+xcodebuild test -project UITestingProbe.xcodeproj -scheme UITestingProbeMac \
+  -destination 'platform=macOS,arch=arm64'
 ```
 
 `xcodegen` (`brew install xcodegen`) generates the project from `project.yml`; the generated
 `.xcodeproj` is not committed. The package is consumed from `../..`, so the harness always
 tests the working tree.
+
+Address a simulator by `id=<UDID>` when several installed runtimes carry the same device
+name: `name:` alone resolves to nothing, and `xcodebuild` then reports it as though no iOS
+simulator existed at all.
 
 ## What it covers
 
@@ -64,6 +74,12 @@ tests the working tree.
   reads back), while the unregistered twin presents bare — the field exists but is not
   visible (`ScrollRegistrationTests` / `BarePresentationTests`, riding the full
   `ViewModelDisplayTestCase.presentView` transport with shared probe ViewModels)
+- the same registration transport runs on **macOS** (`ScrollRegistrationMacTests` /
+  `BarePresentationMacTests`). The Mac test bundle compiles the shared probe ViewModels and
+  carries the YAML resource; without both, no `presentView()`-based test can exist on the
+  platform at all, which is why these suites had no Mac twin before. Reach is proven the way
+  macOS works — click the buried field and type into it — rather than through the software
+  keyboard the iOS twin waits for
 - `dismissKeyboard()` still works while keyboard avoidance has shifted the whole content up —
   the `KeyboardShiftProbe` scene (`PROBE_SCENE=keyboardShift`: tall filler, `.numberPad` field
   near the bottom, no scroll container) forces the shift that displaced 0.12.2's overlay
