@@ -317,3 +317,97 @@ jobs:
             -scheme "${{ matrix.app }}" -destination "${{ matrix.xcode_destination }}" \
             -retry-tests-on-failure -test-iterations 2 \
             ${{ matrix.signing }} test
+
+  # The UI-testing probe, which until now ran only by hand on a developer's
+  # machine. It is where the FOSTestingUI capability contract is pinned —
+  # waitForStableFrame, selectPickerItem, setText, setToggle, dismissKeyboard,
+  # and the registerTestView presentation declarations — none of which a unit
+  # test can reach, because the accessibility tree only exists while an app runs
+  # under XCUITest. A fixture nothing automated runs is a pin that cannot fail.
+  #
+  # Distinct from bootstrap_generated_app_tests above: that job proves the
+  # scaffolder emits an app whose generated tests pass, exercising the core
+  # transport. This one proves the capabilities themselves, against the working
+  # tree (the probe consumes the package from ../.., not from a release).
+  probe_ui_tests:
+    name: Probe UI tests (${{ matrix.leg }})
+    runs-on: macos-latest
+    strategy:
+      # Each platform's verdict is independent evidence, as in the build matrix.
+      fail-fast: false
+      matrix:
+        leg: [iOS, macOS]
+        include:
+          - leg: iOS
+            scheme: UITestingProbe
+            signing: "CODE_SIGNING_ALLOWED=NO"
+          - leg: macOS
+            scheme: UITestingProbeMac
+            destination: "platform=macOS,arch=arm64,name=My Mac"
+            signing: "CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= CODE_SIGN_STYLE=Manual"
+
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Skip macro fingerprint validation
+        run: defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+
+      # The .xcodeproj is not committed; project.yml is the source of truth.
+      - name: Generate the probe project
+        working-directory: Tools/UITestingProbe
+        run: xcodegen generate
+
+      # Resolve the simulator to a UDID rather than naming it on the destination.
+      # A `name:` that matches devices under several installed runtimes resolves
+      # to nothing, and xcodebuild then reports the failure as though no iOS
+      # simulator existed at all — the destination list it prints omits them
+      # entirely, which sends the reader hunting for a missing SDK.
+      #
+      # Pre-booting is the same cold-simulator mitigation documented on
+      # bootstrap_generated_app_tests: a CI simulator is always a fresh boot and
+      # a first install, which is the measured first-interaction flake condition.
+      - name: Pre-boot iOS simulator
+        if: matrix.leg == 'iOS'
+        run: |
+          UDID=$(xcrun simctl list devices available | grep "iPhone 17 (" | head -1 | grep -oE "[0-9A-F-]{36}")
+          if [ -z "$UDID" ]; then
+            echo "::error::No iPhone 17 simulator available on this runner"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "PROBE_DESTINATION=id=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b || true
+
+      - name: Select macOS destination
+        if: matrix.leg == 'macOS'
+        run: echo "PROBE_DESTINATION=${{ matrix.destination }}" >> "$GITHUB_ENV"
+
+      # Derived data goes under RUNNER_TEMP, never inside the checkout: the repo
+      # does not ignore a derived-data directory, so a path here would surface as
+      # untracked output.
+      #
+      # `set -o pipefail` is load-bearing even with no pipe today — the legs above
+      # were false-green for failing xcodebuilds until it was added, and this
+      # command grows a formatter sooner or later.
+      #
+      # -retry-tests-on-failure with 2 iterations keeps a one-off settling flake
+      # visible in the log without redding the PR; a real failure still fails both.
+      - name: Run ${{ matrix.leg }} probe tests
+        working-directory: Tools/UITestingProbe
+        run: |
+          set -o pipefail
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$RUNNER_TEMP/probe-deps" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$RUNNER_TEMP/probe-dd" \
+            -project UITestingProbe.xcodeproj -scheme "${{ matrix.scheme }}" \
+            -destination "$PROBE_DESTINATION" \
+            -retry-tests-on-failure -test-iterations 2 \
+            ${{ matrix.signing }} test
