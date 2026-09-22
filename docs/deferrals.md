@@ -112,7 +112,11 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **But landscape DOES reproduce the geometry that motivated this entry.** The defect that reached us from a consumer's device matrix was an aimable band shorter than one scroll fling, not a toolbar. Measured band heights (bar bottom to keyboard top, less the 44pt accessory clearance): **109pt** on iPhone 17 Pro / 27.0 landscape, **154pt** on iPhone 17 Pro Max / 26.5 landscape, against **307pt** on the Duo's cover screen in portrait — where a single fling moves the content ~345pt. Landscape on hosted hardware is two to three times deeper into that regime than the screen that produced the field report, and it needs no new runtime, image or device.
 
-**What reopens it:** a decision on whether a landscape leg against the band geometry is worth its runtime — the measurements above say it is available today; or a runner image carrying the iOS 27.1 runtime, which is the only way the toolbar half of this is ever covered here.
+**Ruled, and half of it is now shipped.** A separate landscape LEG was rejected on cost: `Probe UI tests (iOS)` is the longest job in the run at 37 minutes, and duplicating it would re-run eighteen suites of which about six touch the aim/scroll path. The coverage was taken as two rotating tests inside the existing leg instead — `LandscapeBandTests`, about 45 seconds — which reaches the band geometry on stock hardware every PR.
+
+**What stays open:** the toolbar relocation, which no geometry reaches below iOS 27.1.
+
+**What reopens it:** a runner image carrying the iOS 27.1 runtime.
 
 ## `CredentialRejectedError` has no user-presentable localized message
 
