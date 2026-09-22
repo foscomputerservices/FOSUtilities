@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.2] - 2026-09-22
+
+### Fixed
+
+- **The keyboard-dismissal control lands below the system's chrome, not on top of it**
+  (FOSMVVM) — `testHost()` plants the control that `dismissKeyboard()` taps in its own
+  window, offset down by the status bar's height so a synthesized tap there cannot be read
+  as a status-bar gesture. That offset came from `scene.windows.first?.safeAreaInsets.top`,
+  which reports 0 on an iPhone Duo's cover screen while the status bar is 24pt tall — so
+  the control sat inside the strip, the tap was swallowed, and `dismissKeyboard()` failed
+  on that device with a message naming a first responder that refuses to resign. The offset
+  now comes from the widest top region the scene reserves, across every window and the
+  status-bar manager.
+
+  > Measured 2026-09-22: the control landed at y 0 on an iPhone Duo and y 62 on an iPhone
+  > 17 Pro, and only the Duo failed to put the keyboard down. It now lands at y 82 there.
+
+- **A missing toolbar item under a raised keyboard names the cause** (FOSTestingUI) — a
+  target absent from the tree reported only "No view is tagged …", which reads as a tagging
+  mistake. When a keyboard is up and the navigation bar is present holding nothing at all —
+  no items, no title — the failure now names what was measured behind that signature: on
+  iOS 27.1 a raised keyboard compresses the window, the toolbar's items move to a vertical
+  bar along the trailing edge, and an item whose label is text with no icon is dropped
+  rather than moved.
+
+### Changed
+
+- **Toolbar items in the UI-testing probe carry icons** — the probe's toolbar card used
+  text-only items, which on iOS 27.1 are dropped once a keyboard compresses the window, so
+  every toolbar-under-keyboard test there was measuring the platform's presentation rule
+  rather than the tag. The rule itself is now pinned deliberately and in isolation by
+  `VerticalToolbarTests` against the new `VerticalToolbarProbe` scene: an item with an icon
+  survives the relocation, a text-only item does not, and `axisBehavior(.horizontalOnly)`
+  does not bring it back. `toolbarVerticalBehavior(.disabled)` keeps the bar horizontal
+  instead, at the cost of the items that no longer fit collapsing into the system's
+  overflow menu — absent from the tree until "More" is tapped, and arriving there
+  UNTAGGED, so only a label match resolves them.
+
+  > An overflowed item and a dropped one both read as `exists == false` at a call site;
+  > only opening the menu tells them apart. Under the default behaviour there is no
+  > overflow control in the tree at all, which is what makes that case a real loss.
+
+  > The documentation says so where a reader meets it: FOSTesting's `ViewTesting` article,
+  > beside `designedFor:`, and the `fosmvvm-ui-tests-generator` skill.
+
 ## [0.17.1] - 2026-09-22
 
 ### Fixed
