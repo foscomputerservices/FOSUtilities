@@ -5,6 +5,64 @@ on:
   pull_request:
 
 jobs:
+  # Whether this pull request touches anything a build or a test could observe.
+  # A documentation-only push otherwise spends the full matrix — over an hour of
+  # runners — to prove that prose still compiles.
+  #
+  # An ALLOWLIST of ignorable paths, never a denylist of interesting ones: a file
+  # type nobody has thought about yet counts as code and runs everything. The cost
+  # of being wrong runs one way (a wasted hour) and not the other (a leg silently
+  # skipped for a real change).
+  #
+  # Heavy jobs are SKIPPED by a condition rather than the workflow being filtered
+  # out with `paths-ignore`. A filtered workflow reports nothing at all, which reads
+  # as untested and — the day anything here becomes a required status check — blocks
+  # the merge forever waiting for a check that will never arrive. A job skipped by a
+  # condition reports as skipped, which satisfies a required check and says plainly
+  # what happened.
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # workflow_dispatch carries no pull request, so there is no diff to take
+          # and the honest answer is to run everything.
+          if [ -z "${BASE:-}" ] || [ -z "${HEAD:-}" ]; then
+            echo "no pull request context; running the full matrix"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+          echo "changed files:"
+          echo "$changed"
+
+          # Any path that is not documentation makes this a code change.
+          #
+          # Tested for a non-empty result rather than with `grep -q`: BSD grep exits 1
+          # for `-qv` on input where plain `-v` prints matches and exits 0, so the
+          # `-q` form would answer correctly on the GNU grep this job runs and
+          # silently invert for anyone checking it on a Mac.
+          code_paths=$(printf '%s\n' "$changed" | grep -vE '(^docs/|\.md$)' || true)
+          if [ -n "$code_paths" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "documentation only; the build and test legs will be skipped"
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Its own job, not a step on run_tests: linting needs neither a toolchain
   # install nor a build, so it reports in under a minute instead of waiting
   # behind the matrix. Both tools are the ones CLAUDE.md documents; until now
@@ -38,6 +96,8 @@ jobs:
         run: swiftlint --strict
 
   run_tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Test Swift v${{ matrix.swift }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -70,6 +130,8 @@ jobs:
   # concurrently instead of after swift test — GitHub Actions only
   # parallelizes at the job level, not between steps in the same job.
   run_release_build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Build (Release) Swift v${{ matrix.swift }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -102,6 +164,8 @@ jobs:
   # WITHOUT pipefail — these legs were false-green for failing xcodebuilds
   # until it was added.
   run_xcodebuild_tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Build ${{ matrix.ios_platform }} (${{ matrix.configuration }}) via Xcodebuild 'latest-stable'
     runs-on: macos-latest
     strategy:
@@ -152,6 +216,8 @@ jobs:
   # (verified 2026-07-09: macos-latest ships all five SDKs, visionOS
   # included); it skips only when a runner's SDK versions trail the stamp.
   overload_sweep_staleness:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Generated overloads staleness gate
     runs-on: macos-latest
     steps:
@@ -181,6 +247,8 @@ jobs:
   #      least-proven leg (design §7): signing and simulator behavior on
   #      hosted runners may need iteration.
   bootstrap_fast_suite:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Scaffolder fast suite
     runs-on: macos-latest
     steps:
@@ -214,6 +282,8 @@ jobs:
             -only-testing:FOSMVVMBootstrapTests test
 
   bootstrap_skeletons:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Scaffolder walking skeletons
     runs-on: macos-latest
     steps:
@@ -244,6 +314,8 @@ jobs:
   # scaffolds its own app: a few minutes of build per leg buys running the
   # four legs side by side instead of one after another.
   bootstrap_generated_app_tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Generated UI tests (${{ matrix.app }}, ${{ matrix.destination }})
     runs-on: macos-latest
     strategy:
@@ -330,6 +402,8 @@ jobs:
   # transport. This one proves the capabilities themselves, against the working
   # tree (the probe consumes the package from ../.., not from a release).
   probe_ui_tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Probe UI tests (${{ matrix.leg }})
     runs-on: macos-latest
     strategy:
