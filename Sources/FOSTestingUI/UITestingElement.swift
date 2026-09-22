@@ -648,12 +648,20 @@ public extension XCUIApplication {
         return !bounds.isEmpty && app.frame.contains(CGPoint(x: bounds.midX, y: bounds.midY))
     }
 
-    /// An instance method, not static, because the third hypothesis needs `app`: it is true
-    /// only for a view the harness resolved WITHOUT a navigation parent, and asking the
-    /// application is the only way to know that from this process.
+    /// An instance method, not static, because the hypotheses need `app`: each is true only
+    /// of a particular state of the running application, and asking it is the only way to
+    /// know that from this process.
+    ///
+    /// The two hypotheses cannot both fire. A shed toolbar needs a navigation bar in the
+    /// tree, which means a navigation parent was declared; the missing-parent hypothesis
+    /// fires only when one was not.
     private func notFound(_ identifier: String) -> String {
         let base = "No view is tagged \"\(identifier)\". Check the identifier given to " +
             "uiTestingIdentifier(_:), and that the view is on screen."
+
+        if let shedToolbar = shedToolbarHypothesis(identifier) {
+            return base + "\n\n" + shedToolbar
+        }
 
         guard let declared = hostedViewParents(), !declared.contains(.navigation) else {
             return base
@@ -663,6 +671,41 @@ public extension XCUIApplication {
             "(registerTestView(_:designedFor:) omitted .navigation). A control declared in " +
             ".toolbar, or a navigationTitle, is absent from the accessibility tree without " +
             "one — present nowhere, rather than off screen."
+    }
+
+    // swiftformat:disable docComments
+    // An empty navigation bar under a raised keyboard, which is a signature rather than a
+    // guess: the bar is asked whether it still holds anything, and only an entirely empty one
+    // answers. Offered conditionally, because the missing target need not be a toolbar item -
+    // nothing here can tell what the identifier was meant to name. Measured on iPhone Duo / iOS 27.1, 2026-09-22 — a raised keyboard compresses
+    // the window, toolbar items move to a vertical bar along the trailing edge, and an item
+    // whose label is text with no icon does not make the move; it leaves the tree, and the
+    // navigationTitle leaves with it. The same tree on an iPhone 17 Pro keeps every item and
+    // merely shortens the bar, which is why this reaches a reader as a device-shaped surprise
+    // with no visible cause.
+    // swiftformat:enable docComments
+    private func shedToolbarHypothesis(_ identifier: String) -> String? {
+        #if os(iOS)
+        guard app.keyboards.firstMatch.exists else { return nil }
+
+        let bar = app.navigationBars.firstMatch
+        guard bar.exists, bar.buttons.count == 0, bar.staticTexts.count == 0 else { return nil }
+
+        return """
+        If "\(identifier)" is a toolbar item, its absence has a measured cause: a software \
+        keyboard is up and the navigation bar is in the tree holding nothing at all — no \
+        items, no title. On iOS 27.1 a raised keyboard compresses the window, the toolbar's \
+        items move to a vertical bar along the trailing edge, and an item whose label is text \
+        with no icon is dropped rather than moved. Give the item an icon — \
+        Label(_:systemImage:) or Image(systemName:) — and it survives the move; \
+        axisBehavior(.horizontalOnly) does not. toolbarVerticalBehavior(.disabled) keeps the \
+        bar horizontal instead, at the cost of items collapsing into the overflow menu, where \
+        a test has to tap "More" to reach them and the tag does not follow — only a label \
+        match resolves an overflowed item.
+        """
+        #else
+        return nil
+        #endif
     }
 
     // swiftformat:disable docComments
