@@ -62,15 +62,27 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **What reopens it:** anyone with 26.3 regenerating, then lowering `verifiedSweepCeiling` in `scripts/localizable-overload-sweep.swift` to match — at which point the gate's floor warning goes quiet on its own; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
 
-## The accessory-margin occlusion geometry is not deterministically pinned
+## Four probe tests fail on the iPhone Duo's cover screen
 
-**Recorded:** 2026-08-20, at David's direction, during the aimable-band occlusion round.
+**Recorded:** 2026-09-22, at David's direction, during the accessory-strip aim round.
 
-**What it is:** a field can sit just *above* the keyboard's reported top edge — measured 15pt clear in the field evidence — and still be unreachable, because the accessory/input-assistant bar occupies that strip. `setText` handles the case (the edit menu failing to rise triggers a re-scroll, and the band carries a 44pt clearance above the reported keyboard top), but the occlusion pin fixture (`Tools/UITestingProbe`, `OcclusionScrollTests`) never deterministically manufactures a field at that exact geometry. The other two occlusion geometries — behind the keyboard, beyond the viewport bottom — are forced by the fixture on both ruled device widths; this one is covered only by the consumer's device matrix plus the mechanism.
+**What it is:** running `Tools/UITestingProbe` against iPhone Duo / iOS 27.1 — a 466x678 cover screen — fails four tests that pass on iPhone 17 Pro: `CombinedParentsTests.testAToolbarTapSurvivesAMidFlowOperationsRead`, `CombinedParentsTests.testToolbarItemSurvivesARaisedKeyboard`, `KeyboardDismissalTests.testDismissesTheNumberPad`, and `KeyboardShiftDismissalTests.testDismissesWhileAvoidanceShiftsTheContent`. Two are a toolbar item under a raised keyboard; two are keyboard dismissal.
 
-**Why it was deferred:** placing a field at a fixed offset above the keyboard's top is device- and keyboard-height-dependent, so a deterministic fixture needs layout that measures the keyboard at runtime — more machinery than the round's scope. The failure mode is guarded by an arbiter, not by geometry, so the fix does not silently depend on the un-pinned case.
+**Why it matters:** the cover screen is short enough that one scroll fling covers the whole aimable band, which is the geometry that produced the field report this round answered. Whatever these four are, they are the same screen class telling us something.
 
-**What reopens it:** a regression report where the menu-rise re-scroll fails on a margin-occluded field; or the next probe-fixture round, where a runtime-measured margin field should join the composite card so all three geometries are forced in-house.
+**Why it was deferred:** measured identical on unmodified `main`, so they are not this round's doing, and four unrelated failures inside one change would bury it. The device is also not yet publicly released.
+
+**Also unsettled, same suite family:** `TabTaggingTests` fails intermittently at `waitForExistence` on a tab bar item — the late-arriving tab bar of #126. The failing METHOD moves between runs (`testTagsInsideATabHold` twice, `testStateOfATaggedTab` once), and both land on code that runs before anything the accessory-strip round changed. It was seen three times in four full runs of that round's tree and never in two full runs of `main`, which is too thin to call either way and is recorded here rather than dismissed. In isolation the class passed 25 of 25.
+
+**A named suspect, unverified:** the band treats every system bar as horizontal. `aimableBand()` clips the top at `app.navigationBars.firstMatch.maxY` and the bottom at `app.tabBars.firstMatch.minY`, which is the right reading of a bar that runs across the screen. On this device a navigation bar, toolbar actions and tabs can instead share a VERTICAL bar along the leading or trailing edge, where `maxY` is near the bottom of the window — `top` then jumps past `bottom`, the band collapses to no height, and every target reports unreachable. `barsCover(_:)` has the same blind spot from the other side: a vertical bar occludes a left or right strip, and a band that only clips top and bottom cannot say so.
+
+Every measurement behind this entry was taken on the COVER screen, where the bar was horizontal and full width (`{0, 24, 466, 58}`), so the vertical layout has never been exercised here at all; the inner display is the likely place to find it. Two of the four failures above are toolbar-under-keyboard tests, which is where a misjudged bar would bite first.
+
+**What that round should do:** measure the inner display; clip the band horizontally when a bar's frame is taller than it is wide; and decide what `axisBehavior(_:)`, `toolbarVerticalEdge`, `toolbarVerticalCompressionBehavior(_:)` and `toolbarVerticalBehavior(_:)` mean for a view registered with `designedFor: .navigation` — a harness-supplied parent that renders its bar on a different edge than production does is a fixture that proves the wrong thing.
+
+**Why more local runs were not bought:** they would sharpen the rate, not name the cause, and CI samples it on every run for nothing.
+
+**What reopens it:** the next PR, where they are the subject rather than a bystander; or a consumer reporting one of the four on a shipping device.
 
 ## `CredentialRejectedError` has no user-presentable localized message
 

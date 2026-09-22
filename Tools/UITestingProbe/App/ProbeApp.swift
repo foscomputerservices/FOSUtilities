@@ -645,6 +645,76 @@ struct BareCardView: ViewModelView {
     }
 }
 
+/// The narrow-window shape the 0.17.0 field round measured: one scroll stroke moves the
+/// content further than the whole aimable band is tall, so a field a few points below the
+/// band cannot be landed inside it — the raising stroke flings past the band's top, the
+/// lowering stroke comes back, and the pair alternate until the budget is spent.
+///
+/// The field starts below the raised keyboard, so keyboard avoidance must scroll it up;
+/// avoidance stops as soon as the field clears the keyboard's REPORTED top, which is still
+/// inside the accessory clearance the band demands. That is the small deficit — measured at
+/// 7.7pt on a 466x678 window — that no band-length stroke can close.
+struct FlingCardContent: View {
+    /// Enough that the field starts under a raised keyboard on every device, so keyboard
+    /// avoidance is what places it and the deficit below is measured from where avoidance
+    /// parks it rather than from a constant tuned to one screen.
+    private static let leadHeight: CGFloat = 520
+    /// Enough travel above the settled position that a raising stroke has somewhere to go:
+    /// the overshoot is the defect, and a content that clamps first would hide it.
+    private static let trailHeight: CGFloat = 330
+    /// Padding BELOW the field, and the whole point of the fixture. Keyboard avoidance
+    /// aligns the focused view's layout frame — padding included — with the safe area, so
+    /// padding here parks the field itself this far below the line, while the frame the
+    /// accessibility tree reports is the field's alone. That is the small deficit the field
+    /// round measured at 7.7pt; anything a band-length stroke flies past reproduces it, and
+    /// this sits clear of the knife edge at 0 where avoidance leaves an unpadded field.
+    private static let deficit: CGFloat = 25
+
+    @State private var reading = "26"
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(verbatim: "fling-top")
+                .uiTestingIdentifier("flingTop")
+
+            Spacer(minLength: Self.leadHeight)
+
+            TextField("reading", text: $reading)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 100)
+                // The numeric keyboard is what puts the field in the accessory strip: it
+                // carries no assistant bar, so avoidance parks the field closer to the
+                // keyboard's reported top than the 44pt clearance the band demands. iOS
+                // only — macOS has no software keyboard, and no band to sit outside of.
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                .uiTestingIdentifier("flingField")
+
+            Spacer(minLength: Self.trailHeight)
+
+            Text(verbatim: "fling-bottom")
+                .uiTestingIdentifier("flingBottom")
+        }
+        .padding()
+        // The navigation bar is load-bearing twice over: it clips the band's top, and it
+        // is what a stale overshot aim lands in. A NavigationStack with no title renders
+        // no bar at all, so the declared navigation parent alone does not produce one.
+        .navigationTitle(Text(verbatim: "fling-title"))
+    }
+}
+
+/// Registered `designedFor: [.navigation, .scrolling]`: the navigation bar clips the band's
+/// top (and is what a stale overshot aim lands in), the scrolling parent is what carries
+/// the content past the band.
+struct FlingCardView: ViewModelView {
+    let viewModel: FlingCardViewModel
+
+    var body: some View {
+        FlingCardContent()
+    }
+}
+
 @main
 struct UITestingProbeApp: App {
     init() {
@@ -656,6 +726,10 @@ struct UITestingProbeApp: App {
         MVVMEnvironment.registerTestView(UnparentedCardView.self)
         MVVMEnvironment.registerTestView(
             ScrollingToolbarCardView.self,
+            designedFor: [.navigation, .scrolling]
+        )
+        MVVMEnvironment.registerTestView(
+            FlingCardView.self,
             designedFor: [.navigation, .scrolling]
         )
         #endif
