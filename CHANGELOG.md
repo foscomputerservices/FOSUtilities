@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A field straddling the keyboard's accessory strip is aimed at, not scrolled after**
+  (FOSTestingUI) — `setText` treated a target as reachable only when its *whole* frame sat
+  inside the aimable band, so a field whose bottom edge fell in the 44pt accessory margin
+  was declared occluded even though most of it stood in clear air. Measured on the report
+  that prompted this: a field at y 374.7-396.7 against a band bottom of 389 overlapped the
+  band by 14.3pt and was under the finger the entire time. It now aims at the centre of the
+  target's intersection with the band, and scrolls only when the intersection is empty.
+
+  > A scroll stroke moves the content by its release velocity, not its length — measured at
+  > 500px/s on a 466x678 window, strokes of 41, 80, 120 and 187pt moved the content 300,
+  > 293, 302 and 345pt. On a window whose band is shorter than one fling there is no stroke
+  > that lands a target a few points outside it, which is why the aim moved rather than the
+  > stroke.
+
+- **The scroll loop re-reads the target before the caller aims** (FOSTestingUI) —
+  `scrollIntoBand` returned without a final probe when it ran out of attempts, leaving the
+  caller aiming at a frame one stroke stale. Measured consequence: three double-taps into
+  the navigation bar, which resigned the field's first responder, dropped the keyboard, and
+  produced a failure whose message named the edit menu rather than the aim.
+
+- **A selection aim that falls inside a system bar is withheld** (FOSTestingUI) — the
+  double-tap sweep aimed wherever the target's frame said, including into a navigation or
+  tab bar, where the bar takes the touch and dismisses the keyboard. Such aims are now
+  skipped, and the run says how many were withheld.
+
+- **The band scroll runs before the native tap, not after** (FOSTestingUI) — a native tap
+  on an already-focused field disarms every scroll stroke that follows it. Measured on a
+  466x678 window from an identical resting frame: without the tap a 41pt stroke moved the
+  content 31pt; with it, 41pt and 120pt strokes both moved nothing, six times running.
+
+- **The scroll loop stops when a stroke moves nothing** (FOSTestingUI) — a toolbar item
+  cannot be scrolled out of the bar it is part of, so every attempt after the first is
+  spent for nothing; measured in the probe on a 402x874 window at all six strokes and ~27s
+  per tap, whenever a keyboard happened to be raised. The loop now asks whether the last
+  stroke moved the target and stops when it did not.
+
+  > Asked of movement rather than of what the target is. Telling a bar-resident control
+  > apart from one merely hidden behind a bar would mean trusting hittability in a
+  > direction only one case has ever been measured in, and a control wrongly judged
+  > bar-resident would have its scroll skipped and its tap dispatched into the bar.
+
+### Added
+
+- **A non-failing warning when a target cannot be brought into the aimable band**
+  (FOSTestingUI) — recorded as a test activity, so it prints in the `xcodebuild` log and
+  lands in the `.xcresult` activity tree without failing the run. It names the target's
+  resting frame and the band it was measured against.
+
+- **`FlingCardView`** (`Tools/UITestingProbe`) — a fixture that forces the accessory-margin
+  geometry in-house: registered `designedFor: [.navigation, .scrolling]`, its field parked
+  by SwiftUI's own keyboard avoidance so that it lands inside the 44pt clearance rather than
+  at a constant tuned to one screen. On a 466x678 cover screen the unpatched harness spent
+  every scroll attempt and 67-73s on this field, against 13s for a field the band already
+  held.
+
 ## [0.17.0] - 2026-09-21
 
 ### Added
