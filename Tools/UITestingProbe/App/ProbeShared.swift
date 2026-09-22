@@ -102,3 +102,14 @@ struct OcclusionCardOps: ViewModelOperations {
     var setCount = 0
     var lastAmount = ""
 }
+
+@ViewModel
+struct FlingCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
+}
