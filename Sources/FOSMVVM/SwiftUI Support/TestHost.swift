@@ -273,6 +273,21 @@ private enum DismissKeyboardWindow {
         window?.isHidden = true
     }
 
+    /// How much of the top of the screen the system has spoken for. One window's
+    /// safeAreaInsets is not the answer: on the iPhone Duo's cover screen the scene's FIRST
+    /// window reports a top inset of 0 while the status bar is 24pt tall, which put the
+    /// control inside the status-bar strip, where a synthesized tap is taken as a status-bar
+    /// gesture and never reaches the button. Measured 2026-09-22: the control landed at y 0
+    /// on the Duo and y 62 on an iPhone 17 Pro, and dismissKeyboard() failed on the Duo only.
+    /// Asking every window and the status-bar manager, and taking the largest, puts the
+    /// control below everything the scene reserves rather than below one window's idea of it.
+    private static func topReservedInset(in scene: UIWindowScene) -> CGFloat {
+        let statusBar = scene.statusBarManager?.statusBarFrame.height ?? 0
+        let insets = scene.windows.map(\.safeAreaInsets.top).max() ?? 0
+
+        return max(statusBar, insets)
+    }
+
     private static func makeWindow() -> UIWindow? {
         guard let scene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
@@ -282,9 +297,10 @@ private enum DismissKeyboardWindow {
         }
 
         let window = UIWindow(windowScene: scene)
-        // Below the status-bar region, so a synthesized tap cannot be read as a status-bar
-        // gesture; the top of the screen is the one place a keyboard can never reach.
-        let topInset = scene.windows.first?.safeAreaInsets.top ?? 0
+        // Below every region the scene reserves at the top, so a synthesized tap cannot be
+        // read as a status-bar gesture; the top of the screen is the one place a keyboard can
+        // never reach.
+        let topInset = Self.topReservedInset(in: scene)
         window.frame = CGRect(x: 0, y: topInset, width: 24, height: 24)
         window.windowLevel = .alert + 1
 
