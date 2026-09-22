@@ -682,7 +682,13 @@ struct FlingCardContent: View {
             TextField("reading", text: $reading)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 100)
+                // The numeric keyboard is what puts the field in the accessory strip: it
+                // carries no assistant bar, so avoidance parks the field closer to the
+                // keyboard's reported top than the 44pt clearance the band demands. iOS
+                // only — macOS has no software keyboard, and no band to sit outside of.
+                #if os(iOS)
                 .keyboardType(.decimalPad)
+                #endif
                 .uiTestingIdentifier("flingField")
 
             Spacer(minLength: Self.trailHeight)
