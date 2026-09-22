@@ -4,6 +4,23 @@ on:
   workflow_dispatch:
   pull_request:
 
+# The macOS toolchain is PINNED, not tracked: `runs-on: macos-26` with
+# `xcode-version: "26.6"` on every leg that needs Xcode.
+#
+# `macos-latest` + `latest-stable` stacked two moving targets. The image pool's
+# ceilings differ by three minor versions (macos-15 tops out at Xcode 26.3,
+# macos-26 at 26.6) and their defaults by ten (16.4 against 26.6), so the day
+# GitHub re-points `macos-latest` the whole toolchain moves under us — on
+# whichever pull request happens to be next, with nothing in its diff to explain
+# it. That matters here beyond the usual: the SDK version is an INPUT to the
+# generated Localizable overloads, and their staleness gate reads it.
+#
+# Bumping is a deliberate one-line pull request, red or green on its own. Keep
+# both literals in step; the SDKs follow the Xcode, not the image.
+#
+# The one exception is sdk27_preview_build, which runs the preview image on
+# purpose and explains itself where it is declared.
+
 jobs:
   # Whether this pull request touches anything a build or a test could observe.
   # A documentation-only push otherwise spends the full matrix — over an hour of
@@ -70,12 +87,12 @@ jobs:
   # without their license header.
   lint:
     name: Format and lint
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
       # `brew install` leaves a preinstalled older formula alone, and the
-      # macos-latest image pool has carried two SwiftFormat versions at once;
+      # runner image pool has carried two SwiftFormat versions at once;
       # `brew upgrade` makes latest mean latest on every runner.
       - name: Install linters
         run: |
@@ -166,8 +183,8 @@ jobs:
   run_xcodebuild_tests:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    name: Build ${{ matrix.ios_platform }} (${{ matrix.configuration }}) via Xcodebuild 'latest-stable'
-    runs-on: macos-latest
+    name: Build ${{ matrix.ios_platform }} (${{ matrix.configuration }}) via Xcodebuild
+    runs-on: macos-26
     strategy:
       matrix:
         ios_platform: ["macOS", "iOS", "watchOS", "tvOS", "visionOS"]
@@ -179,7 +196,7 @@ jobs:
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.6"
 
       - uses: actions/checkout@v2
 
@@ -206,6 +223,74 @@ jobs:
             -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
         if: matrix.ios_platform == 'macOS'
 
+  # Early warning that the framework still compiles against the NEXT major SDK,
+  # before a consumer on that Xcode finds out for us.
+  #
+  # Runs on the `xcode-27` PREVIEW image: macOS 27.0, Xcode 27.0 (27A266a, the
+  # Release Candidate) as the image's only and default Xcode, with 27.0 SDKs
+  # across every Apple platform. No setup-xcode step — there is nothing to
+  # select, and pinning a version the image does not carry is how this leg would
+  # fail for a reason that has nothing to do with the code.
+  #
+  # continue-on-error: this is evidence, not a gate. A preview image can be
+  # rebuilt, withdrawn or re-pointed without notice, and an SDK the project has
+  # not adopted must never block a merge. Promote it to required only once the
+  # SDK it builds against is one we ship for.
+  #
+  # NOT the whole matrix, and deliberately NOT overload_sweep_staleness: that
+  # gate compares the runner's SDK versions against the stamp checked into
+  # SweepCoverage.md, and a runner whose SDKs are NEWER fails by construction
+  # (scripts/localizable-overload-sweep.swift — "the checked-in output is stale
+  # by definition, and the gate fails there rather than skipping"). On an SDK-27
+  # runner it would be red on every run with nothing wrong.
+  #
+  # Nor the UI-testing probe: this image carries iOS 27.0 simulators only —
+  # iPhone 17/17e/18 Pro/18 Pro Max/Air — and every geometry the probe was
+  # written for is already covered on the pinned legs.
+  sdk27_preview_build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    name: Build ${{ matrix.ios_platform }} against SDK 27 (preview)
+    runs-on: xcode-27
+    continue-on-error: true
+    strategy:
+      matrix:
+        ios_platform: ["macOS", "iOS"]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record the toolchain this leg actually got
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      # Same schemes and flags as the pinned build matrix, for the same reasons:
+      # the Vapor targets are macOS/Linux-only, so a device platform builds the
+      # FOSMVVM scheme and macOS builds the full package scheme.
+      - name: Run ${{ matrix.ios_platform }} build
+        run: |
+          set -o pipefail
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
+            "$PWD/.derivedData" -scheme FOSMVVM -configuration Debug \
+            -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
+        if: matrix.ios_platform != 'macOS'
+
+      - name: Run macOS build
+        run: |
+          set -o pipefail
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$PWD/.derivedData" \
+            -scheme FOSUtilities-Package -configuration Debug \
+            -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
+        if: matrix.ios_platform == 'macOS'
+
   # Fail if the checked-in generated Localizable overloads are stale relative to
   # the SDKs. --check is stamp-aware: it compares the runner's SDK versions
   # against the stamp in SweepCoverage.md and only byte-compares when all five
@@ -219,11 +304,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     name: Generated overloads staleness gate
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.6"
 
       - uses: actions/checkout@v2
 
@@ -250,11 +335,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     name: Scaffolder fast suite
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.6"
 
       - uses: actions/checkout@v4
 
@@ -285,11 +370,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     name: Scaffolder walking skeletons
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.6"
 
       - uses: actions/checkout@v4
 
@@ -317,7 +402,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     name: Generated UI tests (${{ matrix.app }}, ${{ matrix.destination }})
-    runs-on: macos-latest
+    runs-on: macos-26
     strategy:
       fail-fast: false
       matrix:
@@ -339,7 +424,7 @@ jobs:
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.6"
 
       - uses: actions/checkout@v4
 
@@ -405,7 +490,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     name: Probe UI tests (${{ matrix.leg }})
-    runs-on: macos-latest
+    runs-on: macos-26
     strategy:
       # Each platform's verdict is independent evidence, as in the build matrix.
       fail-fast: false
@@ -423,7 +508,7 @@ jobs:
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.6"
 
       - uses: actions/checkout@v4
 

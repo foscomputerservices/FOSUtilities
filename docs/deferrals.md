@@ -106,9 +106,11 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **Why it matters:** twice now a defect here was found by a consuming app's device matrix before our own probe saw it. The fixtures added since close those geometries; they do not close the gap, which is that consumers test on hardware we do not. Until a short-screen leg runs here, the next such defect arrives the same way: as someone else's failing test, days after it shipped.
 
-**Why it was deferred:** the runner image has to carry the runtime, and iOS 27.1 today ships only with the iPhone Duo device type — no other device can be created against it, so the leg cannot be given a conventional destination.
+**Why it was deferred:** no hosted runner image carries a short-screen destination. Checked 2026-09-22: `macos-26` (what `macos-latest` points to) ships iOS 26.2 / 26.4 / 26.5 with iPhone 16e, 17, 17 Pro, 17 Pro Max, 17e and Air; the `xcode-27` preview image ships Xcode 27.0 (27A266a) with iOS 27.0 and iPhone 17, 17e, 18 Pro, 18 Pro Max and Air. Every one of those is a full-size phone. The iPhone Duo needs the iOS 27.1 runtime — its device profile sets `minRuntimeVersion 27.1`, and `simctl create` refuses every other device type against that runtime — and 27.1 is on no image at all.
 
-**What reopens it:** a runner image carrying a runtime with a short-screen destination.
+**An idea not yet measured:** what the Duo supplies is vertical compression, and an iPhone 17 in landscape is 402pt tall — shorter than the Duo's 678. If a runtime already on a hosted image relocates the toolbar under that geometry, the leg can exist without the Duo. One probe run would settle it.
+
+**What reopens it:** a runner image carrying a short-screen destination; or the landscape measurement above coming back positive.
 
 ## `CredentialRejectedError` has no user-presentable localized message
 
