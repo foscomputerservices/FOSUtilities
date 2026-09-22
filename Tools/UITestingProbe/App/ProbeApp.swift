@@ -785,10 +785,23 @@ struct VerticalToolbarProbe: View {
                     .uiTestingIdentifier("vtIconItem")
                 }
 
-                // #if as well as #available: `.horizontalOnly` is iOS-only, and an
-                // `#available(iOS 27.1, *)` check passes on macOS through the `*`, where the
-                // member does not exist at all and the target fails to compile.
-                #if os(iOS)
+                // THREE guards, and each closes a hole the others do not.
+                //
+                // `compiler(>=6.4)` stands in for the SDK. `axisBehavior(_:)` does not exist
+                // below the 27.1 SDK, and `#available` cannot help: availability is a
+                // RUNTIME check and the symbol still has to be there to compile. CI pins
+                // Xcode 26.6, whose SDK is 26.5, and this file failed to build there until
+                // this guard existed. Swift offers no `#if sdk(...)`, so the toolchain
+                // version is the proxy — Xcode 27.1 ships Swift 6.4, Xcode 26.6 ships 6.3.
+                // It is a proxy and not an equivalence: a toolchain that pairs Swift 6.4
+                // with an SDK below 27.1 would take this branch and fail to compile, loudly.
+                //
+                // `os(iOS)` because `.horizontalOnly` is iOS-only, and an
+                // `#available(iOS 27.1, *)` check passes on macOS through the `*`.
+                //
+                // `#available` because the SDK having the symbol says nothing about the
+                // runtime the test executes on.
+                #if os(iOS) && compiler(>=6.4)
                 if #available(iOS 27.1, *) {
                     ToolbarItem(placement: .automatic) {
                         Button(action: { taps += 1 }) { Text(verbatim: "vtHoriz") }
@@ -805,12 +818,14 @@ struct VerticalToolbarProbe: View {
 
 /// `toolbarVerticalBehavior(_:)` arrived in iOS 27.1, so the declaration only exists where
 /// the SDK has it; below that floor the scene is the same tree with nothing declared, which
-/// is what makes the older runtimes a control rather than a hole.
+/// is what makes the older runtimes a control rather than a hole. `VerticalToolbarTests`
+/// reads the tree rather than assuming the declaration took, so it passes either way.
 struct VerticalToolbarBehavior: ViewModifier {
     let disabled: Bool
 
     func body(content: Content) -> some View {
-        #if os(iOS)
+        // Same three guards, for the same reasons, as the item above.
+        #if os(iOS) && compiler(>=6.4)
         if #available(iOS 27.1, *), disabled {
             content.toolbarVerticalBehavior(.disabled)
         } else {
