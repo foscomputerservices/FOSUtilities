@@ -39,8 +39,8 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
 /// So a rotated stock phone sits two to three times deeper in the failing regime than the
 /// device we cannot get onto a hosted runner, and needs no new runtime, image or device.
 ///
-/// > This is deliberately the ONLY suite that rotates, and it restores portrait from a
-/// > teardown block whether or not the test passed. Orientation is process-wide and sticky:
+/// > This is deliberately the ONLY suite that rotates, and it restores portrait in
+/// > `tearDown` whether or not the test passed. Orientation is process-wide and sticky:
 /// > a suite that leaves the device rotated hands every later suite a geometry its fixtures
 /// > were not written for, and the resulting failures name the wrong cause.
 ///
@@ -55,15 +55,16 @@ private let probeBundleId = "com.foscomputerservices.uitestingprobe.UITestingPro
         )
         continueAfterFailure = true
 
-        // Registered BEFORE the rotation, so the restore is in place even if setting the
-        // orientation is itself what fails. A teardown block rather than a tearDown()
-        // override because ViewModelDisplayTestCase.tearDown() is `public`, not `open` —
-        // it cannot be overridden from outside FOSTestingUI.
-        addTeardownBlock { @MainActor in
-            XCUIDevice.shared.orientation = .portrait
-        }
-
         XCUIDevice.shared.orientation = .landscapeLeft
+    }
+
+    /// Restores the orientation for every suite that runs after this one. XCTest calls
+    /// tearDown whether the test passed, failed, or never ran because setUp threw, so the
+    /// rotation cannot outlive the suite that made it.
+    override func tearDown() async throws {
+        XCUIDevice.shared.orientation = .portrait
+
+        try await super.tearDown()
     }
 
     /// Not the portrait budget. In portrait `FlingOvershootTests` asserts under 30s,

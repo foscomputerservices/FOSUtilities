@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.17.2] - 2026-09-22
 
+### Changed
+
+- **`ViewModelDisplayTestCase.tearDown()` is `open`** (FOSTestingUI) — the class is `open`
+  and exists to be subclassed, but its `tearDown()` was `public`, so a suite outside the
+  module could not override it at all and had nothing but `addTeardownBlock(_:)` to undo its
+  own setup. Found by hitting it: the probe's new landscape suite has to restore the device
+  orientation. Source-compatible; it widens what a subclass may do and takes nothing away.
+
 ### Fixed
 
 - **The keyboard-dismissal control lands below the system's chrome, not on top of it**
