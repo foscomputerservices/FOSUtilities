@@ -82,6 +82,8 @@ Every measurement behind this entry was taken on the COVER screen, where the bar
 
 **Why more local runs were not bought:** they would sharpen the rate, not name the cause, and CI samples it on every run for nothing.
 
+**Why the CI leg is worth its cost when the runners can carry the runtime:** twice now a real defect in this library has been found by a consuming app's device matrix before our own probe saw it — the accessory-strip aim among them, on a screen shape the probe had never been run against. The fixture added in that round closes the one geometry; it does not close the gap, which is that a consumer tests on hardware we do not. Until a cover-screen leg runs here, that asymmetry stands and the next such defect arrives the same way: as someone else's failing test, days after it shipped.
+
 **What reopens it:** the next PR, where they are the subject rather than a bystander; or a consumer reporting one of the four on a shipping device.
 
 ## `CredentialRejectedError` has no user-presentable localized message
