@@ -97,6 +97,15 @@ simulator existed at all.
   the `KeyboardShiftProbe` scene (`PROBE_SCENE=keyboardShift`: tall filler, `.numberPad` field
   near the bottom, no scroll container) forces the shift that displaced 0.12.2's overlay
   control off screen
+- what a raised keyboard does to a toolbar on iOS 27.1, per item presentation — the
+  `VerticalToolbarProbe` scene (`PROBE_SCENE=verticalToolbar`, and its
+  `verticalToolbarDisabled` twin) carries four items differing only in how they present
+  themselves, and `VerticalToolbarTests` reads the navigation bar rather than the device to
+  decide which branch it is on. On a geometry that compresses far enough, the items move to a
+  vertical bar along the trailing edge, a text-only item is dropped rather than moved, and
+  `axisBehavior(.horizontalOnly)` does not bring it back. `toolbarVerticalBehavior(.disabled)`
+  keeps the bar horizontal instead, overflowing what no longer fits into the system's "More"
+  menu — absent from the tree until that menu is opened, and untagged when it arrives
 
 ## What the tab bar taught us
 
