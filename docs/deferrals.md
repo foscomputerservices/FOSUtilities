@@ -62,18 +62,6 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **What reopens it:** anyone with 26.3 regenerating, then lowering `verifiedSweepCeiling` in `scripts/localizable-overload-sweep.swift` to match — at which point the gate's floor warning goes quiet on its own; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
 
-## A mid-flow operations read reportedly costs the next toolbar tap, unreproduced
-
-**Recorded:** 2026-09-21, during the designed-parents arc.
-
-**What it is:** a consumer reported, deterministically and with single-variable isolation, that reading `viewModelOperations()` *between* interactions leaves the hosted tree in a state where a subsequent toolbar tap cannot find its target. It reproduced only with a scrolling parent declared; a near-twin test without the mid-flow read passed under both registrations.
-
-**Why it matters:** if real, it is a constraint no documentation states, and the failure presents as a missing identifier — the same misleading shape this whole arc was about.
-
-**Why it was deferred:** not reproduced in-house. `CombinedParentsTests.testAToolbarTapSurvivesAMidFlowOperationsRead` holds the reported sequence — two toolbar items, an editable field, filler enough that the scroll parent is load-bearing, both parents declared — and passes. Four conditions of the original remain uncaptured: the report was measured on 0.12.7 (below everything since), against a hand-added `NavigationStack` rather than the harness's, on a formatter-backed numeric field, using `setText(_:expecting:)` rather than `type`.
-
-**What reopens it:** the reporting app re-running its isolated pair on a current pin. That is the one measurement that settles it, and it belongs to them because theirs is the ground that cannot be recreated here.
-
 ## The accessory-margin occlusion geometry is not deterministically pinned
 
 **Recorded:** 2026-08-20, at David's direction, during the aimable-band occlusion round.
