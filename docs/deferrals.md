@@ -74,6 +74,12 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **Also unsettled, same suite family:** `TabTaggingTests` fails intermittently at `waitForExistence` on a tab bar item — the late-arriving tab bar of #126. The failing METHOD moves between runs (`testTagsInsideATabHold` twice, `testStateOfATaggedTab` once), and both land on code that runs before anything the accessory-strip round changed. It was seen three times in four full runs of that round's tree and never in two full runs of `main`, which is too thin to call either way and is recorded here rather than dismissed. In isolation the class passed 25 of 25.
 
+**A named suspect, unverified:** the band treats every system bar as horizontal. `aimableBand()` clips the top at `app.navigationBars.firstMatch.maxY` and the bottom at `app.tabBars.firstMatch.minY`, which is the right reading of a bar that runs across the screen. On this device a navigation bar, toolbar actions and tabs can instead share a VERTICAL bar along the leading or trailing edge, where `maxY` is near the bottom of the window — `top` then jumps past `bottom`, the band collapses to no height, and every target reports unreachable. `barsCover(_:)` has the same blind spot from the other side: a vertical bar occludes a left or right strip, and a band that only clips top and bottom cannot say so.
+
+Every measurement behind this entry was taken on the COVER screen, where the bar was horizontal and full width (`{0, 24, 466, 58}`), so the vertical layout has never been exercised here at all; the inner display is the likely place to find it. Two of the four failures above are toolbar-under-keyboard tests, which is where a misjudged bar would bite first.
+
+**What that round should do:** measure the inner display; clip the band horizontally when a bar's frame is taller than it is wide; and decide what `axisBehavior(_:)`, `toolbarVerticalEdge`, `toolbarVerticalCompressionBehavior(_:)` and `toolbarVerticalBehavior(_:)` mean for a view registered with `designedFor: .navigation` — a harness-supplied parent that renders its bar on a different edge than production does is a fixture that proves the wrong thing.
+
 **Why more local runs were not bought:** they would sharpen the rate, not name the cause, and CI samples it on every run for nothing.
 
 **What reopens it:** the next PR, where they are the subject rather than a bystander; or a consumer reporting one of the four on a shipping device.
