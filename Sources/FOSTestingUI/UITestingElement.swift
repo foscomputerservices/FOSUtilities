@@ -746,6 +746,12 @@ public extension XCUIApplication {
     /// bottom — is scrolled clear before any aim, so entering into one field and then the
     /// next needs no scrolling or dismissal in between.
     ///
+    /// > A keyboard reports its own frame but not the input-assistant bar above it, so a
+    /// > field can sit clear of the reported keyboard and still be untappable along its
+    /// > lower edge. Such a field is aimed at higher up rather than scrolled after, and a
+    /// > field with no reachable edge left is reported as a test-log warning naming its
+    /// > resting frame.
+    ///
     /// `SecureField`s are not served: bullets defeat any honest read-back, and the failure
     /// says so rather than mystifying.
     public func setText(
@@ -815,24 +821,35 @@ public extension XCUIApplication {
             // A settled frame can still be an occluded one: a scroll parent that does not
             // auto-avoid the keyboard leaves the focused field under it — frame honest and
             // stable (measured: field at y=761 beneath a keyboard topping at 590), every
-            // aim from it landing on keys. One native tap on the tagged element rides
-            // XCUITest's scroll-to-visible with the keyboard staying up; the band scroll
-            // clears what remains.
+            // aim from it landing on keys. Two remedies, and the ORDER between them is
+            // load-bearing: the band scroll first, the native tap only if it did not land
+            // the target.
+            //
+            // The native tap rides XCUITest's scroll-to-visible with the keyboard staying
+            // up, which is why it is here at all — but a native tap on an ALREADY-FOCUSED
+            // field disarms every stroke that follows it. Measured on a 466x678 window,
+            // identical strokes from an identical resting frame: without the tap a 41pt
+            // stroke moved the content 31pt; with it, 41pt and 120pt strokes both moved
+            // nothing, six times running. Tapping first spends the scroll budget on a
+            // scroll view that can no longer pan.
+            //
             // The tag's hittability, not the resolved snapshot's — a snapshot has none, and
             // the tag is the right proxy anyway: a `.searchable` field genuinely lives in the
             // navigation bar and must not be scrolled at, while a field buried under one must.
-            if !isAimable(target.frame, hittable: xcuiElement.isHittable) {
-                xcuiElement.tap()
-                _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-                if let fresh = taggedControl(hint: .textEntry) {
-                    target = fresh
-                }
-
+            if aimY(within: target.frame) == nil {
                 scrollIntoBand {
                     if let fresh = taggedControl(hint: .textEntry) {
                         target = fresh
                     }
                     return (target.frame, xcuiElement.isHittable)
+                }
+
+                if aimY(within: target.frame) == nil {
+                    xcuiElement.tap()
+                    _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+                    if let fresh = taggedControl(hint: .textEntry) {
+                        target = fresh
+                    }
                 }
             }
 
@@ -854,10 +871,28 @@ public extension XCUIApplication {
                 var selectionProven = false
                 for retry in 0..<2 {
                     let inset = min(20, target.frame.width / 4)
+                    var barred = 0
+
+                    // Clamped into the band, never the raw midpoint: the midpoint of a
+                    // field straddling the keyboard's accessory margin is the one point on
+                    // it that cannot be tapped.
+                    let aimedY = aimY(within: target.frame) ?? target.frame.midY
 
                     for x in [target.frame.minX + inset, target.frame.midX, target.frame.maxX - inset] {
-                        appCoordinate(at: CGPoint(x: x, y: target.frame.midY))
-                            .doubleTap()
+                        let aim = CGPoint(x: x, y: aimedY)
+                        // An aim inside a system bar is not a miss, it is a hazard: the bar
+                        // takes the touch, and a navigation bar taking a double-tap resigns
+                        // the field's first responder — the keyboard drops, the next probe
+                        // finds no focused field, and the run spends its remaining budget
+                        // aiming at a scene that no longer exists. Measured as the cascade
+                        // behind a "the edit menu never rose" failure whose real cause was
+                        // three taps into the navigation bar.
+                        guard !barsCover(aim) else {
+                            barred += 1
+                            continue
+                        }
+
+                        appCoordinate(at: aim).doubleTap()
 
                         guard app.menuItems.firstMatch.waitForExistence(timeout: 1) else { continue }
 
@@ -870,6 +905,15 @@ public extension XCUIApplication {
                     }
                     if selectionProven {
                         break
+                    }
+
+                    if barred > 0 {
+                        warn(
+                            """
+                            \(barred) of 3 selection aims at "\(identifier)" fell inside a \
+                            system bar and were withheld; the field rests at \(target.frame).
+                            """
+                        )
                     }
 
                     if retry == 0 {
@@ -1032,6 +1076,37 @@ private extension UITestingElement {
         return false
     }
 
+    // swiftformat:disable docComments
+    // A non-failing signal. XCTest has no warning primitive, and an activity is the
+    // closest thing that reaches both audiences at once: it prints into the xcodebuild
+    // console log AND lands in the xcresult activity tree, which is where a post-mortem
+    // actually looks.
+    // swiftformat:enable docComments
+    private func warn(_ message: String) {
+        XCTContext.runActivity(named: "WARNING - FOSTestingUI: \(message)") { _ in }
+    }
+
+    // swiftformat:disable docComments
+    // WHERE to aim at a target, which is not the same question as whether the target can
+    // be reached. A target does not have to sit wholly inside the band to be tappable: a
+    // field whose bottom edge falls in the keyboard's accessory margin is still perfectly
+    // tappable a few points higher, and the aim only has to find text, not the midpoint.
+    // Measured on the failure that prompted this: a field at y 374.7-396.7 against a band
+    // bottom of 389 overlapped the band by 14.3pt and was reachable the whole time, while
+    // whole-frame containment called it occluded and sent six scroll strokes after a
+    // target already under the finger.
+    //
+    // nil means no part of the target is in the band — the case a scroll is actually for.
+    // swiftformat:enable docComments
+    private func aimY(within frame: CGRect) -> CGFloat? {
+        guard app.keyboards.firstMatch.exists else { return frame.midY }
+
+        let usable = frame.intersection(aimableBand())
+        guard !usable.isNull, usable.height > 0 else { return nil }
+
+        return usable.midY
+    }
+
     private func isAimable(_ frame: CGRect, hittable: Bool) -> Bool {
         let midpoint = CGPoint(x: frame.midX, y: frame.midY)
         // Two kinds of occlusion evidence, and they are NOT symmetric.
@@ -1071,6 +1146,15 @@ private extension UITestingElement {
     // offsets undershoot on short screens (measured: three fixed strokes left a target
     // 190pt outside the band), and a normalized start point drifts onto the keyboard as
     // device height shrinks. Dragging raises the target when the stroke runs bottom→top.
+    //
+    // The stroke is deliberately NOT sized to the distance the target must travel. What a
+    // stroke moves is set by its release velocity, not its length — measured on a 466x678
+    // window at 500px/s: 41pt, 80pt, 120pt and 187pt strokes moved the content 300, 293,
+    // 302 and 345pt. Slowing the release to 100px/s does make movement proportional (41pt
+    // moved 31), but only for the first stroke: a slow drag over a focused field is taken
+    // by text interaction rather than the scroll view, and every stroke after it moves
+    // nothing. So the stroke stays a fling, and a target the fling cannot land is reported
+    // by scrollIntoBand rather than chased.
     // swiftformat:enable docComments
     private func dragWithinBand(raisingTarget: Bool) {
         let band = aimableBand()
@@ -1090,15 +1174,55 @@ private extension UITestingElement {
     // swiftformat:disable docComments
     // Scrolls the target into the aimable band, band membership as the arbiter, bounded.
     // frame() re-reads the target each attempt — the scroll is what moves it.
+    //
+    // The probe after the loop is not bookkeeping: the caller aims at the frame the probe
+    // writes, so a budget that drains without one leaves every subsequent aim a stroke
+    // behind. Measured consequence — three double-taps into the navigation bar, which
+    // dismissed the keyboard and turned one miss into a cascade whose failure message
+    // named the wrong mechanism.
     // swiftformat:enable docComments
     private func scrollIntoBand(of probe: () -> (frame: CGRect, hittable: Bool)) {
         var attempts = 0
+        var beforeLastStroke: CGRect?
+
         while attempts < Self.bandScrollAttempts {
             let current = probe()
             guard !isAimable(current.frame, hittable: current.hittable) else { return }
+
+            // A stroke that moved the target nowhere will not move it next time either, so
+            // the attempts that remain are spent for nothing. A control that LIVES in a
+            // system bar is the standing example — a toolbar item cannot be scrolled out of
+            // the bar it is part of — and it was measured burning all six strokes and ~27s
+            // per tap whenever a keyboard happened to be raised.
+            //
+            // Asked of MOVEMENT rather than of what the target IS: telling a bar-resident
+            // control apart from one merely hidden behind a bar means trusting hittability
+            // in a direction the measurement above establishes for one case only, and a
+            // control wrongly judged bar-resident would have its scroll skipped and its tap
+            // dispatched into the bar. Nothing moved is a fact; what the target is, is an
+            // inference.
+            guard current.frame != beforeLastStroke else { return }
+            beforeLastStroke = current.frame
+
             dragWithinBand(raisingTarget: current.frame.midY > aimableBand().midY)
             attempts += 1
         }
+
+        // Warned on the unambiguous case only — no part of the target inside the band.
+        // A target that ends up partially inside is one setText can still aim at, and a
+        // warning there would cry wolf on the common outcome.
+        let settled = probe()
+        guard aimY(within: settled.frame) == nil else { return }
+
+        let band = aimableBand()
+        warn(
+            """
+            "\(identifier)" did not reach the aimable band in \(Self.bandScrollAttempts) \
+            scroll strokes; it rests at \(settled.frame) against a band of \(band). Aims \
+            from here may land outside the target — a control the band cannot reach is \
+            usually one the scroll parent cannot move.
+            """
+        )
     }
 }
 #endif
