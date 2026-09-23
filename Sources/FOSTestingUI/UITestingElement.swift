@@ -723,8 +723,10 @@ public extension XCUIApplication {
         Label(_:systemImage:) or Image(systemName:) — and it survives the move; \
         axisBehavior(.horizontalOnly) does not. toolbarVerticalBehavior(.disabled) keeps the \
         bar horizontal instead, at the cost of items collapsing into the overflow menu, where \
-        a test has to tap "More" to reach them and the tag does not follow — only a label \
-        match resolves an overflowed item.
+        a test has to tap "More" to reach them. Nothing identifying follows an item into that \
+        menu — the system rebuilds it as a row carrying its label alone, so neither the tag \
+        nor an accessibilityIdentifier applied straight to the control survives (both \
+        measured). Match an overflowed item by its label.
         """
         #else
         return nil

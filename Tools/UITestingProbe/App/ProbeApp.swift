@@ -478,6 +478,47 @@ struct ToolbarProbe: View {
     }
 }
 
+/// The overflow question: enough toolbar items that the system collapses the trailing ones
+/// into its "More" menu, with both ways of identifying a control present — our sibling tag
+/// and Apple's modifier applied directly to the button. What a test can reach inside that
+/// menu is what this scene exists to measure.
+struct ToolbarOverflowProbe: View {
+    @State private var taps = 0
+
+    var body: some View {
+        NavigationStack {
+            Text(verbatim: "overflow-taps-\(taps)")
+                .uiTestingIdentifier("overflowTapCounter")
+                .navigationTitle(Text(verbatim: "overflow-title"))
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "one") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "two") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "three") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "four") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "five") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { taps += 1 }) { Text(verbatim: "tagged") }
+                            .uiTestingIdentifier("overflowTaggedButton")
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { taps += 1 }) { Text(verbatim: "direct") }
+                            .accessibilityIdentifier("overflowDirectButton")
+                    }
+                }
+        }
+    }
+}
+
 /// Three ways of writing a tagged tab, side by side: the closure-based initializer and the
 /// convenience one, both tagged through TabContent, and a tab whose label carries the View tag
 /// instead. A tab bar reaches the accessibility tree later than the views on screen, which is what
@@ -948,6 +989,8 @@ struct UITestingProbeApp: App {
                     FormFocusProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "fieldAnchor" {
                     FieldAnchorProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "toolbarOverflow" {
+                    ToolbarOverflowProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbar" {
                     VerticalToolbarProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbarDisabled" {

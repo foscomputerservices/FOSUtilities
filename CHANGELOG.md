@@ -85,6 +85,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The overflow-menu guidance names what actually fails** (FOSTestingUI) — the diagnostic for
+  a toolbar item that cannot be found said the `View` tag does not follow an item into the
+  system's "More" menu, which left the obvious remedy — applying an `accessibilityIdentifier`
+  straight to the control — looking like it would work. It does not: the system rebuilds an
+  overflowed item as a menu row carrying its label alone, and neither form of identifier
+  survives. Both are now measured by the probe, so the day that wall moves, a test says so.
+
 - **A field showing a validation message still reads as the field** (FOSTestingUI) — when a
   tag spans a control and the message rendered beside it, `label`, `value` and `isEnabled`
   answered with the message. `value` came back empty, so `setText` believed the field was
