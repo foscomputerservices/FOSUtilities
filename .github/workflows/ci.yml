@@ -22,14 +22,33 @@ on:
 # purpose and explains itself where it is declared.
 
 jobs:
-  # Whether this pull request touches anything a build or a test could observe.
-  # A documentation-only push otherwise spends the full matrix — over an hour of
-  # runners — to prove that prose still compiles.
+  # Whether this pull request touches anything a build or a test could observe,
+  # and whether that code has already been proved green.
+  #
+  # Two questions, asked in order:
+  #
+  # 1. Does the PR's own contribution touch code? A documentation-only push
+  #    otherwise spends the full matrix — over an hour of runners — to prove that
+  #    prose still compiles. The contribution is the diff from the merge base,
+  #    never from the base branch's tip: a two-dot diff against a main that has
+  #    moved on shows main's own commits reversed, and a docs-only PR would run
+  #    everything the day anyone else merged Swift.
+  #
+  # 2. Has this exact code patch already gone green? The patch is reduced to a
+  #    stable `git patch-id` over the non-documentation paths. Merging main into
+  #    the branch, resolving a CHANGELOG conflict, or bumping the plugin manifest
+  #    leaves that id untouched; editing a Swift file changes it. A green run
+  #    records its id (record_green, at the end of this file), and a later push
+  #    whose id is already recorded skips the build and test legs and names the
+  #    run that proved it. Records live in the actions cache, so an evicted record
+  #    means one extra full run, never a skipped real change.
   #
   # An ALLOWLIST of ignorable paths, never a denylist of interesting ones: a file
   # type nobody has thought about yet counts as code and runs everything. The cost
   # of being wrong runs one way (a wasted hour) and not the other (a leg silently
-  # skipped for a real change).
+  # skipped for a real change). `docs/`, Markdown, and the Claude tooling under
+  # `.claude/` and `.claude-plugin/` are the allowlist; nothing in this workflow
+  # reads any of them.
   #
   # Heavy jobs are SKIPPED by a condition rather than the workflow being filtered
   # out with `paths-ignore`. A filtered workflow reports nothing at all, which reads
@@ -41,7 +60,8 @@ jobs:
     name: Detect code changes
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      code: ${{ steps.decide.outputs.code }}
+      patch_id: ${{ steps.filter.outputs.patch_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,12 +78,14 @@ jobs:
           # and the honest answer is to run everything.
           if [ -z "${BASE:-}" ] || [ -z "${HEAD:-}" ]; then
             echo "no pull request context; running the full matrix"
-            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "code_paths=true" >> "$GITHUB_OUTPUT"
+            echo "patch_id=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          changed=$(git diff --name-only "$BASE" "$HEAD")
-          echo "changed files:"
+          merge_base=$(git merge-base "$BASE" "$HEAD")
+          changed=$(git diff --name-only "$merge_base" "$HEAD")
+          echo "changed files (since merge base $merge_base):"
           echo "$changed"
 
           # Any path that is not documentation makes this a code change.
@@ -72,12 +94,52 @@ jobs:
           # for `-qv` on input where plain `-v` prints matches and exits 0, so the
           # `-q` form would answer correctly on the GNU grep this job runs and
           # silently invert for anyone checking it on a Mac.
-          code_paths=$(printf '%s\n' "$changed" | grep -vE '(^docs/|\.md$)' || true)
-          if [ -n "$code_paths" ]; then
-            echo "code=true" >> "$GITHUB_OUTPUT"
-          else
+          code_paths=$(printf '%s\n' "$changed" | grep -vE '(^docs/|^\.claude/|^\.claude-plugin/|\.md$)' || true)
+          if [ -z "$code_paths" ]; then
             echo "documentation only; the build and test legs will be skipped"
+            echo "code_paths=false" >> "$GITHUB_OUTPUT"
+            echo "patch_id=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "code_paths=true" >> "$GITHUB_OUTPUT"
+
+          # The same allowlist, as a pathspec, so the id covers exactly the paths
+          # the legs can observe. `--stable` keeps the id independent of hunk order.
+          patch_id=$(git diff "$merge_base" "$HEAD" -- . \
+            ':(exclude,glob)docs/**' \
+            ':(exclude,glob).claude/**' \
+            ':(exclude,glob).claude-plugin/**' \
+            ':(exclude,glob)**/*.md' \
+            | git patch-id --stable | cut -d' ' -f1)
+          echo "code patch id: ${patch_id:-<none>}"
+          echo "patch_id=$patch_id" >> "$GITHUB_OUTPUT"
+
+      # A hit restores the marker the green run wrote, so the summary can name it.
+      - id: green
+        if: steps.filter.outputs.code_paths == 'true' && steps.filter.outputs.patch_id != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: .ci-green
+          key: ci-green-${{ steps.filter.outputs.patch_id }}
+
+      - id: decide
+        env:
+          CODE_PATHS: ${{ steps.filter.outputs.code_paths }}
+          PATCH_ID: ${{ steps.filter.outputs.patch_id }}
+          GREEN: ${{ steps.green.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          if [ "$CODE_PATHS" != "true" ]; then
             echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Documentation only — build and test legs skipped." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$GREEN" = "true" ] && [ -f .ci-green/run ]; then
+            proved_by=$(cat .ci-green/run)
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Code patch \`$PATCH_ID\` already proved green by run $proved_by — build and test legs skipped." >> "$GITHUB_STEP_SUMMARY"
+            echo "code patch $PATCH_ID already proved green by run $proved_by; skipping the build and test legs"
+          else
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Code patch \`${PATCH_ID:-<none>}\` not yet proved — running the full matrix." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   # Its own job, not a step on run_tests: linting needs neither a toolchain
@@ -570,3 +632,36 @@ jobs:
             -destination "$PROBE_DESTINATION" \
             -retry-tests-on-failure -test-iterations 2 \
             ${{ matrix.signing }} test
+
+  # The second half of the `changes` job: once every gating leg is green, record
+  # the code patch id so the next push carrying the same code — a merge from
+  # main, a CHANGELOG fix — can skip the matrix and cite this run. The default
+  # success() condition applies, so any failed or cancelled leg records nothing.
+  #
+  # sdk27_preview_build is not a need: it is evidence, not a gate, and
+  # continue-on-error already keeps it out of the verdict. lint is not a need:
+  # it runs on every push regardless of the skip, so the skip cannot hide it.
+  record_green:
+    name: Record the green patch
+    needs:
+      - changes
+      - run_tests
+      - run_release_build
+      - run_xcodebuild_tests
+      - overload_sweep_staleness
+      - bootstrap_fast_suite
+      - bootstrap_skeletons
+      - bootstrap_generated_app_tests
+      - probe_ui_tests
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.patch_id != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write the marker
+        run: |
+          mkdir -p .ci-green
+          echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > .ci-green/run
+
+      - uses: actions/cache/save@v4
+        with:
+          path: .ci-green
+          key: ci-green-${{ needs.changes.outputs.patch_id }}
