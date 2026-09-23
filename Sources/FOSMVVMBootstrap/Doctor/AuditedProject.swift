@@ -60,6 +60,11 @@ struct AuditedProject {
     /// suffix. The name only defines the sanctioned home; the typed content
     /// (`@ViewModel` declarations) is what the rules key their findings on.
     let sharedModuleRoots: [String]
+
+    /// Names of the icon sets under `Sources/` — an `AppIcon.appiconset`
+    /// contributes `AppIcon` — across every icon container type `actool`
+    /// accepts. R15 checks the app-icon setting against these.
+    let appIconSetNames: Set<String>
 }
 
 /// One Swift source as the shared-module rules see it: where it lives, what it
@@ -206,7 +211,8 @@ extension AuditedProject {
             testPlans: readTestPlans(in: root),
             localizationYAMLPaths: localizationYAML(in: root),
             swiftSources: scanSwiftSources(in: root),
-            sharedModuleRoots: sharedModuleRoots(in: root)
+            sharedModuleRoots: sharedModuleRoots(in: root),
+            appIconSetNames: appIconSetNames(in: root)
         )
     }
 
@@ -478,5 +484,35 @@ private extension AuditedProject {
         let path = url.standardizedFileURL.path
         guard path.hasPrefix(base + "/") else { return nil }
         return String(path.dropFirst(base.count + 1))
+    }
+}
+
+// MARK: - Asset catalogs
+
+private extension AuditedProject {
+    /// The icon-set directories under `Sources/`, by name. Directories rather
+    /// than files: an icon set is a folder whose extension names its kind, and
+    /// an empty one — slots declared, art not yet dropped in — still counts.
+    static func appIconSetNames(in root: URL) -> Set<String> {
+        let iconContainers: Set = ["appiconset", "solidimagestack", "brandassets", "icon"]
+        let skipped: Set = [".build", ".git", "DerivedData", "build"]
+        let sources = root.appendingPathComponent("Sources")
+        guard let walker = FileManager.default.enumerator(
+            at: sources.standardizedFileURL,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        ) else { return [] }
+
+        var names: Set<String> = []
+        for case let url as URL in walker {
+            if skipped.contains(url.lastPathComponent) {
+                walker.skipDescendants()
+                continue
+            }
+            guard (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true else { continue }
+            if iconContainers.contains(url.pathExtension) {
+                names.insert(url.deletingPathExtension().lastPathComponent)
+            }
+        }
+        return names
     }
 }

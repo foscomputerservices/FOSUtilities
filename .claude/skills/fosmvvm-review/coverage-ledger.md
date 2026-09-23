@@ -2,7 +2,7 @@
 
 This file is the standing derivation for `fosmvvm-review`: every enforceable statement in the truth layer, mapped to the check or doctor rule that enforces it, or recorded as a gap. Completeness is measured here, rule-by-rule — never by counting areas or generators (ruled 2026-08-25).
 
-**Walked 2026-08-25**, at plugin 2.41.0 (50 checks across 8 areas) and doctor R1–R12. Doctor has since grown R13–R14 (the shared-module pair, from this ledger's G16 and G6).
+**Walked 2026-08-25**, at plugin 2.41.0 (50 checks across 8 areas) and doctor R1–R12. Doctor has since grown R13–R14 (the shared-module pair, from this ledger's G16 and G6) and R15 (the app icon set).
 
 **Inputs** (this ledger is a projection of these; if any is re-cut, this file is stale):
 
@@ -16,7 +16,7 @@ This file is the standing derivation for `fosmvvm-review`: every enforceable sta
 
 One further ground counts as truth for consumers: **FOSUtilities' own published API contract** (DocC'd public surface — `testHost()` timing, wire formats, path derivation). A check citing framework behavior anchors there; that is reading a declared input, not "code as pattern."
 
-Check names below are the `## Check:` entries of `checks/<area>.md`, beside this file. Doctor's rules R1–R14 are stated in `docs/work/fosmvvm-doctor-design.md` and implemented under `Sources/FOSMVVMBootstrap/Doctor/`.
+Check names below are the `## Check:` entries of `checks/<area>.md`, beside this file. Doctor's rules R1–R15 are stated in `docs/work/fosmvvm-doctor-design.md` and implemented under `Sources/FOSMVVMBootstrap/Doctor/`.
 
 ## Dispositions
 
@@ -49,7 +49,7 @@ Check names below are the `## Check:` entries of `checks/<area>.md`, beside this
 
 **View ← ViewModel + ratified design — three projecting surfaces (SwiftUI, Leaf, React).** COVERED — the `view` area (was `swiftui-view`; re-cut per ruling 4): seven checks with per-surface detections. Verification standing by surface: SwiftUI clauses QUALIFIED (the original swiftui-view era runs); Leaf clauses QUALIFIED 2026-08-25 against a drifted Leaf codebase as *subject*; React clauses **STATIC CHECK only** — no React verification target exists yet.
 
-**Project ← bootstrap.** COVERED, TIER 1 — doctor R1–R14.
+**Project ← bootstrap.** COVERED, TIER 1 — doctor R1–R15.
 
 **App struct edits ← architecture.** COVERED — the `swiftui-app-setup` area's six checks.
 

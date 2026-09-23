@@ -117,6 +117,10 @@ Ruled onto the table from the fosmvvm-review coverage ledger (its G16 and G6): b
 
 **Stated limits, v1.** The sanctioned home is the `Sources/<module>` layout convention — an Xcode project whose `ViewModels` directory is not actually a separate framework target passes undetected, because per-target source membership is not read. An import of the project's *own* server target by name is not caught either; that needs manifest target parsing. Both wait for field evidence before buying their complexity.
 
+### R15 — the app icon (addendum, ruled 2026-09-23)
+
+**R15 — `ASSETCATALOG_COMPILER_APPICON_NAME` names an icon set that exists.** Severity: warning — the table's second, and the table grows to fifteen. xcodegen writes the setting on every application target whether or not a catalog exists, so a project with no `AppIcon` set carries a setting that names nothing: `actool` never runs, the build is green, and the app cannot be submitted. The rule reads every `ASSETCATALOG_COMPILER_APPICON_NAME` key on each application target (SDK-conditioned keys included) and looks for a directory of that name under `Sources/` in any icon container form — `.appiconset`, `.solidimagestack`, `.brandassets`, `.icon`. A target with no such setting at all is the same warning. Ruled together with the catalog the templates now emit (`Sources/<App>/Assets.xcassets`), which is what makes the rule satisfiable by construction; tvOS `.brandassets` are recognised but not yet emitted.
+
 ---
 
 ## The public surface

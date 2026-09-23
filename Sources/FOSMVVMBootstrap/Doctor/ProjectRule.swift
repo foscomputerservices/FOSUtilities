@@ -68,7 +68,8 @@ extension ProjectRule {
             codeSignStyle, // R11
             hardenedRuntime, // R12
             sharedModuleHome, // R13
-            sharedModuleImports // R14
+            sharedModuleImports, // R14
+            appIconSet // R15
         ]
     }
 }
