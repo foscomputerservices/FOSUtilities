@@ -70,6 +70,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A field showing a validation message still reads as the field** (FOSTestingUI) — when a
+  tag spans a control and the message rendered beside it, `label`, `value` and `isEnabled`
+  answered with the message. `value` came back empty, so `setText` believed the field was
+  empty, typed into it rather than replacing what it held, and then verified against the
+  wrong element: an entry that had failed validation could never be corrected, which is the
+  one route out of a validation error a form offers. Reads now resolve the tag's control the
+  same way gestures always have, which is what the documented contract already promised — a
+  tag spanning a composite answers with the control it contains. A tag holding no control
+  still reads as itself, unchanged.
+
 - **The keyboard-dismissal control lands below the system's chrome, not on top of it**
   (FOSMVVM) — `testHost()` plants the control that `dismissKeyboard()` taps in its own
   window, offset down by the status bar's height so a synthesized tap there cannot be read

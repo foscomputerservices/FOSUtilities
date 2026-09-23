@@ -78,6 +78,24 @@ import XCTest
         XCTAssertEqual(app.uiTestingElement("actionFireCount").label, "fired 1")
     }
 
+    /// The read that a validation footnote used to capture: the tag grows to enclose the
+    /// message, whose labelled StaticText then holds the tag's centre, and the read answered
+    /// with the message instead of the field it sits under.
+    func testFootnotedFieldReadsTheFieldNotTheMessage() {
+        XCTAssertEqual(app.uiTestingElement("footnoteRow").value, "5000")
+    }
+
+    /// The consequence, and the reason the read matters: `setText` asks what the field holds
+    /// before it replaces it, so a read answering with the message left the entry unselected,
+    /// typed into it, and verified against the wrong element. A failing entry could never be
+    /// corrected — the only route out of a validation error a form offers.
+    func testFootnotedFieldCanBeCorrected() {
+        let field = app.uiTestingElement("footnoteRow")
+        field.setText("42")
+
+        XCTAssertEqual(field.value, "42")
+    }
+
     /// A tag on the control itself taps and reads that control; composite descent must not
     /// reroute it to a neighbour.
     func testDirectlyTaggedControlStillAnswersForItself() {

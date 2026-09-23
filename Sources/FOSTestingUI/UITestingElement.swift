@@ -153,6 +153,10 @@ public extension XCUIApplication {
     /// that spans a composite — a row holding a caption and a field — answers with the control
     /// the composite contains; when it holds several, the first in document order answers, so
     /// tag the control itself to address one precisely.
+    ///
+    /// > Note: Text that appears *beside* the control inside the tag does not become the
+    /// reading — a validation message rendered under a failing field leaves the field the one
+    /// that answers, so a test can still read what it typed and correct it.
     public var label: String {
         let control = taggedControl()
         let label = control?.label ?? xcuiElement.label
@@ -163,7 +167,21 @@ public extension XCUIApplication {
         return (control?.value ?? xcuiElement.value) as? String ?? ""
     }
 
-    /// The tagged view's accessibility value, if it has one
+    /// What the tagged control currently holds
+    ///
+    /// ```swift
+    /// let amount = app.uiTestingElement("amountField")
+    /// amount.setText("42")
+    ///
+    /// XCTAssertEqual(amount.value, "42")
+    /// ```
+    ///
+    /// This is what the control *holds* — a field's text, a slider's position — where
+    /// ``label`` is what it is *called*.  Reach for it to prove an entry arrived, or that a
+    /// screen presented the value it was given.
+    ///
+    /// A control that holds nothing answers `nil`, and so does a view that is not a control
+    /// at all — a caption reads through ``label``.
     public var value: String? {
         (taggedControl()?.value ?? xcuiElement.value) as? String
     }
@@ -177,12 +195,11 @@ public extension XCUIApplication {
         taggedControl()?.isEnabled ?? xcuiElement.isEnabled
     }
 
-    /// What a resolution is for. Reads pass `none` and keep stage 1's answer unless it is a
-    /// container; a hinted resolution also lets stage 2 reject a stage-1 winner that cannot
-    /// serve the interaction — a StaticText cannot receive a tap meant for the field beside it.
-    private enum ResolutionHint {
-        case none
-        case interactive
+    /// Which control a resolution is looking for. Every resolution — a read as much as a
+    /// gesture — wants the tag's control, so stage 2 may reject a stage-1 winner that is not
+    /// one: a StaticText is neither a tap's target nor the reading of the field beside it.
+    private enum ResolutionTarget {
+        case control
         case textEntry
 
         var acceptedTypes: Set<XCUIElement.ElementType> {
@@ -204,18 +221,24 @@ public extension XCUIApplication {
     // tag's centre with the closest frame. A tag spanning a composite row defeats it — the
     // centre can fall in the gap between caption and field (no leaf contains it; the row's
     // container wins with the same midpoint), or inside the caption (measured 7pt from that
-    // gap). Stage 2 fires when stage 1 answers with a container, or with an element the hint
+    // gap). Stage 2 fires when stage 1 answers with a container, or with an element the target
     // rules out, and takes the first element in document order of an accepted type whose own
     // centre lies within the tag's bounds — stage 1 inverted: it asked who contains the tag's
     // centre; stage 2 asks whose centre the tag contains, which is what keeps a scrim or
     // full-screen overlay, which merely intersects, from qualifying. Stage 1's answer stands
     // when nothing does.
     //
+    // Reads take the same two stages as gestures, and must: a tag that grows to enclose a
+    // validation footnote puts a labelled StaticText under its centre, so a read stopping at
+    // stage 1 answers with the footnote while `setText` types into the field — measured as a
+    // field that could never be corrected once it had failed. A tag holding no control at all
+    // still reads as itself; stage 2 finds nothing and stage 1's answer stands.
+    //
     // Children are walked in document order so that a repeated identifier resolves to the same
     // element `xcuiElement` returns, which takes XCUITest's `firstMatch`; document order also
     // picks among several controls under one tag.
     // swiftformat:enable docComments
-    private func taggedControl(hint: ResolutionHint = .none) -> XCUIElementSnapshot? {
+    private func taggedControl(seeking target: ResolutionTarget = .control) -> XCUIElementSnapshot? {
         guard let root = try? app.snapshot() else { return nil }
 
         var elements: [XCUIElementSnapshot] = []
@@ -265,14 +288,14 @@ public extension XCUIApplication {
         case .some(let match) where Self.containerTypes.contains(match.elementType):
             true
         case .some(let match):
-            hint != .none && !hint.acceptedTypes.contains(match.elementType)
+            !target.acceptedTypes.contains(match.elementType)
         }
 
         guard descends else { return match }
 
         let control = elements.first { candidate in
             candidate.identifier != identifier &&
-                hint.acceptedTypes.contains(candidate.elementType) &&
+                target.acceptedTypes.contains(candidate.elementType) &&
                 bounds.contains(CGPoint(x: candidate.frame.midX, y: candidate.frame.midY))
         }
 
@@ -562,7 +585,7 @@ public extension XCUIApplication {
         // midpoint — or a synthesized coordinate, so the aim decision precedes the branch
         // choice: only a resolved control that is genuinely a control, and genuinely
         // elsewhere, redirects the tap.
-        let control = taggedControl(hint: .interactive)
+        let control = taggedControl(seeking: .control)
         let aimsElsewhere = control.map { control in
             Self.interactiveTypes.contains(control.elementType) &&
                 (abs(control.frame.midX - element.frame.midX) > 1 ||
@@ -572,7 +595,7 @@ public extension XCUIApplication {
             // Settle (temporal) before re-resolving to aim (spatial) — aiming from an
             // in-flight frame reintroduces the miss through the side door.
             _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-            let target = taggedControl(hint: .interactive) ?? control
+            let target = taggedControl(seeking: .control) ?? control
 
             // The premise can evaporate during that settle: dispatches were measured whose
             // computed coordinate equaled the tag's own midpoint — the disagreement that
@@ -811,7 +834,7 @@ public extension XCUIApplication {
         let expected = expectedValue ?? text
 
         _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-        guard let control = taggedControl(hint: .textEntry),
+        guard let control = taggedControl(seeking: .textEntry),
               Self.textEntryTypes.contains(control.elementType) else {
             XCTFail(
                 """
@@ -842,7 +865,7 @@ public extension XCUIApplication {
         for useCoordinate in [false, true] {
             if useCoordinate {
                 _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-                guard let focusTarget = taggedControl(hint: .textEntry) else { continue }
+                guard let focusTarget = taggedControl(seeking: .textEntry) else { continue }
 
                 appCoordinate(at: CGPoint(
                     x: focusTarget.frame.midX,
@@ -859,7 +882,7 @@ public extension XCUIApplication {
             // read before it is stale and every gesture from it lands rows away. The settle
             // waits out that reflow — the same in-flight-frame contract as tap()'s.
             _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-            guard var target = taggedControl(hint: .textEntry) else { continue }
+            guard var target = taggedControl(seeking: .textEntry) else { continue }
 
             // A settled frame can still be an occluded one: a scroll parent that does not
             // auto-avoid the keyboard leaves the focused field under it — frame honest and
@@ -881,7 +904,7 @@ public extension XCUIApplication {
             // navigation bar and must not be scrolled at, while a field buried under one must.
             if aimY(within: target.frame) == nil {
                 scrollIntoBand {
-                    if let fresh = taggedControl(hint: .textEntry) {
+                    if let fresh = taggedControl(seeking: .textEntry) {
                         target = fresh
                     }
                     return (target.frame, xcuiElement.isHittable)
@@ -890,7 +913,7 @@ public extension XCUIApplication {
                 if aimY(within: target.frame) == nil {
                     xcuiElement.tap()
                     _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
-                    if let fresh = taggedControl(hint: .textEntry) {
+                    if let fresh = taggedControl(seeking: .textEntry) {
                         target = fresh
                     }
                 }
@@ -961,7 +984,7 @@ public extension XCUIApplication {
 
                     if retry == 0 {
                         dragWithinBand(raisingTarget: true)
-                        if let fresh = taggedControl(hint: .textEntry) {
+                        if let fresh = taggedControl(seeking: .textEntry) {
                             target = fresh
                         }
                     }

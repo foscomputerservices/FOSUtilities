@@ -81,9 +81,10 @@ struct KeyboardShiftProbe: View {
 /// Tags spanning caption + field composites, in their own scene so the rows' geometry is
 /// deterministic and the main tree's is undisturbed. In gapRow the tag's midpoint falls in
 /// the caption/field gap (no leaf contains it); in captionRow it falls inside the caption.
-/// First-stage resolution answers with a container, or the caption; the second stage must
-/// find the field either way. gapRow's field is deliberately untagged — the row tag is its
-/// only route.
+/// In footnoteRow it falls inside a validation message stacked under the field. First-stage
+/// resolution answers with a container, the caption, or the message; the second stage must
+/// find the field every way. gapRow's and footnoteRow's fields are deliberately untagged —
+/// the row tag is their only route.
 struct RowResolutionProbe: View {
     @State private var gapAmount = "45"
     @State private var captionAmount = ""
@@ -92,6 +93,7 @@ struct RowResolutionProbe: View {
     @State private var padAmount = "45"
     @State private var secret = ""
     @State private var fires = 0
+    @State private var footnoteAmount = "5000"
 
     /// Renders at commit time: "45" typed reads back "45.00" once the entry commits —
     /// the normalization setText's expecting: exists for.
@@ -143,6 +145,23 @@ struct RowResolutionProbe: View {
 
             Text(verbatim: "fired \(fires)")
                 .uiTestingIdentifier("actionFireCount")
+
+            // A field and the validation footnote that appears beneath it once an entry
+            // fails, tagged together on the enclosing view — the shape a form field takes
+            // while it is showing an error. The message is long enough to wrap past the
+            // field's height so the tag's centre lands inside the footnote's own bounds:
+            // stage 1 then answers with a labelled StaticText, which is neither a container
+            // nor an empty `.other`, so only the second stage can still reach the field.
+            // That centre is the entire point of the fixture — keep the message long.
+            VStack(spacing: 0) {
+                TextField("footnote amount", text: $footnoteAmount)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 190, height: 44)
+                Text(verbatim: "The value must be between 1 and 100. Enter a smaller number and try again.")
+                    .font(.footnote)
+                    .frame(width: 190, alignment: .leading)
+            }
+            .uiTestingIdentifier("footnoteRow")
 
             // setText's fixture matrix: formatter-backed, trailing-aligned, number pad
             // (prefilled, so replace must select-all on a keyboard with no text menu
