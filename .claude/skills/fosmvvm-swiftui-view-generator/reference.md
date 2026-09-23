@@ -944,6 +944,7 @@ private extension {ViewName}View {
 - [ ] `private let viewModel: {ViewModel}`
 - [ ] `public init(viewModel:)`
 - [ ] Previews with `.previewHost()`
+- [ ] Catalog images are typed — `Image(.name)` / `Label(_:image:)` — never a `String` asset name, never an image name on the ViewModel
 
 **Interactive Views (with operations):**
 - [ ] `private let operations: {Operations}`

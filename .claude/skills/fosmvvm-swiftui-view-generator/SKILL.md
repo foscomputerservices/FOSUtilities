@@ -1,3 +1,4 @@
+| 1.2 | 2026-09-23 | Images Pattern: catalog assets reach a view as typed `ImageResource` symbols (`Image(.name)`, `Label(_:image:)`), never as a `String` name and never as a name carried on the ViewModel; SF Symbols keep the `systemName` literal at the view. Added the Stringly Image Names mistake. Pairs with the bootstrap's emitted `Assets.xcassets`. |
 ---
 name: fosmvvm-swiftui-view-generator
 description: Generate SwiftUI views that render FOSMVVM ViewModels. Scaffolds ViewModelView pattern with binding, loading states, and previews.
@@ -685,7 +686,7 @@ private var headerView: some View {
     HStack {
         Text(viewModel.title)
         Spacer()
-        Image(systemName: viewModel.iconName)
+        Image(.brandMark) // a catalog asset — see the Images Pattern
     }
 }
 
@@ -696,6 +697,34 @@ var body: some View {
     }
 }
 ```
+
+### Images Pattern
+
+Catalog images reach a view as typed `ImageResource` symbols, never as string names. The bootstrap emits `Sources/<App>/Assets.xcassets` in the app target; Xcode generates a symbol per asset (`Image(.brandMark)`, `Color(.accent)`), and the FOSMVVM `Localizable` overloads take the same type (`Label(viewModel.title, image: .brandMark)`).
+
+```swift
+// Catalog asset — typed, checked at compile time
+Label(viewModel.title, image: .brandMark)
+Image(.emptyStateIllustration)
+
+// SF Symbol — Apple's own string API; the literal stays at the view
+Image(systemName: "star")
+```
+
+**The ViewModel never carries an image name.** Which image to show is a design decision the view makes from ViewModel state. A `String` asset name on the ViewModel is an encapsulation break — anyone can mint one, and a typo renders nothing with no compiler to say so. Project the choice as typed state and map it in the view:
+
+```swift
+// ❌ BAD — a stringly asset on the ViewModel; the view is a passthrough
+Image(viewModel.iconName)
+
+// ✅ GOOD — typed state on the ViewModel; the view chooses the asset
+switch viewModel.status {
+case .ready: Image(.statusReady)
+case .blocked: Image(.statusBlocked)
+}
+```
+
+Assets belong to the app target. The shared ViewModels module never hosts a catalog — a ViewModel is a projection of data, and there are no pictures in it.
 
 ### Result/Error Handling Pattern
 
@@ -884,6 +913,20 @@ try await operations.createCard(title: viewModel.newCardDefaultTitle, mvvmEnv: m
 
 (User-authored input the view conduits, typed values that localize at render, and
 machine text — identifiers, testing tags, query syntax — are not prose.)
+
+### Stringly Image Names
+
+```swift
+// ❌ BAD - a String names the asset; a typo renders nothing, and nothing catches it
+Image("brand-mark")
+Image(systemName: viewModel.iconName)
+
+// ✅ GOOD - the generated symbol; a missing asset fails to compile
+Image(.brandMark)
+Label(viewModel.title, image: .brandMark)
+```
+
+See the Images Pattern above: SF Symbols keep their `systemName` literal at the view; catalog assets are typed; the ViewModel carries state, never an image name.
 
 ### Missing Error Binding
 
