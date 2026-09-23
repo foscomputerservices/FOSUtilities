@@ -39,8 +39,9 @@ extension EmitterError: CustomStringConvertible {
 /// Composes a greenfield FOSMVVM project on disk:
 /// `try Emitter.emit(config: config, into: outputDir)` renders
 /// `Templates/shared` (doctrine common to every shape) plus
-/// `Templates/<shape>` into `outputDir`, returning the emitted relative
-/// paths. Never overwrites — an existing non-empty `outputDir` throws
+/// `Templates/<shape>` — and, for app shapes, `Templates/platforms/<platform>`
+/// for each platform the config declares — into `outputDir`, returning the
+/// emitted relative paths. Never overwrites — an existing non-empty `outputDir` throws
 /// `EmitterError.outputDirectoryNotEmpty`, because bootstrap is
 /// greenfield-only by design.
 public enum Emitter {
@@ -86,7 +87,28 @@ public enum Emitter {
             let root = templatesRoot.appendingPathComponent(sourceDir)
             emitted += try emitTree(from: root, into: outputDir, tokens: tokens)
         }
+
+        // Platform trees — `Templates/platforms/<platform>` — ride along when the
+        // config declares that platform. Only app shapes receive them: what they
+        // carry (the visionOS and tvOS icon stacks) lives in the app folder, which a
+        // package has no counterpart for.
+        if hasAppTarget(config.shape) {
+            for platform in config.platforms.keys.sorted(by: { $0.rawValue < $1.rawValue }) {
+                let root = templatesRoot
+                    .appendingPathComponent("platforms")
+                    .appendingPathComponent(platform.rawValue)
+                guard fm.fileExists(atPath: root.path, isDirectory: &isDir), isDir.boolValue else { continue }
+                emitted += try emitTree(from: root, into: outputDir, tokens: tokens)
+            }
+        }
         return emitted.sorted()
+    }
+
+    private static func hasAppTarget(_ shape: ProjectShape) -> Bool {
+        switch shape {
+        case .localOnly, .clientServer, .hybrid: true
+        case .sharedLibrary: false
+        }
     }
 
     private static func shapeDirName(_ shape: ProjectShape) -> String {

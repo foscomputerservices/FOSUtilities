@@ -92,6 +92,7 @@ public enum TokenSet {
             tokens["FRAMEWORK_DESTINATIONS"] = "[\(frameworkDestinations.joined(separator: ", "))]"
             tokens["WATCH_TARGET"] = Self.watchTargetYAML(config: config)
             tokens["WATCH_SCHEME"] = Self.watchSchemeYAML(config: config)
+            tokens["APP_ICON_IMAGES"] = Self.appIconImagesJSON(config: config)
             tokens["DEPLOYMENT_TARGETS"] = deploymentLines
             // Both overrides are injected into the APP TARGET's settings
             // (8-space YAML indent): xcodegen's supportedDestinations emits
