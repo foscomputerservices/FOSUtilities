@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CI skips the matrix when the code patch is already proved green** — the `changes` job
+  now reduces a pull request's non-documentation diff to a stable `git patch-id`, and a
+  green run records that id (`record_green`). A later push carrying the same code — a merge
+  from main, a CHANGELOG conflict resolved, a plugin version bumped — skips the build and
+  test legs and names the run that proved it; any edit to a code path changes the id and
+  runs everything. The documentation-only skip now diffs from the merge base rather than
+  the base branch's tip, so a docs-only PR no longer runs the matrix because main moved,
+  and the Claude tooling under `.claude/` and `.claude-plugin/` joins the ignorable
+  allowlist — nothing in the workflow reads it.
+
 - **`ViewModelDisplayTestCase.tearDown()` is `open`** (FOSTestingUI) — the class is `open`
   and exists to be subclassed, but its `tearDown()` was `public`, so a suite outside the
   module could not override it at all and had nothing but `addTeardownBlock(_:)` to undo its
