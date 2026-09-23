@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Ask whether one field failed validation** (FOSMVVM) — `Validations.hasError(for:)` answers
+  for a single `FormFieldIdentifier`, where `hasError` answers for the form as a whole. A view
+  that marks, focuses, or scrolls to a failing field needs the per-field question, and every
+  caller was spelling the same predicate over `validations` by hand. Warnings and information
+  are not errors, and a field no failing result names does not have one.
+
 - **Generated apps ship an asset catalog** (FOSMVVMBootstrap) — every app shape now emits
   `Sources/<App>/Assets.xcassets` with an `AppIcon` set whose slots follow the platforms the
   config declares (iOS light, dark and tinted; the ten mac sizes; a watchOS slot; a layered
