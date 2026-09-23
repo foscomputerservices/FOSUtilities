@@ -43,6 +43,27 @@ import SwiftUI
 ///     }
 /// }
 /// ```
+///
+/// ## Bringing a field on screen
+///
+/// Each field's view is identified by its ``FormField/fieldId``, so a `ScrollViewReader`
+/// scrolls to one with the identifier you already hold — the same one validation messages
+/// and `focusField` name:
+///
+/// ```swift
+/// ScrollViewReader { proxy in
+///     Form {
+///         FormFieldView(fieldModel: viewModel.$email, focusField: $focusedField)
+///         FormFieldView(fieldModel: viewModel.$firstName, focusField: $focusedField)
+///     }
+///     .onSubmit {
+///         if let failed = viewModel.validations.validations
+///             .first(where: \.hasError)?.messages.first?.fieldIds.first {
+///             proxy.scrollTo(failed)
+///         }
+///     }
+/// }
+/// ```
 public struct FormFieldView<Value: Codable & Hashable>: View {
     private let fieldModel: FormFieldModel<Value>
     private let focusField: FocusState<FormFieldIdentifier?>.Binding
@@ -64,7 +85,7 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
 
     public var body: some View {
         fieldView
-            .id("FormField.\(fieldModel.formField.fieldId.id)")
+            .id(fieldModel.formField.fieldId)
             .focused(focusField, equals: fieldModel.formField.fieldId)
             .focused($isFocused)
             .withValidations(for: fieldModel)

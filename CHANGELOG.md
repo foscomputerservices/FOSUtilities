@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Ask whether one field failed validation** (FOSMVVM) — `Validations.hasError(for:)` answers
+  for a single `FormFieldIdentifier`, where `hasError` answers for the form as a whole. A view
+  that marks, focuses, or scrolls to a failing field needs the per-field question, and every
+  caller was spelling the same predicate over `validations` by hand. Warnings and information
+  are not errors, and a field no failing result names does not have one.
+
 - **Generated apps ship an asset catalog** (FOSMVVMBootstrap) — every app shape now emits
   `Sources/<App>/Assets.xcassets` with an `AppIcon` set whose slots follow the platforms the
   config declares (iOS light, dark and tinted; the ten mac sizes; a watchOS slot; a layered
@@ -31,6 +37,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   SDK-conditioned keys included, against the icon containers under `Sources/`.
 
 ### Changed
+
+- **A form field's view is identified by its `fieldId`** (FOSMVVM) — `FormFieldView` used to
+  identify its view with a string it built itself, `"FormField.<fieldId>"`, minting a second
+  identity beside the typed one the field already has and that validation messages and
+  `focusField` already speak. The field's own `FormFieldIdentifier` is now the view's
+  identity, so bringing a field on screen takes the identifier the caller is already holding:
+  `proxy.scrollTo(fieldId)` inside a `ScrollViewReader`, with nothing to derive or spell.
+  Anyone who reconstructed the old string to scroll to a field should pass the `fieldId`
+  itself instead; the derived form no longer matches anything.
 
 - **CI skips the matrix when the code patch is already proved green** — the `changes` job
   now reduces a pull request's non-documentation diff to a stable `git patch-id`, and a
@@ -69,6 +84,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ViewModel.
 
 ### Fixed
+
+- **The catalog audit stops reading argument labels as missing API** — a catalog title that
+  spelled a function precisely, `registerTestView(_:designedFor:)`, was tokenized into three
+  identifiers, and the two argument labels among them were then reported as symbols that had
+  gone missing. The audit exited 1 on any Mac for three shipped entries while staying green
+  in CI, where those entries are Apple-only and exempt — so the local run had to be ignored
+  to be used, and spelling a title precisely was punished. Parenthesised spans are dropped
+  before tokenizing; a genuinely absent symbol is still reported and still exits 1.
+
+- **The overflow-menu guidance names what actually fails** (FOSTestingUI) — the diagnostic for
+  a toolbar item that cannot be found said the `View` tag does not follow an item into the
+  system's "More" menu, which left the obvious remedy — applying an `accessibilityIdentifier`
+  straight to the control — looking like it would work. It does not: the system rebuilds an
+  overflowed item as a menu row carrying its label alone, and neither form of identifier
+  survives. Both are now measured by the probe, so the day that wall moves, a test says so.
+
+- **A field showing a validation message still reads as the field** (FOSTestingUI) — when a
+  tag spans a control and the message rendered beside it, `label`, `value` and `isEnabled`
+  answered with the message. `value` came back empty, so `setText` believed the field was
+  empty, typed into it rather than replacing what it held, and then verified against the
+  wrong element: an entry that had failed validation could never be corrected, which is the
+  one route out of a validation error a form offers. Reads now resolve the tag's control the
+  same way gestures always have, which is what the documented contract already promised — a
+  tag spanning a composite answers with the control it contains. A tag holding no control
+  still reads as itself, unchanged.
 
 - **The keyboard-dismissal control lands below the system's chrome, not on top of it**
   (FOSMVVM) — `testHost()` plants the control that `dismissKeyboard()` taps in its own

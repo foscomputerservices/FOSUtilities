@@ -46,4 +46,10 @@ import XCTest
 
         XCTAssertEqual(app.uiTestingElement("actionFireCount").label, "fired 1")
     }
+
+    /// Resolution is geometry, and geometry is per-platform: the read that a validation
+    /// footnote captured is held here too, where the rows lay out at their own metrics.
+    func testFootnotedFieldReadsTheFieldNotTheMessage() {
+        XCTAssertEqual(app.uiTestingElement("footnoteRow").value, "5000")
+    }
 }

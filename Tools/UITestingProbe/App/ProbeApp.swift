@@ -81,9 +81,10 @@ struct KeyboardShiftProbe: View {
 /// Tags spanning caption + field composites, in their own scene so the rows' geometry is
 /// deterministic and the main tree's is undisturbed. In gapRow the tag's midpoint falls in
 /// the caption/field gap (no leaf contains it); in captionRow it falls inside the caption.
-/// First-stage resolution answers with a container, or the caption; the second stage must
-/// find the field either way. gapRow's field is deliberately untagged — the row tag is its
-/// only route.
+/// In footnoteRow it falls inside a validation message stacked under the field. First-stage
+/// resolution answers with a container, the caption, or the message; the second stage must
+/// find the field every way. gapRow's and footnoteRow's fields are deliberately untagged —
+/// the row tag is their only route.
 struct RowResolutionProbe: View {
     @State private var gapAmount = "45"
     @State private var captionAmount = ""
@@ -92,6 +93,7 @@ struct RowResolutionProbe: View {
     @State private var padAmount = "45"
     @State private var secret = ""
     @State private var fires = 0
+    @State private var footnoteAmount = "5000"
 
     /// Renders at commit time: "45" typed reads back "45.00" once the entry commits —
     /// the normalization setText's expecting: exists for.
@@ -143,6 +145,23 @@ struct RowResolutionProbe: View {
 
             Text(verbatim: "fired \(fires)")
                 .uiTestingIdentifier("actionFireCount")
+
+            // A field and the validation footnote that appears beneath it once an entry
+            // fails, tagged together on the enclosing view — the shape a form field takes
+            // while it is showing an error. The message is long enough to wrap past the
+            // field's height so the tag's centre lands inside the footnote's own bounds:
+            // stage 1 then answers with a labelled StaticText, which is neither a container
+            // nor an empty `.other`, so only the second stage can still reach the field.
+            // That centre is the entire point of the fixture — keep the message long.
+            VStack(spacing: 0) {
+                TextField("footnote amount", text: $footnoteAmount)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 190, height: 44)
+                Text(verbatim: "The value must be between 1 and 100. Enter a smaller number and try again.")
+                    .font(.footnote)
+                    .frame(width: 190, alignment: .leading)
+            }
+            .uiTestingIdentifier("footnoteRow")
 
             // setText's fixture matrix: formatter-backed, trailing-aligned, number pad
             // (prefilled, so replace must select-all on a keyboard with no text menu
@@ -213,6 +232,63 @@ struct FormFocusProbe: View {
         }
         .environment(mvvmEnv)
         .environment(validations)
+    }
+}
+
+/// The field anchor FormFieldView publishes: each field's view is identified by its
+/// `fieldId`, so a `ScrollViewReader` reaches one with the identifier the caller already
+/// holds — no derived string. The form carries enough fields to run past any probe screen,
+/// so the last one starts off screen and the scroll is the only way it arrives.
+struct FieldAnchorProbe: View {
+    @FocusState private var focusedField: FormFieldIdentifier?
+
+    static let fieldIds = (0..<40).map { FormFieldIdentifier(id: "anchorField\($0)") }
+
+    @State private var models = FieldAnchorProbe.fieldIds.map { fieldId in
+        FormFieldModel<String>(
+            FormField(
+                fieldId: fieldId,
+                title: .constant(fieldId.id),
+                type: .text(inputType: .text)
+            ),
+            default: ""
+        )
+    }
+
+    /// Both are trap-on-missing environment objects, as in FormFocusProbe.
+    @State private var mvvmEnv = MVVMEnvironment(
+        currentVersion: SystemVersion(major: 1, minor: 0, patch: 0),
+        appBundle: Bundle.main,
+        deploymentURLs: [.debug: .init(serverBaseURL: URL(string: "http://localhost:8080")!)]
+    )
+    @State private var validations = Validations()
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                // The scroll is driven through the published anchor alone — the typed
+                // fieldId, handed straight to scrollTo. If FormFieldView ever identifies
+                // its view by anything else, this button stops reaching the field.
+                Button(action: { proxy.scrollTo(Self.fieldIds.last!) }) {
+                    Text(verbatim: "Go to last")
+                }
+                .uiTestingIdentifier("goToLastField")
+
+                Form {
+                    // The row identity is deliberately an Int, NOT the fieldId: a ForEach
+                    // keyed by fieldId would supply the anchor itself, and the scroll would
+                    // work no matter what FormFieldView does internally. Keeping them
+                    // different leaves FormFieldView's own identity the only thing a
+                    // scrollTo(fieldId) can match.
+                    ForEach(Array(models.enumerated()), id: \.offset) { _, model in
+                        FormFieldView(fieldModel: model, focusField: $focusedField)
+                            .uiTestingIdentifier(model.formField.fieldId.id)
+                    }
+                }
+            }
+            .environment(mvvmEnv)
+            .environment(validations)
+        }
     }
 }
 
@@ -398,6 +474,47 @@ struct ToolbarProbe: View {
                         .uiTestingIdentifier("plainToolbarButton")
                 }
             }
+        }
+    }
+}
+
+/// The overflow question: enough toolbar items that the system collapses the trailing ones
+/// into its "More" menu, with both ways of identifying a control present — our sibling tag
+/// and Apple's modifier applied directly to the button. What a test can reach inside that
+/// menu is what this scene exists to measure.
+struct ToolbarOverflowProbe: View {
+    @State private var taps = 0
+
+    var body: some View {
+        NavigationStack {
+            Text(verbatim: "overflow-taps-\(taps)")
+                .uiTestingIdentifier("overflowTapCounter")
+                .navigationTitle(Text(verbatim: "overflow-title"))
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "one") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "two") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "three") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "four") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {}) { Text(verbatim: "five") }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { taps += 1 }) { Text(verbatim: "tagged") }
+                            .uiTestingIdentifier("overflowTaggedButton")
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { taps += 1 }) { Text(verbatim: "direct") }
+                            .accessibilityIdentifier("overflowDirectButton")
+                    }
+                }
         }
     }
 }
@@ -870,6 +987,10 @@ struct UITestingProbeApp: App {
                     RowResolutionProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "formFocus" {
                     FormFocusProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "fieldAnchor" {
+                    FieldAnchorProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "toolbarOverflow" {
+                    ToolbarOverflowProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbar" {
                     VerticalToolbarProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbarDisabled" {

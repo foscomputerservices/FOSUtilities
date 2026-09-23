@@ -31,7 +31,9 @@
 // The audit's input is ONLY the files under .claude/skills/shared/api-catalog/
 // (never SKILL.md bodies or CLAUDE.md indexes), and within them ONLY backticked
 // symbols on "### " entry-title lines. Matching is by base identifier,
-// arity-insensitive.
+// arity-insensitive: a title may spell a function with its argument labels
+// (`registerTestView(_:designedFor:)`) and the labels are ignored rather than
+// read as symbols of their own.
 //
 // Title lines ending in "<!-- apple-only -->" declare Apple-only API (SwiftUI/
 // UIKit-gated symbols inside modules that still build on Linux): on non-Darwin
@@ -212,6 +214,25 @@ struct CatalogFile {
     var appleOnly: Set<String> = []
 }
 
+/// Argument labels are not API: `registerTestView(_:designedFor:)` names one function,
+/// not the three identifiers a plain tokenizer finds in it. Dropping parenthesised spans
+/// keeps a precisely-spelled title from reporting its own labels as symbols that have gone
+/// missing — which is what made spelling one a mistake.
+func droppingArgumentLabels(_ span: Substring) -> String {
+    var kept = ""
+    var depth = 0
+    for character in span {
+        switch character {
+        case "(": depth += 1
+        case ")": depth = max(0, depth - 1)
+        default: if depth == 0 {
+                kept.append(character)
+            }
+        }
+    }
+    return kept
+}
+
 /// Backticked symbols on "### " entry-title lines only; each backtick span may
 /// name several identifiers (`ViewModelId.Freshness`, `fromJSON()` / `toJSON()`).
 func catalogTitleNames(in text: String) -> CatalogFile {
@@ -225,7 +246,8 @@ func catalogTitleNames(in text: String) -> CatalogFile {
             guard let close = rest.firstIndex(of: "`") else { break }
             let span = rest[..<close]
             rest = rest[rest.index(after: close)...]
-            for token in span.split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") }) {
+            for token in droppingArgumentLabels(span)
+                .split(whereSeparator: { !($0.isLetter || $0.isNumber || $0 == "_") }) {
                 let name = baseIdentifier(String(token))
                 if let first = name.first, first.isLetter || first == "_" {
                     catalog.names.insert(name)

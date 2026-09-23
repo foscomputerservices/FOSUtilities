@@ -32,6 +32,24 @@ import Observation
         status == .error
     }
 
+    /// Whether one field failed validation
+    ///
+    /// ```swift
+    /// if viewModel.validations.hasError(for: fieldId) {
+    ///     proxy.scrollTo(fieldId)
+    /// }
+    /// ```
+    ///
+    /// ``hasError`` answers for the form as a whole; this answers for one field, which is what
+    /// a view showing that field needs — to mark it, to focus it, or to bring it on screen.
+    ///
+    /// A field carrying only warnings or information does not have an error.
+    public func hasError(for fieldId: FormFieldIdentifier) -> Bool {
+        validations.contains { validation in
+            validation.hasError && validation.messages(for: fieldId) != nil
+        }
+    }
+
     public var validationError: ValidationError? {
         guard status == .error else { return nil }
 
