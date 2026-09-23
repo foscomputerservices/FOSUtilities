@@ -42,6 +42,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the Claude tooling under `.claude/` and `.claude-plugin/` joins the ignorable
   allowlist — nothing in the workflow reads it.
 
+- **The macOS toolchain is pinned, and both ends of the SDK range are built** — every leg
+  that needs Xcode now pins `macos-26` and Xcode `26.6` rather than stacking
+  `macos-latest` on `latest-stable`, two moving targets whose image ceilings differ by three
+  minor versions and whose defaults differ by ten; the SDK version is an input to the
+  generated Localizable overloads, so a silent toolchain jump moved an input to a
+  checked-in artifact. Two legs now bracket it: `sdk27_preview_build` compiles against SDK
+  27 on the `xcode-27` preview image so a failure on the next major SDK arrives before a
+  consumer finds it, and `floor_build` compiles at the floor the README promises. Both are
+  `continue-on-error` — they report rather than gate.
+
+  > The floor leg exists because the floor was never checked, and measuring it moved the
+  > number: Xcode 26.3 ships the **26.2** SDKs, against a checked-in overload tree stamped
+  > 26.5. `docs/deferrals.md` carries what that leaves open.
+
 - **`ViewModelDisplayTestCase.tearDown()` is `open`** (FOSTestingUI) — the class is `open`
   and exists to be subclassed, but its `tearDown()` was `public`, so a suite outside the
   module could not override it at all and had nothing but `addTeardownBlock(_:)` to undo its
