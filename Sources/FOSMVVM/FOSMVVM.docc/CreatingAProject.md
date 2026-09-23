@@ -43,6 +43,8 @@ Configuration fields:
 - `bundleIdRoot`: reverse-DNS root for bundle identifiers. App shapes only.
 - `teamId`: your Apple Development Team identifier. App shapes only.
 
+Every app shape ships an asset catalog at `Sources/<Project>/Assets.xcassets`: an `AppIcon` set whose slots follow the platforms you chose (iOS light, dark and tinted; the mac sizes; a watchOS slot; a layered stack for visionOS) and an `AccentColor`. Drop your icon art into the slots. The catalog needs no project change, and Xcode generates a typed symbol per asset, so views reach images as `Image(.brandMark)` rather than by name.
+
 ## Verifying the generated project
 
 Every release of the scaffolder is verified by CI: the generated projects are built and their test suites run, including the UI tests. To additionally prove the skeleton on your machine, pass `--verify` — the scaffolder then builds the generated project and runs its tests before declaring success: `swift build`, `swift test` (for `clientServer` this includes a real Fluent create-and-refresh round trip on an in-memory database), and an `xcodebuild` build of the app. A successful verified run ends with:
@@ -95,7 +97,7 @@ doctor:
       reason: Talks to the local Docker socket; sandboxing blocks it.
 ```
 
-Reach for it after adding a framework target by hand, or when adopting FOSUtilities in a project the scaffolder never created. The settings it checks are the ones that fail far from their cause: a second direct link to a FOS product (two non-identical copies of the same types, so `is` and `as?` fail across target boundaries at runtime), a misspelled `BUILD_LIBRARY_FOR_DISTRIBUTION` that Xcode silently ignores, a missing `DEVELOPMENT_TEAM` that surfaces as a dyld rejection at launch, a deployment target below the FOSUtilities floor, and a test plan pointing at target identifiers a regeneration re-minted. It also audits the shared-module doctrine: ViewModels declared outside a shared ViewModels module, and server imports (Vapor, Fluent) inside one.
+Reach for it after adding a framework target by hand, or when adopting FOSUtilities in a project the scaffolder never created. The settings it checks are the ones that fail far from their cause: a second direct link to a FOS product (two non-identical copies of the same types, so `is` and `as?` fail across target boundaries at runtime), a misspelled `BUILD_LIBRARY_FOR_DISTRIBUTION` that Xcode silently ignores, a missing `DEVELOPMENT_TEAM` that surfaces as a dyld rejection at launch, a deployment target below the FOSUtilities floor, and a test plan pointing at target identifiers a regeneration re-minted. It also audits the shared-module doctrine: ViewModels declared outside a shared ViewModels module, and server imports (Vapor, Fluent) inside one. One check is a warning rather than an error: an app-icon setting that names an icon set which does not exist — the build succeeds without it, and App Store submission does not.
 
 Every finding names the setting and the value to use, because fixing it is yours to do.
 

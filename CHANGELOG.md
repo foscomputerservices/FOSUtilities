@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Generated apps ship an asset catalog** (FOSMVVMBootstrap) — every app shape now emits
+  `Sources/<App>/Assets.xcassets` with an `AppIcon` set whose slots follow the platforms the
+  config declares (iOS light, dark and tinted; the ten mac sizes; a watchOS slot; a layered
+  `AppIcon.solidimagestack` when visionOS is chosen) and an `AccentColor`, and the app and
+  watch targets set `ASSETCATALOG_COMPILER_APPICON_NAME`,
+  `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` and
+  `ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS` the way Xcode's own template
+  does. Before this, xcodegen's default named an `AppIcon` set that did not exist and the
+  accent colour had no name to bind to. Icon art stays the finishing step; the handoff
+  checklist now names it. tvOS `.brandassets` are not yet emitted.
+
+  > A catalog inside a synchronized folder compiles with no project change, and Xcode
+  > generates a symbol per asset, so views reach images as `Image(.brandMark)` — the typed
+  > door the FOSMVVM `Localizable` overloads already accept as `ImageResource`.
+
+- **Doctor R15 — the app-icon setting names an icon set that exists** (FOSMVVMBootstrap) —
+  a warning, not an error: the build succeeds without an icon and App Store submission does
+  not. Reads every `ASSETCATALOG_COMPILER_APPICON_NAME` key on each application target,
+  SDK-conditioned keys included, against the icon containers under `Sources/`.
+
+### Changed
+
+- **fosmvvm-swiftui-view-generator 1.2** (plugin 2.69.0) — images are typed: catalog assets
+  reach a view as `ImageResource` (`Image(.name)`, `Label(_:image:)`), never as a `String`
+  name and never as a name carried on the ViewModel; SF Symbols keep Apple's `systemName`
+  literal at the view. The skill's one image example had put a string icon name on the
+  ViewModel.
+
 ## [0.17.1] - 2026-09-22
 
 ### Fixed
