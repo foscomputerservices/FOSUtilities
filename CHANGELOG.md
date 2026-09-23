@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A form field's view is identified by its `fieldId`** (FOSMVVM) — `FormFieldView` used to
+  identify its view with a string it built itself, `"FormField.<fieldId>"`, minting a second
+  identity beside the typed one the field already has and that validation messages and
+  `focusField` already speak. The field's own `FormFieldIdentifier` is now the view's
+  identity, so bringing a field on screen takes the identifier the caller is already holding:
+  `proxy.scrollTo(fieldId)` inside a `ScrollViewReader`, with nothing to derive or spell.
+  Anyone who reconstructed the old string to scroll to a field should pass the `fieldId`
+  itself instead; the derived form no longer matches anything.
+
 - **CI skips the matrix when the code patch is already proved green** — the `changes` job
   now reduces a pull request's non-documentation diff to a stable `git patch-id`, and a
   green run records that id (`record_green`). A later push carrying the same code — a merge

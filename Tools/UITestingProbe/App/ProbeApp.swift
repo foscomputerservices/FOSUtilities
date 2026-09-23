@@ -235,6 +235,63 @@ struct FormFocusProbe: View {
     }
 }
 
+/// The field anchor FormFieldView publishes: each field's view is identified by its
+/// `fieldId`, so a `ScrollViewReader` reaches one with the identifier the caller already
+/// holds — no derived string. The form carries enough fields to run past any probe screen,
+/// so the last one starts off screen and the scroll is the only way it arrives.
+struct FieldAnchorProbe: View {
+    @FocusState private var focusedField: FormFieldIdentifier?
+
+    static let fieldIds = (0..<40).map { FormFieldIdentifier(id: "anchorField\($0)") }
+
+    @State private var models = FieldAnchorProbe.fieldIds.map { fieldId in
+        FormFieldModel<String>(
+            FormField(
+                fieldId: fieldId,
+                title: .constant(fieldId.id),
+                type: .text(inputType: .text)
+            ),
+            default: ""
+        )
+    }
+
+    /// Both are trap-on-missing environment objects, as in FormFocusProbe.
+    @State private var mvvmEnv = MVVMEnvironment(
+        currentVersion: SystemVersion(major: 1, minor: 0, patch: 0),
+        appBundle: Bundle.main,
+        deploymentURLs: [.debug: .init(serverBaseURL: URL(string: "http://localhost:8080")!)]
+    )
+    @State private var validations = Validations()
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                // The scroll is driven through the published anchor alone — the typed
+                // fieldId, handed straight to scrollTo. If FormFieldView ever identifies
+                // its view by anything else, this button stops reaching the field.
+                Button(action: { proxy.scrollTo(Self.fieldIds.last!) }) {
+                    Text(verbatim: "Go to last")
+                }
+                .uiTestingIdentifier("goToLastField")
+
+                Form {
+                    // The row identity is deliberately an Int, NOT the fieldId: a ForEach
+                    // keyed by fieldId would supply the anchor itself, and the scroll would
+                    // work no matter what FormFieldView does internally. Keeping them
+                    // different leaves FormFieldView's own identity the only thing a
+                    // scrollTo(fieldId) can match.
+                    ForEach(Array(models.enumerated()), id: \.offset) { _, model in
+                        FormFieldView(fieldModel: model, focusField: $focusedField)
+                            .uiTestingIdentifier(model.formField.fieldId.id)
+                    }
+                }
+            }
+            .environment(mvvmEnv)
+            .environment(validations)
+        }
+    }
+}
+
 struct ProbeView: View {
     @State private var taps = 0
     @State private var selection = 0
@@ -889,6 +946,8 @@ struct UITestingProbeApp: App {
                     RowResolutionProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "formFocus" {
                     FormFocusProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "fieldAnchor" {
+                    FieldAnchorProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbar" {
                     VerticalToolbarProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbarDisabled" {
