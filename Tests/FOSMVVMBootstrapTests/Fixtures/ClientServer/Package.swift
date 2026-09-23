@@ -14,7 +14,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/foscomputerservices/FOSUtilities.git",
-            from: "0.14.0"
+            from: "0.17.1"
         ),
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.9.0"),

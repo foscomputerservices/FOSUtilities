@@ -105,6 +105,12 @@ targets:
         PRODUCT_NAME: {{PROJECT_NAME}}
         INFOPLIST_FILE: Sources/{{PROJECT_NAME}}/Info.plist
         CODE_SIGN_ENTITLEMENTS: Sources/{{PROJECT_NAME}}/{{PROJECT_NAME}}.entitlements
+        # The asset catalog in Sources/{{PROJECT_NAME}}: the icon set the app is
+        # submitted with, the accent colour SwiftUI tints controls with, and the
+        # generated Image(.name) / Color(.name) symbols views reach assets by.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: 1{{DEVICE_FAMILY_OVERRIDE}}{{XR_COMPAT_OVERRIDE}}
       configs:

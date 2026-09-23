@@ -88,6 +88,9 @@ extension TokenSet {
                 PRODUCT_NAME: \(name)Watch
                 GENERATE_INFOPLIST_FILE: YES
                 INFOPLIST_KEY_WKApplication: YES
+                ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+                ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+                ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
                 MARKETING_VERSION: "0.1"
                 CURRENT_PROJECT_VERSION: 1
             dependencies:

@@ -50,6 +50,9 @@ public enum HandoffChecklist {
                   limitation (memory/macos-build-for-testing-faq.md). Tests run
                   fine from Xcode and on the iOS Simulator.
                d. Add iOS/iPadOS destinations if wanted.
+               e. Drop your icon art into Sources/\(projectName)/Assets.xcassets/AppIcon —
+                  the slots for every platform you chose are there; the art is
+                  yours. AccentColor sits beside it.
             3. Read CLAUDE.md and memory/ — settled doctrine ships with the project.
             4. Add screens via the fosmvvm-viewmodel-generator +
                fosmvvm-swiftui-view-generator skills.
@@ -76,6 +79,9 @@ public enum HandoffChecklist {
                c. Confirm signing: your real DEVELOPMENT_TEAM.
                d. Run the app (Board tab fetches the live board; add a card and it
                   refreshes). Add iOS/iPadOS destinations if wanted.
+               e. Drop your icon art into Sources/\(projectName)/Assets.xcassets/AppIcon —
+                  the slots for every platform you chose are there; the art is
+                  yours. AccentColor sits beside it.
             4. Read CLAUDE.md and memory/ — settled doctrine ships with the project.
             5. Add screens via the fosmvvm-viewmodel-generator +
                fosmvvm-serverrequest-generator + fosmvvm-fluent-datamodel-generator
