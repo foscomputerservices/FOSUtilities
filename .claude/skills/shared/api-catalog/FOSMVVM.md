@@ -145,7 +145,7 @@ let greeting = LocalizableString.localized(key: "landing.greeting")
 let title: LocalizableString = .localized(for: Self.self, propertyName: "title")
 ```
 
-### Localize an enum case without a raw value — `LocalizableString.localized()`
+### Localize an enum case without a raw value — `LocalizableString.localized(case:parentType:)`
 Reach for this when: an enum's cases need user-facing text and you do not want a
 `String` raw value standing in for identity. The YAML key is the enum's type name
 under `parentType`, and the leaf is the case name. Cases carrying a payload have

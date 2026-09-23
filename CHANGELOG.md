@@ -85,6 +85,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The catalog audit stops reading argument labels as missing API** — a catalog title that
+  spelled a function precisely, `registerTestView(_:designedFor:)`, was tokenized into three
+  identifiers, and the two argument labels among them were then reported as symbols that had
+  gone missing. The audit exited 1 on any Mac for three shipped entries while staying green
+  in CI, where those entries are Apple-only and exempt — so the local run had to be ignored
+  to be used, and spelling a title precisely was punished. Parenthesised spans are dropped
+  before tokenizing; a genuinely absent symbol is still reported and still exits 1.
+
 - **The overflow-menu guidance names what actually fails** (FOSTestingUI) — the diagnostic for
   a toolbar item that cannot be found said the `View` tag does not follow an item into the
   system's "More" menu, which left the obvious remedy — applying an `accessibilityIdentifier`
