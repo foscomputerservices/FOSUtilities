@@ -154,6 +154,8 @@ either present bare, exactly as before.
 > not an escape hatch for a view that overflows its production container too — that is a
 > layout bug the harness should keep surfacing.
 
+> Note: Give every toolbar item an icon — `Label(_:systemImage:)` or `Image(systemName:)`. On iOS 27.1 a raised keyboard compresses the window, the items move to a bar running down the trailing edge, and an item whose label is text alone is dropped rather than moved: it leaves the accessibility tree, taking the `navigationTitle` with it, and a test looking for it reports the tag as missing. Measured on an iPhone Duo's cover screen; the same tree on an iPhone 17 Pro keeps every item. `axisBehavior(.horizontalOnly)` does not bring a text-only item back; `toolbarVerticalBehavior(.disabled)` keeps the bar horizontal instead, at the cost of items collapsing into the overflow menu — where a test must tap "More" to reach them, and the `uiTestingIdentifier` does not follow, so only a label match resolves them.
+
 ## Display-Only Path
 
 Use this path when the view only renders data and has no user-initiated actions

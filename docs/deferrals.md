@@ -62,29 +62,61 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **What reopens it:** anyone with 26.3 regenerating, then lowering `verifiedSweepCeiling` in `scripts/localizable-overload-sweep.swift` to match — at which point the gate's floor warning goes quiet on its own; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
 
-## Four probe tests fail on the iPhone Duo's cover screen
+## A vertical toolbar occludes content the aimable band cannot see
 
-**Recorded:** 2026-09-22, at David's direction, during the accessory-strip aim round.
+**Recorded:** 2026-09-22, when the cover-screen round shipped. Replaces the entry that deferred four iPhone Duo failures; those are fixed and their causes are in the CHANGELOG.
 
-**What it is:** running `Tools/UITestingProbe` against iPhone Duo / iOS 27.1 — a 466x678 cover screen — fails four tests that pass on iPhone 17 Pro: `CombinedParentsTests.testAToolbarTapSurvivesAMidFlowOperationsRead`, `CombinedParentsTests.testToolbarItemSurvivesARaisedKeyboard`, `KeyboardDismissalTests.testDismissesTheNumberPad`, and `KeyboardShiftDismissalTests.testDismissesWhileAvoidanceShiftsTheContent`. Two are a toolbar item under a raised keyboard; two are keyboard dismissal.
+**What it is:** on iOS 27.1 a vertically compressed window moves toolbar items into a bar running down the trailing edge. Measured on iPhone Duo / iOS 27.1: with the keyboard up, two items sit stacked at `{399, 175, 38, 38}` and `{399, 228, 38, 36}`, covering a trailing strip of the content behind them. `aimableBand()` clips only at `navigationBars.maxY` and `tabBars.minY`, and `barsCover(_:)` asks only those two queries, so a target under that strip is reported aimable and the touch goes to the bar.
 
-**Why it matters:** the cover screen is short enough that one scroll fling covers the whole aimable band, which is the geometry that produced the field report this round answered. Whatever these four are, they are the same screen class telling us something.
+**Why the obvious fix is wrong:** the only element that spans the column is the `Toolbar` container, and its frame is the WHOLE WINDOW — `{0, 0, 466, 678}` on the Duo, and `{0, 0, 402, 874}` on an iPhone 17 Pro, where every test passes. So this is not a Duo trait and a container frame is not what it covers anywhere on iOS 26/27. Adding `app.toolbars` to the band arithmetic naively would call the entire screen occluded on every device. The strip has to come from the union of the bar's *item* frames.
 
-**Why it was deferred:** measured identical on unmodified `main`, so they are not this round's doing, and four unrelated failures inside one change would bury it. The device is also not yet publicly released.
+**Why it was deferred:** it needs a fixture of its own — a target deliberately placed under the trailing column, on a geometry that relocates — and the round it belongs to had four failures to settle first. Nothing measured so far fails because of it.
 
-**Also unsettled, same suite family:** `TabTaggingTests` fails intermittently at `waitForExistence` on a tab bar item — the late-arriving tab bar of #126. The failing METHOD moves between runs (`testTagsInsideATabHold` twice, `testStateOfATaggedTab` once), and both land on code that runs before anything the accessory-strip round changed. It was seen three times in four full runs of that round's tree and never in two full runs of `main`, which is too thin to call either way and is recorded here rather than dismissed. In isolation the class passed 25 of 25.
+**What reopens it:** a consumer reporting a tap that lands in a trailing toolbar item instead of the control beneath it; or the next probe-fixture round.
 
-**A named suspect, unverified:** the band treats every system bar as horizontal. `aimableBand()` clips the top at `app.navigationBars.firstMatch.maxY` and the bottom at `app.tabBars.firstMatch.minY`, which is the right reading of a bar that runs across the screen. On this device a navigation bar, toolbar actions and tabs can instead share a VERTICAL bar along the leading or trailing edge, where `maxY` is near the bottom of the window — `top` then jumps past `bottom`, the band collapses to no height, and every target reports unreachable. `barsCover(_:)` has the same blind spot from the other side: a vertical bar occludes a left or right strip, and a band that only clips top and bottom cannot say so.
+**What the round settled about the 27.1 toolbar API, so it is not re-asked:** `axisBehavior(.horizontalOnly)` is measured and does not keep a text-only item. `toolbarVerticalBehavior(.disabled)` is measured and does something else entirely: it keeps the bar horizontal, and the items that no longer fit collapse into the system's overflow menu (`TopOverflowBarButtonItem`, label "More") rather than being dropped — absent from the tree until the menu is opened, and arriving there untagged, so only a label match resolves them. At a call site that reads exactly like the relocation's loss, which is why the probe pins both. `toolbarVerticalCompressionBehavior(_:)` is unmeasured: its two values name a preference between toolbar items and a tab bar, and the scene that pinned this has no tab bar, so a measurement would need a fixture carrying both. `toolbarVerticalEdge` is not a symbol in the iOS 27.1 SDK at all — it was named from a guess and there is nothing to decide about it.
 
-Every measurement behind this entry was taken on the COVER screen, where the bar was horizontal and full width (`{0, 24, 466, 58}`), so the vertical layout has never been exercised here at all; the inner display is the likely place to find it. Two of the four failures above are toolbar-under-keyboard tests, which is where a misjudged bar would bite first.
+## The iPhone Duo's inner display has never been exercised
 
-**What that round should do:** measure the inner display; clip the band horizontally when a bar's frame is taller than it is wide; and decide what `axisBehavior(_:)`, `toolbarVerticalEdge`, `toolbarVerticalCompressionBehavior(_:)` and `toolbarVerticalBehavior(_:)` mean for a view registered with `designedFor: .navigation` — a harness-supplied parent that renders its bar on a different edge than production does is a fixture that proves the wrong thing.
+**Recorded:** 2026-09-22, when the cover-screen round shipped.
 
-**Why more local runs were not bought:** they would sharpen the rate, not name the cause, and CI samples it on every run for nothing.
+**What it is:** the device carries two integrated displays — `simctl io … enumerate` reports screen 1 "LCD" at 1398x2034 (the 466x678 cover screen) and screen 3 "LCD-1" at 2007x2853 (669x951 points). Both are live: a hierarchy dump taken through Xcode's device-interaction MCP shows SpringBoard holding windows on BOTH, `{0,0,466,678}` and `{0,0,669,951}`, at the same time. What has never happened is the app under test being placed on the inner one — every measurement this library has taken is from the cover screen.
 
-**Why the CI leg is worth its cost when the runners can carry the runtime:** twice now a real defect in this library has been found by a consuming app's device matrix before our own probe saw it — the accessory-strip aim among them, on a screen shape the probe had never been run against. The fixture added in that round closes the one geometry; it does not close the gap, which is that a consumer tests on hardware we do not. Until a cover-screen leg runs here, that asymmetry stands and the next such defect arrives the same way: as someone else's failing test, days after it shipped.
+**Why it matters:** the inner display is wider and taller, which puts it in a size class neither the cover screen nor a full-size phone occupies, and the toolbar relocation this round pinned is a response to available space.
 
-**What reopens it:** the next PR, where they are the subject rather than a bystander; or a consumer reporting one of the four on a shipping device.
+**Why it was deferred:** moving the app there means changing the device's posture, and the fold/unfold control lives in `Simulator.app` — including the Option-drag hinge slider. **This machine's Xcode 27.1 has no `Contents/Developer/Applications` directory at all**, so `Simulator.app` (with `Instruments`, `Accessibility Inspector` and the rest) is simply absent; that is an incomplete local install, not a limitation of the tooling. `simctl` itself exposes no fold, posture or active-display command, and `CoreDevice`'s hinge support is read-only monitoring for physical devices, so with `Simulator.app` missing there is no route from here.
+
+**What reopens it:** reinstalling Xcode so `Contents/Developer/Applications/Simulator.app` is present, then folding the device and re-running the probe. Nothing else about the device is in the way.
+
+## `TabTaggingTests` fails intermittently on the iPhone Duo
+
+**Recorded:** 2026-09-22, carried forward from the accessory-strip round.
+
+**What it is:** `waitForExistence` on a tab bar item — the late-arriving tab bar of #126 — fails intermittently. The failing METHOD moves between runs (`testTagsInsideATabHold` twice, `testStateOfATaggedTab` once). Seen three times in four full runs of the accessory-strip tree and never in two full runs of `main`, which is too thin to call either way. In isolation the class passed 25 of 25.
+
+**Why it was deferred:** more local runs would sharpen the rate, not name the cause, and CI samples it on every run for nothing.
+
+**What reopens it:** the rate rising, or a run that fails the same method twice.
+
+## No CI leg runs against a short-screen destination
+
+**Recorded:** 2026-09-22, carried forward from the accessory-strip round.
+
+**What it is:** CI's UI-testing probe runs on full-size phone destinations only. The geometries that have produced real defects in this library — the accessory-strip aim, the dismissal control's placement, the toolbar relocation — all live on a short screen.
+
+**Why it matters:** twice now a defect here was found by a consuming app's device matrix before our own probe saw it. The fixtures added since close those geometries; they do not close the gap, which is that consumers test on hardware we do not. Until a short-screen leg runs here, the next such defect arrives the same way: as someone else's failing test, days after it shipped.
+
+**Why it was deferred:** no hosted runner image carries a short-screen destination. Checked 2026-09-22: `macos-26` (what `macos-latest` points to) ships iOS 26.2 / 26.4 / 26.5 with iPhone 16e, 17, 17 Pro, 17 Pro Max, 17e and Air; the `xcode-27` preview image ships Xcode 27.0 (27A266a) with iOS 27.0 and iPhone 17, 17e, 18 Pro, 18 Pro Max and Air. Every one of those is a full-size phone. The iPhone Duo needs the iOS 27.1 runtime — its device profile sets `minRuntimeVersion 27.1`, and `simctl create` refuses every other device type against that runtime — and 27.1 is on no image at all.
+
+**Landscape was measured, and it does NOT reproduce the toolbar relocation.** Rotating the `verticalToolbar` scene and raising the keyboard: on iPhone 17 Pro / iOS 27.0 (the `xcode-27` image's runtime) the window is 874x402 and the navigation bar keeps all three items and its title; on iPhone 17 Pro Max / iOS 26.5 (what the pinned legs use) the window is 956x440 and the same. No relocation, no overflow, the text-only item present throughout. Consistent with the relocation being tied to the 27.1 API itself — `axisBehavior(_:)`, `toolbarVerticalBehavior(_:)` and `toolbarVerticalCompressionBehavior(_:)` are all `@available(anyAppleOS 27.1, *)` — which no hosted image carries.
+
+**But landscape DOES reproduce the geometry that motivated this entry.** The defect that reached us from a consumer's device matrix was an aimable band shorter than one scroll fling, not a toolbar. Measured band heights (bar bottom to keyboard top, less the 44pt accessory clearance): **109pt** on iPhone 17 Pro / 27.0 landscape, **154pt** on iPhone 17 Pro Max / 26.5 landscape, against **307pt** on the Duo's cover screen in portrait — where a single fling moves the content ~345pt. Landscape on hosted hardware is two to three times deeper into that regime than the screen that produced the field report, and it needs no new runtime, image or device.
+
+**Ruled, and half of it is now shipped.** A separate landscape LEG was rejected on cost: `Probe UI tests (iOS)` is the longest job in the run at 37 minutes, and duplicating it would re-run eighteen suites of which about six touch the aim/scroll path. The coverage was taken as two rotating tests inside the existing leg instead — `LandscapeBandTests`, about 45 seconds — which reaches the band geometry on stock hardware every PR.
+
+**What stays open:** the toolbar relocation, which no geometry reaches below iOS 27.1.
+
+**What reopens it:** a runner image carrying the iOS 27.1 runtime.
 
 ## `CredentialRejectedError` has no user-presentable localized message
 

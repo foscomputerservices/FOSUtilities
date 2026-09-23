@@ -295,7 +295,22 @@ import XCTest
         self.app = app
     }
 
-    override public func tearDown() async throws {
+    /// Releases the application the test case drove
+    ///
+    /// Override it to undo whatever your own suite set up, and call `super` — the base
+    /// implementation is what releases the `XCUIApplication`:
+    ///
+    /// ```swift
+    /// override func tearDown() async throws {
+    ///     XCUIDevice.shared.orientation = .portrait
+    ///
+    ///     try await super.tearDown()
+    /// }
+    /// ```
+    ///
+    /// > Work that must happen even when `setUp` failed part-way belongs in
+    /// > `addTeardownBlock(_:)` instead, registered before the step that can fail.
+    override open func tearDown() async throws {
         app = nil
 
         try await super.tearDown()
