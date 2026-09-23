@@ -159,3 +159,52 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 **Why it was deferred:** David ruled (2026-09-02) that the one consumer's transfer stays as-is — special-purpose, with its own retry characteristics — so there is no consumer asking for a general door. Known, not planned.
 
 **What reopens it:** a second consumer with the shape; or the first one asking to converge.
+
+## A form field's title and placeholder cannot carry substitutions
+
+**Recorded:** 2026-09-23, at David's direction, when `hasError(for:)` and the catalog entry shipped.
+
+**What it is:** `FormFieldBase` declares `title: LocalizableString` and `placeholder: LocalizableString?`. Substitutions live in a different type, `LocalizableSubstitutions`, so a field whose placeholder should read "1–100" from its own bounds has to be hand-formatted from the values rather than bound.
+
+**Why it matters:** a placeholder built by hand is text assembled outside localization, which is the thing the YAML stores exist to prevent.
+
+**Why it was deferred:** the obvious widening, `any Localizable`, is worse than it looks — it trips the existential principle, kills `FormField`'s synthesized `Codable` (`FormFieldBase: Codable`), and decoding an existential needs a type discriminator in the encoded form, which would publish a representation that is presently a plain string. The alternative is a substitutions case on `LocalizableString`, whose `Codable` is already hand-rolled to a plain string and whose decode never sees the cases — cheap on paper. But `LocalizableSubstitutions` already *is* a base string plus bindings, conforming exactly as the enum does, so adding the case raises a design question rather than settling one: whether the struct should become the case's payload, be folded in and deleted, or stay. David's ruling: "You're going to need to defer this one, I'm going to have to think this through. Not having anything other than LocalizableString on that form field's property is not a huge drawback, very niche."
+
+**What reopens it:** David settling whether `LocalizableSubstitutions` earns its own type; or a form needing a bound placeholder or title badly enough to hand-format it again.
+
+## `SystemVersion.current` is a global the tests write mid-run
+
+**Recorded:** 2026-09-23, at David's direction, when the tagged-control read fix was verified.
+
+**What it is:** `setCurrentVersion(_:)` assigns an unsynchronized global (`SystemVersion.swift:103`), and tests call it mid-run to stage a version. Swift Testing runs tests in parallel, so a test that sets the version and then asserts against it can read something else. Caught once, in the first full `swift test` on the read-resolution branch:
+
+```
+Test requireCompatibleAppVersion() recorded an issue at Request+FOSTests.swift:67:6:
+Caught error: SystemVersionError: Incompatible version 2.1.99 requested; version 1.0.0 is required.
+```
+
+The test sets 2.1.1 and asserts a 2.1.99 request is compatible; 1.0.0 is `vInitial`, the default — so the value it read was not the value it had just written. The sibling setter `setMinimumSupportedVersion(_:)` carries the warning the tests are violating: "NOT THREAD-SAFE. This method MUST be called exactly once during single-threaded application initialization."
+
+**Why it matters:** it passes almost always — it passed on re-run, in isolation, and on a clean `origin/main` worktree. So it surfaces in CI as a one-off that looks unrelated to whatever is being merged, which is how an intermittent stays unnamed for months. It is also the repo's own recorded lesson ("Singletons make testing unreliable"; "Suites using shared singletons need `.serialized`") appearing in the wild.
+
+**Why it was deferred:** the remedy is bigger than the symptom. `.serialized` only orders tests within one suite, and the state is target-wide — so the honest fixes are a lock around `current`, or injecting the version rather than reaching for a global, which touches how every caller obtains it. Neither belongs inside an unrelated defect fix.
+
+**What reopens it:** a CI leg going red on a version-compatibility test with no related change in the diff; or any work that already touches `SystemVersion`'s storage.
+
+## Three probe tests fail on Xcode 27.1 / iOS 27, and CI cannot see it
+
+**Recorded:** 2026-09-23, at David's direction, when the tagged-control read fix was verified.
+
+**What it is:** the iOS probe suite is green in CI and red on a developer Mac running the newer toolchain. Measured on Xcode 27.1 (build 27A9269) against an iOS 27.0 simulator, 83 passed and these three failed — reproduced identically on an unmodified `origin/main` checkout, so they belong to the toolchain and not to any branch:
+
+- `KeyboardDismissalTests/testDismissesTheNumberPad` — "The keyboard is up, but the dismissal control (`__FOS_DismissKeyboard`) is not in the view hierarchy. testHost() (FOSMVVM) plants it; check that the application's root view is wrapped in .testHost()."
+- `KeyboardShiftDismissalTests/testDismissesWhileAvoidanceShiftsTheContent` — `XCTAssertTrue failed` at `KeyboardDismissalTests.swift:82`, the same control, asserted directly rather than through `dismissKeyboard()`.
+- `TextEntryTests/testFormatterFieldWithExpecting` — `Failed to scroll to visible (by AX action) Button, {{300.7, 1087.0}, {99.0, 54.0}}, identifier: 'Return', label: 'return', error: Error kAXErrorFailure performing AXAction kAXScrollToVisibleAction`, raised from `UITestingElement.swift:984` where `setText` commits an entry by tapping the keyboard's Return key. Retried three times, ~1s apart, each with the same frame.
+
+The first two are one symptom: the keyboard-dismissal control `testHost()` plants in its own window is not reachable on this runtime. The third is separate: the Return key is present with an honest frame, and the accessibility scroll-to-visible action on it fails outright.
+
+**Why it matters:** CI pins Xcode 26.6, so the whole matrix stays green while the suite is unusable to anyone on a current toolchain — a developer running the probe locally has to know which three failures to disregard, which is how a real regression gets waved through. Both symptoms sit on shipped affordances (`dismissKeyboard()`, `setText`'s commit), so they are likely consumer-visible on iOS 27, not merely test-harness noise.
+
+**Why it was deferred:** diagnosis is a fixture round of its own — the own-window rehosting of the dismissal control and the Return-key commit path each need re-measuring on the new runtime before anything is changed, and changing either to suit 27.1 risks the 26.6 behaviour the matrix still certifies. It is not work to fold into an unrelated defect fix.
+
+**What reopens it:** the CI toolchain pin moving to 27.x, which turns this from an invisible local annoyance into a red matrix; or a consumer reporting either symptom on iOS 27. The existing SDK-27 preview leg is the place the warning would arrive first.
