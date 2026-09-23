@@ -510,6 +510,18 @@ thing it is not.
 > The back affordance belongs to the stack, not to your view. Do not tag it and do not
 > assert on it; assert that the content you navigated *to* arrived.
 
+> **Every toolbar item needs an icon** — `Label(_:systemImage:)` or `Image(systemName:)`,
+> never a bare `Text`. On iOS 27.1 a raised keyboard compresses the window, the items move
+> to a bar running down the trailing edge, and a text-only item is dropped rather than
+> moved: it leaves the accessibility tree along with the `navigationTitle`, and the test
+> reports the tag as missing. Measured on an iPhone Duo's cover screen; the same tree on an
+> iPhone 17 Pro keeps every item, so this reaches a reader as a device-shaped surprise.
+> `axisBehavior(.horizontalOnly)` does not rescue a text-only item.
+> `toolbarVerticalBehavior(.disabled)` keeps the bar horizontal instead, at the cost of the
+> items that no longer fit collapsing into the overflow menu — where a test has to tap
+> "More" to reach them, and the tag does not follow: an overflowed item resolves by label
+> only.
+
 ## When to Use This Skill
 
 - Adding UI tests for a new ViewModelView

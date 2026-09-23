@@ -97,6 +97,24 @@ simulator existed at all.
   the `KeyboardShiftProbe` scene (`PROBE_SCENE=keyboardShift`: tall filler, `.numberPad` field
   near the bottom, no scroll container) forces the shift that displaced 0.12.2's overlay
   control off screen
+- the aim/scroll path against a band far shorter than one scroll fling, reached by rotating
+  the device (`LandscapeBandTests`, the only suite that rotates — it restores portrait from a
+  teardown block, and a portrait suite running after it is the check). Measured band heights,
+  bar bottom to keyboard top less the 44pt accessory clearance: 109pt on iPhone 17 Pro /
+  iOS 27.0 and 154pt on iPhone 17 Pro Max / iOS 26.5, against 307pt on the iPhone Duo's cover
+  screen in portrait — so a rotated stock phone reaches the geometry behind both field
+  reports without the device that produced them. What is pinned there is graceful
+  degradation: the band cannot hold the fixture's field at all, `scrollIntoBand` says so in a
+  warning, and the entry still commits
+- what a raised keyboard does to a toolbar on iOS 27.1, per item presentation — the
+  `VerticalToolbarProbe` scene (`PROBE_SCENE=verticalToolbar`, and its
+  `verticalToolbarDisabled` twin) carries four items differing only in how they present
+  themselves, and `VerticalToolbarTests` reads the navigation bar rather than the device to
+  decide which branch it is on. On a geometry that compresses far enough, the items move to a
+  vertical bar along the trailing edge, a text-only item is dropped rather than moved, and
+  `axisBehavior(.horizontalOnly)` does not bring it back. `toolbarVerticalBehavior(.disabled)`
+  keeps the bar horizontal instead, overflowing what no longer fits into the system's "More"
+  menu — absent from the tree until that menu is opened, and untagged when it arrives
 
 ## What the tab bar taught us
 

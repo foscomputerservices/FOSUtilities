@@ -576,12 +576,19 @@ struct ToolbarCardContent: View {
         .navigationTitle(Text(verbatim: "card-title"))
         // TWO items, because the reported failure needs a second tap after an operations
         // read: tap one, read, edit the field, tap the other.
+        //
+        // Both carry an ICON, and that is load-bearing rather than decoration. On iOS 27.1
+        // a raised keyboard compresses the window, the items move to a vertical bar along
+        // the trailing edge, and an item whose label is text alone is dropped instead of
+        // moved — so a text-only item here would make every toolbar-under-keyboard test a
+        // test of the platform's presentation rule rather than of the tag. The rule itself
+        // is pinned, deliberately and in isolation, by VerticalToolbarProbe.
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(action: {
                     ops.saveCount += 1
                     repaintToggle.toggle()
-                }) { Text(verbatim: "save") }
+                }) { Label("save", systemImage: "square.and.arrow.down") }
                     .uiTestingIdentifier("\(idPrefix)SaveButton")
             }
 
@@ -589,7 +596,7 @@ struct ToolbarCardContent: View {
                 Button(action: {
                     ops.resetCount += 1
                     repaintToggle.toggle()
-                }) { Text(verbatim: "reset") }
+                }) { Label("reset", systemImage: "arrow.uturn.backward") }
                     .uiTestingIdentifier("\(idPrefix)ResetButton")
             }
         }
@@ -715,6 +722,121 @@ struct FlingCardView: ViewModelView {
     }
 }
 
+/// The iOS 27.1 vertical-toolbar matrix: four toolbar items that differ only in how they
+/// present themselves and in what they declare about the axis they can live on, on a scene
+/// whose keyboard compresses the window vertically.
+///
+/// On the iPhone Duo's cover screen a raised keyboard leaves the navigation bar in the tree
+/// with NOTHING in it — title and every item gone — while the same tree on an iPhone 17 Pro
+/// keeps its items and merely shortens the bar. Measured here: the item's own presentation
+/// decides. An item carrying an icon is relocated to a vertical bar along the trailing edge
+/// and stays reachable; an item labelled with text alone is dropped, and declaring
+/// `axisBehavior(.horizontalOnly)` on it does not change that.
+struct VerticalToolbarProbe: View {
+    /// Declares `toolbarVerticalBehavior(.disabled)`, which keeps the bar horizontal — and
+    /// overflows the items that no longer fit into the system's "More" menu rather than
+    /// relocating them. The twin scene leaves the behaviour automatic.
+    var disablesVerticalBehavior = false
+
+    @State private var amount = ""
+    @State private var taps = 0
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                // OUTSIDE the scroll view: a toolbar tap is asserted on its effect, and a
+                // counter that scrolls away with the content cannot be read at the moment
+                // the assertion needs it.
+                Text(verbatim: "vt-taps-\(taps)")
+                    .uiTestingIdentifier("vtCounter")
+
+                ScrollView {
+                    VStack(spacing: 12) {
+                        // Taller than the window, so the field starts below a raised
+                        // keyboard and the scroll parent — not keyboard avoidance — is
+                        // what moves it.
+                        Spacer().frame(height: 900)
+
+                        NumberPadField(title: "amount", text: $amount)
+                            .textFieldStyle(.roundedBorder)
+                            .uiTestingIdentifier("vtField")
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle(Text(verbatim: "vt-title"))
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: { taps += 1 }) { Text(verbatim: "vtText") }
+                        .uiTestingIdentifier("vtTextItem")
+                }
+
+                ToolbarItem(placement: .automatic) {
+                    Button(action: { taps += 1 }) {
+                        Label("vtLabel", systemImage: "star")
+                    }
+                    .uiTestingIdentifier("vtLabelItem")
+                }
+
+                ToolbarItem(placement: .automatic) {
+                    Button(action: { taps += 1 }) {
+                        Image(systemName: "bolt")
+                    }
+                    .uiTestingIdentifier("vtIconItem")
+                }
+
+                // THREE guards, and each closes a hole the others do not.
+                //
+                // `compiler(>=6.4)` stands in for the SDK. `axisBehavior(_:)` does not exist
+                // below the 27.1 SDK, and `#available` cannot help: availability is a
+                // RUNTIME check and the symbol still has to be there to compile. CI pins
+                // Xcode 26.6, whose SDK is 26.5, and this file failed to build there until
+                // this guard existed. Swift offers no `#if sdk(...)`, so the toolchain
+                // version is the proxy — Xcode 27.1 ships Swift 6.4, Xcode 26.6 ships 6.3.
+                // It is a proxy and not an equivalence: a toolchain that pairs Swift 6.4
+                // with an SDK below 27.1 would take this branch and fail to compile, loudly.
+                //
+                // `os(iOS)` because `.horizontalOnly` is iOS-only, and an
+                // `#available(iOS 27.1, *)` check passes on macOS through the `*`.
+                //
+                // `#available` because the SDK having the symbol says nothing about the
+                // runtime the test executes on.
+                #if os(iOS) && compiler(>=6.4)
+                if #available(iOS 27.1, *) {
+                    ToolbarItem(placement: .automatic) {
+                        Button(action: { taps += 1 }) { Text(verbatim: "vtHoriz") }
+                            .uiTestingIdentifier("vtHorizontalOnlyItem")
+                    }
+                    .axisBehavior(.horizontalOnly)
+                }
+                #endif
+            }
+            .modifier(VerticalToolbarBehavior(disabled: disablesVerticalBehavior))
+        }
+    }
+}
+
+/// `toolbarVerticalBehavior(_:)` arrived in iOS 27.1, so the declaration only exists where
+/// the SDK has it; below that floor the scene is the same tree with nothing declared, which
+/// is what makes the older runtimes a control rather than a hole. `VerticalToolbarTests`
+/// reads the tree rather than assuming the declaration took, so it passes either way.
+struct VerticalToolbarBehavior: ViewModifier {
+    let disabled: Bool
+
+    func body(content: Content) -> some View {
+        // Same three guards, for the same reasons, as the item above.
+        #if os(iOS) && compiler(>=6.4)
+        if #available(iOS 27.1, *), disabled {
+            content.toolbarVerticalBehavior(.disabled)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
 @main
 struct UITestingProbeApp: App {
     init() {
@@ -748,6 +870,10 @@ struct UITestingProbeApp: App {
                     RowResolutionProbe()
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "formFocus" {
                     FormFocusProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbar" {
+                    VerticalToolbarProbe()
+                } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "verticalToolbarDisabled" {
+                    VerticalToolbarProbe(disablesVerticalBehavior: true)
                 } else if ProcessInfo.processInfo.environment["PROBE_SCENE"] == "untabbed" {
                     // The pre-iOS-27 tree on any runtime. The root below is chosen by OS
                     // version, so a behaviour that only appears on a new OS is confounded
