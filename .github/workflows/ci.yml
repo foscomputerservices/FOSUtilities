@@ -309,6 +309,76 @@ jobs:
   # Nor the UI-testing probe: this image carries iOS 27.0 simulators only —
   # iPhone 17/17e/18 Pro/18 Pro Max/Air — and every geometry the probe was
   # written for is already covered on the pinned legs.
+  # The other direction from sdk27_preview_build: does the source still compile at the
+  # floor the README promises consumers?
+  #
+  # "Xcode 26.3 or newer" is a SOURCE floor, and the thing that makes it one is the SDK —
+  # the generated Localizable overloads are effectively a header, so they may only reference
+  # what the floor SDK declares. Those two numbers are not the same number: Xcode 26.3 ships
+  # the 26.2 SDKs (macosx26.2, iphoneos26.2, and the rest), while the checked-in overload
+  # tree is stamped 26.5. Nothing has ever verified the gap; docs/deferrals.md records it as
+  # believed-compatible rather than measured. This leg measures it.
+  #
+  # macos-15 is the only image that still carries Xcode 26.3, so the runner is pinned to it
+  # rather than to macos-26 — and pinned for the same reason every other leg is: the floor is
+  # a claim about a specific toolchain, not about whatever is latest there.
+  #
+  # continue-on-error while the claim is unproven. If this is red it is reporting a promise
+  # the README already makes and CI has never checked, which is a finding to schedule, not a
+  # reason to block a merge. Promote it to required the first time it is green.
+  floor_build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    name: Build ${{ matrix.ios_platform }} at the declared floor
+    runs-on: macos-15
+    continue-on-error: true
+    strategy:
+      matrix:
+        ios_platform: ["macOS", "iOS"]
+      fail-fast: false
+
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.3"
+
+      - uses: actions/checkout@v4
+
+      # Printed, not assumed. The Xcode-to-SDK pairing is what this leg is about, and the
+      # Swift version is the other half of the floor the README does not currently state.
+      - name: Record the toolchain this leg actually got
+        run: |
+          xcodebuild -version
+          swift --version
+          for sdk in macosx iphoneos iphonesimulator; do
+            echo "$sdk $(xcrun --sdk $sdk --show-sdk-version)"
+          done
+
+      - name: Install xcpretty
+        run: gem install xcpretty
+
+      # Same schemes and flags as the pinned build matrix: the Vapor targets are
+      # macOS/Linux-only, so a device platform builds the FOSMVVM scheme and macOS builds the
+      # full package scheme.
+      - name: Run ${{ matrix.ios_platform }} build
+        run: |
+          set -o pipefail
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation -derivedDataPath \
+            "$PWD/.derivedData" -scheme FOSMVVM -configuration Debug \
+            -destination "generic/platform=${{ matrix.ios_platform }}" build | xcpretty
+        if: matrix.ios_platform != 'macOS'
+
+      - name: Run macOS build
+        run: |
+          set -o pipefail
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$PWD/.derivedData" \
+            -scheme FOSUtilities-Package -configuration Debug \
+            -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
+        if: matrix.ios_platform == 'macOS'
+
   sdk27_preview_build:
     needs: changes
     if: needs.changes.outputs.code == 'true'

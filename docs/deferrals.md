@@ -60,6 +60,8 @@ Work items acknowledged and deliberately not done yet. Each entry names the evid
 
 **Why it was deferred:** regenerating at the floor needs an Xcode 26.3 installation, which the machine that raised this does not have.
 
+**Since measured (2026-09-23):** the gap is wider than the two numbers suggest, because they are not the same kind of number. **Xcode 26.3 ships the 26.2 SDKs** — `macosx26.2`, `iphoneos26.2` and the rest — so the floor's SDK is 26.2 against a tree stamped 26.5, not 26.3 against 26.5. The `floor_build` CI leg now compiles the sources at that toolchain on every run, which converts "believed-compatible" into an observation for the source; regenerating the tree there is still the open half.
+
 **What reopens it:** anyone with 26.3 regenerating, then lowering `verifiedSweepCeiling` in `scripts/localizable-overload-sweep.swift` to match — at which point the gate's floor warning goes quiet on its own; or a consumer on the floor reporting a compile failure in `Sources/FOSMVVM/SwiftUI Support/Generated/`.
 
 ## A vertical toolbar occludes content the aimable band cannot see
