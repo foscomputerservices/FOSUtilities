@@ -90,7 +90,7 @@ public enum Emitter {
 
         // Platform trees — `Templates/platforms/<platform>` — ride along when the
         // config declares that platform. Only app shapes receive them: what they
-        // carry (the visionOS icon stack) lives in the app folder, which a
+        // carry (the visionOS and tvOS icon stacks) lives in the app folder, which a
         // package has no counterpart for.
         if hasAppTarget(config.shape) {
             for platform in config.platforms.keys.sorted(by: { $0.rawValue < $1.rawValue }) {

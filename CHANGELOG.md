@@ -12,13 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Generated apps ship an asset catalog** (FOSMVVMBootstrap) — every app shape now emits
   `Sources/<App>/Assets.xcassets` with an `AppIcon` set whose slots follow the platforms the
   config declares (iOS light, dark and tinted; the ten mac sizes; a watchOS slot; a layered
-  `AppIcon.solidimagestack` when visionOS is chosen) and an `AccentColor`, and the app and
+  `AppIcon.solidimagestack` when visionOS is chosen; a tvOS `AppIcon.brandassets` with its
+  App Store, home-screen and top-shelf slots) and an `AccentColor`, and the app and
   watch targets set `ASSETCATALOG_COMPILER_APPICON_NAME`,
   `ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME` and
   `ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS` the way Xcode's own template
   does. Before this, xcodegen's default named an `AppIcon` set that did not exist and the
   accent colour had no name to bind to. Icon art stays the finishing step; the handoff
-  checklist now names it. tvOS `.brandassets` are not yet emitted.
+  checklist now names it.
 
   > A catalog inside a synchronized folder compiles with no project change, and Xcode
   > generates a symbol per asset, so views reach images as `Image(.brandMark)` — the typed

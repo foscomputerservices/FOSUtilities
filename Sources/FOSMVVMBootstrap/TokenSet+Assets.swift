@@ -23,10 +23,9 @@ extension TokenSet {
     /// The `images` entries of `AppIcon.appiconset/Contents.json`, or an
     /// empty string when no platform contributes a slot.
     ///
-    /// visionOS is absent on purpose: its icon is a layered
-    /// `AppIcon.solidimagestack`, emitted as a platform tree by `Emitter`
-    /// rather than as entries here. tvOS is absent because its icon is a
-    /// `.brandassets` stack the scaffolder does not yet emit.
+    /// visionOS and tvOS are absent on purpose: their icons are layered
+    /// containers — `AppIcon.solidimagestack` and `AppIcon.brandassets` —
+    /// emitted as platform trees by `Emitter` rather than as entries here.
     static func appIconImagesJSON(config: BootstrapConfig) -> String {
         var entries: [String] = []
 

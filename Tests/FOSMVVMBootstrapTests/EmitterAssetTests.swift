@@ -89,6 +89,23 @@ struct EmitterAssetTests {
         #expect(!plainPaths.contains(stack))
     }
 
+    @Test("tvOS adds the brand-assets stack the tvOS icon slot requires")
+    func tvBrandAssetsFollowThePlatform() throws {
+        let stack = "Sources/PalettePress/Assets.xcassets/AppIcon.brandassets/Contents.json"
+
+        let (withTV, tvPaths) = try emit(appConfig(
+            shape: .clientServer,
+            platforms: [.macOS: "14.0", .tvOS: "17.0"]
+        ))
+        defer { try? FileManager.default.removeItem(at: withTV) }
+        #expect(tvPaths.contains(stack))
+        #expect(tvPaths.filter { $0.contains("AppIcon.brandassets/") }.count == 17)
+
+        let (without, plainPaths) = try emit(appConfig(shape: .clientServer, platforms: [.macOS: "14.0"]))
+        defer { try? FileManager.default.removeItem(at: without) }
+        #expect(!plainPaths.contains(stack))
+    }
+
     @Test("a shared library declaring visionOS receives no app folder")
     func sharedLibraryHasNoCatalog() throws {
         let (root, paths) = try emit(BootstrapConfig(

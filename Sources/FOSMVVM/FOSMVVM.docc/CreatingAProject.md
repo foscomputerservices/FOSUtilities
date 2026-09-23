@@ -43,7 +43,7 @@ Configuration fields:
 - `bundleIdRoot`: reverse-DNS root for bundle identifiers. App shapes only.
 - `teamId`: your Apple Development Team identifier. App shapes only.
 
-Every app shape ships an asset catalog at `Sources/<Project>/Assets.xcassets`: an `AppIcon` set whose slots follow the platforms you chose (iOS light, dark and tinted; the mac sizes; a watchOS slot; a layered stack for visionOS) and an `AccentColor`. Drop your icon art into the slots. The catalog needs no project change, and Xcode generates a typed symbol per asset, so views reach images as `Image(.brandMark)` rather than by name.
+Every app shape ships an asset catalog at `Sources/<Project>/Assets.xcassets`: an `AppIcon` set whose slots follow the platforms you chose (iOS light, dark and tinted; the mac sizes; a watchOS slot; a layered stack for visionOS; a brand-assets bundle for tvOS) and an `AccentColor`. Drop your icon art into the slots. The catalog needs no project change, and Xcode generates a typed symbol per asset, so views reach images as `Image(.brandMark)` rather than by name.
 
 ## Verifying the generated project
 
