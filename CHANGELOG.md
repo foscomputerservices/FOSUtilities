@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A picker selection survives a contended runner** (FOSTestingUI) — `selectPickerItem`
+  waits for a row reached by scrolling within the presented menu to stop moving before it
+  taps. It used to pause a fixed interval after each fling, and on a CI runner sharing its
+  host with a second VM the menu was still decelerating when the tap dispatched, so XCUITest
+  re-resolved the row to nothing and failed the test outright, past the retry.
+
 ## [0.17.3] - 2026-09-24
 
 ### Fixed
