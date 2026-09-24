@@ -96,6 +96,13 @@ import XCTest
         XCTAssertEqual(field.value, "42")
     }
 
+    /// A read on a tagged `Text` stops at the text. Stage 1 finds the StaticText sharing the
+    /// tag's frame; descending past it answered with whatever control had its centre inside
+    /// the frame (measured: a list row behind a sheet answering for the sheet's own text).
+    func testOverlaidTextReadsItselfNotTheControlBeneath() {
+        XCTAssertEqual(app.uiTestingElement("overlaidPreview").label, "preview-text")
+    }
+
     /// A tag on the control itself taps and reads that control; composite descent must not
     /// reroute it to a neighbour.
     func testDirectlyTaggedControlStillAnswersForItself() {

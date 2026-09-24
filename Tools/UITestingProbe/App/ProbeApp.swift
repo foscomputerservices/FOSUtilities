@@ -163,6 +163,21 @@ struct RowResolutionProbe: View {
             }
             .uiTestingIdentifier("footnoteRow")
 
+            // A tagged Text drawn over a row-wide control whose centre falls inside the
+            // text's frame: the shape a sheet takes over the list it covers, since the
+            // covered row stays in the tree. A read must answer the text — the row is not
+            // enclosed by the tag, only centred under it.
+            ZStack {
+                Button(action: {}) {
+                    Text(verbatim: "Covered row")
+                        .frame(width: 338)
+                }
+                Text(verbatim: "preview-text")
+                    .frame(width: 190, height: 44)
+                    .background(Color(white: 0.9))
+                    .uiTestingIdentifier("overlaidPreview")
+            }
+
             // setText's fixture matrix: formatter-backed, trailing-aligned, number pad
             // (prefilled, so replace must select-all on a keyboard with no text menu
             // shortcuts), and a SecureField for the teaching rejection.
@@ -473,6 +488,16 @@ struct ToolbarProbe: View {
                     Button(action: {}) { Text(verbatim: "plain") }
                         .uiTestingIdentifier("plainToolbarButton")
                 }
+
+                // A disabled control, leading so the trailing items keep their layout. The
+                // item's hosting element carries the identifier and mirrors the button's
+                // label but not its Disabled trait, so a read that answers the host reports
+                // the button enabled.
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(action: {}) { Text(verbatim: "held") }
+                        .disabled(true)
+                        .uiTestingIdentifier("disabledToolbarButton")
+                }
             }
         }
     }
@@ -769,6 +794,78 @@ struct BareCardView: ViewModelView {
     }
 }
 
+/// A card that owns its `ScrollView`, registered for a navigation parent only: nothing
+/// scrolls around it in production, so declaring `.scrolling` would be false. Thirteen
+/// capsule rows overflow the window, so the last field is off screen at presentation and
+/// only the view's own scroll view can bring it in.
+struct OwnScrollCardView: ViewModelView {
+    let viewModel: OwnScrollCardViewModel
+    @State private var values = Array(repeating: "", count: 13)
+
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(spacing: 0) {
+                ForEach(values.indices, id: \.self) { index in
+                    if index > 0 {
+                        Divider().padding(.leading, 16)
+                    }
+                    CapsuleFieldRow(
+                        caption: "Row \(index + 1) caption, long enough to wrap onto two lines",
+                        tag: index == values.count - 1 ? "ownScrollCardField" : "ownScrollCardRow\(index + 1)",
+                        text: $values[index]
+                    )
+                }
+            }
+            .background(Color(white: 0.95))
+            .cornerRadius(10)
+            .padding(.horizontal)
+        }
+    }
+}
+
+/// The row shape gap 2 was measured on: a caption, then a fixed-size glass capsule holding
+/// the field, with the tag on the capsule rather than the field. The capsule takes the
+/// accessibility hit test at the tag's centre, so the tag overlay is never hittable on this
+/// shape, on screen or off — the field inside it is.
+struct CapsuleFieldRow: View {
+    let caption: String
+    let tag: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack {
+            Text(verbatim: caption)
+            Spacer()
+            VStack(spacing: 2) {
+                TextField("1-4095", text: $text)
+                    .font(.system(size: 17))
+                    .multilineTextAlignment(.trailing)
+                Text(verbatim: "")
+                    .font(.footnote)
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 54)
+            .frame(width: 190)
+            .modifier(GlassCapsule())
+            .overlay(Capsule().stroke(Color.clear, lineWidth: 1))
+            .uiTestingIdentifier(tag)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+    }
+}
+
+/// `glassEffect()` where the platform has it; the pre-26 fallback the measured design uses.
+struct GlassCapsule: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, macOS 26.0, visionOS 26.0, *) {
+            content.glassEffect()
+        } else {
+            content.background(Color.white, in: Capsule())
+        }
+    }
+}
+
 /// The narrow-window shape the 0.17.0 field round measured: one scroll stroke moves the
 /// content further than the whole aimable band is tall, so a field a few points below the
 /// band cannot be landed inside it — the raising stroke flings past the band's top, the
@@ -962,6 +1059,7 @@ struct UITestingProbeApp: App {
         MVVMEnvironment.registerTestView(BareCardView.self)
         MVVMEnvironment.registerTestView(OcclusionCardView.self, designedFor: .scrolling)
         MVVMEnvironment.registerTestView(ToolbarCardView.self, designedFor: .navigation)
+        MVVMEnvironment.registerTestView(OwnScrollCardView.self, designedFor: .navigation)
         MVVMEnvironment.registerTestView(UnparentedCardView.self)
         MVVMEnvironment.registerTestView(
             ScrollingToolbarCardView.self,

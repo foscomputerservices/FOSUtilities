@@ -55,6 +55,17 @@ struct OcclusionCardViewModel {
 }
 
 @ViewModel
+struct OwnScrollCardViewModel {
+    let seed: Int
+
+    var vmId = ViewModelId()
+
+    static func stub(seed: Int = 1) -> Self {
+        .init(seed: seed)
+    }
+}
+
+@ViewModel
 struct ToolbarCardViewModel {
     let seed: Int
 

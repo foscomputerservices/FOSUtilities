@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A tagged view reads as itself** (FOSTestingUI) — a read through a tag on a `Text` or an
+  `Image` answers that view. 0.17.2 sent the read on to any control whose centre fell inside
+  the tag's frame, measured as a list row behind a sheet answering `label` for the sheet's
+  own text.
+- **A disabled toolbar item reads as disabled** (FOSTestingUI) — `isEnabled` through a tag on
+  a toolbar control answers the control. It used to answer the item's hosting element, which
+  mirrors the label but never the disabled state, so a disabled toolbar button read as enabled.
+- **A tap reaches a control beyond the window in a view that scrolls itself** (FOSTestingUI) —
+  `tap()` and `setText` on a tag whose control lies off screen bring it into the window with
+  the framework's own strokes, then aim one coordinate at it. They used to hand XCUITest the
+  tag overlay, which it scrolled in and then refused, or dispatch a coordinate beyond the
+  window, in a view registered without `.scrolling` because it owns its `ScrollView`.
+
 ## [0.17.2] - 2026-09-23
 
 ### Added
