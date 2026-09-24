@@ -312,14 +312,10 @@ public extension XCUIApplication {
 
         guard descends else { return match }
 
-        // Enclosed, not merely centred: a composite's control lies within the tag's bounds,
-        // while a list row behind a sheet — its centre under the sheet's own text, its width
-        // the whole list — does not (measured as that row answering `label` for the text).
-        let enclosure = bounds.insetBy(dx: -1, dy: -1)
         let control = elements.first { candidate in
             candidate.identifier != identifier &&
                 target.acceptedTypes.contains(candidate.elementType) &&
-                enclosure.contains(candidate.frame)
+                bounds.contains(CGPoint(x: candidate.frame.midX, y: candidate.frame.midY))
         }
 
         return control ?? match
@@ -661,10 +657,15 @@ public extension XCUIApplication {
             // dispatch iOS has always measured green (appCoordinate keeps it correct
             // should element frames ever be screen-relative).
             let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
+            #if os(iOS)
+            // iOS only: the app frame is honest there and the strokes exist; on macOS the
+            // frame was measured non-finite (27 beta) and the native click below is the
+            // dispatch that lands.
             guard app.frame.contains(centre) else {
                 tapScrollingIntoWindow()
                 return
             }
+            #endif
             let live = liveElement(matching: target)
             if let live, live.isHittable {
                 nativeTap(live)

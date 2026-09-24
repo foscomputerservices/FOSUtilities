@@ -165,15 +165,14 @@ struct RowResolutionProbe: View {
 
             // A tagged Text drawn over a row-wide control whose centre falls inside the
             // text's frame: the shape a sheet takes over the list it covers, since the
-            // covered row stays in the tree. A read must answer the text — the row is not
-            // enclosed by the tag, only centred under it.
+            // covered row stays in the tree. The text's own element shares the tag's frame,
+            // and a read must stop there rather than descend to the row.
             ZStack {
                 Button(action: {}) {
                     Text(verbatim: "Covered row")
                         .frame(width: 338)
                 }
                 Text(verbatim: "preview-text")
-                    .frame(width: 190, height: 44)
                     .background(Color(white: 0.9))
                     .uiTestingIdentifier("overlaidPreview")
             }
