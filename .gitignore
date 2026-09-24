@@ -30,3 +30,6 @@ Tools/UITestingProbe/*.log
 
 # Plan references customer verification targets — kept local, never committed
 planning/implementation-plans/fosmvvm-review-check-coverage.md
+
+# Session working note, never a repo artifact
+RESUME.md
