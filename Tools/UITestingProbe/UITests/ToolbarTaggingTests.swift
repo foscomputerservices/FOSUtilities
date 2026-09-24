@@ -55,4 +55,14 @@ import XCTest
         XCTAssertTrue(raw.waitForExistence())
         XCTAssertEqual(raw.label, "raw")
     }
+
+    /// A disabled toolbar control reports its own enablement through the tag. The item's
+    /// hosting element carries the identifier and mirrors the label but not the Disabled
+    /// trait, so a read answering the host reports the button enabled.
+    func testEnablementOfADisabledToolbarControl() {
+        let held = app.uiTestingElement("disabledToolbarButton")
+
+        XCTAssertTrue(held.waitForExistence())
+        XCTAssertFalse(held.isEnabled)
+    }
 }

@@ -218,11 +218,12 @@ public extension XCUIApplication {
     // frame they share. Resolving the first kind by frame would answer with a neighbour.
     //
     // Recovery is two-stage. Stage 1 keeps the original match: the candidate containing the
-    // tag's centre with the closest frame. A tag spanning a composite row defeats it — the
-    // centre can fall in the gap between caption and field (no leaf contains it; the row's
-    // container wins with the same midpoint), or inside the caption (measured 7pt from that
-    // gap). Stage 2 fires when stage 1 answers with a container, or with an element the target
-    // rules out, and takes the first element in document order of an accepted type whose own
+    // tag's centre with the closest frame. A match that shares the tag's frame is the tagged
+    // view itself — a Text, an Image, or a bare control — and resolution stops there. A tag
+    // spanning a composite row defeats it — the centre can fall in the gap between caption
+    // and field (no leaf contains it; the row's container wins with the same midpoint), or
+    // inside the caption (measured 7pt from that gap). Stage 2 fires when stage 1 answers
+    // with a container, or with an element the target rules out, and takes the first element in document order of an accepted type whose own
     // centre lies within the tag's bounds — stage 1 inverted: it asked who contains the tag's
     // centre; stage 2 asks whose centre the tag contains, which is what keeps a scrim or
     // full-screen overlay, which merely intersects, from qualifying. Stage 1's answer stands
@@ -250,7 +251,11 @@ public extension XCUIApplication {
 
         guard let tag = elements.first(where: { $0.identifier == identifier }) else { return nil }
 
-        guard tag.elementType == .other, tag.label.isEmpty else {
+        // A control tagged directly holds its own state. An `.other` tag does not, whether it
+        // is the `View` tag beside the view or a wrapper that mirrors the view's label (a
+        // toolbar item's hosting element carries the identifier and the label, but not the
+        // Disabled trait): both resolve to the view sharing their frame.
+        guard tag.elementType == .other else {
             return tag
         }
 
@@ -280,6 +285,20 @@ public extension XCUIApplication {
             }
         }
 
+        // A match sharing the tag's frame IS the tagged view — a `Text`, an `Image`, or the
+        // control a wrapper mirrors — and stage 2 must not look past it: anything behind a
+        // popup whose centre falls inside the frame would otherwise win (measured: a list row
+        // behind a sheet answering `label` for the sheet's own text). A frame that differs is
+        // a composite, and the descent below applies. A labelled wrapper that resolves nothing
+        // this way still reads as itself.
+        if let match, Self.sharesFrame(match.frame, bounds),
+           target.acceptedTypes.union(Self.taggedDirectlyTypes).contains(match.elementType) {
+            return match
+        }
+        guard tag.label.isEmpty else {
+            return tag
+        }
+
         let descends: Bool = switch match {
         case .none:
             true
@@ -300,6 +319,19 @@ public extension XCUIApplication {
         }
 
         return control ?? match
+    }
+
+    /// Non-interactive views a tag can sit on directly; sharing the tag's frame, they are the
+    /// tagged view itself, not a composite to descend from.
+    private nonisolated static let taggedDirectlyTypes: Set<XCUIElement.ElementType> = [
+        .staticText, .image
+    ]
+
+    /// Whether two frames agree within layout rounding (measured: a tagged `Text` and its
+    /// tag differ by 0.2pt; a toolbar item's wrapper and its button agree exactly).
+    private nonisolated static func sharesFrame(_ lhs: CGRect, _ rhs: CGRect) -> Bool {
+        abs(lhs.minX - rhs.minX) <= 1 && abs(lhs.minY - rhs.minY) <= 1 &&
+            abs(lhs.width - rhs.width) <= 1 && abs(lhs.height - rhs.height) <= 1
     }
 
     /// The types stage 2 accepts: controls a synthesized interaction can land on. XCUITest
@@ -625,6 +657,15 @@ public extension XCUIApplication {
             // dispatch iOS has always measured green (appCoordinate keeps it correct
             // should element frames ever be screen-relative).
             let centre = CGPoint(x: target.frame.midX, y: target.frame.midY)
+            #if os(iOS)
+            // iOS only: the app frame is honest there and the strokes exist; on macOS the
+            // frame was measured non-finite (27 beta) and the native click below is the
+            // dispatch that lands.
+            guard app.frame.contains(centre) else {
+                tapScrollingIntoWindow()
+                return
+            }
+            #endif
             let live = liveElement(matching: target)
             if let live, live.isHittable {
                 nativeTap(live)
@@ -645,10 +686,33 @@ public extension XCUIApplication {
             _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
             element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         } else {
-            // Off screen: left to the native gesture, which reports it, rather than
-            // tapping nothing.
-            nativeTap(element)
+            tapScrollingIntoWindow()
         }
+    }
+
+    // swiftformat:disable docComments
+    // Off screen. XCUITest's native tap would scroll the target in, but then hit-tests it,
+    // and which of the tag overlay and the control wins that test depends on the view's
+    // shape — measured both ways: the overlay refused over a glass capsule while its field
+    // was hittable; the field refused under its overlay in a plain row. Absorbing the
+    // refusal was measured to cost a runner relaunch per tap under retryOnFailure, and
+    // reading back whether the native tap had fired re-resolved an index-bound query onto
+    // another element once a menu had closed. So the framework brings the target into the
+    // window with its own strokes and aims one coordinate at the control where it settled:
+    // nothing is recorded, and nothing is dispatched twice. A target no stroke moves is
+    // handed to the native gesture, which reports it.
+    // swiftformat:enable docComments
+    private func tapScrollingIntoWindow() {
+        let element = xcuiElement
+        #if os(iOS)
+        if scrollIntoWindow() {
+            _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+            let frame = taggedControl(seeking: .control)?.frame ?? element.frame
+            appCoordinate(at: CGPoint(x: frame.midX, y: frame.midY)).tap()
+            return
+        }
+        #endif
+        nativeTap(element)
     }
 
     // Two consecutive agreeing samples ~150ms apart is the settled criterion the design
@@ -1291,6 +1355,48 @@ private extension UITestingElement {
             usually one the scroll parent cannot move.
             """
         )
+    }
+
+    // swiftformat:disable docComments
+    // Brings a target beyond the window into the aimable band, the band as arbiter so the
+    // target lands clear of the bars, bounded like scrollIntoBand and stopped the same way
+    // when a stroke moves nothing. The stroke is the app-level fling, not the band's
+    // press-and-drag: a target beyond the window can be a clipped row of an open menu, and
+    // the fling scrolls the menu without dismissing it (measured on the overflow fixture)
+    // where the press-and-drag from the band's origin dismissed it. Keyboardless by
+    // construction — the target's midpoint lies outside the window, which no on-screen menu
+    // row's does — so the regression that keeps isAimable keyboard-gated is not in reach.
+    // swiftformat:enable docComments
+    private func scrollIntoWindow() -> Bool {
+        let element = xcuiElement
+        var attempts = 0
+        var beforeLastStroke: CGRect?
+
+        func inBand() -> Bool? {
+            guard element.exists else { return nil }
+            let frame = element.frame
+            return aimableBand().contains(CGPoint(x: frame.midX, y: frame.midY))
+        }
+
+        while attempts < Self.bandScrollAttempts {
+            guard element.exists else { return false }
+            let frame = element.frame
+            if inBand() == true {
+                return true
+            }
+            guard frame != beforeLastStroke else { return false }
+            beforeLastStroke = frame
+
+            if frame.midY > aimableBand().midY {
+                app.swipeUp()
+            } else {
+                app.swipeDown()
+            }
+            _ = waitForStableFrame(timeout: Self.coordinateSettleBudget)
+            attempts += 1
+        }
+
+        return inBand() == true
     }
 }
 #endif

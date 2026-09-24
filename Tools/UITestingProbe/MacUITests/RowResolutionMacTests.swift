@@ -52,4 +52,9 @@ import XCTest
     func testFootnotedFieldReadsTheFieldNotTheMessage() {
         XCTAssertEqual(app.uiTestingElement("footnoteRow").value, "5000")
     }
+
+    /// The read that stops at a tagged `Text`, held at this platform's metrics too.
+    func testOverlaidTextReadsItselfNotTheControlBeneath() {
+        XCTAssertEqual(app.uiTestingElement("overlaidPreview").label, "preview-text")
+    }
 }
