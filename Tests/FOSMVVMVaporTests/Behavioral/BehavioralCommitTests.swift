@@ -187,11 +187,14 @@ struct BehavioralCommitTests {
         } _: { app, _ in
             let box = try #require(app.behavioralEvents)
 
-            try await app.liveTransaction { _ in
-                try await app.liveTransaction { inner in
+            try await app.liveTransaction { outer in
+                // A request pinned off the outer's event loop, so the inner transaction never waits
+                // on the outer's connection — see makeRequest(_:offTheLoopOf:).
+                let req = try #require(makeRequest(app, offTheLoopOf: outer))
+                try await req.liveTransaction { inner in
                     try await BehavioralProbe(title: BehavioralTitle.ok).save(on: inner)
                 }
-                // `app.liveTransaction` takes a database of its own, so the inner call is its own
+                // `req.liveTransaction` takes a database of its own, so the inner call is its own
                 // transaction: it has committed, and its after-commit work has already run.
                 #expect(box.count(of: "didCommit(create)", of: BehavioralProbe.self) == 1)
             }
