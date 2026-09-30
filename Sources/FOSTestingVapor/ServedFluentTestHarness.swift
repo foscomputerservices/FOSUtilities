@@ -57,7 +57,11 @@ public func withServedFluentTestApp<R: Sendable>(
     var serverStarted = false
     var appShutDown = false
     do {
-        app.databases.use(.sqlite(.memory), as: .sqlite)
+        // Two connections per event loop, not the driver's one: an independent nested
+        // liveTransaction on app.db needs a second connection, and app.db's loop is chosen by
+        // round-robin, so under parallel tests it can land on the loop whose one connection the
+        // outer transaction holds and time out (AfterCommitHookTests, the independent-nested case).
+        app.databases.use(.sqlite(.memory, maxConnectionsPerEventLoop: 2), as: .sqlite)
         try await configure(app)
         try await app.autoMigrate()
 
