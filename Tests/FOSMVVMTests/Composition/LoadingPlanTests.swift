@@ -1,4 +1,4 @@
-// LoadRequirementTests.swift
+// LoadingPlanTests.swift
 //
 // Copyright 2026 FOS Computer Services, LLC
 //
@@ -37,14 +37,13 @@ private struct Card: Model {
 
 // MARK: - Trait fixture
 
-/// A bare conformer: adopts the trait, declares nothing — the defaults compile.
+/// A near-bare conformer: adopts the trait with an empty plan block and no children.
 extension TestViewModel: ComposableFactory {}
 
-// `LoadRequirement`'s minting behavior (implicit terminal, `via:` ordering,
-// `.newRoot` roots, `.refinedByRequest`, the write-family verbs) is asserted
-// through the walk in `SealedRequirementTests` — the requirement's declaration
-// data is sealed behind the public marker, so the contract now lives at the
-// plan's tuple surface, not on the requirement members.
+// `LoadingPlan`'s minting behavior (implicit terminal, `via:` ordering, the named
+// scopes, `.refinedByRequest`, the write operations) is asserted through the walk in
+// `SealedPlanTests` — a plan's declaration data is sealed, so the contract lives at
+// the plan's tuple surface, not on the plan's members.
 
 // MARK: - ComposedChild
 
@@ -55,30 +54,32 @@ struct ComposedChildTests {
         let child = ComposedChild.child(TestViewModel.self)
 
         #expect(same(child.factoryType, TestViewModel.self))
-        #expect(child.rootScope == .parentRoot)
+        #expect(child.scope == .parent)
         #expect(child.intermediates.isEmpty)
     }
 
-    @Test(".child(_:via:) roots by containment descent — intermediates in order")
+    @Test(".child(_:via:) descends by containment — intermediates in order")
     func viaChild() {
         let child = ComposedChild.child(TestViewModel.self, via: Board.self, Card.self)
 
         #expect(same(child.factoryType, TestViewModel.self))
-        #expect(child.rootScope == .parentRoot)
+        #expect(child.scope == .parent)
         #expect(child.intermediates.count == 2)
         #expect(same(child.intermediates[0], Board.self))
         #expect(same(child.intermediates[1], Card.self))
     }
 
-    @Test(".child(_:rootedAt:) starts a fresh root from the declared source")
-    func rootedAtChild() {
-        let apexChild = ComposedChild.child(TestViewModel.self, rootedAt: .apex)
-        let queryChild = ComposedChild.child(TestViewModel.self, rootedAt: .query)
+    @Test(".child(_:within:) opens the declared scope")
+    func withinChild() {
+        let applicationChild = ComposedChild.child(TestViewModel.self, within: .application)
+        let requestChild = ComposedChild.child(TestViewModel.self, within: .request)
+        let subjectChild = ComposedChild.child(TestViewModel.self, within: .subject)
 
-        #expect(same(apexChild.factoryType, TestViewModel.self))
-        #expect(apexChild.rootScope == .newRoot(.apex))
-        #expect(apexChild.intermediates.isEmpty)
-        #expect(queryChild.rootScope == .newRoot(.query))
+        #expect(same(applicationChild.factoryType, TestViewModel.self))
+        #expect(applicationChild.scope == .application)
+        #expect(applicationChild.intermediates.isEmpty)
+        #expect(requestChild.scope == .request)
+        #expect(subjectChild.scope == .subject)
     }
 }
 
@@ -86,9 +87,9 @@ struct ComposedChildTests {
 
 @Suite("ComposableFactory")
 struct ComposableFactoryTests {
-    @Test("A bare conformer compiles and inherits the empty defaults")
+    @Test("An empty plan block and the children default both read back empty")
     func bareConformerDefaults() {
-        #expect(TestViewModel.dataRequirements.isEmpty)
+        #expect(TestViewModel.loadingPlans.plans.isEmpty)
         #expect(TestViewModel.children.isEmpty)
     }
 }

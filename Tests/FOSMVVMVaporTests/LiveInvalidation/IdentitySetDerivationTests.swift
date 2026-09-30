@@ -146,10 +146,10 @@ struct IdentitySetDerivationTests {
         }
     }
 
-    /// A mutated Board emits its own identity + its apex Workspace's — read off the Board's `workspace_id`
+    /// A mutated Board emits its own identity + its containing Workspace's — read off the Board's `workspace_id`
     /// FK through Workspace's `.children(\Workspace.$boards)`. Its unregistered `.parent(\Board.$pier)`
     /// target (Pier) contributes nothing.
-    @Test func containedContainerEmitsOwnAndApex() async throws {
+    @Test func containedContainerEmitsOwnAndTopContainer() async throws {
         try await withFluentTestApp { app in
             try app.register(Workspace.self, migration: CreateWorkspace())
             try app.register(Board.self, migration: CreateBoard())
@@ -201,7 +201,7 @@ struct IdentitySetDerivationTests {
         }
     }
 
-    /// A registered model that no container declares (the apex Workspace) emits only its own identity.
+    /// A registered model that no container declares (the top Workspace) emits only its own identity.
     @Test func uncontainedModelEmitsOnlyItself() async throws {
         try await withFluentTestApp { app in
             try app.register(Workspace.self, migration: CreateWorkspace())
@@ -225,7 +225,7 @@ struct IdentitySetDerivationTests {
 
     /// The `.parent` inverter's EMITTING branch: with Pier registered, a mutated Board's own
     /// `.parent(\Board.$pier)` reads the to-one target directly and the Pier identity joins the set —
-    /// alongside the apex Workspace from the `.children` inversion.
+    /// alongside the top Workspace from the `.children` inversion.
     @Test func registeredParentTargetContributes() async throws {
         try await withFluentTestApp { app in
             try app.register(Workspace.self, migration: CreateWorkspace())

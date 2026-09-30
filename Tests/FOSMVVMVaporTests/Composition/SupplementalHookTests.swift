@@ -32,7 +32,7 @@ import Vapor
 
 // MARK: - Shared plumbing
 
-/// Registers Workspace (apex) → Board and a provider vending no grants — the declarative loads land
+/// Registers Workspace (the top container) → Board and a provider vending no grants — the declarative loads land
 /// empty (nothing to authorize) but never throw, so execution reaches the supplemental phase.
 private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreatePier())
@@ -41,7 +41,7 @@ private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreateCard())
     app.migrations.add(CreateMember())
     app.migrations.add(CreateBoardMember())
-    try app.useContainerAuthorizationProvider(TestGrantsProvider())
+    try app.useModelAuthorizationProvider(TestGrantsProvider())
 }
 
 private func makeRequest(on app: Application, url: URL) -> Vapor.Request {
@@ -108,8 +108,8 @@ private extension SupplementalFixture {
     }
 }
 
-private struct HookRootedQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+private struct HookScopedQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
 // MARK: - Group 12: walk-order fixtures (a diamond — Shared reachable via Left and Right)
@@ -118,7 +118,11 @@ private struct HookRootedQuery: RootedQuery {
 private struct ParentPageVM: SupplementalFixture, RequestableViewModel {
     typealias Request = ParentPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 
     static var children: [ComposedChild] {
         [.child(LeftChildVM.self), .child(RightChildVM.self)]
@@ -132,7 +136,11 @@ extension ParentPageVM: SupplementalRecordLoading {
 }
 
 private struct LeftChildVM: SupplementalFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Member.self, in: .parentRoot)]
+    static let members = Member.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        members
+    }
 
     static var children: [ComposedChild] {
         [.child(SharedChildVM.self)]
@@ -146,7 +154,11 @@ extension LeftChildVM: SupplementalRecordLoading {
 }
 
 private struct RightChildVM: SupplementalFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Member.self, in: .parentRoot)]
+    static let members = Member.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        members
+    }
 
     static var children: [ComposedChild] {
         [.child(SharedChildVM.self)]
@@ -161,7 +173,11 @@ extension RightChildVM: SupplementalRecordLoading {
 
 /// Reachable from both `LeftChildVM` and `RightChildVM` — the runner must visit it ONCE.
 private struct SharedChildVM: SupplementalFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Member.self, in: .parentRoot)]
+    static let members = Member.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        members
+    }
 }
 
 extension SharedChildVM: SupplementalRecordLoading {
@@ -171,14 +187,14 @@ extension SharedChildVM: SupplementalRecordLoading {
 }
 
 private final class ParentPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = HookRootedQuery
+    typealias Query = HookScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: HookRootedQuery?
+    let query: HookScopedQuery?
     var responseBody: ParentPageVM?
 
-    init(query: HookRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ParentPageVM? = nil) {
+    init(query: HookScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ParentPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -194,7 +210,11 @@ private enum HookFailure: Error {
 private struct ThrowRootVM: SupplementalFixture, RequestableViewModel {
     typealias Request = ThrowRootRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 
     static var children: [ComposedChild] {
         [.child(ThrowingChildVM.self)]
@@ -202,7 +222,11 @@ private struct ThrowRootVM: SupplementalFixture, RequestableViewModel {
 }
 
 private struct ThrowingChildVM: SupplementalFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Member.self, in: .parentRoot)]
+    static let members = Member.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        members
+    }
 }
 
 extension ThrowingChildVM: SupplementalRecordLoading {
@@ -212,14 +236,14 @@ extension ThrowingChildVM: SupplementalRecordLoading {
 }
 
 private final class ThrowRootRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = HookRootedQuery
+    typealias Query = HookScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: HookRootedQuery?
+    let query: HookScopedQuery?
     var responseBody: ThrowRootVM?
 
-    init(query: HookRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ThrowRootVM? = nil) {
+    init(query: HookScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ThrowRootVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -240,7 +264,7 @@ struct SupplementalHookTests {
             try app.registerRecordLoadPlan(for: ParentPageRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
-            let vmRequest = try ParentPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try ParentPageRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
 
@@ -263,7 +287,7 @@ struct SupplementalHookTests {
             try app.registerRecordLoadPlan(for: ThrowRootRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
-            let vmRequest = try ThrowRootRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try ThrowRootRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             await #expect(throws: HookFailure.self) {
                 try await req.executeRecordLoadPlan(for: vmRequest)

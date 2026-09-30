@@ -7,8 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A grant names a model, not only a container** (FOSMVVM, FOSMVVMVapor) — authorization
+  now has two axes. `ModelOperation` (`read`, `write`, `archive`, `destroy`, `anyOperation`)
+  says what a grant's holder may do to the model it names; `ContainerOperation` keeps saying
+  what a container extends to the models it contains. The grant protocol is `ModelAuthorization`
+  with `authorizedModel` and a new `authorizes(_:on:)` requirement whose default denies, so a
+  shipped grant behaves exactly as before until it adopts the axis. Either authority suffices:
+  a subject may archive a Board because a grant names the Board, or because a grant on its
+  Workspace extends `archiveRecords` of type Board.
+- **The subject scope** — `Model.loadingPlan(_:within: .subject)` binds to the models of that
+  type the subject's grants reach: every model a grant names with the plan's operation, plus
+  every such model inside a granted container that directly contains the type. Nothing to name,
+  nothing to resolve: a top-level list with no parent, or a write whose target may be reachable
+  by either authority. One refined query per plan, so paging across the union is exact; `via:`
+  descends from the bound set; every bound model registers for live refresh. Never a create
+  scope. The model a subject-scoped plan names must be registered (`register(_:migration:)`).
+- `ModelAuthorizationProvider.subjectIdentity(for:)` (FOSMVVMVapor) — optional; vend the
+  subject's own identity and every plan within the subject scope registers it, so a grant
+  written under the subject refreshes that subject's live lists.
+- **`SystemContainer` — the container with no table** (FOSMVVMVapor) — a model no other model
+  owns (a top-level Workspace, a system-wide status row) is owned by a container with one
+  instance and no storage: `enum Suite: SystemContainer { static var containment: [ContainmentRelation] { [.all(Workspace.self)] } }`,
+  registered with `register(_:)` and no migration. `ContainmentRelation.all(_:)` is one more
+  relation on the existing mechanism — load, count, create with no join, and a write to any
+  owned row marks the container stale. `Suite.identity` is minted from the type and stable, so a
+  grant row stores it like any identity; a grant on it reads every owned row and creates at the
+  top (`Workspace.creationPlan(within: .application)`), and feeds the subject scope through the
+  ordinary extension. With exactly one system container registered and no `useApplicationScope(_:)`,
+  plans within `.application` bind to it by themselves. A container with rows may not declare
+  `.all(_:)`, a system container may declare nothing else, and each owned type must be registered
+  — all refused at boot.
+
 ### Changed
 
+- **Plans are declared on the model type, within a containment scope** (FOSMVVM) —
+  `LoadingPlan<Model>` replaces `DataRequirement` / `LoadRequirement`: `Model.loadingPlan(_
+  operation: ModelOperation, within:, via:)` and `Model.creationPlan(within:)`, listed in a
+  `loadingPlans: LoadingPlans` builder block in place of `dataRequirements`. `ContainmentScope`
+  (`.parent`, `.request`, `.application`, `.subject`) replaces `RootScope` + `RootSource`;
+  `ScopedQuery` with `scopeIdentity` replaces `RootedQuery` with `rootIdentity`;
+  `ComposedChild.child(_:within:)` replaces `child(_:rootedAt:)`; `useApplicationScope(_:)`
+  replaces `useApexContainerResolver(_:)`. A plan naming `.anyOperation` and a creation plan
+  within `.subject` are each refused at boot.
+- **The grant family is renamed for what it names** — `ModelAuthorization` /
+  `authorizedModel` / `ModelAuthorizationProvider` / `modelAuthorizations(for:)` /
+  `useModelAuthorizationProvider(_:)`. `ContainerOperation` keeps its name.
+- **Every former spelling survives one release as deprecated** and maps onto the current API:
+  `ContainerAuthorization`, `authorizedContainer`, `ContainerAuthorizationProvider`,
+  `containerAuthorizations(for:)`, `useContainerAuthorizationProvider(_:)`, `RootScope`,
+  `RootSource`, `RootedQuery`, `rootIdentity`, `DataRequirement`, `LoadRequirement`,
+  `dataRequirements`, `child(_:rootedAt:)`, `useApexContainerResolver(_:)`. Shipped
+  conformances compile with warnings and behave as before. Two spellings are renamed outright,
+  with no deprecated twin: `ComposedChild.rootScope` is `scope` (a `ContainmentScope`, which has
+  no former shape for `.subject`), and `ContainmentError.duplicateApexContainerResolver` is
+  `duplicateApplicationScope`.
 - **Examples speak the framework's own vocabulary** — every DocC example, skill document,
   review check, test fixture, and design document now uses Workspace, Board, Card, Member,
   Checklist, and Assignment. A CI step keeps it that way.

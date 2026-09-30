@@ -34,8 +34,8 @@ private struct GrantsKey: StorageKey {
     typealias Value = [TestGrant]
 }
 
-private struct GrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct GrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         request.application.storage[GrantsKey.self] ?? []
     }
 }
@@ -47,11 +47,11 @@ private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreateCard())
     app.migrations.add(CreateMember())
     app.migrations.add(CreateBoardMember())
-    try app.useContainerAuthorizationProvider(GrantProvider())
+    try app.useModelAuthorizationProvider(GrantProvider())
 }
 
-private func registerApexResolver(_ app: Application) throws {
-    try app.useApexContainerResolver { req in
+private func registerApplicationScope(_ app: Application) throws {
+    try app.useApplicationScope { req in
         guard let workspace = try await Workspace.query(on: req.db).first() else {
             throw Abort(.internalServerError, reason: "no workspace seeded")
         }
@@ -77,7 +77,7 @@ private func requestURL(for request: some ServerRequest) throws -> URL {
 private func grantBoardReads(_ app: Application, board: Board) throws {
     app.storage[GrantsKey.self] = try [
         TestGrant(
-            authorizedContainer: board.modelIdentity,
+            authorizedModel: board.modelIdentity,
             operations: [.readRecords],
             recordTypes: [Card.modelIdentityNamespace, Member.modelIdentityNamespace]
         )
@@ -97,15 +97,15 @@ private func makeContext<SR: ServerRequest>(
 
 // MARK: - Fixtures
 
-private struct BoardRootedQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+private struct BoardScopedQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
 /// A composed child that declares its OWN handle — the parent reads it to compose members.
 private struct MembersListVM: ComposableFactory {
-    static let members = LoadRequirement.read(Member.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [members]
+    static let members = Member.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        members
     }
 }
 
@@ -115,9 +115,9 @@ private struct MembersListVM: ComposableFactory {
 private struct BoardPageVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = BoardPageRequest
 
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 
     static var children: [ComposedChild] {
@@ -146,14 +146,14 @@ private struct BoardPageVM: RequestableViewModel, ComposableFactory, VaporRespon
 }
 
 private final class BoardPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: BoardPageVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BoardPageVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BoardPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -164,16 +164,17 @@ private final class BoardPageRequest: ViewModelRequest, @unchecked Sendable {
 
 /// Two legitimate, distinct Card loads:
 ///  - boardCards: THIS board's cards (query root, direct)
-///  - workspaceCards: ALL the workspace's cards (apex root via Board)
+///  - workspaceCards: ALL the workspace's cards (within .application, via Board)
 /// Each handle must read back exactly its OWN tuple's records — never the union.
 private struct TwoCardLoadsVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = TwoCardLoadsRequest
 
-    static let boardCards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static let workspaceCards = LoadRequirement.read(Card.self, in: .newRoot(.apex), via: Board.self)
+    static let boardCards = Card.loadingPlan(.read, within: .parent)
+    static let workspaceCards = Card.loadingPlan(.read, within: .application, via: Board.self)
 
-    static var dataRequirements: [any DataRequirement] {
-        [boardCards, workspaceCards]
+    static var loadingPlans: LoadingPlans {
+        boardCards
+        workspaceCards
     }
 
     var vmId = ViewModelId()
@@ -192,15 +193,53 @@ private struct TwoCardLoadsVM: RequestableViewModel, ComposableFactory, VaporRes
     }
 }
 
-private final class TwoCardLoadsRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+/// A page with no container to name: its Boards are whatever the subject's grants reach.
+private struct SubjectBoardsPageVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = SubjectBoardsPageRequest
+
+    static let boards = Board.loadingPlan(.read, within: .subject)
+    static var loadingPlans: LoadingPlans {
+        boards
+    }
+
+    var vmId = ViewModelId()
+    init() {}
+
+    func propertyNames() -> [LocalizableId: String] {
+        [:]
+    }
+
+    static func stub() -> Self {
+        .init()
+    }
+
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
+        .init()
+    }
+}
+
+private final class SubjectBoardsPageRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    var responseBody: SubjectBoardsPageVM?
+
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SubjectBoardsPageVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+private final class TwoCardLoadsRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = BoardScopedQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    let query: BoardScopedQuery?
     var responseBody: TwoCardLoadsVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TwoCardLoadsVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: TwoCardLoadsVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -209,12 +248,12 @@ private final class TwoCardLoadsRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - C-2 regression fixtures: a bare child handle behind a prefix-substituted path
 
-/// The child declares its Card load BARE (`.parentRoot`, no `via:`) — composition supplies
+/// The child declares its Card load BARE (`within: .parent`, no `via:`) — composition supplies
 /// the Board hop, so its tuple's absolute path is prefix-substituted to [Board].
 private struct BareCardListVM: ComposableFactory {
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 }
 
@@ -222,9 +261,9 @@ private struct BareCardListVM: ComposableFactory {
 private struct WorkspacePageVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = WorkspacePageRequest
 
-    static let boards = LoadRequirement.read(Board.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [boards]
+    static let boards = Board.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        boards
     }
 
     static var children: [ComposedChild] {
@@ -248,14 +287,14 @@ private struct WorkspacePageVM: RequestableViewModel, ComposableFactory, VaporRe
 }
 
 private final class WorkspacePageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: WorkspacePageVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: WorkspacePageVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: WorkspacePageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -265,9 +304,9 @@ private final class WorkspacePageRequest: ViewModelRequest, @unchecked Sendable 
 // MARK: - Genuine-ambiguity fixtures: the SAME child composed twice
 
 private struct TwiceChildVM: ComposableFactory {
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 }
 
@@ -296,7 +335,7 @@ struct ProjectionContextTests {
             let (dock1, _) = try await seedWorkspace(on: db)
             try grantBoardReads(app, board: dock1)
 
-            let vmRequest = try BoardPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try BoardPageRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -306,6 +345,30 @@ struct ProjectionContextTests {
 
             let membersNames = try context.records(MembersListVM.members).map(\.name).sorted()
             #expect(membersNames == ["Alice", "Bob"])
+        }
+    }
+
+    /// A handle within the subject scope reads back the union the grants bound — the typed read
+    /// is the same `records(_:)` whichever scope the declaration named.
+    @Test func subjectScopedHandleReadsBackTheBoundUnion() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectBoardsPageRequest.self)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
+            app.storage[GrantsKey.self] = try [
+                TestGrant(authorizedModel: workspace.modelIdentity, operations: [.readRecords], recordTypes: [Board.modelIdentityNamespace]),
+                TestGrant(authorizedModel: dock1.modelIdentity, operations: [], recordTypes: [], modelOperations: [.read])
+            ]
+
+            let vmRequest = SubjectBoardsPageRequest()
+            let req = makeRequest(on: app)
+            try await req.executeRecordLoadPlan(for: vmRequest)
+            let context = makeContext(for: vmRequest, on: req)
+
+            let names = try context.records(SubjectBoardsPageVM.boards).map(\.name).sorted()
+            #expect(names == ["Board 1", "Board 2"]) // the union, distinct: dock1 is named AND extended
         }
     }
 
@@ -319,13 +382,13 @@ struct ProjectionContextTests {
             let (dock1, _) = try await seedWorkspace(on: db)
             try grantBoardReads(app, board: dock1)
 
-            let vmRequest = try BoardPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try BoardPageRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
 
             // Pier is never declared by any factory in this plan — its handle never reached it.
-            let undeclared = LoadRequirement.read(Pier.self, in: .parentRoot)
+            let undeclared = Pier.loadingPlan(.read, within: .parent)
             do {
                 _ = try context.records(undeclared)
                 Issue.record("expected a throw for an unplanned requirement, not an empty result")
@@ -346,25 +409,25 @@ struct ProjectionContextTests {
     @Test func sameTypedLoadsEachResolveTheirOwnRecords() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: TwoCardLoadsRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[GrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: dock1.modelIdentity,
+                    authorizedModel: dock1.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
             ]
 
-            let vmRequest = try TwoCardLoadsRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try TwoCardLoadsRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -377,31 +440,31 @@ struct ProjectionContextTests {
         }
     }
 
-    /// Blend contract (b) — the authorization pin: the apex-rooted Card load is DENIED
+    /// Blend contract (b) — the authorization pin: the .application-scoped Card load is DENIED
     /// (the workspace grant covers Board only), so its handle reads back `[]` — never the other
     /// tuple's granted records. The board-rooted handle still reads its own set.
     @Test func deniedHandleReadsEmptyNeverAnotherTuplesRecords() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: TwoCardLoadsRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[GrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: dock1.modelIdentity,
+                    authorizedModel: dock1.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace] // Card DENIED under the workspace anchor
                 )
             ]
 
-            let vmRequest = try TwoCardLoadsRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try TwoCardLoadsRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -414,7 +477,7 @@ struct ProjectionContextTests {
         }
     }
 
-    /// C-2 regression pin: a child's BARE `.parentRoot` handle — whose tuple path was
+    /// C-2 regression pin: a child's BARE `within: .parent` handle — whose tuple path was
     /// prefix-substituted by composition (to [Board]) — resolves exactly, in a plan that also
     /// carries the parent's own load. No false ambiguity, no miss.
     @Test func bareChildHandleBehindPrefixSubstitutionResolves() async throws {
@@ -426,13 +489,13 @@ struct ProjectionContextTests {
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[GrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
             ]
 
-            let vmRequest = try WorkspacePageRequest(query: .init(rootIdentity: workspace.modelIdentity))
+            let vmRequest = try WorkspacePageRequest(query: .init(scopeIdentity: workspace.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -483,7 +546,7 @@ struct ProjectionContextTests {
             let (dock1, _) = try await seedWorkspace(on: db)
             try grantBoardReads(app, board: dock1)
 
-            let url = try requestURL(for: BoardPageRequest(query: .init(rootIdentity: dock1.modelIdentity)))
+            let url = try requestURL(for: BoardPageRequest(query: .init(scopeIdentity: dock1.modelIdentity)))
             let headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
             let uri = URI(string: url.absoluteString)
             let req = Request(application: app, method: .GET, url: uri, headers: headers, on: app.eventLoopGroup.next())

@@ -83,21 +83,21 @@ you.
 let sort = try req.serverRequestSort(ofType: SortCriteria<CardSortKey>.self)
 ```
 
-### Register a container and the authorization provider — `useContainerAuthorizationProvider`
+### Register a container and the authorization provider — `useModelAuthorizationProvider`
 Reach for this when: wiring containment in `configure(_:)`. `register(_:migration:)`
 adds a `ContainerDataModel`'s Fluent migration **and** its identity descriptor in one
-call — declaring the migration *is* registering the type. `useContainerAuthorizationProvider(_:)`
-installs the app's `ContainerAuthorizationProvider` (see Protocols) so every framework
+call — declaring the migration *is* registering the type. `useModelAuthorizationProvider(_:)`
+installs the app's `ModelAuthorizationProvider` (see Protocols) so every framework
 load is auth-scoped. Both throw at boot on misconfiguration (duplicate namespace,
 containment drift, a second provider) rather than at first request.
 
 ```swift
 try app.register(Board.self, migration: Board.CreateBoard())
-try app.useContainerAuthorizationProvider(GrantProvider())
+try app.useModelAuthorizationProvider(GrantProvider())
 ```
 
 ### Register any DataModel with its migration — `register()`
-Reach for this when: adding a `DataModel` to `configure(_:)` — one call per model, container or not. It adds the Fluent migration, enters the model in the type registry, and installs the lifecycle middleware, so the model's `DataModelLifecycle` hooks (see Lifecycle) and live invalidation run on every write. The container overload above is the same call for a `ContainerDataModel`; Swift picks by the type. It throws at boot if the model's namespace is already registered.
+Reach for this when: adding a `DataModel` to `configure(_:)` — one call per model, container or not. It adds the Fluent migration, enters the model in the type registry, and installs the lifecycle middleware, so the model's `DataModelLifecycle` hooks (see Lifecycle) and live invalidation run on every write. The container overload above is the same call for a `ContainerDataModel`; Swift picks by the type. A model a plan loads `within: .subject` must be registered this way, container or not — a grant binds it directly; so must every type a `SystemContainer` owns (see Containment), whose own registration takes no migration. It throws at boot if the model's namespace is already registered.
 Don't add a `DataModel`'s migration with `app.migrations.add` — the migration lands but the hooks never install, so the model's save-time validation silently never runs. Registering a model does not make it loadable by a factory: what a projection loads is declared by a container.
 
 ```swift
@@ -250,16 +250,17 @@ let protected = app.grouped(ClientCredentialMiddleware(
 The container-load engine's author-facing surface: the Fluent-backed container
 declaration and its authorization-bearing relations, the sort-mapping
 declaration, the read-only projection context handed to a factory's
-`body(context:)`, and the boot-time registration of per-request app state and
-the apex-container root resolver. These execute the declarations authored with
-FOSMVVM's `Container` / `ComposableFactory` / `LoadRequirement` surface (see
+`body(context:)`, the container with no table that owns every row of a type, and the
+boot-time registration of per-request app state and the application scope. These
+execute the declarations authored with
+FOSMVVM's `Container` / `ComposableFactory` / `LoadingPlan` surface (see
 `FOSMVVM.md § Protocols`).
 
 ### Read the loaded records inside a projection — `ProjectionContext`
 Reach for this when: writing a `VaporResponseBodyFactory`'s `body(context:)` (see
 Protocols) — the context is everything the projection may see: the typed `vmRequest`,
 the app-declared `appState`, the client's `appVersion`, and `records(_:)` — typed reads
-of what the plan loaded, keyed by the SAME static `LoadRequirement` handle the factory
+of what the plan loaded, keyed by the SAME static `LoadingPlan` handle the factory
 declared (a parent may read a child's handle — that is how composition works). A handle
 that never reached the plan **throws** (naming the handle and request), never returns
 `[]`. Treat the records as read-only.
@@ -347,17 +348,42 @@ try app.useAppState(SessionBanner.self) { req in
 }
 ```
 
-### Resolve apex-rooted loads' root — `useApexContainerResolver`
-Reach for this when: any load or child roots at `.newRoot(.apex)` (FOSMVVM's
-`RootSource`) — register the resolver that answers "who is the top container for this
-caller?". Constant apps return a constant; multi-tenant apps resolve per request. A
-plan with `.apex` roots and no registered resolver fails validation at boot. Exactly
-one resolver per application — a second registration throws.
+### Resolve the application scope — `useApplicationScope`
+Reach for this when: any plan or child is declared `within: .application` (FOSMVVM's
+`ContainmentScope`) — register the resolver that answers "which container is this
+caller's application scope?". A single-tenant app returns a constant; a multi-tenant
+app resolves per request. With nothing registered and exactly one `SystemContainer`
+registered (below), that container is the application scope by itself; otherwise a plan
+within `.application` with no registration fails validation at boot. Exactly one per
+application — a second registration throws.
 
 ```swift
-try app.useApexContainerResolver { req in
+try app.useApplicationScope { req in
     try await req.auth.require(User.self).workspaceIdentity
 }
+```
+
+### Own every row of a type from a container with no table — `SystemContainer` / `all()` / `identity`
+Reach for this when: a model no other model owns — a top-level Workspace, a system-wide
+status row — needs a container to hang a grant on and to be created into. Declare a
+`SystemContainer` listing what it owns with `.all(_:)`, one relation per type, and
+register it with `register(_:)` (no migration: there is no table). Its `identity` is
+minted from the type and stable, so a grant row stores it like any identity; a grant on
+it extends to every row of the listed types (`readRecords` reads them all,
+`createRecords` creates at the top), a read within `.subject` includes them through that
+grant, and a write to any owned row marks the container stale. With exactly one
+registered and no `useApplicationScope(_:)`, plans within `.application` bind to it. Each
+owned type must be registered too (`register(_:migration:)`).
+Don't add a synthetic parent row so a top-level model has a container — the system
+container is the container, and a `ContainerDataModel` may not declare `.all(_:)`.
+
+```swift
+enum Suite: SystemContainer {
+    static var containment: [ContainmentRelation] { [.all(Workspace.self), .all(SystemStatus.self)] }
+}
+try app.register(Suite.self)                                          // configure(_:)
+static let newWorkspace = Workspace.creationPlan(within: .application)  // create at the top
+Grant(authorizedModel: Suite.identity, modelOperations: [], memberOperations: [.readRecords, .createRecords], memberTypes: [Workspace.modelIdentityNamespace])
 ```
 
 ## Lifecycle
@@ -540,7 +566,7 @@ a read *and* the writes that return the same value (so a write reuses its own
 transport-agnostic `ResponseBodyFactory` (FOSMVVM). `body(context:)` is
 **synchronous** (`throws`, never `async`): the records were loaded BEFORE projection began (auth-scoped, per the
 factory's declared requirements — see FOSMVVM's `ComposableFactory` /
-`LoadRequirement`), so projection reads them, never loads them. The factory is
+`LoadingPlan`), so projection reads them, never loads them. The factory is
 handed a `ProjectionContext` (see Containment) — never a `Vapor.Request`, never a
 `Database`. A zero-data body conforms to the factory alone (no
 `ComposableFactory`). Registered with `register(request:app:)` (see Vapor Support);
@@ -600,9 +626,11 @@ final class User: DataModel, UserFields, Hashable, @unchecked Sendable {
 ### Declare a write's candidate set and field application — `WriteTargetProviding` / `DataModelWriter`
 Reach for this when: serving an update/create/archive — adopt these on the write
 request's `RequestBody` in the server target. `WriteTargetProviding.candidates`
-(a stored `static let LoadRequirement`) declares the auth-scoped set the submitted
+(a stored `static let` `LoadingPlan`) declares the auth-scoped set the submitted
 `TargetedQuery` target (FOSMVVM's Protocols) must resolve to — not-yours is
-indistinguishable from not-found. An `ArchiveRequest` body conforms to
+indistinguishable from not-found. Candidates `within: .subject` accept a target the
+subject may write by either authority — a grant naming it, or a grant on its container
+— and need no `ScopedQuery`. An `ArchiveRequest` body conforms to
 `WriteTargetProviding` **alone** (archiving is framework-owned). An update or create
 adds `DataModelWriter.apply(to:)` — a **synchronous** field application that
 **cannot touch the database**: the framework owns all I/O (load, save, the container
@@ -614,7 +642,7 @@ framework.
 
 ```swift
 extension UpdateCardRequest.RequestBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
+    static let candidates = Card.loadingPlan(.write, within: .request)
     func apply(to card: Card) throws {
         card.name = name
         card.capacity = capacity
@@ -622,22 +650,28 @@ extension UpdateCardRequest.RequestBody: DataModelWriter {
 }
 ```
 
-### Supply a request's authorizations — `ContainerAuthorizationProvider`
+### Supply a request's authorizations — `ModelAuthorizationProvider`
 Reach for this when: telling the framework what the current subject may touch —
-conform once, register at boot with `useContainerAuthorizationProvider(_:)` (see
+conform once, register at boot with `useModelAuthorizationProvider(_:)` (see
 Extensions), and every framework load is scoped by what you return. Return the
-**complete** grant set (never a per-container slice); the framework fetches through
+**complete** grant set (never a per-model slice); the framework fetches through
 you once per request and reuses it. Return `[]` for an unauthenticated subject —
 they load empty sets. The value type you return conforms to FOSMVVM's
-`ContainerAuthorization`.
+`ModelAuthorization`. `subjectIdentity(for:)` is optional: vend the subject's own
+identity and every plan within `.subject` registers it, so a grant written under the
+subject (declare the grant model `.children(\User.$grants)`) refreshes that subject's
+live lists; the default `nil` means grant changes reach a client on its next fetch.
 
 ```swift
-struct GrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [BoardGrant] {
+struct GrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [Grant] {
         let userId = try request.auth.require(SessionUser.self).id
-        return try await UserBoardGrantRow.query(on: request.db)
+        return try await UserGrantRow.query(on: request.db)
             .filter(\.$user.$id == userId).all()
             .map(\.snapshot)   // project Sendable value snapshots
+    }
+    func subjectIdentity(for request: Request) async throws -> ModelIdentity? {
+        try request.auth.require(SessionUser.self).modelIdentity
     }
 }
 ```

@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import FOSFoundation
 import Foundation
 
 /// Identifies the *kind* of a ``Model`` (its type) as an opaque token.
@@ -35,14 +36,17 @@ import Foundation
 /// back out — so it can't be forged or parsed. It is `Hashable` and `Codable`.
 public struct ModelNamespace: Hashable, Sendable {
     private let value: String
-    var rawValue: String {
-        value
-    } // read by ModelIdentity to build the vmId token
 
     /// Creates the namespace identifying `type`.
     public init(for type: Any.Type) {
         // Reflecting, NOT describing: the module-qualified name avoids cross-module collisions.
         self.value = String(reflecting: type)
+    }
+
+    /// The stable ``ViewModelId`` for the row `id` of this namespace's type — composed here so the
+    /// namespace's contents never leave it. `ModelIdentity.viewModelId` is the only caller.
+    func viewModelId(rooting id: ModelIdType) -> ViewModelId {
+        .init(id: "\(value)|\(id.uuidString)")
     }
 }
 

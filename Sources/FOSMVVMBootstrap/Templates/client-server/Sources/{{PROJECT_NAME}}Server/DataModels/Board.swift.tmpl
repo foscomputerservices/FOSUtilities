@@ -8,8 +8,8 @@ import FOSMVVMVapor
 import Foundation
 import Vapor
 
-/// The apex container — one Board holds many Cards. Apex-rooted reads/creates
-/// resolve their root here (see `useApexContainerResolver` in configure).
+/// The application's top container — one Board holds many Cards. A plan declared
+/// `within: .application` binds here (see `useApplicationScope` in configure).
 ///
 /// > A container declares BOTH `containedRecordTypes` and `containment`; boot
 /// > rejects any drift between them.

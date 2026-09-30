@@ -12,3 +12,21 @@ replacing
 # (FOSMVVMVapor.md § Protocols), which also supplies the typed record reads and serving. The base
 # is named in that entry's prose; it is not adopted directly in practice.
 ResponseBodyFactory
+
+# Former containment spellings, deprecated for one release (0.19) and mapped onto the
+# current API: the grant family (ModelAuthorization / ModelAuthorizationProvider),
+# ContainmentScope, ScopedQuery, LoadingPlan, useApplicationScope. Customers reach for
+# the current names (FOSMVVM.md / FOSMVVMVapor.md § Protocols, § Containment).
+ContainerAuthorization
+ContainerAuthorizationProvider
+authorizedContainer
+containerAuthorizations
+useContainerAuthorizationProvider
+RootScope
+RootSource
+RootedQuery
+rootIdentity
+DataRequirement
+LoadRequirement
+dataRequirements
+useApexContainerResolver

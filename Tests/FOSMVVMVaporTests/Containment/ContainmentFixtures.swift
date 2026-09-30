@@ -39,7 +39,8 @@ final class Pier: DataModel, @unchecked Sendable {
     }
 }
 
-/// The apex container — every Board belongs to a Workspace; apex-rooted plans resolve here.
+/// The application's top container — every Board belongs to a Workspace; plans within
+/// `.application` resolve here.
 final class Workspace: ContainerDataModel, @unchecked Sendable {
     static let schema = "workspaces"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
@@ -229,18 +230,25 @@ final class BoardMember: DataModel, @unchecked Sendable {
 
 // MARK: - Authorization value fixture (C6 engine tests)
 
-/// A Sendable snapshot of one grant row, composed per the ContainerAuthorization DocC example.
-struct TestGrant: ContainerAuthorization {
-    let authorizedContainer: ModelIdentity
+/// A Sendable snapshot of one grant row, composed per the ModelAuthorization DocC example.
+struct TestGrant: ModelAuthorization {
+    let authorizedModel: ModelIdentity
     let operations: [ContainerOperation]
     let recordTypes: [ModelNamespace]
+    /// What the grant allows on the named model itself; empty by default, so every existing
+    /// fixture keeps the deny default.
+    var modelOperations: [ModelOperation] = []
+
+    func authorizes(_ operation: ModelOperation, on model: ModelIdentity) -> Bool {
+        model == authorizedModel && modelOperations.authorizes(operation)
+    }
 
     func authorizes(
         _ operation: ContainerOperation,
         ofType recordType: any FOSMVVM.Model.Type,
         in container: ModelIdentity
     ) -> Bool {
-        container == authorizedContainer
+        container == authorizedModel
             && operations.authorizes(operation) // honors the wildcard — never `contains`
             && recordTypes.contains(recordType.modelIdentityNamespace)
     }
@@ -256,8 +264,8 @@ struct TestGrantsKey: StorageKey {
 
 /// Vends whatever grants the test placed in ``TestGrantsKey`` — set the storage before the first
 /// authorized load in a Request (the provider is read once per Request, then memoized).
-struct TestGrantsProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+struct TestGrantsProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         request.application.storage[TestGrantsKey.self] ?? []
     }
 }
@@ -266,7 +274,7 @@ struct TestGrantsProvider: ContainerAuthorizationProvider {
 
 /// Same namespace as Board (anchored to Board) — duplicate-registration fixture.
 final class RogueBoard: ContainerDataModel, @unchecked Sendable {
-    static let schema = "rogue_docks"
+    static let schema = "rogue_boards"
     static var modelIdentityNamespace: ModelNamespace {
         .init(for: Board.self)
     }
@@ -288,7 +296,7 @@ final class RogueBoard: ContainerDataModel, @unchecked Sendable {
 
 /// containment built from ANOTHER container's KeyPath — container-type-mismatch fixture.
 final class MismatchedBoard: ContainerDataModel, @unchecked Sendable {
-    static let schema = "mismatched_docks"
+    static let schema = "mismatched_boards"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
         [Card.self]
     }
@@ -306,7 +314,7 @@ final class MismatchedBoard: ContainerDataModel, @unchecked Sendable {
 
 /// containment ≠ containedRecordTypes — drift fixture, MISSING direction (declared Card, forgot containment).
 final class DriftingBoard: ContainerDataModel, @unchecked Sendable {
-    static let schema = "drifting_docks"
+    static let schema = "drifting_boards"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
         [Card.self]
     }
@@ -325,7 +333,7 @@ final class DriftingBoard: ContainerDataModel, @unchecked Sendable {
 /// containment ≠ containedRecordTypes — drift fixture, SURPLUS direction (containment declares a type
 /// containedRecordTypes omits). Needs its own child relationship so the KeyPath's From is itself.
 final class SpareBoard: ContainerDataModel, @unchecked Sendable {
-    static let schema = "surplus_docks"
+    static let schema = "surplus_boards"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
         []
     }

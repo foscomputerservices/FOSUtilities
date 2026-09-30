@@ -1250,6 +1250,61 @@ A complete form specification consists of:
 
 ---
 
+## Containment and Authorization
+
+A server never loads for a route; it loads for a subject. Every record a projection reads arrives through a plan the factory declared, executed against the subject's grants. Two ideas carry that: containment, which says what owns what, and authorization, which says what the subject may do.
+
+### Two axes of authorization
+
+A grant (`ModelAuthorization`) names one model and answers two questions.
+
+**The model-level axis.** What may the holder do to the named model itself: `ModelOperation` — `read`, `write`, `archive`, `destroy`, or the `anyOperation` wildcard (everything but destroy). There is no `create`: a model is created into a container, never on itself.
+
+**The container-level axis.** What does the named model, when it is a container, extend to the models it contains, by contained type: `ContainerOperation` — `readRecords`, `writeRecords`, `createRecords`, `archiveRecords`, `destroyRecords`, or the `anyOperation` wildcard (again, everything but destroy). `AuthorityFlow.inherits` carries that extension down the containment path; `.guards` stops it at the container, so a deeper load needs a grant anchored there.
+
+A container is a model, so it is authorized the same way: its own row by the first axis, its members by the second. A leaf answers the first axis only.
+
+### The union rule
+
+Either authority suffices, and the two never have to agree. A subject may archive a Board because a grant names the Board with `archive`, or because a grant on its Workspace extends `archiveRecords` of type Board. Neither grant knows about the other. Nothing an existing grant authorizes stops being authorized when a grant on a model is added; the model-level axis only adds.
+
+The default answer to the model-level question is `false`, so an app that has only ever written container grants changes nothing until it adopts the axis.
+
+### Scopes
+
+Every clause of a plan is declared within a `ContainmentScope`, the region of data one party owns. The scope decides where the plan begins; the subject's grants decide what loads inside it. A scope never widens authority.
+
+- **`.parent`** — the scope the enclosing factory bound. Every child shares it unless it deliberately opens its own.
+- **`.request`** — the container the client named. The request's query is a `ScopedQuery`. One request names one container.
+- **`.application`** — the container the application resolves for this caller, registered once with `useApplicationScope(_:)`, or, with nothing registered, the one system container. Overviews, system-wide models, creating a top-level container.
+- **`.subject`** — what the subject's grants reach. Nothing to name, nothing to resolve.
+
+### The subject scope
+
+A plan within `.subject` binds to the models of its first type that the subject's grants authorize for the plan's operation, taken one hop deep and as a union: every model a grant names with the operation, plus every such model inside a granted container that directly contains the type. One query per plan, with the request's filter, sort, and window applied inside it, so paging across the union is exact and the total is one count.
+
+Deeper reach stays declared. `via:` descends from the bound set through ordinary containment; each bound model is its own root and anchors its own subtree. The plan never infers a path.
+
+The subject scope is a read scope and a write-candidate scope, never a create scope: a create declares the container it creates into, and `creationPlan(within: .subject)` is refused at boot. A write whose candidates are within the subject scope accepts a target reachable by either authority and refuses one reachable by neither, as not-found.
+
+Every bound model registers for live refresh, so a change to any listed row refreshes the list. The subject's own identity registers too when the provider vends it (`subjectIdentity(for:)`); an app that declares its grant model as contained by the subject then refreshes a subject's lists when a grant is written, through the ordinary invert.
+
+### The container with no table
+
+A model no other model owns — a top-level Workspace, a system-wide status row — has nothing to hang a grant on and nothing to be created into. `SystemContainer` is the answer: a container with one instance and no storage, declaring what it owns as every row of a type, `containment: [.all(Workspace.self), .all(SystemStatus.self)]`, registered with `register(_:)` and no migration.
+
+Its `identity` is minted from the type and is stable, so a grant row stores it like any identity. A grant on it extends to every row of the listed types by the ordinary container-level axis, which is also how it feeds the subject scope: a read of Workspaces within `.subject` includes them all through that one grant.
+
+Create at the top lives here. Creating a Workspace is an operation on no record, so the system container is the only container that can hold a `createRecords` grant for it: `Workspace.creationPlan(within: .application)`, with the application scope bound to the system container. A write to any owned row marks the system container stale, so every list within the application scope refreshes on a create or destroy at the top.
+
+More than one system container is allowed. With exactly one registered and no `useApplicationScope(_:)`, plans within `.application` bind to it by themselves.
+
+### Where it lives
+
+Declarations: `Sources/FOSMVVM/Protocols/` — `ModelOperation`, `ModelAuthorization`, `ContainmentScope`, `LoadingPlan`, `ScopedQuery`, `Container`. Execution: `Sources/FOSMVVMVapor/Containment/` and `Extensions/Request+ContainerLoad.swift` — the engine, the plan executor, the write route, registration, and `SystemContainer` with `ContainmentRelation.all(_:)`. The provider: `Sources/FOSMVVMVapor/Protocols/ModelAuthorizationProvider.swift`.
+
+---
+
 ## Live Invalidation
 
 A ViewModel opted into live refresh with `@ViewModel(options: [.live])` re-fetches whenever the server signals that the data it was served from has changed. Most of this is automatic: a Fluent-persisted model nudges live clients on every committed save, and plan-loaded records register their dependency with no code.

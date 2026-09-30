@@ -31,7 +31,7 @@ import Foundation
 import Testing
 import Vapor
 
-/// Registers Workspace (the apex) + Board and adds the remaining workspace migrations.
+/// Registers Workspace (the top container) + Board and adds the remaining workspace migrations.
 /// CreateWorkspace/CreatePier run BEFORE CreateBoard — CreateBoard's DDL references both tables.
 private func configureWorkspace(_ app: Application) throws {
     app.migrations.add(CreatePier())
@@ -57,13 +57,13 @@ private func instanceIds(_ records: [any DataModel]) -> [ObjectIdentifier] {
 
 /// Vends a Card-read grant on dock2's identity ONLY — the provider-driven anchored path's
 /// fixture: nothing ever grants on dock1, so a dock1 load succeeds only through the anchor.
-private struct Dock2AnchorGrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct Dock2AnchorGrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         guard let dock2 = try await Board.query(on: request.db).filter(\.$name == "Board 2").first() else {
             return []
         }
         return try [TestGrant(
-            authorizedContainer: dock2.modelIdentity,
+            authorizedModel: dock2.modelIdentity,
             operations: [.readRecords],
             recordTypes: [Card.modelIdentityNamespace]
         )]
@@ -82,13 +82,13 @@ struct AnchoredEngineTests {
     @Test func grantOnAnchorAuthorizesLoadOfDifferentContainer() async throws {
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(TestGrantsProvider())
+            try app.useModelAuthorizationProvider(TestGrantsProvider())
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
 
             // Baseline: grant on the load container, anchor unspecified — existing behavior.
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -102,7 +102,7 @@ struct AnchoredEngineTests {
             // The anchored path: the ONLY grant names dock2's identity (a fresh Request re-reads
             // the provider, so this set replaces the baseline's for the calls below).
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock2.modelIdentity,
+                authorizedModel: dock2.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -132,17 +132,17 @@ struct AnchoredEngineTests {
     @Test func differentAnchorsKeyIndependentCacheEntries() async throws {
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(TestGrantsProvider())
+            try app.useModelAuthorizationProvider(TestGrantsProvider())
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: dock1.modelIdentity,
+                    authorizedModel: dock1.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: dock2.modelIdentity,
+                    authorizedModel: dock2.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace]
                 )
@@ -188,11 +188,11 @@ struct AnchoredEngineTests {
     @Test func explicitAnchorEqualToContainerSharesTheNilAnchorEntry() async throws {
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(TestGrantsProvider())
+            try app.useModelAuthorizationProvider(TestGrantsProvider())
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -219,7 +219,7 @@ struct AnchoredEngineTests {
     @Test func providerDrivenEntryThreadsTheAnchor() async throws {
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(Dock2AnchorGrantProvider())
+            try app.useModelAuthorizationProvider(Dock2AnchorGrantProvider())
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)

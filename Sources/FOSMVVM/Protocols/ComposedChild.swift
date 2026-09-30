@@ -16,7 +16,7 @@
 
 import Foundation
 
-/// One composed child: the child factory's type + where it roots.
+/// One composed child: the child factory's type + the scope its plans start from.
 ///
 /// List children in ``ComposableFactory/children`` with the `.child` factories — the
 /// parent-scope default covers the overwhelmingly common case:
@@ -24,7 +24,7 @@ import Foundation
 /// ```swift
 /// static var children: [ComposedChild] {
 ///     [.child(CardCellViewModel.self),
-///      .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
+///      .child(WorkspaceBannerViewModel.self, within: .application)]
 /// }
 /// ```
 ///
@@ -36,12 +36,12 @@ public struct ComposedChild: Sendable {
     /// The child factory's type, as listed at the declaration site.
     public let factoryType: any ComposableFactory.Type
 
-    /// Where the child roots its containment scope — the parent's scope unless declared
-    /// with `rootedAt:`.
-    public let rootScope: RootScope
+    /// The scope the child's plans start from — the parent's scope unless declared
+    /// with `within:`.
+    public let scope: ContainmentScope
 
     /// The declared intermediate containment hops (`via:`) from the parent's scope, in order.
-    /// Empty for the parent-scope default and for fresh roots.
+    /// Empty for the parent-scope default and wherever the child opens its own scope.
     public let intermediates: [any Model.Type]
 
     /// A child sharing the parent's scope — the overwhelmingly common case:
@@ -52,41 +52,53 @@ public struct ComposedChild: Sendable {
     public static func child(
         _ type: (some ComposableFactory).Type
     ) -> ComposedChild {
-        .init(factoryType: type, rootScope: .parentRoot, intermediates: [])
+        .init(factoryType: type, scope: .parent, intermediates: [])
     }
 
-    /// A child rooted by containment descent from the parent's scope — `via:` lists the
+    /// A child reached by containment descent from the parent's scope — `via:` lists the
     /// *intermediate* hops, in order:
     ///
     /// ```swift
-    /// .child(SlipBoardViewModel.self, via: Card.self)
+    /// .child(ChecklistPanelViewModel.self, via: Card.self)
     /// ```
     public static func child(
         _ type: (some ComposableFactory).Type,
         via intermediates: any Model.Type...
     ) -> ComposedChild {
-        .init(factoryType: type, rootScope: .parentRoot, intermediates: intermediates)
+        .init(factoryType: type, scope: .parent, intermediates: intermediates)
     }
 
-    /// A child starting a fresh root — a detail tree and an apex list in one request:
+    /// A child opening a scope of its own — a detail tree and an application-wide list in one
+    /// request:
     ///
     /// ```swift
-    /// .child(WorkspaceBannerViewModel.self, rootedAt: .apex)
+    /// .child(WorkspaceBannerViewModel.self, within: .application)
+    /// .child(CardCellViewModel.self, within: .request, via: Board.self)
     /// ```
+    public static func child(
+        _ type: (some ComposableFactory).Type,
+        within scope: ContainmentScope,
+        via intermediates: any Model.Type...
+    ) -> ComposedChild {
+        .init(factoryType: type, scope: scope, intermediates: intermediates)
+    }
+
+    /// The former spelling of ``child(_:within:via:)``.
+    @available(*, deprecated, message: "use .child(_:within:)")
     public static func child(
         _ type: (some ComposableFactory).Type,
         rootedAt source: RootSource
     ) -> ComposedChild {
-        .init(factoryType: type, rootScope: .newRoot(source), intermediates: [])
+        .init(factoryType: type, scope: source.containmentScope, intermediates: [])
     }
 
     private init(
         factoryType: any ComposableFactory.Type,
-        rootScope: RootScope,
+        scope: ContainmentScope,
         intermediates: [any Model.Type]
     ) {
         self.factoryType = factoryType
-        self.rootScope = rootScope
+        self.scope = scope
         self.intermediates = intermediates
     }
 }

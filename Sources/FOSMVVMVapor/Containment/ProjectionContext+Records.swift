@@ -23,7 +23,7 @@ import Foundation
 /// the plan and the tuple→records snapshot; this extension turns a declared handle into typed
 /// records against them.
 public extension ProjectionContext {
-    /// The records a declared requirement loaded — read by the SAME static handle the factory
+    /// The records a declared plan loaded — read by the SAME static handle the factory
     /// declared. Any handle in the request's plan is readable, including a child factory's
     /// (that is how parents compose their children).
     ///
@@ -36,7 +36,7 @@ public extension ProjectionContext {
     /// Treat the returned records as read-only: they are shared snapshots of what the load
     /// phase produced — do not mutate them. Mutation belongs to the write path, which
     /// invalidates and re-serves.
-    func records<Record: FOSMVVM.Model>(_ handle: LoadRequirement<Record>) throws -> [Record] {
+    func records<Record: FOSMVVM.Model>(_ handle: LoadingPlan<Record>) throws -> [Record] {
         let requestName = String(describing: Request.self)
         let recordName = String(describing: Record.self)
 
@@ -85,7 +85,7 @@ public extension ProjectionContext {
     /// Throws exactly as ``records(_:)`` does: an unplanned handle throws (never returns 0 — a
     /// misconfiguration is not a genuine "no matches"); a handle matching more than one declared
     /// load throws.
-    func totalCount<Record: FOSMVVM.Model>(for handle: LoadRequirement<Record>) throws -> Int {
+    func totalCount<Record: FOSMVVM.Model>(for handle: LoadingPlan<Record>) throws -> Int {
         let requestName = String(describing: Request.self)
         let recordName = String(describing: Record.self)
 

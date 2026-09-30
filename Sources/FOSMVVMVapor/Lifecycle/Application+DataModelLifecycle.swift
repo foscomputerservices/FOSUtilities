@@ -25,10 +25,10 @@ extension Vapor.Application {
     /// model type gets exactly one middleware no matter how many descriptors reach it, so a type
     /// two containers declare still runs its hooks once per write.
     ///
-    /// Called from every `register(_:migration:)`, never gated on live invalidation: the hooks are
+    /// Called from every `register` overload, never gated on live invalidation: the hooks are
     /// a property of the model, not of the notification layer.
     func registerLifecycleMiddleware(for descriptor: RegisteredModel) {
-        var modelTypes: [any DataModel.Type] = [descriptor.modelType]
+        var modelTypes: [any DataModel.Type] = descriptor.modelType.map { [$0] } ?? []
         for relation in descriptor.containment {
             modelTypes.append(relation.containedType)
             if let pivotType = relation.pivotType {

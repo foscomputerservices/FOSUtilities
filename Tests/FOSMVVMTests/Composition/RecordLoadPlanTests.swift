@@ -52,7 +52,7 @@ private struct Member: Model {
     var id: ModelIdType?
 }
 
-private struct Paycheck: Model {
+private struct Timesheet: Model {
     var id: ModelIdType?
 }
 
@@ -69,7 +69,7 @@ private struct Checklist: Container {
 }
 
 /// A second `.guards` container, for the LAST-guard-wins pin.
-private struct RestrictedVault: Container {
+private struct Archive: Container {
     var id: ModelIdType?
     static var authorityFlow: AuthorityFlow {
         .guards
@@ -80,11 +80,11 @@ private struct ChecklistItem: Model {
     var id: ModelIdType?
 }
 
-private struct PersonnelNote: Model {
+private struct ChecklistNote: Model {
     var id: ModelIdType?
 }
 
-private struct VaultFile: Model {
+private struct ArchiveEntry: Model {
     var id: ModelIdType?
 }
 
@@ -123,67 +123,63 @@ private extension PlanFixture {
 
 // MARK: - Factory fixtures: substitution graph (spec test 1)
 
-/// Root: own requirements (implicit terminal + `via:`) and all three child placements.
+/// Root: own plans (implicit terminal + `via:`) and all three child placements.
 private struct WorkspacePageVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.read(Card.self, in: .parentRoot),
-            LoadRequirement.read(Assignment.self, in: .parentRoot, via: Card.self)
-        ]
+    static var loadingPlans: LoadingPlans {
+        Card.loadingPlan(.read, within: .parent)
+        Assignment.loadingPlan(.read, within: .parent, via: Card.self)
     }
 
     static var children: [ComposedChild] {
         [
             .child(MembersRosterVM.self),
             .child(CardBoardVM.self, via: Board.self),
-            .child(BannerVM.self, rootedAt: .apex)
+            .child(BannerVM.self, within: .application)
         ]
     }
 }
 
 private struct MembersRosterVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Member.self, in: .parentRoot)]
+    static var loadingPlans: LoadingPlans {
+        Member.loadingPlan(.read, within: .parent)
     }
 }
 
 private struct CardBoardVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.read(Card.self, in: .parentRoot),
-            LoadRequirement.read(Paycheck.self, in: .newRoot(.query))
-        ]
+    static var loadingPlans: LoadingPlans {
+        Card.loadingPlan(.read, within: .parent)
+        Timesheet.loadingPlan(.read, within: .request)
     }
 }
 
 private struct BannerVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(WorkspaceBanner.self, in: .parentRoot)]
+    static var loadingPlans: LoadingPlans {
+        WorkspaceBanner.loadingPlan(.read, within: .parent)
     }
 }
 
 // MARK: - Factory fixtures: diamonds (spec test 2)
 
 private struct SharedLeafVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Member.self, in: .parentRoot)]
+    static var loadingPlans: LoadingPlans {
+        Member.loadingPlan(.read, within: .parent)
     }
 }
 
 /// Same child composed under two parents at the SAME scope — one security question.
 private struct SameAnchorDiamondVM: PlanFixture {
     static var children: [ComposedChild] {
-        [.child(PortSideVM.self), .child(StarboardSideVM.self)]
+        [.child(FirstBranchVM.self), .child(SecondBranchVM.self)]
     }
 }
 
-private struct PortSideVM: PlanFixture {
+private struct FirstBranchVM: PlanFixture {
     static var children: [ComposedChild] {
         [.child(SharedLeafVM.self)]
     }
 }
 
-private struct StarboardSideVM: PlanFixture {
+private struct SecondBranchVM: PlanFixture {
     static var children: [ComposedChild] {
         [.child(SharedLeafVM.self)]
     }
@@ -219,46 +215,42 @@ private struct CycleBVM: PlanFixture {
 /// Descends via an `.inherits` container, then a `.guards` container.
 private struct GuardedDescentVM: PlanFixture {
     static var children: [ComposedChild] {
-        [.child(PersonnelDeskVM.self, via: Board.self, Checklist.self)]
+        [.child(ChecklistDeskVM.self, via: Board.self, Checklist.self)]
     }
 }
 
-private struct PersonnelDeskVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.read(ChecklistItem.self, in: .parentRoot),
-            LoadRequirement.read(PersonnelNote.self, in: .parentRoot, via: ChecklistItem.self)
-        ]
+private struct ChecklistDeskVM: PlanFixture {
+    static var loadingPlans: LoadingPlans {
+        ChecklistItem.loadingPlan(.read, within: .parent)
+        ChecklistNote.loadingPlan(.read, within: .parent, via: ChecklistItem.self)
     }
 }
 
 /// Two `.guards` containers on one path — the LAST one traversed anchors.
 private struct DoubleGuardVM: PlanFixture {
     static var children: [ComposedChild] {
-        [.child(VaultDeskVM.self, via: Checklist.self, RestrictedVault.self)]
+        [.child(ArchiveDeskVM.self, via: Checklist.self, Archive.self)]
     }
 }
 
-private struct VaultDeskVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(VaultFile.self, in: .parentRoot)]
+private struct ArchiveDeskVM: PlanFixture {
+    static var loadingPlans: LoadingPlans {
+        ArchiveEntry.loadingPlan(.read, within: .parent)
     }
 }
 
 // MARK: - Factory fixtures: .refinedByRequest (spec test 5)
 
 private struct SingleMarkVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
-            LoadRequirement.read(Member.self, in: .parentRoot)
-        ]
+    static var loadingPlans: LoadingPlans {
+        Card.loadingPlan(.read, within: .parent).refinedByRequest
+        Member.loadingPlan(.read, within: .parent)
     }
 }
 
 private struct DoubleMarkVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
+    static var loadingPlans: LoadingPlans {
+        Card.loadingPlan(.read, within: .parent).refinedByRequest
     }
 
     static var children: [ComposedChild] {
@@ -267,8 +259,8 @@ private struct DoubleMarkVM: PlanFixture {
 }
 
 private struct MarkedLeafVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Member.self, in: .parentRoot).refinedByRequest]
+    static var loadingPlans: LoadingPlans {
+        Member.loadingPlan(.read, within: .parent).refinedByRequest
     }
 }
 
@@ -276,17 +268,17 @@ private struct MarkedLeafVM: PlanFixture {
 /// to ONE marked tuple; no false multi-mark rejection.
 private struct MarkedDiamondVM: PlanFixture {
     static var children: [ComposedChild] {
-        [.child(MarkedPortVM.self), .child(MarkedStarboardVM.self)]
+        [.child(MarkedFirstBranchVM.self), .child(MarkedSecondBranchVM.self)]
     }
 }
 
-private struct MarkedPortVM: PlanFixture {
+private struct MarkedFirstBranchVM: PlanFixture {
     static var children: [ComposedChild] {
         [.child(MarkedLeafVM.self)]
     }
 }
 
-private struct MarkedStarboardVM: PlanFixture {
+private struct MarkedSecondBranchVM: PlanFixture {
     static var children: [ComposedChild] {
         [.child(MarkedLeafVM.self)]
     }
@@ -294,25 +286,24 @@ private struct MarkedStarboardVM: PlanFixture {
 
 // MARK: - Factory fixtures: collapse boundaries (spec test 6)
 
-/// Tuple order: two `.query`-rooted unanchored reads, an `.apex`-rooted read, then a
+/// Tuple order: two unanchored reads within the request scope, one within the application
+/// scope, then a
 /// `.guards`-anchored read — three collapse runs.
 private struct CollapseVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.read(Card.self, in: .parentRoot),
-            LoadRequirement.read(Member.self, in: .parentRoot),
-            LoadRequirement.read(WorkspaceBanner.self, in: .newRoot(.apex))
-        ]
+    static var loadingPlans: LoadingPlans {
+        Card.loadingPlan(.read, within: .parent)
+        Member.loadingPlan(.read, within: .parent)
+        WorkspaceBanner.loadingPlan(.read, within: .application)
     }
 
     static var children: [ComposedChild] {
-        [.child(PersonnelDeskLiteVM.self, via: Checklist.self)]
+        [.child(ChecklistDeskLiteVM.self, via: Checklist.self)]
     }
 }
 
-private struct PersonnelDeskLiteVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(ChecklistItem.self, in: .parentRoot)]
+private struct ChecklistDeskLiteVM: PlanFixture {
+    static var loadingPlans: LoadingPlans {
+        ChecklistItem.loadingPlan(.read, within: .parent)
     }
 }
 
@@ -325,17 +316,17 @@ struct RecordLoadPlanSubstitutionTests {
         let plan = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
 
         let expected: [RecordLoadPlan.Tuple] = [
-            // Root factory's own requirements — the request root, absolute path as declared
-            .init(root: .query, path: [], recordType: Card.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
-            .init(root: .query, path: [Card.self], recordType: Assignment.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
-            // Parent-scope child: inherits the parent's root and prefix
-            .init(root: .query, path: [], recordType: Member.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            // Root factory's own plans — the request scope, absolute path as declared
+            .init(root: .request, path: [], recordType: Card.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            .init(root: .request, path: [Card.self], recordType: Assignment.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            // Parent-scope child: inherits the parent's scope and prefix
+            .init(root: .request, path: [], recordType: Member.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
             // via: child — the child's parent-relative declaration becomes absolute
-            .init(root: .query, path: [Board.self], recordType: Card.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
-            // .newRoot(.query) requirement under a via: child — a fresh root resets the prefix
-            .init(root: .query, path: [], recordType: Paycheck.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
-            // .newRoot(.apex) child — a fresh tree in the forest
-            .init(root: .apex, path: [], recordType: WorkspaceBanner.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false)
+            .init(root: .request, path: [Board.self], recordType: Card.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            // within: .request plan under a via: child — a fresh root resets the prefix
+            .init(root: .request, path: [], recordType: Timesheet.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            // within: .application child — a fresh tree in the forest
+            .init(root: .application, path: [], recordType: WorkspaceBanner.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false)
         ]
 
         #expect(plan.tuples == expected)
@@ -422,7 +413,7 @@ struct RecordLoadPlanAnchorTests {
         #expect(try same(#require(file.anchor), Checklist.self))
 
         // Below the guard, deeper hops stay anchored at the guard
-        let note = try #require(plan.tuples.first { same($0.recordType, PersonnelNote.self) })
+        let note = try #require(plan.tuples.first { same($0.recordType, ChecklistNote.self) })
         #expect(note.path.count == 3)
         #expect(try same(#require(note.anchor), Checklist.self))
     }
@@ -432,7 +423,7 @@ struct RecordLoadPlanAnchorTests {
         let plan = try RecordLoadPlan.walk(from: DoubleGuardVM.self)
 
         let tuple = try #require(plan.tuples.first)
-        #expect(try same(#require(tuple.anchor), RestrictedVault.self))
+        #expect(try same(#require(tuple.anchor), Archive.self))
     }
 
     @Test("No .guards below the root — the anchor is nil: the tuple's own root anchors")

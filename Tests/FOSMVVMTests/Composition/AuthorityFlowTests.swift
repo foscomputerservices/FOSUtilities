@@ -52,8 +52,8 @@ struct AuthorityFlowTests {
     }
 }
 
-@Suite("RootedQuery")
-struct RootedQueryTests {
+@Suite("ScopedQuery")
+struct ScopedQueryTests {
     struct Workspace: Model {
         var id: ModelIdType?
         init(id: ModelIdType? = nil) {
@@ -61,17 +61,17 @@ struct RootedQueryTests {
         }
     }
 
-    struct WorkspaceBerthsQuery: RootedQuery {
-        let rootIdentity: ModelIdentity
+    struct WorkspacePageQuery: ScopedQuery {
+        let scopeIdentity: ModelIdentity
     }
 
-    @Test("A RootedQuery conformance vends the rootIdentity minted from a model")
-    func vendsMintedRootIdentity() throws {
+    @Test("A ScopedQuery conformance vends the scopeIdentity minted from a model")
+    func vendsMintedScopeIdentity() throws {
         let workspace = Workspace(id: .init())
         let identity = try workspace.modelIdentity
 
-        let query = WorkspaceBerthsQuery(rootIdentity: identity)
+        let query = WorkspacePageQuery(scopeIdentity: identity)
 
-        #expect(query.rootIdentity == identity)
+        #expect(query.scopeIdentity == identity)
     }
 }

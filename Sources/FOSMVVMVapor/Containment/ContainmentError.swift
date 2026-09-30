@@ -18,11 +18,11 @@ import Foundation
 
 /// Containment misconfiguration, by trigger timing. BOOT-TIME (thrown from configure(_:)):
 /// `.duplicateNamespace`, `.containerTypeMismatch`, `.containmentDrift`,
-/// `.duplicateAuthorizationProvider`, `.duplicateApexContainerResolver`, `.invalidLoadPlan`
+/// `.duplicateAuthorizationProvider`, `.duplicateApplicationScope`, `.invalidLoadPlan`
 /// (RecordLoadPlan boot validation at route registration), `.missingAppStateBuilder` /
 /// `.duplicateAppStateBuilder` (useAppState registry validation at route registration),
-/// `.unstableRequirementTokens` (`dataRequirements`/`candidates` mints requirements inline
-/// instead of returning stored handles), `.writeRequestAtReadDoor` / `.unsupportedWriteProtocol` (a
+/// `.unstableRequirementTokens` (`loadingPlans`/`candidates` mints plans inline instead of
+/// listing stored handles), `.writeRequestAtReadDoor` / `.unsupportedWriteProtocol` (a
 /// write-protocol conformer reaching the read door / a not-yet-supported write protocol),
 /// `.pathPrefixedMount` (a request registered on a path-prefixing group, whose served path would
 /// diverge from the type-derived path clients fetch).
@@ -47,7 +47,7 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
     case duplicateAuthorizationProvider(registered: String, duplicate: String)
     case noAuthorizationProvider
     case invalidLoadPlan(request: String, reason: String)
-    case duplicateApexContainerResolver
+    case duplicateApplicationScope
     case unplannedRequirement(recordType: String, request: String)
     case ambiguousRequirement(recordType: String, request: String, matchCount: Int)
     case missingAppStateBuilder(request: String, appStateType: String)
@@ -58,6 +58,9 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
     case unsupportedWriteProtocol(request: String)
     case pathPrefixedMount(request: String, mountedPath: String)
     case invalidCreateScope(container: String, recordType: String)
+    case systemRelationOnContainer(modelType: String, memberType: String)
+    case rowRelationOnSystemContainer(modelType: String, relationContainer: String)
+    case unregisteredSystemMember(container: String, memberType: String)
 
     var debugDescription: String {
         switch self {
@@ -72,17 +75,17 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
         case .unregisteredNamespace(let identity):
             "No container is registered for the requested identity (\(identity)). Register the container in configure(_:) via Application.register(_:migration:) — an unregistered namespace is a configuration bug, not an authorization result."
         case .duplicateAuthorizationProvider(let registered, let duplicate):
-            "Duplicate ContainerAuthorizationProvider registration: \(registered) is already registered, so \(duplicate) was rejected. Exactly one provider per application (useContainerAuthorizationProvider(_:)); compose multiple sources inside that single conformance."
+            "Duplicate ModelAuthorizationProvider registration: \(registered) is already registered, so \(duplicate) was rejected. Exactly one provider per application (useModelAuthorizationProvider(_:)); compose multiple sources inside that single conformance."
         case .noAuthorizationProvider:
-            "No ContainerAuthorizationProvider is registered. Register one in configure(_:) via Application.useContainerAuthorizationProvider(_:) — a missing provider is a configuration bug, not an unauthorized/empty-grant result."
+            "No ModelAuthorizationProvider is registered. Register one in configure(_:) via Application.useModelAuthorizationProvider(_:) — a missing provider is a configuration bug, not an unauthorized/empty-grant result."
         case .invalidLoadPlan(let request, let reason):
             "Invalid RecordLoadPlan for \(request): \(reason). Plans are derived and validated at route registration, never at request time — fix the factory declarations or boot registrations named above."
-        case .duplicateApexContainerResolver:
-            "Duplicate apex container resolver registration: a resolver is already registered, so this one was rejected. Exactly one resolver per application (useApexContainerResolver(_:)); compose multi-tenant resolution inside that single closure."
+        case .duplicateApplicationScope:
+            "Duplicate application scope registration: a resolver is already registered, so this one was rejected. Exactly one per application (useApplicationScope(_:)); compose multi-tenant resolution inside that single closure."
         case .unplannedRequirement(let recordType, let request):
-            "A projection of \(request) read records of \(recordType) through a requirement handle that never reached the request's load plan. A handle that is not declared never loads — declare it in the factory's dataRequirements (or, for a composed child's data, list the child in children). Mint each requirement in a stored static let handle and return those handles from dataRequirements; a handle minted inline in the getter carries a fresh declaration identity, so a handle read back never matches the one that was walked. Reading an undeclared handle is a misconfiguration, never a silently empty screen."
+            "A projection of \(request) read records of \(recordType) through a plan handle that never reached the request's load plan. A handle that is not declared never loads — declare it in the factory's loadingPlans block (or, for a composed child's data, list the child in children). Mint each plan in a stored static let handle and list those handles in loadingPlans; a plan minted inline in the block carries a fresh declaration identity, so a handle read back never matches the one that was walked. Reading an undeclared handle is a misconfiguration, never a silently empty screen."
         case .ambiguousRequirement(let recordType, let request, let matchCount):
-            "A projection of \(request) read \(recordType) through a requirement handle that matched \(matchCount) declared loads — the handle is ambiguous. The same declaration was composed onto multiple paths — give each composition its own declaration so the handle names exactly one load; the framework never guesses which set to return."
+            "A projection of \(request) read \(recordType) through a plan handle that matched \(matchCount) declared loads — the handle is ambiguous. The same declaration was composed onto multiple paths — give each composition its own declaration so the handle names exactly one load; the framework never guesses which set to return."
         case .missingAppStateBuilder(let request, let appStateType):
             "No AppState builder is registered for \(appStateType), which \(request)'s ResponseBody projects. Register one in configure(_:) via useAppState(\(appStateType).self) { req in ... } — call it BEFORE register(request:app:). A non-Void AppState with no builder is a boot-time configuration bug, never a first-request surprise."
         case .duplicateAppStateBuilder(let appStateType):
@@ -90,7 +93,7 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
         case .appStateInconsistency(let request, let appStateType, let reason):
             "Internal inconsistency resolving AppState \(appStateType) for \(request): \(reason). The boot check guarantees a correctly-typed builder for every non-Void AppState, so this is a framework-invariant breakage — file an issue."
         case .unstableRequirementTokens(let request, let handle):
-            "\(request)'s \(handle) is not stable across evaluations: two reads minted different declaration identities. Mint each requirement in a stored static let handle and return those handles — a computed dataRequirements (or candidates) RETURNING stored handles is fine and canonical; minting inline in the getter allocates a fresh declaration identity on each access, which breaks the handle→load resolution."
+            "\(request)'s \(handle) is not stable across evaluations: two reads minted different declaration identities. Mint each plan in a stored static let handle and list those handles — a loadingPlans block (or candidates) NAMING stored handles is fine and canonical; minting a plan inline allocates a fresh declaration identity on each access, which breaks the handle→load resolution."
         case .writeRequestAtReadDoor(let request):
             "\(request) is a write-protocol request (Create/Update/Delete) but reached the read door (register(request:app:) for a plain read). Its Query/RequestBody do not satisfy the write overload's constraints (Query: TargetedQuery, RequestBody: DataModelWriter/WriteTargetProviding), so overload resolution fell through to the read door. Registering it read-only would be a silent write-drop — fix the Query/RequestBody so the write overload binds."
         case .unsupportedWriteProtocol(let request):
@@ -99,6 +102,12 @@ enum ContainmentError: Error, CustomDebugStringConvertible {
             "\(request) was registered on a path-prefixing group — its served path became \(mountedPath), but clients derive the route from the request type, so the two would silently disagree (runtime 404s). Mount composable requests on middleware-only groups (app.grouped(middleware)) to guard them; a path prefix changes the served URL out from under the client. A deliberate, client-visible prefix is its own feature, not this door."
         case .invalidCreateScope(let container, let recordType):
             "Cannot create a \(recordType) into \(container): the containment relation for \(recordType) is a to-one parent relation, which is not a create scope. Create is defined only into a container's .children or .siblings relations, where the container owns the new record."
+        case .systemRelationOnContainer(let modelType, let memberType):
+            "\(modelType).containment declares .all(\(memberType).self), which only a SystemContainer may declare — a ContainerDataModel owns rows through its own @Children/@Siblings/@Parent relationships. Move the relation to a SystemContainer, or declare it from \(modelType)'s KeyPath."
+        case .rowRelationOnSystemContainer(let modelType, let relationContainer):
+            "\(modelType) is a SystemContainer but declares a relation built from \(relationContainer)'s relationship. A system container has no rows to join from — declare only .all(_:) relations."
+        case .unregisteredSystemMember(let container, let memberType):
+            "\(container) declares .all(\(memberType).self) but \(memberType) is not registered. Register it in configure(_:) via register(_:migration:) — checked once, at boot."
         }
     }
 }

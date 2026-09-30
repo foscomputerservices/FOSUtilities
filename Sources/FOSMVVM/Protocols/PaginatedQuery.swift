@@ -37,7 +37,7 @@ public struct Pagination: Codable, Hashable, Sendable {
 /// Conform your query only when it needs paging — non-paginated queries stay as they are:
 ///
 /// ```swift
-/// struct BerthsQuery: PaginatedQuery {
+/// struct CardListQuery: PaginatedQuery {
 ///     var pagination: Pagination { .init(startIndex: 0, maxResults: 25) }
 ///     // ...ServerRequestQuery requirements...
 /// }

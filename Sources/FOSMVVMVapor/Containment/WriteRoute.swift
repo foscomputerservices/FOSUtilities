@@ -217,7 +217,7 @@ extension Vapor.Request {
                 reason: "the candidate plan has no tuple — the writer's candidate set is missing; there is nothing to resolve the target against"
             )
         }
-        let records = (tupleCacheKeys[tuple] ?? []).flatMap { containerRecordCache[$0] ?? [] }
+        let records = (tupleCacheKeys[tuple] ?? []).flatMap { cachedRecords(for: $0) ?? [] }
         guard let match = records.first(where: { record in
             (try? record.modelIdentity).map { $0 == selector } ?? false
         }) else {
@@ -240,5 +240,10 @@ extension Vapor.Request {
         for container in touchedContainers(of: context.resolved) {
             invalidateContainerRecords(of: container)
         }
+        // The subject scope's entries name no container, so no identity reaches them above; the
+        // written row may sit in any of them. The caches are per request, so dropping them whole
+        // costs nothing and the refresh re-runs its one query.
+        subjectScopeCache = [:]
+        subjectScopeCountCache = [:]
     }
 }

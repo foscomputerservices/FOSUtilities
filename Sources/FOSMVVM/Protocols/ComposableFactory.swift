@@ -20,15 +20,18 @@ import Foundation
 /// factory, aggregated automatically, loaded once per request.
 ///
 /// ```swift
-/// extension BerthsViewModel: ComposableFactory {
-///     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
+/// extension BoardPageViewModel: ComposableFactory {
+///     static let cards = Card.loadingPlan(.read, within: .parent)
 ///         .refinedByRequest
-///     static let members   = LoadRequirement.read(Member.self, in: .parentRoot)
+///     static let members = Member.loadingPlan(.read, within: .parent)
 ///
-///     static var dataRequirements: [any DataRequirement] { [cards, members] }
+///     static var loadingPlans: LoadingPlans {
+///         cards
+///         members
+///     }
 ///     static var children: [ComposedChild] {
 ///         [.child(CardCellViewModel.self),
-///          .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
+///          .child(WorkspaceBannerViewModel.self, within: .application)]
 ///     }
 /// }
 /// ```
@@ -38,8 +41,8 @@ import Foundation
 ///
 /// ```swift
 /// extension BoardManifest: ComposableFactory {
-///     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-///     static var dataRequirements: [any DataRequirement] { [cards] }
+///     static let cards = Card.loadingPlan(.read, within: .parent)
+///     static var loadingPlans: LoadingPlans { cards }
 /// }
 /// ```
 ///
@@ -50,20 +53,41 @@ import Foundation
 ///
 /// Adopting the trait and declaring nothing — both defaults left empty — fails fast at boot.
 public protocol ComposableFactory: Sendable {
-    /// This factory's own data needs. Empty is meaningful: a pure composer.
-    static var dataRequirements: [any DataRequirement] { get }
+    /// This factory's own plan — its clauses, listed in a builder block. Empty is meaningful:
+    /// a pure composer.
+    ///
+    /// ```swift
+    /// static var loadingPlans: LoadingPlans {
+    ///     workspaces
+    ///     boards
+    /// }
+    /// ```
+    @LoadingPlansBuilder static var loadingPlans: LoadingPlans { get }
 
     /// The child factories this factory composes. Only trait-conforming
     /// types can appear — an undeclared child cannot be composed.
     static var children: [ComposedChild] { get }
+
+    /// The former declaration list, honored for one release. Declare ``loadingPlans`` instead.
+    @available(*, deprecated, message: "declare loadingPlans")
+    static var dataRequirements: [any DataRequirement] { get }
 }
 
 public extension ComposableFactory {
-    static var dataRequirements: [any DataRequirement] {
+    static var children: [ComposedChild] {
         []
     }
+}
 
-    static var children: [ComposedChild] {
+/// A factory written against the former `dataRequirements` still walks: this default erases that
+/// list into the plan. A factory that declares neither is a pure composer.
+@available(*, deprecated, message: "declare loadingPlans")
+public extension ComposableFactory {
+    static var loadingPlans: LoadingPlans {
+        .init(plans: dataRequirements.compactMap { $0 as? any LoadingPlanWalkFace })
+    }
+
+    static var dataRequirements: [any DataRequirement] {
         []
     }
 }

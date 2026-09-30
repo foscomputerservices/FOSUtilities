@@ -67,7 +67,7 @@ struct SortMappingTests {
         } _: { _, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
             let grant = try TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.anyOperation],
                 recordTypes: [Card.modelIdentityNamespace]
             )

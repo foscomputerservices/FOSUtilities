@@ -4,8 +4,8 @@ import FOSFoundation
 import FOSMVVM
 import Foundation
 
-/// Adds a card to the board. `EmptyQuery`: the create roots at the apex container
-/// (the server's apex resolver), so no board identity is threaded from the client.
+/// Adds a card to the board. `EmptyQuery`: the create is declared within the application
+/// scope (the server's `useApplicationScope`), so no board identity is threaded from the client.
 /// The `RequestBody`'s `DataModelWriter` conformance lives server-side; on commit the
 /// board's live clients auto-refresh and the new card appears.
 public final class CardCreateRequest: CreateRequest, @unchecked Sendable {

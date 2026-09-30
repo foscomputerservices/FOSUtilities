@@ -125,12 +125,12 @@ final class BehavioralCurio: DataModel, BehavioralRecording, @unchecked Sendable
 
 // MARK: - Queries
 
-struct BehavioralVaultRootQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+struct BehavioralVaultRootQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
-struct BehavioralVaultTargetQuery: TargetedQuery, RootedQuery {
-    let rootIdentity: ModelIdentity
+struct BehavioralVaultTargetQuery: TargetedQuery, ScopedQuery {
+    let scopeIdentity: ModelIdentity
     let target: ModelIdentity
 }
 
@@ -139,9 +139,9 @@ struct BehavioralVaultTargetQuery: TargetedQuery, RootedQuery {
 struct BehavioralVaultVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = BehavioralVaultRequest
 
-    static let relics = LoadRequirement.read(BehavioralRelic.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [relics]
+    static let relics = BehavioralRelic.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        relics
     }
 
     var vmId = ViewModelId()
@@ -197,7 +197,7 @@ struct ArchiveBehavioralRelicBody: ServerRequestBody, ValidatableModel {
 }
 
 extension ArchiveBehavioralRelicBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.archive(BehavioralRelic.self, in: .parentRoot)
+    static let candidates = BehavioralRelic.loadingPlan(.archive, within: .parent)
 }
 
 final class BehavioralRelicArchiveRequest: ArchiveRequest, @unchecked Sendable {
@@ -239,7 +239,7 @@ struct ArchiveBehavioralCurioBody: ServerRequestBody, ValidatableModel {
 }
 
 extension ArchiveBehavioralCurioBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.archive(BehavioralCurio.self, in: .parentRoot)
+    static let candidates = BehavioralCurio.loadingPlan(.archive, within: .parent)
 }
 
 final class BehavioralCurioArchiveRequest: ArchiveRequest, @unchecked Sendable {

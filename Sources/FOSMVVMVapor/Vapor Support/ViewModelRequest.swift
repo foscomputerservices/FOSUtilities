@@ -129,8 +129,8 @@ public extension RoutesBuilder {
     /// Mount on **middleware-only** groups: a path-prefixing group is rejected at boot, because clients
     /// derive the served URL from the request type.
     ///
-    /// Register the app's containers and the request's response dependencies (apex resolver,
-    /// `useAppState`) **before** calling this — the candidate plan and the response read plan are
+    /// Register the app's containers and the request's response dependencies (the application
+    /// scope, `useAppState`) **before** calling this — the candidate plan and the response read plan are
     /// derived and validated here. After the update commits, the server re-serves the request itself
     /// through the genuine read pipeline to build its `ResponseBody`.
     ///
@@ -218,7 +218,7 @@ public extension RoutesBuilder {
     ///
     /// The row is gone once the destroy commits, and the server re-serves the request itself to build
     /// its `ResponseBody` from the refreshed records. Declare the candidate set with
-    /// `LoadRequirement.destroy(_:in:)`: the container must grant
+    /// `loadingPlan(.destroy, within:)`: the container must grant
     /// ``ContainerOperation/destroyRecords`` by name — the wildcard grant never covers it. Reach for
     /// ``Vapor/RoutesBuilder/register(request:app:)-(SR.Type,_)`` on an `ArchiveRequest` when the row
     /// should stay, marked deleted.
