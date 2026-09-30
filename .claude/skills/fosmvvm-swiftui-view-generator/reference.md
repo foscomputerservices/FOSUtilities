@@ -372,6 +372,7 @@ public struct {ViewName}View: ViewModelView {
             }
             .disabled(validations.hasError)
         }
+        .withFormValidations()
         .onSubmit {
             Task { await submit() }
         }
@@ -421,8 +422,8 @@ private extension {ViewName}View {
 
             submitSuccess = response?.success == true
         } catch let error as SubmitRequest.ResponseError {
-            if !error.validationResults.isEmpty {
-                validations.replace(with: error.validationResults)
+            if !error.validations.isEmpty {
+                validations.replace(with: error.validations)
             } else {
                 self.error = error
             }
@@ -450,6 +451,27 @@ private extension {ViewName}View {
 }
 #endif
 ```
+
+### What each piece of the form does
+
+**One `Validations` for the whole form.** The host installs it once — `.environment(Validations())` — and the view reads it with `@Environment(Validations.self)`. Every `FormFieldView` is handed that same instance, and so is `withFormValidations()`. Results accumulate in it from three places: the field validators as the user types, the model's own rules, and the server's answer.
+
+**`.withFormValidations()` shows the results that name no field.** `ValidationResult(status:message:)` — the initializer with no field — makes a result about the model as a whole, and `ValidationResult.Message.addressesModel` is how a message says it names none. A `FieldValidationsView` only ever shows messages naming its own field, so a model-level refusal ("this board is full") lands in `Validations` and stays invisible unless the form applies this modifier. It adds nothing to the layout when there are no such messages, so apply it to every form. It requires `Validations` in the environment, the same as the field views:
+
+```swift
+Form {
+    FormFieldView(fieldModel: viewModel.$title, focusField: focusField)
+    FormFieldView(fieldModel: viewModel.$notes, focusField: focusField)
+}
+.withFormValidations()
+.environment(validations)
+```
+
+> **SRP.** Each view presents the slice of the answer it owns — the field view its field's messages, `withFormValidations()` the model's. Hand-rolling a summary from the accumulator's contents gives the form a second responsibility and double-shows anything that names a field.
+
+**`replace(with:)` puts the server's answer back.** A write request's `ResponseError` is a `ValidatableViewModelRequestError`, so `error.validations` is always there to read. Field messages are replaced per field: only the fields the incoming results name are cleared. Model-level messages are replaced only when the incoming results carry at least one of their own, so a field-only replacement leaves them standing — a client-side check on one field must not clear a server-side refusal of the model that no client-side check could re-derive.
+
+**The submit guard.** `FormFieldView` validates the field before it forwards a submission, and calls the caller's `onSubmit` only when that validation answers `true`. A warning or an information result does not stop the submission; an error does.
 
 ---
 
@@ -957,8 +979,10 @@ private extension {ViewName}View {
 - [ ] `@Environment(Validations.self) private var validations`
 - [ ] `@Environment(\.focusState) private var focusField`
 - [ ] `FormFieldView` for each input field
+- [ ] `.withFormValidations()` on the form, for the results that name no field
 - [ ] `.disabled(validations.hasError)` on submit button
 - [ ] Separate handling for validation errors vs general errors
+- [ ] `validations.replace(with: error.validations)` on the typed `ResponseError`
 
 **Container Views:**
 - [ ] `@Environment(AppState.self) private var appState`
@@ -1090,5 +1114,5 @@ ChildView.bind(
 - [ ] Test infrastructure added if operations present
 - [ ] Previews added for different states
 - [ ] Error handling in place if async operations
-- [ ] Validation handling in place if form
+- [ ] Validation handling in place if form, including `.withFormValidations()`
 - [ ] Child view bindings correct if container

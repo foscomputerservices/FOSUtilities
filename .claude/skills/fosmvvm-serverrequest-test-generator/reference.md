@@ -38,7 +38,7 @@ The templates below show proper ServerRequest testing. The path is derived from 
 |-------------|--------------|---------|
 | `{Feature}` | Feature or area name (PascalCase) | `Idea`, `User`, `Dashboard` |
 | `{feature}` | Same, camelCase | `idea`, `user`, `dashboard` |
-| `{Action}` | Operation name | `Create`, `Update`, `Show`, `Delete` |
+| `{Action}` | Operation name | `Create`, `Update`, `Show`, `Archive` |
 | `{Target}` | Test target name | `WebServerTests`, `AppTests` |
 | `{ViewModelsTarget}` | Shared ViewModels SPM target | `ViewModels` |
 | `{WebServerTarget}` | Server-side target | `WebServer`, `AppServer` |
@@ -401,14 +401,14 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
 
 ---
 
-## Template 5: DeleteRequest Test Suite
+## Template 5: ArchiveRequest Test Suite
 
-For testing DeleteRequest types with entity removal.
+For testing ArchiveRequest types with entity archiving.
 
-**Location:** `Tests/{Target}Tests/Requests/Delete{Feature}RequestTests.swift`
+**Location:** `Tests/{Target}Tests/Requests/{Feature}ArchiveRequestTests.swift`
 
 ```swift
-// Delete{Feature}RequestTests.swift
+// {Feature}ArchiveRequestTests.swift
 
 import FOSFoundation
 @testable import FOSMVVM
@@ -422,31 +422,31 @@ import VaporTesting
 @testable import {ViewModelsTarget}
 @testable import {WebServerTarget}
 
-@Suite("Delete {Feature} Request Tests")
-struct Delete{Feature}RequestTests {
+@Suite("Archive {Feature} Request Tests")
+struct {Feature}ArchiveRequestTests {
     // MARK: - Success Cases
 
-    @Test func deleteRequest_success() async throws {
+    @Test func archiveRequest_success() async throws {
         try await withTestApp { app in
             // Create entity first
             let createRequest = Create{Feature}Request(requestBody: .init(
-                name: "To Be Deleted"
+                name: "To Be Archived"
             ))
             var createdId: ModelIdType?
             try await app.testing().test(createRequest, locale: en) { response in
                 createdId = response.body?.id
             }
 
-            // Delete the entity
-            let deleteRequest = Delete{Feature}Request(requestBody: .init(
+            // Archive the entity
+            let archiveRequest = {Feature}ArchiveRequest(requestBody: .init(
                 {feature}Id: try #require(createdId)
             ))
 
-            try await app.testing().test(deleteRequest, locale: en) { response in
+            try await app.testing().test(archiveRequest, locale: en) { response in
                 #expect(response.status == .ok)
             }
 
-            // Verify deletion - should return not found
+            // Verify archiving - should return not found
             let showRequest = Show{Feature}Request(query: .init(
                 {feature}Id: try #require(createdId)
             ))
@@ -458,9 +458,9 @@ struct Delete{Feature}RequestTests {
 
     // MARK: - Error Cases
 
-    @Test func deleteRequest_notFound() async throws {
+    @Test func archiveRequest_notFound() async throws {
         try await withTestApp { app in
-            let request = Delete{Feature}Request(requestBody: .init(
+            let request = {Feature}ArchiveRequest(requestBody: .init(
                 {feature}Id: ModelIdType()  // Non-existent ID
             ))
 
@@ -479,7 +479,7 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
     try await withApp { app in
         try app.routes.register(collection: Create{Feature}Controller())
         try app.routes.register(collection: Show{Feature}Controller())
-        try app.routes.register(collection: Delete{Feature}Controller())
+        try app.routes.register(collection: {Feature}ArchiveController())
         try await test(app)
     }
 }
@@ -658,19 +658,19 @@ struct {Feature}CRUDTests {
         }
     }
 
-    // MARK: - Delete
+    // MARK: - Archive
 
-    @Test func delete_{feature}() async throws {
+    @Test func archive_{feature}() async throws {
         try await withTestApp { app in
             let id = try await create{Feature}(app: app)
 
-            let request = Delete{Feature}Request(requestBody: .init({feature}Id: id))
+            let request = {Feature}ArchiveRequest(requestBody: .init({feature}Id: id))
 
             try await app.testing().test(request, locale: en) { response in
                 #expect(response.status == .ok)
             }
 
-            // Verify deleted
+            // Verify archived
             let showRequest = Show{Feature}Request(query: .init({feature}Id: id))
             try await app.testing().test(showRequest, locale: en) { response in
                 #expect(response.status == .notFound)
@@ -734,9 +734,9 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
 - [ ] Update: Valid update applies changes
 - [ ] Update: Invalid input returns error
 - [ ] Update: Non-existent returns not found
-- [ ] Delete: Removes entity
-- [ ] Delete: Non-existent returns not found
-- [ ] Delete: Verify entity no longer accessible
+- [ ] Archive: Marks entity deleted
+- [ ] Archive: Non-existent returns not found
+- [ ] Archive: Verify entity no longer accessible
 
 ---
 

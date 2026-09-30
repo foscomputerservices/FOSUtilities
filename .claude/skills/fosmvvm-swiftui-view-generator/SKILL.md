@@ -1,4 +1,3 @@
-| 1.2 | 2026-09-23 | Images Pattern: catalog assets reach a view as typed `ImageResource` symbols (`Image(.name)`, `Label(_:image:)`), never as a `String` name and never as a name carried on the ViewModel; SF Symbols keep the `systemName` literal at the view. Added the Stringly Image Names mistake. Pairs with the bootstrap's emitted `Assets.xcassets`. |
 ---
 name: fosmvvm-swiftui-view-generator
 description: Generate SwiftUI views that render FOSMVVM ViewModels. Scaffolds ViewModelView pattern with binding, loading states, and previews.
@@ -319,7 +318,7 @@ public struct ParentView: ViewModelView {
 
 ### 4. Form Views with Validation
 
-Forms use `FormFieldView` and `Validations` environment:
+A form reads one `Validations` from the environment, hands it to every `FormFieldView`, wraps itself in `withFormValidations()`, and puts the server's answer back with `replace(with:)`. That is the whole pattern; here it is end to end:
 
 ```swift
 public struct MyFormView: ViewModelView {
@@ -333,15 +332,23 @@ public struct MyFormView: ViewModelView {
     public var body: some View {
         Form {
             FormFieldView(
-                fieldModel: viewModel.$email,
+                fieldModel: viewModel.$title,
                 focusField: focusField,
-                fieldValidator: viewModel.validateEmail,
+                fieldValidator: viewModel.validateTitle,
+                validations: validations
+            )
+
+            FormFieldView(
+                fieldModel: viewModel.$notes,
+                focusField: focusField,
+                fieldValidator: viewModel.validateNotes,
                 validations: validations
             )
 
             Button(viewModel.submitButtonLabel, error: $error, action: submit)
                 .disabled(validations.hasError)
         }
+        .withFormValidations()
         .onSubmit {
             Task { do { try await submit() } catch { self.error = error } }
         }
@@ -352,15 +359,40 @@ public struct MyFormView: ViewModelView {
             dismissButtonLabel: viewModel.dismissButtonLabel
         )
     }
+
+    private func submit() async throws {
+        do {
+            try await operations.submit(viewModel.formData)
+        } catch let responseError as MyRequest.ResponseError
+            where !responseError.validations.isEmpty {
+            validations.replace(with: responseError.validations)
+        }
+    }
 }
 ```
 
 **Form patterns:**
-- `@Environment(Validations.self)` for validation state
-- `FormFieldView` for each input field
+- `@Environment(Validations.self)` for validation state — the host installs it once, `.environment(Validations())`, and every field view and `withFormValidations()` reads that same instance
+- `FormFieldView` for each input field, each given `fieldValidator:` and `validations:`
+- `.withFormValidations()` on the form, for the results that name no field
 - `Button(error:action:)` (and its `Localizable`-titled twins) for async actions
 - `.disabled(validations.hasError)` on submit button
 - Separate handling for validation errors vs general errors
+
+**Model-level results and `withFormValidations()`.** A `ValidationResult` built with `ValidationResult(status:message:)` names no field, so it is about the model as a whole — "this board is full", "these dates overlap" — and `ValidationResult.Message.addressesModel` is how a message says so. `FieldValidationsView` only ever shows messages naming its own field, so without `withFormValidations()` a model-level refusal from the server arrives in `Validations` and is never seen. The modifier shows those messages above the view it wraps and adds nothing when there are none, so it costs nothing to apply to every form. It reads `Validations` from the environment exactly as the field views do; apply it where the summary belongs — the form, or a container around it:
+
+```swift
+Form {
+    FormFieldView(fieldModel: viewModel.$title, focusField: focusField)
+    FormFieldView(fieldModel: viewModel.$notes, focusField: focusField)
+}
+.withFormValidations()
+.environment(validations)
+```
+
+> **SRP.** One `Validations` is the form's single answer, and each view projects the slice it owns: a field view shows its own field's messages, `withFormValidations()` shows the model's. Deviate by having the form reach into the accumulator's contents and lay the messages out by hand and you have given the form two responsibilities — accumulating and presenting — and the next server refusal that names a field gets shown twice.
+
+**The submit guard.** `FormFieldView` runs the field's validator before it forwards a submission: the caller's `onSubmit` is called only when `validateIt` answers `true`. A warning or an information result does not stop the submission; an error does.
 
 ### 5. Previews
 
@@ -492,6 +524,7 @@ Views with validated input fields:
 
 - Use `FormFieldView` for each input
 - `@Environment(Validations.self)` for validation state
+- `.withFormValidations()` on the form, so the results that name no field are shown
 - Button disabled when `validations.hasError`
 - Separate error handling for validation vs operation errors
 
@@ -569,7 +602,7 @@ From conversation context, the skill identifies:
 Based on view type:
 - **Display-only**: ViewModelView protocol, viewModel property only
 - **Interactive**: Add operations, repaintToggle, testDataTransporter, toggleRepaint()
-- **Form**: Add Validations environment, FormFieldView, validation error handling
+- **Form**: Add Validations environment, FormFieldView, `.withFormValidations()`, validation error handling
 - **Container**: Add child view `.bind()` calls
 
 ### Code Generation
@@ -625,11 +658,15 @@ Button(viewModel.submitLabel, error: $error) {
     do {
         try await operations.submit(data: viewModel.data)
     } catch let responseError as MyRequest.ResponseError
-        where !responseError.validationResults.isEmpty {
-        await MainActor.run { validations.replace(with: responseError.validationResults) }
+        where !responseError.validations.isEmpty {
+        await MainActor.run { validations.replace(with: responseError.validations) }
     }
 }
 ```
+
+A write request's `ResponseError` is a `ValidatableViewModelRequestError`, so `responseError.validations` is always there to read — that is the property's name, and the client decodes its own typed error rather than guessing at a status code.
+
+**What `replace(with:)` does.** Field messages are replaced per field: every field the incoming results name is cleared first, so a field the server had nothing to say about keeps whatever the client found. Model-level messages are replaced only when the incoming results carry at least one of their own; a field-only replacement leaves them standing. That asymmetry is the point — a client-side check on one field must never clear a server-side refusal of the model as a whole, which no client-side check could have re-derived.
 
 ### Async Task Pattern
 
@@ -1115,3 +1152,5 @@ This skill is typically used after discussing requirements or reading specificat
 |---------|------|---------|
 | 1.0 | 2026-01-23 | Initial skill for SwiftUI view generation |
 | 1.1 | 2026-05-03 | Operations section rewrite to align with `ConversationPractice/docs/architecture.md`: surface the framework/app-side seam (`<Name>Operations.swift` / `<Name>StubOps.swift` / `<Name>Ops.swift` file convention), distinguish `FOSMVVM.ViewModelOperations` from per-feature protocols, note App Intents/transport actions share the same protocol, document `toggleRepaint()` motivation, clarify async vs sync op shape, promote display-only-no-Operations decision to a top-level rule. Clarify the storage-vs-method-signature distinction: `any` is acceptable at single-value View storage (Swift 5.7+ implicit existential opening preserves generic specialization at call sites); generics are required at protocol method signatures. All View examples updated to `private let operations: any <Name>ViewModelOperations`. |
+| 1.2 | 2026-09-23 | Images Pattern: catalog assets reach a view as typed `ImageResource` symbols (`Image(.name)`, `Label(_:image:)`), never as a `String` name and never as a name carried on the ViewModel; SF Symbols keep the `systemName` literal at the view. Added the Stringly Image Names mistake. Pairs with the bootstrap's emitted `Assets.xcassets`. |
+| 1.3 | 2026-09-29 | Form validation brought to the shipped API: `withFormValidations()` documented for the results that name no field, the complete form pattern (environment `Validations` → field views → modifier → `replace(with:)` on the typed `ResponseError`), the per-field/model-level asymmetry of `replace(with:)`, and the submit guard. Corrected the typed error's results property to its real name, `responseError.validations`. Restored the YAML frontmatter, which a stray version row had displaced. |

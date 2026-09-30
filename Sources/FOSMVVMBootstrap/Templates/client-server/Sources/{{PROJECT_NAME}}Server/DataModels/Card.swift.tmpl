@@ -9,11 +9,20 @@ import Foundation
 import Vapor
 import {{PROJECT_NAME}}ViewModels
 
-/// A card on a Board. A plain record (`DataModel`), not a container. `ownerTag` is
-/// the correlation-seam key surfaced to the client through `CardViewModel`.
+/// A card on a Board. A plain `DataModel`, not a container. `ownerTag` is the
+/// correlation-seam key surfaced to the client through `CardViewModel`.
 ///
 /// Adopting `CardFields` gives storage the same validation contract the wire body
-/// enforces — one rule set, defined once, localized messages included.
+/// enforces, and `configure(_:)` is what makes it run: `try app.register(Card.self,
+/// migration: Card.Initial())` adds the migration and installs the lifecycle, so
+/// every create and update — through a request or from a hand-written `save(on:)` —
+/// runs `CardFields`' rules before the row is written. One rule set, defined once,
+/// localized messages included.
+///
+/// To judge a card against other rows, or to act on a write, declare one of
+/// `DataModelLifecycle`'s hooks: `willWrite(in:)`, `validateModel(in:)`,
+/// `validationResult(for:)`, `didWrite(in:)`, `didCommit(in:)`. Every one has a
+/// do-nothing default, so a model that needs none declares none — as this one does.
 public final class Card: DataModel, CardFields, @unchecked Sendable {
     public static let schema = "cards"
 
