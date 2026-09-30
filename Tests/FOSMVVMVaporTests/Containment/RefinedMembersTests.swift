@@ -24,7 +24,7 @@ import FOSTestingVapor
 import Foundation
 import Testing
 
-/// A sort vocabulary Berth does NOT publish — the wrong-key-type fixture.
+/// A sort vocabulary Card does NOT publish — the wrong-key-type fixture.
 private enum OtherSortKey: String, SortKey {
     case bogus
 }
@@ -35,40 +35,40 @@ struct RefinedMembersTests {
     /// seed order differs from result order, so ordering proves the push-down).
     @Test func refinedChildrenHonorsSortOrder() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let refinement = ContainmentQueryRefinement(
-                sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms
+                sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms
             )
-            let members = try await ContainmentRelation.children(\Dock.$berths)
+            let members = try await ContainmentRelation.children(\Board.$cards)
                 .members(of: dock1, on: db, applying: refinement)
-            return try members.map { try #require($0 as? Berth).number }
+            return try members.map { try #require($0 as? Card).number }
         }
         #expect(numbers == [3, 2, 1])
     }
 
-    /// Spec test group 10: sort and window compose — the middle berth of the descending order.
+    /// Spec test group 10: sort and window compose — the middle card of the descending order.
     @Test func refinedChildrenAppliesWindowOverSortedOrder() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let refinement = ContainmentQueryRefinement(
-                sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms,
+                sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms,
                 pagination: Pagination(startIndex: 1, maxResults: 1)
             )
-            let members = try await ContainmentRelation.children(\Dock.$berths)
+            let members = try await ContainmentRelation.children(\Board.$cards)
                 .members(of: dock1, on: db, applying: refinement)
-            return try members.map { try #require($0 as? Berth).number }
+            return try members.map { try #require($0 as? Card).number }
         }
         #expect(numbers == [2])
     }
 
     /// Spec test group 10: MULTI-term refinements apply in term order through the refined path.
     ///
-    /// Term choice: `.number` first (its mapping is the single `$number` column), `.dockName`
-    /// second — NOT the reverse, because `.dockName`'s mapping list carries its own `$number`
+    /// Term choice: `.number` first (its mapping is the single `$number` column), `.boardName`
+    /// second — NOT the reverse, because `.boardName`'s mapping list carries its own `$number`
     /// tiebreak, which would shadow any later term and make its order unobservable.
     ///
     /// Discriminating properties of the seed (numbers non-unique, names conflict with insertion):
@@ -78,27 +78,27 @@ struct RefinedMembersTests {
     ///   the names assertion fails.
     @Test func multiTermSortAppliesInTermOrder() async throws {
         let ordered = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let harbor = Harbor(name: "Tie Harbor")
-            try await harbor.save(on: db)
+            let workspace = Workspace(name: "Tie Workspace")
+            try await workspace.save(on: db)
             let pier = Pier(name: "Tie Pier")
             try await pier.save(on: db)
-            let dock = try Dock(name: "Tie Dock", pierId: pier.requireId(), harborId: harbor.requireId())
-            try await dock.save(on: db)
-            try await Berth(number: 1, dockName: "B", dockId: dock.requireId()).save(on: db)
-            try await Berth(number: 1, dockName: "A", dockId: dock.requireId()).save(on: db)
-            try await Berth(number: 2, dockName: "A", dockId: dock.requireId()).save(on: db)
+            let board = try Board(name: "Tie Board", pierId: pier.requireId(), workspaceId: workspace.requireId())
+            try await board.save(on: db)
+            try await Card(number: 1, boardName: "B", boardId: board.requireId()).save(on: db)
+            try await Card(number: 1, boardName: "A", boardId: board.requireId()).save(on: db)
+            try await Card(number: 2, boardName: "A", boardId: board.requireId()).save(on: db)
             let refinement = ContainmentQueryRefinement(
                 sortTerms: SortCriteria([
-                    SortTerm(key: BerthSortKey.number, direction: .ascending),
-                    SortTerm(key: BerthSortKey.dockName, direction: .ascending)
+                    SortTerm(key: CardSortKey.number, direction: .ascending),
+                    SortTerm(key: CardSortKey.boardName, direction: .ascending)
                 ]).erasedTerms
             )
-            let members = try await ContainmentRelation.children(\Dock.$berths)
-                .members(of: dock, on: db, applying: refinement)
-            let berths = try members.map { try #require($0 as? Berth) }
-            return (numbers: berths.map(\.number), names: berths.map(\.dockName))
+            let members = try await ContainmentRelation.children(\Board.$cards)
+                .members(of: board, on: db, applying: refinement)
+            let cards = try members.map { try #require($0 as? Card) }
+            return (numbers: cards.map(\.number), names: cards.map(\.boardName))
         }
         #expect(ordered.numbers == [1, 1, 2])
         #expect(ordered.names == ["A", "B", "A"])
@@ -108,13 +108,13 @@ struct RefinedMembersTests {
     /// only sort demands SortableDataModel; pagination alone must not throw.
     @Test func windowOnlyRefinementSucceedsAgainstUnsortableModel() async throws {
         let count = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db) // dock1 has 2 crew members
+            let (dock1, _) = try await seedWorkspace(on: db) // dock1 has 2 members members
             let refinement = ContainmentQueryRefinement(
                 pagination: Pagination(startIndex: 0, maxResults: 1)
             )
-            return try await ContainmentRelation.siblings(\Dock.$crew)
+            return try await ContainmentRelation.siblings(\Board.$members)
                 .members(of: dock1, on: db, applying: refinement).count
         }
         #expect(count == 1)
@@ -123,13 +123,13 @@ struct RefinedMembersTests {
     /// Spec test group 10: a window alone (no sort terms) still narrows the result set.
     @Test func windowAloneNarrowsResultSet() async throws {
         let count = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let refinement = ContainmentQueryRefinement(
                 pagination: Pagination(startIndex: 0, maxResults: 2)
             )
-            return try await ContainmentRelation.children(\Dock.$berths)
+            return try await ContainmentRelation.children(\Board.$cards)
                 .members(of: dock1, on: db, applying: refinement).count
         }
         #expect(count == 2)
@@ -139,14 +139,14 @@ struct RefinedMembersTests {
     /// that would otherwise throw (Pier is not sortable) or window past it changes nothing.
     @Test func parentIgnoresSortAndWindow() async throws {
         let names = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let refinement = ContainmentQueryRefinement(
-                sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms,
+                sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms,
                 pagination: Pagination(startIndex: 5, maxResults: 1)
             )
-            let members = try await ContainmentRelation.parent(\Dock.$pier)
+            let members = try await ContainmentRelation.parent(\Board.$pier)
                 .members(of: dock1, on: db, applying: refinement)
             return members.map { ($0 as? Pier)?.name }
         }
@@ -157,14 +157,14 @@ struct RefinedMembersTests {
     /// fast — never a silently unsorted result.
     @Test func sortTermsAgainstUnsortableModelThrow() async throws {
         try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let refinement = ContainmentQueryRefinement(
-                sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .ascending)]).erasedTerms
+                sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .ascending)]).erasedTerms
             )
             do {
-                _ = try await ContainmentRelation.siblings(\Dock.$crew)
+                _ = try await ContainmentRelation.siblings(\Board.$members)
                     .members(of: dock1, on: db, applying: refinement)
                 Issue.record("expected ContainmentError.unsortableContainedType")
             } catch let error as ContainmentError {
@@ -180,14 +180,14 @@ struct RefinedMembersTests {
     /// the vocabulary is the model's one RequestSortKey, nothing else.
     @Test func wrongKeyTypeAgainstSortableModelThrows() async throws {
         try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let refinement = ContainmentQueryRefinement(
                 sortTerms: SortCriteria([SortTerm(key: OtherSortKey.bogus, direction: .ascending)]).erasedTerms
             )
             do {
-                _ = try await ContainmentRelation.children(\Dock.$berths)
+                _ = try await ContainmentRelation.children(\Board.$cards)
                     .members(of: dock1, on: db, applying: refinement)
                 Issue.record("expected ContainmentError.unsortableContainedType")
             } catch let error as ContainmentError {
@@ -203,15 +203,15 @@ struct RefinedMembersTests {
     /// with equal hashes; a differing direction ⇒ unequal. Behavior only — no representation.
     @Test func refinementEqualityFollowsSortMeaning() {
         let descending = ContainmentQueryRefinement(
-            sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms,
+            sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms,
             pagination: Pagination(startIndex: 1, maxResults: 1)
         )
         let sameMeaning = ContainmentQueryRefinement(
-            sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms,
+            sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms,
             pagination: Pagination(startIndex: 1, maxResults: 1)
         )
         let ascending = ContainmentQueryRefinement(
-            sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .ascending)]).erasedTerms,
+            sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .ascending)]).erasedTerms,
             pagination: Pagination(startIndex: 1, maxResults: 1)
         )
         #expect(descending == sameMeaning)
@@ -223,11 +223,11 @@ struct RefinedMembersTests {
     /// C4 contract preserved: the unrefined entry still returns the full, unwindowed set.
     @Test func unrefinedMembersStillReturnsFullSet() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.children(\Dock.$berths).members(of: dock1, on: db)
-            return try members.map { try #require($0 as? Berth).number }.sorted()
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.children(\Board.$cards).members(of: dock1, on: db)
+            return try members.map { try #require($0 as? Card).number }.sorted()
         }
         #expect(numbers == [1, 2, 3])
     }

@@ -34,7 +34,7 @@ what L1 actually shipped.
 **v1 scope (session decisions, 2026-07-09):**
 
 - SwiftUI native clients only; a browser/WASM channel is deferred (§9).
-- Framework-first; the Harbor-graph fixtures (Pier/Dock/Berth) carry the proof. No consumer
+- Framework-first; the Workspace-graph fixtures (Pier/Board/Card) carry the proof. No consumer
   app gates the arc.
 - Single server process; the in-memory hub is the seam a multi-instance fan-out plugs into
   later (§9).
@@ -77,14 +77,14 @@ every door write is itself a Fluent save the middleware sees, and writes that by
   multi-instance fan-out plugs in later.
 - **The identity set is derived, zero author code (D-L2-2).** For a mutated record: its own
   `ModelIdentity` **plus the identities of the containers it belongs to**, derived by inverting
-  the C4 containment declarations — the registry knows `Dock` declared
-  `.children(\Dock.$berths)`; the middleware on `Berth` reads the owning `Dock` id off the
+  the C4 containment declarations — the registry knows `Board` declared
+  `.children(\Board.$cards)`; the middleware on `Card` reads the owning `Board` id off the
   instance through the relation's parent key (feasibility verified:
   `ChildrenProperty.parentKey` is public, `fluent-kit/Sources/FluentKit/Properties/
   Children.swift:16`; C4's own code walks it at `Children.swift:203`). `.parent` relations are
   read directly; `.siblings` membership is covered by the registered pivot model's own parents.
-  A model no container declares emits only its own identity. Saving a Berth of Dock X therefore
-  emits `{ModelIdentity(Berth, b), ModelIdentity(Dock, X)}` — field change, membership change,
+  A model no container declares emits only its own identity. Saving a Card of Board X therefore
+  emits `{ModelIdentity(Card, b), ModelIdentity(Board, X)}` — field change, membership change,
   and grant change all land on the container identity the north star's worked example requires.
 - **Post-commit discipline (D-L2-1).** `Database.inTransaction`
   (`fluent-kit/Sources/FluentKit/Database/Database.swift:20`) splits the world:
@@ -332,11 +332,11 @@ not the event); `invalidatingTransaction` (long confusable middle against
 
 ## 8. Test groups
 
-1. **Emit / auto-commit** — a door write emits post-save; the set matches the fixtures (Berth
-   save ⇒ {Berth, owning Dock}); delete and create emit membership changes on the container.
+1. **Emit / auto-commit** — a door write emits post-save; the set matches the fixtures (Card
+   save ⇒ {Card, owning Board}); delete and create emit membership changes on the container.
 2. **Emit / transactions** — in-transaction save emits nothing + warns once; `liveTransaction`
    flushes on commit; a thrown/rolled-back `liveTransaction` emits nothing.
-3. **Derivation** — `.parent`/`.children` inversion against the Harbor graph; pivot-model saves
+3. **Derivation** — `.parent`/`.children` inversion against the Workspace graph; pivot-model saves
    cover `.siblings`; an uncontained model emits only itself.
 4. **Hub + SSE endpoint** — connected stream receives framed events; heartbeat lines flow;
    buffer overflow closes the stream. (Plan-level: long-lived streams may exceed
@@ -404,7 +404,7 @@ change of decision.
   middleware for each registered container's whole graph — the container itself, every contained
   type, and every `.siblings` pivot — deduped by `ObjectIdentifier` so a type reachable through
   several descriptors gets exactly one middleware (`Application+LiveInvalidation.swift`
-  `registerInvalidationEmitMiddleware`). This is required by the Berth contract: FluentKit
+  `registerInvalidationEmitMiddleware`). This is required by the Card contract: FluentKit
   type-filters `ModelMiddleware` per concrete model, so each covered type needs its own instance,
   and an *erased* middleware would sever the task-local the collect-vs-suppress routing rides
   (the T3 binding-site finding; reviewer-ruled sound).

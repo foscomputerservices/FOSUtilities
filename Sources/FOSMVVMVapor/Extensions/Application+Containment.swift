@@ -27,7 +27,7 @@ public extension Application {
     ///
     /// ```swift
     /// // in configure(_:)
-    /// try app.register(Dock.self, migration: Dock.CreateDock())
+    /// try app.register(Board.self, migration: Board.CreateBoard())
     /// ```
     ///
     /// - Throws: if the model's namespace is already registered, or its `containment` doesn't match

@@ -32,22 +32,22 @@ import Vapor
 
 // MARK: - Fixtures
 
-/// An apex-rooted read whose berths load through Dock — so its registration set's roots (the
-/// Harbor) and touched containers (each Dock) are DISTINCT, proving both halves land in the header.
-private struct HarborBerthsVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
-    typealias Request = HarborBerthsRequest
+/// An apex-rooted read whose cards load through Board — so its registration set's roots (the
+/// Workspace) and touched containers (each Board) are DISTINCT, proving both halves land in the header.
+private struct WorkspaceBerthsVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = WorkspaceBerthsRequest
 
-    static let berths = LoadRequirement.read(Berth.self, in: .newRoot(.apex), via: Dock.self)
+    static let cards = LoadRequirement.read(Card.self, in: .newRoot(.apex), via: Board.self)
     static var dataRequirements: [any DataRequirement] {
-        [berths]
+        [cards]
     }
 
     var vmId = ViewModelId()
-    var berthNumbers: [Int] = []
+    var cardNumbers: [Int] = []
 
     init() {}
-    init(berthNumbers: [Int]) {
-        self.berthNumbers = berthNumbers
+    init(cardNumbers: [Int]) {
+        self.cardNumbers = cardNumbers
     }
 
     func propertyNames() -> [LocalizableId: String] {
@@ -59,18 +59,18 @@ private struct HarborBerthsVM: RequestableViewModel, ComposableFactory, VaporRes
     }
 
     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
-        try .init(berthNumbers: context.records(berths).map(\.number).sorted())
+        try .init(cardNumbers: context.records(cards).map(\.number).sorted())
     }
 }
 
-private final class HarborBerthsRequest: ViewModelRequest, @unchecked Sendable {
+private final class WorkspaceBerthsRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    var responseBody: HarborBerthsVM?
+    var responseBody: WorkspaceBerthsVM?
 
-    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: HarborBerthsVM? = nil) {
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: WorkspaceBerthsVM? = nil) {
         self.id = .random(length: 10)
         self.responseBody = responseBody
     }
@@ -117,25 +117,25 @@ private final class PlainRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Harness
 
-/// Registers the Harbor → Dock → Berth graph and drives auth through the storage-backed grants
+/// Registers the Workspace → Board → Card graph and drives auth through the storage-backed grants
 /// provider (grants are set per test, after seeding, once identities exist).
-private func configureHarbor(_ app: Application) throws {
+private func configureWorkspace(_ app: Application) throws {
     try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
     app.migrations.add(CreatePier())
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useContainerAuthorizationProvider(TestGrantsProvider())
 }
 
-private func registerApexHarborResolver(_ app: Application) throws {
+private func registerApexWorkspaceResolver(_ app: Application) throws {
     try app.useApexContainerResolver { req in
-        guard let harbor = try await Harbor.query(on: req.db).first() else {
-            throw Abort(.internalServerError, reason: "no harbor seeded")
+        guard let workspace = try await Workspace.query(on: req.db).first() else {
+            throw Abort(.internalServerError, reason: "no workspace seeded")
         }
-        return try harbor.modelIdentity
+        return try workspace.modelIdentity
     }
 }
 
@@ -143,7 +143,7 @@ private func setGrants(_ app: Application, _ grants: [TestGrant]) {
     app.storage[TestGrantsKey.self] = grants
 }
 
-private func berthReadGrant(container: ModelIdentity, _ ops: [ContainerOperation], types: [ModelNamespace]) -> TestGrant {
+private func cardReadGrant(container: ModelIdentity, _ ops: [ContainerOperation], types: [ModelNamespace]) -> TestGrant {
     TestGrant(authorizedContainer: container, operations: ops, recordTypes: types)
 }
 
@@ -170,29 +170,29 @@ private func getResponse(_ app: Application, for request: some ServerRequest) as
 
 @Suite("Live invalidation: X-FOS-Registrations header")
 struct RegistrationHeaderTests {
-    /// A registered GET whose apex-rooted plan resolves against the Harbor graph carries the
-    /// executed plan's set — the Harbor root PLUS every Dock the berths loaded from.
+    /// A registered GET whose apex-rooted plan resolves against the Workspace graph carries the
+    /// executed plan's set — the Workspace root PLUS every Board the cards loaded from.
     @Test func servedGetCarriesExecutedPlanSet() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
-            try registerApexHarborResolver(app)
-            try app.register(request: HarborBerthsRequest.self, app: app)
+            try configureWorkspace(app)
+            try registerApexWorkspaceResolver(app)
+            try app.register(request: WorkspaceBerthsRequest.self, app: app)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
             try setGrants(app, [
-                berthReadGrant(
-                    container: harbor.modelIdentity,
+                cardReadGrant(
+                    container: workspace.modelIdentity,
                     [.readRecords],
-                    types: [Dock.modelIdentityNamespace, Berth.modelIdentityNamespace]
+                    types: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
             ])
 
-            let response = try await getResponse(app, for: HarborBerthsRequest())
+            let response = try await getResponse(app, for: WorkspaceBerthsRequest())
             #expect(response.status == .ok)
 
             let expected: Set<ModelIdentity> = try [
-                harbor.modelIdentity,
+                workspace.modelIdentity,
                 dock1.modelIdentity,
                 dock2.modelIdentity
             ]
@@ -205,28 +205,28 @@ struct RegistrationHeaderTests {
     /// genuine read pipeline, whose executor deposits the set the refresh depended on.
     @Test func writeDoorCarriesRefreshedSet() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try configureWorkspace(app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             try setGrants(app, [
-                berthReadGrant(
+                cardReadGrant(
                     container: dock1.modelIdentity,
                     [.readRecords, .writeRecords],
-                    types: [Berth.modelIdentityNamespace]
+                    types: [Card.modelIdentityNamespace]
                 )
             ])
-            let berth = try #require(try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).first())
+            let card = try #require(try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).first())
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let base = try #require(URL(string: "http://localhost"))
             let url = try #require(try base.appending(serverRequest: vmRequest))
 
             var buffer = ByteBufferAllocator().buffer(capacity: 0)
-            try buffer.writeBytes(JSONEncoder().encode(UpdateBerthBody(number: 88, dockName: "Wired")))
+            try buffer.writeBytes(JSONEncoder().encode(UpdateCardBody(number: 88, boardName: "Wired")))
             var headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
             headers.contentType = .json
             let httpReq = Request(
@@ -246,19 +246,19 @@ struct RegistrationHeaderTests {
     /// and decodes again to the SAME set — a behavioral round-trip, not a byte assertion.
     @Test func headerValueRoundTrips() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
-            try app.register(request: BerthListRequest.self, app: app)
+            try configureWorkspace(app)
+            try app.register(request: CardListRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             try setGrants(app, [
-                berthReadGrant(
+                cardReadGrant(
                     container: dock1.modelIdentity,
                     [.readRecords],
-                    types: [Berth.modelIdentityNamespace]
+                    types: [Card.modelIdentityNamespace]
                 )
             ])
 
-            let response = try await getResponse(app, for: BerthListRequest(query: .init(rootIdentity: dock1.modelIdentity)))
+            let response = try await getResponse(app, for: CardListRequest(query: .init(rootIdentity: dock1.modelIdentity)))
             #expect(response.status == .ok)
 
             let value = try #require(response.headers.first(name: ModelIdentity.registrationsHeader))
@@ -274,7 +274,7 @@ struct RegistrationHeaderTests {
     /// A response whose request executed NO plan (a zero-data body) carries no header at all.
     @Test func noPlanCarriesNoHeader() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
             try app.register(request: PlainRequest.self, app: app)
         } _: { app, _ in
             let response = try await getResponse(app, for: PlainRequest())

@@ -133,8 +133,8 @@ only L0 types; all Fluent/Vapor pieces Vapor-side).
 ///
 /// ```swift
 /// try await req.liveTransaction { db in
-///     dock.status = .closed
-///     try await dock.save(on: db)
+///     board.status = .closed
+///     try await board.save(on: db)
 /// }
 /// ```
 ```
@@ -156,7 +156,7 @@ case live
 - Freshness ordering comes from construction order (`ViewModelId()` twice), never forging.
 - Suites touching a shared app/hub: `.serialized`. Middleware is an async lifecycle concern:
   use `app.asyncBoot()` in Vapor tests (the async-boot gotcha).
-- Fixtures: the existing harbor graph (`withFluentTestApp`, Pier/Dock/Berth + Harbor apex).
+- Fixtures: the existing workspace graph (`withFluentTestApp`, Pier/Board/Card + Workspace apex).
 
 ### Rationale (implementer prose — none of this goes in DocC)
 
@@ -227,10 +227,10 @@ Test `Tests/FOSMVVMTests/Protocols/InvalidationChannelTests.swift`.
 (derivation half: mutated model → `Set<ModelIdentity>` by inverting registry containment —
 own identity + `.parent` refs + owning containers via relation `parentKey`, per spec §3.1);
 Test `Tests/FOSMVVMVaporTests/LiveInvalidation/IdentitySetDerivationTests.swift`
-(`withFluentTestApp`, harbor fixtures).
+(`withFluentTestApp`, workspace fixtures).
 
-- [ ] Failing tests (spec test group 3): Berth ⇒ {Berth, owning Dock}; Dock (contained by
-  Harbor apex fixture) ⇒ {Dock, Harbor}; pivot-model save covers `.siblings`; an
+- [ ] Failing tests (spec test group 3): Card ⇒ {Card, owning Board}; Board (contained by
+  Workspace apex fixture) ⇒ {Board, Workspace}; pivot-model save covers `.siblings`; an
   uncontained model ⇒ {self} only.
 - [ ] Verify fail → implement derivation (internal; no new public surface) → pass.
 - [ ] Commit `feat(FOSMVVMVapor): containment-derived invalidation identity sets`.
@@ -360,7 +360,7 @@ What the execution refined against the plan above — kept here (implementer pro
   (outer fails, inner passes). Folded into spec §3.1's "Binding site" bullet (commit a2b008f).
 - **Graph-sweep coverage.** `useLiveInvalidation` wires emit middleware for each registered
   container's whole graph (container + contained types + `.siblings` pivots), `ObjectIdentifier`-
-  deduped so a doubly-reachable type (e.g. `Dock`, reached via its own registration and `Harbor`'s
+  deduped so a doubly-reachable type (e.g. `Board`, reached via its own registration and `Workspace`'s
   contained side) gets exactly one middleware — a duplicate would double-emit (guard test in
   `EmitMiddlewareTests.doubleReachedModelEmitsExactlyOnce`).
 - **Fix rounds' notable finds** (post-task hardening, each its own commit):

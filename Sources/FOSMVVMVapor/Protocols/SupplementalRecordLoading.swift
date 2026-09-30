@@ -20,7 +20,7 @@ import Vapor
 /// conform a ``ComposableFactory`` and load that data yourself:
 ///
 /// ```swift
-/// extension DockPageViewModel: SupplementalRecordLoading {
+/// extension BoardPageViewModel: SupplementalRecordLoading {
 ///     static func loadSupplementalRecords(for request: Vapor.Request) async throws {
 ///         // The declarative plan has already run — its records are readable here.
 ///         // Load whatever could not be declared as a containment tuple, using the

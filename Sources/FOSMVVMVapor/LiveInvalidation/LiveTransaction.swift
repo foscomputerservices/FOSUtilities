@@ -30,8 +30,8 @@ public extension Vapor.Request {
     ///
     /// ```swift
     /// try await req.liveTransaction { db in
-    ///     dock.status = .closed
-    ///     try await dock.save(on: db)
+    ///     board.status = .closed
+    ///     try await board.save(on: db)
     /// }
     /// ```
     ///
@@ -64,8 +64,8 @@ public extension Vapor.Application {
     ///
     /// ```swift
     /// try await app.liveTransaction { db in
-    ///     dock.status = .closed
-    ///     try await dock.save(on: db)
+    ///     board.status = .closed
+    ///     try await board.save(on: db)
     /// }
     /// ```
     ///

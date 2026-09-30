@@ -19,8 +19,8 @@
 ///
 /// ```swift
 /// static func body<R: ServerRequest>(context: ProjectionContext<R, SessionBanner>) throws -> Self where R.ResponseBody == Self {
-///     let berths = try context.records(Self.berths)              // own handle
-///     let crew   = try context.records(CrewListViewModel.crew)   // a child's
+///     let cards = try context.records(Self.cards)              // own handle
+///     let members   = try context.records(MembersListViewModel.members)   // a child's
 ///     return .init(..., signedInAs: context.appState.userName)
 /// }
 /// ```

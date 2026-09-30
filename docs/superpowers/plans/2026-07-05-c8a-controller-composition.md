@@ -93,7 +93,7 @@ struct ServerRequestControllerTests {
 }
 ```
 
-Write the five test bodies fully (fixture requests need: a Query type carrying one string, a Decodable RequestBody with one field, marker ResponseBody conforming to `ServerRequestBody`). Follow the existing fixture naming in the test target (Harbor vocabulary).
+Write the five test bodies fully (fixture requests need: a Query type carrying one string, a Decodable RequestBody with one field, marker ResponseBody conforming to `ServerRequestBody`). Follow the existing fixture naming in the test target (Workspace vocabulary).
 
 - [ ] **Step 3: Run to verify the new tests fail**
 
@@ -117,8 +117,8 @@ import Vapor
 /// binding are derived for you, once.
 ///
 /// ```swift
-/// final class ReplaceBerthController: ServerRequestController {
-///     typealias TRequest = ReplaceBerthRequest
+/// final class ReplaceCardController: ServerRequestController {
+///     typealias TRequest = ReplaceCardRequest
 ///
 ///     let actions: [ServerRequestAction: ActionProcessor] = [
 ///         .replace: { req, bound in
@@ -131,7 +131,7 @@ import Vapor
 /// }
 ///
 /// // boot:
-/// try app.routes.register(collection: ReplaceBerthController())
+/// try app.routes.register(collection: ReplaceCardController())
 /// ```
 ///
 /// Prefer ``Vapor/Application/register(request:)`` — it instantiates this mechanism

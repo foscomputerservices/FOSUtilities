@@ -37,14 +37,14 @@ struct InvalidationRouteTests {
     // stays unguarded (no HTTP client involved).
     #if canImport(Darwin)
     /// A connected client receives one framed `data:` event whose JSON array round-trips (via
-    /// `defaultDecoder`) to the containment-derived set of a real save: {Berth, owning Dock}.
+    /// `defaultDecoder`) to the containment-derived set of a real save: {Card, owning Board}.
     @Test func framedEventRoundTrip() async throws {
         try await withServedFluentTestApp { app in
             // Short heartbeat so the pump notices the client's disconnect promptly at teardown.
             app.invalidationHeartbeatInterval = .milliseconds(200)
-            try configureLiveHarbor(app, on: app.routes)
+            try configureLiveWorkspace(app, on: app.routes)
         } _: { app, baseURL in
-            let (dock1, _) = try await seedHarbor(on: app.db)
+            let (dock1, _) = try await seedWorkspace(on: app.db)
 
             let url = baseURL.appending(path: "invalidations")
             let session = URLSession(configuration: .ephemeral)
@@ -54,9 +54,9 @@ struct InvalidationRouteTests {
 
             // Headers have arrived ⇒ the route handler already ran hub.subscribe(); the save below
             // therefore reaches a connected subscriber.
-            let berth = try Berth(number: 555, dockName: dock1.name, dockId: dock1.requireId())
-            try await berth.save(on: app.db)
-            let expected = try Set([berth.modelIdentity, dock1.modelIdentity])
+            let card = try Card(number: 555, boardName: dock1.name, boardId: dock1.requireId())
+            try await card.save(on: app.db)
+            let expected = try Set([card.modelIdentity, dock1.modelIdentity])
 
             let received = try await withTimeout(.seconds(10)) {
                 for try await line in bytes.lines where line.hasPrefix("data:") {
@@ -74,7 +74,7 @@ struct InvalidationRouteTests {
     @Test func heartbeatsFlow() async throws {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(100)
-            try configureLiveHarbor(app, on: app.routes)
+            try configureLiveWorkspace(app, on: app.routes)
         } _: { _, baseURL in
             let url = baseURL.appending(path: "invalidations")
             let session = URLSession(configuration: .ephemeral)
@@ -98,9 +98,9 @@ struct InvalidationRouteTests {
     /// the buffer limit without consuming terminates the subscriber's stream.
     @Test func overflowTerminatesSubscriptionAtHub() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app, on: app.routes)
+            try configureLiveWorkspace(app, on: app.routes)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let identity = try Set([dock1.modelIdentity])
             let hub = try #require(app.invalidationHub)
             let subscription = await hub.subscribe()
@@ -136,9 +136,9 @@ struct InvalidationRouteTests {
     /// hub-level proof).
     @Test func overflowClosesObservedByClient() async throws {
         try await withServedFluentTestApp { app in
-            try configureLiveHarbor(app, on: app.routes)
+            try configureLiveWorkspace(app, on: app.routes)
         } _: { app, baseURL in
-            let (dock1, _) = try await seedHarbor(on: app.db)
+            let (dock1, _) = try await seedWorkspace(on: app.db)
             let identity = try Set([dock1.modelIdentity])
 
             let url = baseURL.appending(path: "invalidations")
@@ -166,7 +166,7 @@ struct InvalidationRouteTests {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(200)
             let api = app.grouped("api")
-            try configureLiveHarbor(app, on: api)
+            try configureLiveWorkspace(app, on: api)
         } _: { _, baseURL in
             let grouped = try await status(of: baseURL.appending(path: "api/invalidations"))
             #expect(grouped == 200)
@@ -180,14 +180,14 @@ struct InvalidationRouteTests {
 
 // MARK: - Helpers
 
-/// Registers the harbor graph and enables live invalidation, mounting the SSE endpoint on `routes`.
-private func configureLiveHarbor(_ app: Application, on routes: any RoutesBuilder) throws {
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
+/// Registers the workspace graph and enables live invalidation, mounting the SSE endpoint on `routes`.
+private func configureLiveWorkspace(_ app: Application, on routes: any RoutesBuilder) throws {
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useLiveInvalidation(on: routes)
 }
 

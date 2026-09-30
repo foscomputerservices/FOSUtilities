@@ -23,10 +23,10 @@ import Vapor
 ///
 /// ```swift
 /// struct GrantProvider: ContainerAuthorizationProvider {
-///     func containerAuthorizations(for request: Request) async throws -> [DockGrant] {
+///     func containerAuthorizations(for request: Request) async throws -> [BoardGrant] {
 ///         // however your app resolves the subject — session, token, headers…
 ///         let userId = try request.auth.require(SessionUser.self).id
-///         return try await UserDockGrantRow.query(on: request.db)
+///         return try await UserBoardGrantRow.query(on: request.db)
 ///             .filter(\.$user.$id == userId).all()
 ///             .map(\.snapshot)                       // project Sendable value snapshots
 ///     }

@@ -183,14 +183,14 @@ import Testing
 
 @Suite("Container")
 struct ContainerTests {
-    // A container that owns Berths.
-    struct Dock: Container {
+    // A container that owns Cards.
+    struct Board: Container {
         var id: ModelIdType?
-        static var containedRecordTypes: [any Model.Type] { [Berth.self] }
+        static var containedRecordTypes: [any Model.Type] { [Card.self] }
         init(id: ModelIdType? = nil) { self.id = id }
     }
     // A leaf model that owns nothing — inherits the empty default.
-    struct Berth: Container {
+    struct Card: Container {
         var id: ModelIdType?
         init(id: ModelIdType? = nil) { self.id = id }
     }
@@ -198,18 +198,18 @@ struct ContainerTests {
     @Test("Override returns declared contained types (dispatched through Container.self)")
     func override() {
         func containedTypes(of type: some Container.Type) -> [any Model.Type] { type.containedRecordTypes }
-        #expect(containedTypes(of: Dock.self).count == 1)
-        #expect(containedTypes(of: Dock.self).first is Berth.Type)
+        #expect(containedTypes(of: Board.self).count == 1)
+        #expect(containedTypes(of: Board.self).first is Card.Type)
     }
 
     @Test("A model that owns nothing inherits the empty default")
     func emptyDefault() {
-        #expect(Berth.containedRecordTypes.isEmpty)
+        #expect(Card.containedRecordTypes.isEmpty)
     }
 }
 ```
 
-> Note: `Container` requires the `Model` members (`id`, `requireId()`, `modelIdentityNamespace`). If L0's `Model` is not yet implemented in this branch, the test `Dock`/`Berth` provide `id` and rely on `Model`'s defaults; adjust the minimal conformance to whatever `Model` currently requires. Verify against `Sources/FOSMVVM/Protocols/Model.swift` before writing.
+> Note: `Container` requires the `Model` members (`id`, `requireId()`, `modelIdentityNamespace`). If L0's `Model` is not yet implemented in this branch, the test `Board`/`Card` provide `id` and rely on `Model`'s defaults; adjust the minimal conformance to whatever `Model` currently requires. Verify against `Sources/FOSMVVM/Protocols/Model.swift` before writing.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -223,11 +223,11 @@ import Foundation
 
 /// A ``Model`` that owns and authorizes other records.
 ///
-/// Conform a model that contains others — a `Dock` owns its `Berth`s — and list what it contains:
+/// Conform a model that contains others — a `Board` owns its `Card`s — and list what it contains:
 ///
 /// ```swift
-/// struct Dock: Container {
-///     static var containedRecordTypes: [any Model.Type] { [Berth.self] }
+/// struct Board: Container {
+///     static var containedRecordTypes: [any Model.Type] { [Card.self] }
 ///     // ...Model requirements (id, requireId(), …)...
 /// }
 /// ```
@@ -275,34 +275,34 @@ import Testing
 
 @Suite("ServerRequestSort")
 struct ServerRequestSortTests {
-    enum BerthSortKey: String, SortKey { case number, dockName, updatedAt }
+    enum CardSortKey: String, SortKey { case number, boardName, updatedAt }
 
     @Test("SortCriteria preserves term order")
     func order() {
-        let sort = SortCriteria<BerthSortKey>([
-            .init(key: .dockName, direction: .ascending),
+        let sort = SortCriteria<CardSortKey>([
+            .init(key: .boardName, direction: .ascending),
             .init(key: .number, direction: .descending),
         ])
-        #expect(sort.terms.map(\.key) == [.dockName, .number])
+        #expect(sort.terms.map(\.key) == [.boardName, .number])
         #expect(sort.terms.map(\.direction) == [.ascending, .descending])
     }
 
     @Test("SortCriteria round-trips through JSON, value-preserving")
     func roundTrip() throws {
-        let sort = SortCriteria<BerthSortKey>([
+        let sort = SortCriteria<CardSortKey>([
             .init(key: .number, direction: .ascending),
             .init(key: .updatedAt, direction: .descending),
         ])
-        let back: SortCriteria<BerthSortKey> = try sort.toJSON().fromJSON()
+        let back: SortCriteria<CardSortKey> = try sort.toJSON().fromJSON()
         #expect(back == sort)
     }
 
     @Test("SortTerm & SortDirection equality")
     func terms() {
-        #expect(SortTerm(key: BerthSortKey.number, direction: .ascending)
-            == SortTerm(key: BerthSortKey.number, direction: .ascending))
-        #expect(SortTerm(key: BerthSortKey.number, direction: .ascending)
-            != SortTerm(key: BerthSortKey.number, direction: .descending))
+        #expect(SortTerm(key: CardSortKey.number, direction: .ascending)
+            == SortTerm(key: CardSortKey.number, direction: .ascending))
+        #expect(SortTerm(key: CardSortKey.number, direction: .ascending)
+            != SortTerm(key: CardSortKey.number, direction: .descending))
     }
 }
 ```
@@ -323,7 +323,7 @@ public protocol ServerRequestSort: Codable, Hashable, Sendable {}
 /// The sortable dimensions a container publishes to clients — *meanings*, never storage columns.
 ///
 /// ```swift
-/// enum BerthSortKey: String, SortKey { case number, dockName, updatedAt }
+/// enum CardSortKey: String, SortKey { case number, boardName, updatedAt }
 /// ```
 ///
 /// The server maps each dimension to one or more sort keypaths; the client only ever names a dimension,
@@ -349,9 +349,9 @@ public struct SortTerm<Key: SortKey>: Codable, Hashable, Sendable {
 /// A client's chosen ordering for a container's records: an ordered list of ``SortTerm``s.
 ///
 /// ```swift
-/// // Sort berths by dock name, then by number descending:
-/// let sort = SortCriteria<BerthSortKey>([
-///     .init(key: .dockName, direction: .ascending),
+/// // Sort cards by board name, then by number descending:
+/// let sort = SortCriteria<CardSortKey>([
+///     .init(key: .boardName, direction: .ascending),
 ///     .init(key: .number, direction: .descending),
 /// ])
 /// ```
@@ -412,11 +412,11 @@ git commit -m "feat(fosmvvm): add client-chosen sort vocabulary (SortCriteria/So
         typealias RequestBody = EmptyBody
         typealias ResponseBody = EmptyBody
         typealias ResponseError = EmptyError
-        typealias Sort = SortCriteria<BerthSortKey>
+        typealias Sort = SortCriteria<CardSortKey>
         let action: ServerRequestAction = .show
-        let sort: SortCriteria<BerthSortKey>?
+        let sort: SortCriteria<CardSortKey>?
         init(query: EmptyQuery?, fragment: EmptyFragment?, requestBody: EmptyBody?, responseBody: EmptyBody?) { sort = nil }
-        init(sort: SortCriteria<BerthSortKey>?) { self.sort = sort }
+        init(sort: SortCriteria<CardSortKey>?) { self.sort = sort }
     }
 
     @Test("Unsorted request has nil sort via the EmptySort convenience")
@@ -427,7 +427,7 @@ git commit -m "feat(fosmvvm): add client-chosen sort vocabulary (SortCriteria/So
 
     @Test("Sorted request carries its sort")
     func sortedCarries() {
-        let sort = SortCriteria<BerthSortKey>([.init(key: .number, direction: .ascending)])
+        let sort = SortCriteria<CardSortKey>([.init(key: .number, direction: .ascending)])
         let req = SortedRequest(sort: sort)
         #expect(req.sort == sort)
     }

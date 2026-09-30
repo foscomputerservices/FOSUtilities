@@ -18,11 +18,11 @@ import Foundation
 
 /// A ``Model`` that owns and authorizes other records.
 ///
-/// Conform a model that contains others — a `Dock` owns its `Berth`s — and list what it contains:
+/// Conform a model that contains others — a `Board` owns its `Card`s — and list what it contains:
 ///
 /// ```swift
-/// struct Dock: Container {
-///     static var containedRecordTypes: [any Model.Type] { [Berth.self] }
+/// struct Board: Container {
+///     static var containedRecordTypes: [any Model.Type] { [Card.self] }
 ///     // ...Model requirements (id, requireId(), …)...
 /// }
 /// ```

@@ -99,7 +99,7 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
     ///
     /// ```swift
     /// .read(Card.self, in: .parentRoot)              // one hop: implicit
-    /// .read(SlipAssignment.self, in: .parentRoot,
+    /// .read(Assignment.self, in: .parentRoot,
     ///       via: Card.self)                          // via = INTERMEDIATE hops only
     /// ```
     ///

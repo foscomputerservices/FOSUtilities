@@ -20,7 +20,7 @@
 - **Error-case payloads are diagnostic strings** (`String(describing:)` on provider types) — never identity.
 - **Counting provider for the memoization test**: use `NIOLockedValueBox<Int>` (via `import NIOConcurrencyHelpers`, already a Vapor dependency) inside a `final class`/struct provider — not an actor (the protocol requirement is nonisolated).
 - **Test file uses `@testable import FOSMVVMVapor`** with a header comment: test 1 is the contract test (public registration API; the typed-case assertion is a coverage rider); tests 2–5 are coverage of the internal acquisition path, per the corrected testing discipline (the public contract becomes observable at C8's factory). No access level is widened for tests.
-- **Registration configure blocks** in engine-driven tests need the harbor migrations + `register(Dock…)` — copy the `configureHarbor` pattern from `AuthorizedLoadEngineTests.swift`.
+- **Registration configure blocks** in engine-driven tests need the workspace migrations + `register(Board…)` — copy the `configureWorkspace` pattern from `AuthorizedLoadEngineTests.swift`.
 - **swiftformat**: `docComments` will force `///` on some `//` notes (accepted); `redundantSendable` is disabled (leave it).
 - **Do not add**: multi-provider support, memo invalidation, any public load surface, any `package` symbol.
 
@@ -110,8 +110,8 @@ private struct ContainerAuthorizationProviderStore: StorageKey {
 **Files:** Modify `Sources/FOSMVVMVapor/Extensions/Request+ContainerLoad.swift`; extend `Tests/FOSMVVMVaporTests/Containment/AuthorizationProviderTests.swift` (tests 2–5).
 
 - [ ] **Step 1: Failing tests** (coverage — file already `@testable`; label per plan prose):
-  - **scoping**: register a provider vending a dock1-only `TestGrant` (built in `configure` is impossible — grants need the seeded dock's identity, which exists only after seeding in `body`; SOLUTION: the provider queries/derives at request time — use a provider that loads the FIRST dock by name "Dock 1" and mints a grant for it: this also partially covers test 5's async need, but keep test 5 separate per spec). Call the internal entry for dock1 → its 3 berths; for dock2's identity → empty; register-an-empty-provider variant (fresh app) → empty.
-  - **memoization**: `CountingProvider` (NIOLockedValueBox counter) — two entry calls on ONE `Request` (Berth then CrewMember types) ⇒ counter == 1; a second minted `Request` + one call ⇒ counter == 2.
+  - **scoping**: register a provider vending a dock1-only `TestGrant` (built in `configure` is impossible — grants need the seeded board's identity, which exists only after seeding in `body`; SOLUTION: the provider queries/derives at request time — use a provider that loads the FIRST board by name "Board 1" and mints a grant for it: this also partially covers test 5's async need, but keep test 5 separate per spec). Call the internal entry for dock1 → its 3 cards; for dock2's identity → empty; register-an-empty-provider variant (fresh app) → empty.
+  - **memoization**: `CountingProvider` (NIOLockedValueBox counter) — two entry calls on ONE `Request` (Card then Member types) ⇒ counter == 1; a second minted `Request` + one call ⇒ counter == 2.
   - **no provider**: fresh app without registration → entry throws `.noAuthorizationProvider`.
   - **async provider**: provider awaits a real Fluent query (fetch dock1 row) before minting its grant ⇒ scoping works end-to-end.
 - [ ] **Step 2:** FAIL (`no member 'authorizedRecords'` with that arity/labels).

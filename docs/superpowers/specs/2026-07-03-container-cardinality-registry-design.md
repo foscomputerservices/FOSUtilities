@@ -20,10 +20,10 @@ registry was folded into C4, so it lives right here.) The ones referenced here:
 
 > **The problem C4 solves** — the *bridge from the sealed-identity world back to concrete Fluent*. The
 > framework operates over `ModelIdentity`: a sealed, **non-generic** `(namespace, id)` token that carries
-> no Swift type. When the server must load "the Berths of Dock #5" from a stored/authorized container
-> reference, it holds `ModelIdentity(namespace: "Dock", id: …)` — **not `Dock.self` and not the
-> `\.$berths` KeyPath**, so it cannot write `dock.$berths.query(on: db)`. C4 supplies the two things that
-> close that gap: (1) an injected **registry** that recovers `Dock.self` (and its containment) from the
+> no Swift type. When the server must load "the Cards of Board #5" from a stored/authorized container
+> reference, it holds `ModelIdentity(namespace: "Board", id: …)` — **not `Board.self` and not the
+> `\.$cards` KeyPath**, so it cannot write `board.$cards.query(on: db)`. C4 supplies the two things that
+> close that gap: (1) an injected **registry** that recovers `Board.self` (and its containment) from the
 > namespace, and (2) a **containment declaration** captured where the concrete types are still in scope,
 > vending a type-erased load the generic engine can invoke. This is centralized framework infrastructure
 > — not ad-hoc app Fluent calls — because the resulting load is the single, non-bypassable authorization
@@ -38,9 +38,9 @@ Each step, top to bottom:
 
 1. **Start** — a stored/authorized `ModelIdentity(namespace, id)`. Type-erased: no Swift type in hand.
 2. **Recover the type** — `registry.registered(for: namespace)` returns a `RegisteredModel` descriptor
-   (captured at registration, where `Dock` was still concrete). *(`ModelTypeRegistry`: injected, server-only.)*
+   (captured at registration, where `Board` was still concrete). *(`ModelTypeRegistry`: injected, server-only.)*
 3. **Fetch the container** — `descriptor.find(id, on: db)` returns the container instance as
-   `any DataModel` (e.g. `Dock #5`) — now *fetched*, so its Fluent relationship `idValue` is populated.
+   `any DataModel` (e.g. `Board #5`) — now *fetched*, so its Fluent relationship `idValue` is populated.
 4. **Load members** — for each `ContainmentRelation` in `descriptor.containment`, call
    `rel.members(of: container, on: db)`, which runs Fluent's own relationship query
    (`.children` / `.siblings` / `.parent`).
@@ -137,9 +137,9 @@ only server-only targets (FOSMVVMVapor, FOSTestingVapor) and server-side tests r
 /// join off Fluent, so you never restate a foreign key or pivot table:
 ///
 /// ```swift
-/// extension Dock: ContainerDataModel {
+/// extension Board: ContainerDataModel {
 ///     static var containment: [ContainmentRelation] {
-///         [.children(\Dock.$berths), .siblings(\Dock.$crew)]   // Dock owns Berths (FK) and Crew (pivot)
+///         [.children(\Board.$cards), .siblings(\Board.$members)]   // Board owns Cards (FK) and Members (pivot)
 ///     }
 /// }
 /// ```
@@ -169,7 +169,7 @@ Internally each factory captures the concrete `From`/`To`(/`Through`) and closes
 own `query(on:)`; the erased member load (consumed by C6, see below) casts the passed container to `From`
 and runs `container[keyPath: keyPath].query(on: db).all()`. Fluent computes the FK / pivot join — C4 never
 touches a column name. The factories' free `From` generic is what register-time checking pins down: nothing
-at *construction* ties `From` to the declaring container (`extension Dock { …[.children(\Ship.$berths)]… }`
+at *construction* ties `From` to the declaring container (`extension Board { …[.children(\Ship.$cards)]… }`
 compiles), so `register(_:migration:)` asserts every relation's `containerType` **is** the registered type
 (boot-time fail-fast, see C4.5).
 
@@ -202,8 +202,8 @@ apps handle.
 /// containment.
 ///
 /// ```swift
-/// final class Dock: ContainerDataModel {
-///     static var containment: [ContainmentRelation] { [.children(\Dock.$berths), .siblings(\Dock.$crew)] }
+/// final class Board: ContainerDataModel {
+///     static var containment: [ContainmentRelation] { [.children(\Board.$cards), .siblings(\Board.$members)] }
 ///     // ...Fluent + Container members...
 /// }
 /// ```
@@ -265,7 +265,7 @@ public extension Application {
     ///
     /// ```swift
     /// // in configure(_:)
-    /// try app.register(Dock.self, migration: Dock.CreateDock())
+    /// try app.register(Board.self, migration: Board.CreateBoard())
     /// ```
     ///
     /// - Throws: if the model's namespace is already registered, or its `containment` doesn't match
@@ -284,7 +284,7 @@ idiomatic in Vapor's throwing `configure(_:)` and contract-testable without exit
    whose namespaces collide). Silent last-writer-wins would corrupt the identity→type mapping that
    authorization keys on.
 2. **`.containerTypeMismatch`** — some `containment` element's `containerType` isn't the registered type
-   (the factory's free `From` generic allows `extension Dock { …[.children(\Ship.$berths)]… }` to compile;
+   (the factory's free `From` generic allows `extension Board { …[.children(\Ship.$cards)]… }` to compile;
    this is where it dies).
 3. **`.containmentDrift`** — arch §5 C4 invariant (a): the set of `containment` contained types (by type
    identity, `ObjectIdentifier`) must **equal** the set of shared `Container.containedRecordTypes`. The
@@ -304,12 +304,12 @@ an implementation and asserting its internals' format (`package` API is itself a
 in-package consumers; access levels are chosen by who legitimately consumes a symbol, never widened for
 tests). No assertions on SQL text or column names.
 
-1. **Registry round-trip** — after `try app.register(Dock.self, migration:)`, `registry.registered(for: Dock.modelIdentityNamespace)` returns a descriptor whose `containment` matches `Dock.containment` (assertion basis: element count + per-element `containedType` identity via `ObjectIdentifier` — `ContainmentRelation` is not `Equatable`); an unregistered namespace returns `nil`.
-2. **`RegisteredModel.find`** — seeds a `Dock`, then `find(dockId, on: db)` returns that `Dock` (as `any DataModel`, equal by id); a missing id returns `nil`.
-3. **`ContainmentRelation.children`** — seed a `Dock` with 3 `Berth`s (+ a Berth of another Dock); `.children(\Dock.$berths).members(of: dock, on: db)` returns exactly this dock's 3 Berths.
-4. **`ContainmentRelation.siblings`** — seed a pivot many-to-many; `.siblings(\Dock.$crew).members(of:on:)` returns the joined records for this container only.
+1. **Registry round-trip** — after `try app.register(Board.self, migration:)`, `registry.registered(for: Board.modelIdentityNamespace)` returns a descriptor whose `containment` matches `Board.containment` (assertion basis: element count + per-element `containedType` identity via `ObjectIdentifier` — `ContainmentRelation` is not `Equatable`); an unregistered namespace returns `nil`.
+2. **`RegisteredModel.find`** — seeds a `Board`, then `find(boardId, on: db)` returns that `Board` (as `any DataModel`, equal by id); a missing id returns `nil`.
+3. **`ContainmentRelation.children`** — seed a `Board` with 3 `Card`s (+ a Card of another Board); `.children(\Board.$cards).members(of: board, on: db)` returns exactly this board's 3 Cards.
+4. **`ContainmentRelation.siblings`** — seed a pivot many-to-many; `.siblings(\Board.$members).members(of:on:)` returns the joined records for this container only.
 5. **`ContainmentRelation.parent`** — to-one returns a **single-element array** containing the parent record.
-6. **End-to-end erased bridge** — starting from a `ModelIdentity` (via the `package` stored parts for id/namespace) → `registry` → `find` → each `containment` → members; asserts the contained records load **without naming `Dock`/`Berth` at the call site** (proves the type-erased path). This is the test that demonstrates the whole picture.
+6. **End-to-end erased bridge** — starting from a `ModelIdentity` (via the `package` stored parts for id/namespace) → `registry` → `find` → each `containment` → members; asserts the contained records load **without naming `Board`/`Card` at the call site** (proves the type-erased path). This is the test that demonstrates the whole picture.
 7. **`package` opacity** — `ModelIdentity` still exposes **no `public`** namespace/id getter (review invariant; the stored parts are `package`).
 8. **Duplicate registration fail-fast** — a second `register` of the same type (and a second type sharing the namespace) throws `.duplicateNamespace`; the first registration is unchanged.
 9. **Container-type mismatch fail-fast** — registering a type whose `containment` includes a relation built from another container's KeyPath throws `.containerTypeMismatch`.
@@ -401,8 +401,8 @@ Both reviewers: no blockers (Sound-with-fixes / Approve-with-fixes). Changes fol
   item 7); DEF-6 pointer corrected to the north star's deferral register; `.parent` result shape and
   test-1 assertion basis pinned; "Blocks:" header aligned with the arch's build order (C3 parallel).
 
-**Implementation finding (2026-07-04):** rootless key-path literals (`\.$berths`) do **not** compile in
+**Implementation finding (2026-07-04):** rootless key-path literals (`\.$cards`) do **not** compile in
 `containment` declarations — the factory's free `From` generic gives the compiler no contextual root —
-so the canonical spelling is explicit-root (`\Dock.$berths`). Examples above updated to match. (A
+so the canonical spelling is explicit-root (`\Board.$cards`). Examples above updated to match. (A
 `Self`-rooted builder could restore the shorthand, but that's the rejected construction-time-constraint
 alternative; the boot-time `register` check remains the misuse guard.)

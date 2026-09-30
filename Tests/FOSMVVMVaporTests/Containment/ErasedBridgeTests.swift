@@ -28,23 +28,23 @@ import Testing
 @Suite("End-to-end erased bridge")
 struct ErasedBridgeTests {
     /// Spec test group 6: from a bare ModelIdentity, reach every contained record — parent,
-    /// siblings, and children — without naming Dock/Berth/CrewMember/Pier at the loading call sites.
+    /// siblings, and children — without naming Board/Card/Member/Pier at the loading call sites.
     @Test func identityReachesContainedRecordsWithoutConcreteTypes() async throws {
         let membersByRelation = try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor()) // CreateDock's DDL references harbors
+            try app.register(Workspace.self, migration: CreateWorkspace()) // CreateBoard's DDL references workspaces
             app.migrations.add(CreatePier()) // and piers — both must exist first
-            try app.register(Dock.self, migration: CreateDock())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
-            app.migrations.add(CreatePersonnelFolder()) // Dock's containment now spans folders too
+            try app.register(Board.self, migration: CreateBoard())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
+            app.migrations.add(CreateChecklist()) // Board's containment now spans folders too
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let identity = try dock1.modelIdentity
             // From here down: NO concrete container/record type names — the erased path only.
             return try await loadAllMembers(of: identity, registry: app.modelTypeRegistry, on: db)
         }
-        // dock1: 3 berths (children), 2 crew (siblings), 1 pier (parent), 0 personnel folders.
+        // dock1: 3 cards (children), 2 members (siblings), 1 pier (parent), 0 personnel folders.
         #expect(membersByRelation.sorted() == [0, 1, 2, 3])
     }
 }

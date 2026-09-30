@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Examples speak the framework's own vocabulary** — every DocC example, skill document,
+  review check, test fixture, and design document now uses Workspace, Board, Card, Member,
+  Checklist, and Assignment. A CI step keeps it that way.
+
 ## [0.18.0] - 2026-09-30
 
 ### Added

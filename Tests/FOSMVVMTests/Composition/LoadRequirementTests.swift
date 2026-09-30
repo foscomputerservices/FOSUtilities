@@ -27,11 +27,11 @@ private func same(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {
 
 // MARK: - Model fixtures
 
-private struct Dock: Model {
+private struct Board: Model {
     var id: ModelIdType?
 }
 
-private struct Berth: Model {
+private struct Card: Model {
     var id: ModelIdType?
 }
 
@@ -61,13 +61,13 @@ struct ComposedChildTests {
 
     @Test(".child(_:via:) roots by containment descent — intermediates in order")
     func viaChild() {
-        let child = ComposedChild.child(TestViewModel.self, via: Dock.self, Berth.self)
+        let child = ComposedChild.child(TestViewModel.self, via: Board.self, Card.self)
 
         #expect(same(child.factoryType, TestViewModel.self))
         #expect(child.rootScope == .parentRoot)
         #expect(child.intermediates.count == 2)
-        #expect(same(child.intermediates[0], Dock.self))
-        #expect(same(child.intermediates[1], Berth.self))
+        #expect(same(child.intermediates[0], Board.self))
+        #expect(same(child.intermediates[1], Card.self))
     }
 
     @Test(".child(_:rootedAt:) starts a fresh root from the declared source")

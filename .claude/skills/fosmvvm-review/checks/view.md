@@ -35,7 +35,7 @@ One area, three surfaces (ruled 2026-08-25): SwiftUI views, Leaf templates, and 
 
 **Severity:** blocker · **Surface:** SwiftUI
 **What:** A SwiftUI view that renders ViewModel data conforms to `ViewModelView`; it does not take the ViewModel as a plain stored property. (Leaf and React have no conformance to check — their structural twin is `viewmodel-view-one-to-one`'s alignment rule.)
-**Anti-pattern:** `struct BerthTile: View { let berth: BerthViewModel; var body: some View { … } }` — a view holding ViewModel state while conforming only to `View`.
+**Anti-pattern:** `struct CardTile: View { let card: CardViewModel; var body: some View { … } }` — a view holding ViewModel state while conforming only to `View`.
 **Detection:** For every `: View` conformer in scope, list its stored properties. If any property's type is a `@ViewModel`-declared type — or a collection of one — **and the view body reads it for display**, the view must appear in the `ViewModelView` conformance list. Flag each view that renders ViewModel state without conforming. Report the ViewModel type in the finding so the pairing gap is visible.
 
 Two shapes are NOT hits. A view holding no ViewModel-typed property is a presentational leaf. A view holding ViewModels it never renders — passing a `[SomeViewModel]` straight through as a correlation or lookup argument, and drawing only `ViewModelView` children — is plumbing, not a projection; check the body before flagging.
@@ -57,7 +57,7 @@ Name the testing cost when you report it (SwiftUI): the test-view registry holds
 
 **Shared app-shell/base layouts are not content templates.** Their standing under the 1:1 and reads-vm-only rules awaits an owner ruling (candidate on file, 2026-08-25) — note their multi-page service and their context reads; do not grade them until the ruling lands.
 
-(c) Any view whose name does not share a stem with its ViewModel (`LocalDocView` against `LocalDockViewModel`; `dock_card.leaf` against `DockCardViewModel`) — a near-miss name hides a pairing from every reader and every search. NAMES.md §3b states the rule.
+(c) Any view whose name does not share a stem with its ViewModel (`LocalDocView` against `LocalBoardViewModel`; `board_card.leaf` against `BoardCardViewModel`) — a near-miss name hides a pairing from every reader and every search. NAMES.md §3b states the rule.
 
 Report each view at most once. When a view already appears under (a), fold its (c) mismatch into that finding rather than emitting a second one.
 

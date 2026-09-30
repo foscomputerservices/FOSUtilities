@@ -25,9 +25,9 @@ import Vapor
 /// join off Fluent, so you never restate a foreign key or pivot table:
 ///
 /// ```swift
-/// extension Dock: ContainerDataModel {
+/// extension Board: ContainerDataModel {
 ///     static var containment: [ContainmentRelation] {
-///         [.children(\Dock.$berths), .siblings(\Dock.$crew)]   // Dock owns Berths (FK) and Crew (pivot)
+///         [.children(\Board.$cards), .siblings(\Board.$members)]   // Board owns Cards (FK) and Members (pivot)
 ///     }
 /// }
 /// ```
@@ -197,7 +197,7 @@ extension ContainmentRelation {
 
     // `.parent`: the mutated instance is the container (From) that holds the to-one FK; read the
     // referenced parent (To) id directly. The parent contributes only when it is itself a
-    // registered container — the fixture's `.parent(\Dock.$pier)` names an unregistered Pier and so
+    // registered container — the fixture's `.parent(\Board.$pier)` names an unregistered Pier and so
     // stays dormant; a child-declared owning container (`.parent(\Child.$owner)`) does not.
     private static func parentInverter<From: DataModel, To: DataModel>(
         _ keyPath: KeyPath<From, ParentProperty<From, To>> & Sendable

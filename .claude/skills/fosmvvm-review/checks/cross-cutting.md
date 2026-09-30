@@ -265,5 +265,5 @@ public final class SomeStubOps: SomeOperations, @unchecked Sendable {
 ## Check: deferral-pointers-resolve
 **Severity:** warning
 **What:** A comment that defers work to a tracking document points at a document that exists in the repo (ruled 2026-08-25; the ledger entry is the statement of record). A dead pointer makes an untracked deferral look tracked — the reader trusts the ledger entry that was never written.
-**Anti-pattern:** `// deferred follow-up (see docs/harbor-team/deferrals.md)` where no such file exists — beside a sibling comment correctly citing the real `docs/deferrals.md`.
+**Anti-pattern:** `// deferred follow-up (see docs/workspace-team/deferrals.md)` where no such file exists — beside a sibling comment correctly citing the real `docs/deferrals.md`.
 **Detection:** Find comments that defer or reference work to an in-repo document — `see docs/…`, `→ <path>.md`, deferral/plan/ledger citations — and verify each cited path exists. Flag dead pointers with the nearest real document when one is evident (a path-drifted spelling of an existing ledger is the common case). External URLs and issue-tracker references are out of scope; so is prose *about* documents that cites none.

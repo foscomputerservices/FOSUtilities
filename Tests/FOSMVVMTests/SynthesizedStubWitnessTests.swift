@@ -29,7 +29,7 @@ struct StubWitnessViewModel {
 
     var vmId = ViewModelId()
 
-    static func stub(count: Int = 8, label: String = "berth") -> Self {
+    static func stub(count: Int = 8, label: String = "card") -> Self {
         .init(count: count, label: label)
     }
 }
@@ -47,18 +47,18 @@ struct SynthesizedStubWitnessTests {
     @Test func synthesizedWitnessReturnsDefaultedInstance() {
         let vm = StubWitnessViewModel.stub()
         #expect(vm.count == 8)
-        #expect(vm.label == "berth")
+        #expect(vm.label == "card")
     }
 
     @Test func parameterizedStubStillOverridesDefaults() {
         let vm = StubWitnessViewModel.stub(count: 3)
         #expect(vm.count == 3)
-        #expect(vm.label == "berth")
+        #expect(vm.label == "card")
     }
 
     @Test func witnessSatisfiesStubbableProtocol() {
         let vm = makeStub(StubWitnessViewModel.self)
         #expect(vm.count == 8)
-        #expect(vm.label == "berth")
+        #expect(vm.label == "card")
     }
 }

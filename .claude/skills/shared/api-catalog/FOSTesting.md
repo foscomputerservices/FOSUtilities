@@ -374,12 +374,12 @@ full application lifecycle (migrations run, async boot, guaranteed shutdown), so
 stay isolated and run in parallel.
 
 ```swift
-let berths = try await withFluentTestApp { app in
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(CreateBerth())
+let cards = try await withFluentTestApp { app in
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(CreateCard())
 } _: { app, db in
-    try await Dock(name: "5").save(on: db)
-    return try await Berth.query(on: db).all()
+    try await Board(name: "5").save(on: db)
+    return try await Card.query(on: db).all()
 }
 ```
 
@@ -396,7 +396,7 @@ and cannot keep a socket open.
 
 ```swift
 try await withServedFluentTestApp { app in
-    try app.register(Dock.self, migration: CreateDock())
+    try app.register(Board.self, migration: CreateBoard())
     try app.useLiveInvalidation(on: app.routes)
 } _: { app, baseURL in
     let url = baseURL.appending(path: "invalidations")

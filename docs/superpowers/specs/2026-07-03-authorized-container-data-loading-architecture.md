@@ -33,8 +33,8 @@ Where a component maps to a proven prior-art pattern, that is noted generically 
 this subsystem is a *refinement of a production-proven design*, re-rooted on stronger foundations
 (§2). No prior-art system, client, or proprietary type is named anywhere in this document.
 
-Running example throughout (from the north star): a **`Dock`** *contains* **`Berth`s** and carries
-per-dock **access grants**. "All docks in the system" is an *unbounded* container view.
+Running example throughout (from the north star): a **`Board`** *contains* **`Card`s** and carries
+per-board **access grants**. "All boards in the system" is an *unbounded* container view.
 
 ---
 
@@ -186,14 +186,14 @@ public protocol ServerRequest /* … */ {
     var sort: Sort? { get }
 }
 
-// Ordered, per-key direction (multi-key: "dock name, then berth number desc"). Key is a
+// Ordered, per-key direction (multi-key: "board name, then card number desc"). Key is a
 // container-declared Codable enum of *published sortable dimensions* — meanings, not columns.
 public struct SortCriteria<Key: SortKey>: ServerRequestSort { /* [(Key, SortDirection)] */ }
-public protocol SortKey: Codable, Hashable, Sendable {}      // e.g. enum BerthSortKey { case number, name, updatedAt }
+public protocol SortKey: Codable, Hashable, Sendable {}      // e.g. enum CardSortKey { case number, name, updatedAt }
 ```
 
 **Seam.** `Sort` crosses the wire as meaning; the Vapor `Key→KeyPath` mapping (C6a) turns it into a
-Fluent order-by. A `Key` case may expand to *several* KeyPaths (`.name → \.$dockName, \.$number`),
+Fluent order-by. A `Key` case may expand to *several* KeyPaths (`.name → \.$boardName, \.$number`),
 so composable field-sorting and named-orders are the same primitive. Validity is enforced by the enum
 (an undeclared key can't decode). **Non-goal:** the UI→`SortCriteria` binding (column-header taps) is
 View-layer, deferred (OQ-L1-7).
@@ -269,9 +269,9 @@ property wrapper** — driving the member query through Fluent's own relationshi
 rather than reconstructing SQL.
 
 ```swift
-extension Dock {
+extension Board {
     static var containment: [ContainmentRelation] {           // WHICH relationships are containment…
-        [.children(\Dock.$berths), .siblings(\Dock.$crew)]    // …the HOW (keys/pivot) comes from Fluent
+        [.children(\Board.$cards), .siblings(\Board.$members)]    // …the HOW (keys/pivot) comes from Fluent
     }
 }
 ```
@@ -349,7 +349,7 @@ types** it composes (`children: [ComposedChild]`), and (c) its projection (C8). 
 loads the aggregate once; projection reads the cache.
 
 **Why data-dependent composition doesn't break it.** The child *types and relationships* are static
-(all the load plan needs); only the *instance count* is dynamic (e.g. N berth cells from already-loaded
+(all the load plan needs); only the *instance count* is dynamic (e.g. N card cells from already-loaded
 data), and iterating loaded data triggers no new load. The crash becomes impossible because projection
 is handed a **read-only cached view with no `Database` handle** — a forgotten requirement can't be
 reached, so it fails to compile instead of faulting at runtime.

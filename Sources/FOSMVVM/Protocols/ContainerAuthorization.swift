@@ -22,7 +22,7 @@ import Foundation
 ///
 /// ```swift
 /// // A Sendable snapshot of one grant row (persisted Fluent classes aren't Sendable — project a value):
-/// struct DockGrant: ContainerAuthorization {
+/// struct BoardGrant: ContainerAuthorization {
 ///     let authorizedContainer: ModelIdentity   // decoded from the stored identity column
 ///     let operations: [ContainerOperation]
 ///     let recordTypes: [ModelNamespace]        // the stored, decodable form of "which record types"

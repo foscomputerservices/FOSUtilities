@@ -29,11 +29,11 @@ struct SortMappingTests {
     /// Spec test group 10: a single-mapping key orders in-database (descending).
     @Test func numberMappingSortsDescendingInDatabase() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            var query = try Berth.query(on: db).filter(\.$dock.$id == dock1.requireId())
-            for mapping in Berth.sortMappings(for: .number) {
+            let (dock1, _) = try await seedWorkspace(on: db)
+            var query = try Card.query(on: db).filter(\.$board.$id == dock1.requireId())
+            for mapping in Card.sortMappings(for: .number) {
                 query = mapping.apply(to: query, direction: .descending)
             }
             return try await query.all().map(\.number)
@@ -41,21 +41,21 @@ struct SortMappingTests {
         #expect(numbers == [3, 2, 1])
     }
 
-    /// Spec test group 10: composite mappings apply in declaration order — dockName groups the docks,
+    /// Spec test group 10: composite mappings apply in declaration order — boardName groups the boards,
     /// number breaks ties inside dock1.
     @Test func compositeMappingOrdersByNameThenNumberTiebreak() async throws {
         let ordered = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            _ = try await seedHarbor(on: db)
-            var query = Berth.query(on: db) // ALL berths, both docks
-            for mapping in Berth.sortMappings(for: .dockName) {
+            _ = try await seedWorkspace(on: db)
+            var query = Card.query(on: db) // ALL cards, both boards
+            for mapping in Card.sortMappings(for: .boardName) {
                 query = mapping.apply(to: query, direction: .ascending)
             }
-            let berths = try await query.all()
-            return (names: berths.map(\.dockName), numbers: berths.map(\.number))
+            let cards = try await query.all()
+            return (names: cards.map(\.boardName), numbers: cards.map(\.number))
         }
-        #expect(ordered.names == ["Dock 1", "Dock 1", "Dock 1", "Dock 2"])
+        #expect(ordered.names == ["Board 1", "Board 1", "Board 1", "Board 2"])
         #expect(ordered.numbers == [1, 2, 3, 9])
     }
 
@@ -63,17 +63,17 @@ struct SortMappingTests {
     /// wildcard, and the wildcard deliberately does NOT grant destroy.
     @Test func grantCoversViaWildcardButNeverDestroy() async throws {
         try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
+            let (dock1, dock2) = try await seedWorkspace(on: db)
             let grant = try TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.anyOperation],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )
-            try #expect(grant.authorizes(.readRecords, ofType: Berth.self, in: dock1.modelIdentity))
-            try #expect(!grant.authorizes(.destroyRecords, ofType: Berth.self, in: dock1.modelIdentity))
-            try #expect(!grant.authorizes(.readRecords, ofType: Berth.self, in: dock2.modelIdentity))
+            try #expect(grant.authorizes(.readRecords, ofType: Card.self, in: dock1.modelIdentity))
+            try #expect(!grant.authorizes(.destroyRecords, ofType: Card.self, in: dock1.modelIdentity))
+            try #expect(!grant.authorizes(.readRecords, ofType: Card.self, in: dock2.modelIdentity))
         }
     }
 }

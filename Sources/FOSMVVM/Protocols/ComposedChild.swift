@@ -23,8 +23,8 @@ import Foundation
 ///
 /// ```swift
 /// static var children: [ComposedChild] {
-///     [.child(BerthCellViewModel.self),
-///      .child(HarborBannerViewModel.self, rootedAt: .apex)]
+///     [.child(CardCellViewModel.self),
+///      .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
 /// }
 /// ```
 ///
@@ -47,7 +47,7 @@ public struct ComposedChild: Sendable {
     /// A child sharing the parent's scope — the overwhelmingly common case:
     ///
     /// ```swift
-    /// .child(BerthCellViewModel.self)
+    /// .child(CardCellViewModel.self)
     /// ```
     public static func child(
         _ type: (some ComposableFactory).Type
@@ -59,7 +59,7 @@ public struct ComposedChild: Sendable {
     /// *intermediate* hops, in order:
     ///
     /// ```swift
-    /// .child(SlipBoardViewModel.self, via: Berth.self)
+    /// .child(SlipBoardViewModel.self, via: Card.self)
     /// ```
     public static func child(
         _ type: (some ComposableFactory).Type,
@@ -71,7 +71,7 @@ public struct ComposedChild: Sendable {
     /// A child starting a fresh root — a detail tree and an apex list in one request:
     ///
     /// ```swift
-    /// .child(HarborBannerViewModel.self, rootedAt: .apex)
+    /// .child(WorkspaceBannerViewModel.self, rootedAt: .apex)
     /// ```
     public static func child(
         _ type: (some ComposableFactory).Type,

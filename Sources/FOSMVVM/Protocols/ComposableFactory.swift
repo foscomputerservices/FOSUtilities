@@ -21,14 +21,14 @@ import Foundation
 ///
 /// ```swift
 /// extension BerthsViewModel: ComposableFactory {
-///     static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+///     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
 ///         .refinedByRequest
-///     static let crew   = LoadRequirement.read(CrewMember.self, in: .parentRoot)
+///     static let members   = LoadRequirement.read(Member.self, in: .parentRoot)
 ///
-///     static var dataRequirements: [any DataRequirement] { [berths, crew] }
+///     static var dataRequirements: [any DataRequirement] { [cards, members] }
 ///     static var children: [ComposedChild] {
-///         [.child(BerthCellViewModel.self),
-///          .child(HarborBannerViewModel.self, rootedAt: .apex)]
+///         [.child(CardCellViewModel.self),
+///          .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
 ///     }
 /// }
 /// ```
@@ -37,9 +37,9 @@ import Foundation
 /// data. A CLI's plain manifest body composes the same machinery:
 ///
 /// ```swift
-/// extension DockManifest: ComposableFactory {
-///     static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
-///     static var dataRequirements: [any DataRequirement] { [berths] }
+/// extension BoardManifest: ComposableFactory {
+///     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
+///     static var dataRequirements: [any DataRequirement] { [cards] }
 /// }
 /// ```
 ///

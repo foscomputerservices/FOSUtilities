@@ -38,34 +38,34 @@ struct LiveTransactionTests {
         let captured = CapturedWarnings()
         try await withFluentTestApp { app in
             captureWarnings(of: app, into: captured)
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
             try await db.transaction { tx in
-                let berthA = try Berth(number: 60, dockName: dock1.name, dockId: dock1.requireId())
-                let berthB = try Berth(number: 61, dockName: dock1.name, dockId: dock1.requireId())
-                try await berthA.save(on: tx)
-                try await berthB.save(on: tx)
+                let cardA = try Card(number: 60, boardName: dock1.name, boardId: dock1.requireId())
+                let cardB = try Card(number: 61, boardName: dock1.name, boardId: dock1.requireId())
+                try await cardA.save(on: tx)
+                try await cardB.save(on: tx)
             }
 
             // The transaction committed (writes landed) …
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 5) // 3 seeded + 2
 
             // … but nothing was emitted: the first event the subscriber sees is the sentinel.
-            let sentinel = try Set([harbor.modelIdentity])
+            let sentinel = try Set([workspace.modelIdentity])
             await hub.emit(sentinel)
             #expect(await events.next() == sentinel)
 
-            // Warned once for Berth (two suppressed saves, one warning), naming type + remedy. The
+            // Warned once for Card (two suppressed saves, one warning), naming type + remedy. The
             // lifecycle middleware warns about the same transaction for its own reason, so the
             // count is taken over the emit warning's own wording.
-            #expect(captured.all.count(where: { $0.contains("Berth") && $0.contains("invalidation was suppressed") }) == 1)
-            #expect(captured.contains(allOf: "Berth", "liveTransaction"))
+            #expect(captured.all.count(where: { $0.contains("Card") && $0.contains("invalidation was suppressed") }) == 1)
+            #expect(captured.contains(allOf: "Card", "liveTransaction"))
         }
     }
 
@@ -73,32 +73,32 @@ struct LiveTransactionTests {
     /// UNION to the hub — one event — after the transaction commits.
     @Test func liveTransactionFlushesUnionOnCommit() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
-            let berthA = try Berth(number: 70, dockName: dock1.name, dockId: dock1.requireId())
-            let berthB = try Berth(number: 71, dockName: dock2.name, dockId: dock2.requireId())
+            let cardA = try Card(number: 70, boardName: dock1.name, boardId: dock1.requireId())
+            let cardB = try Card(number: 71, boardName: dock2.name, boardId: dock2.requireId())
             let value = try await app.liveTransaction { tx in
-                try await berthA.save(on: tx)
-                try await berthB.save(on: tx)
+                try await cardA.save(on: tx)
+                try await cardB.save(on: tx)
                 return 7
             }
             #expect(value == 7)
 
             let expected = try Set([
-                berthA.modelIdentity,
+                cardA.modelIdentity,
                 dock1.modelIdentity,
-                berthB.modelIdentity,
+                cardB.modelIdentity,
                 dock2.modelIdentity
             ])
             #expect(await events.next() == expected)
 
             // Exactly one flush: the next event is the sentinel, not a second emission.
-            let sentinel = try Set([harbor.modelIdentity])
+            let sentinel = try Set([workspace.modelIdentity])
             await hub.emit(sentinel)
             #expect(await events.next() == sentinel)
         }
@@ -107,9 +107,9 @@ struct LiveTransactionTests {
     /// `Request.liveTransaction` — the request-side door — flushes the same way.
     @Test func requestLiveTransactionFlushesOnCommit() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
@@ -119,12 +119,12 @@ struct LiveTransactionTests {
                 url: URI(string: "/"),
                 on: app.eventLoopGroup.next()
             )
-            let berth = try Berth(number: 80, dockName: dock1.name, dockId: dock1.requireId())
+            let card = try Card(number: 80, boardName: dock1.name, boardId: dock1.requireId())
             try await req.liveTransaction { tx in
-                try await berth.save(on: tx)
+                try await card.save(on: tx)
             }
 
-            let expected = try Set([berth.modelIdentity, dock1.modelIdentity])
+            let expected = try Set([card.modelIdentity, dock1.modelIdentity])
             #expect(await events.next() == expected)
         }
     }
@@ -132,27 +132,27 @@ struct LiveTransactionTests {
     /// A THROWING `liveTransaction` rolls back and emits nothing — the collected sets are discarded.
     @Test func throwingLiveTransactionEmitsNothing() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
-            let berth = try Berth(number: 90, dockName: dock1.name, dockId: dock1.requireId())
+            let card = try Card(number: 90, boardName: dock1.name, boardId: dock1.requireId())
             await #expect(throws: Boom.self) {
                 try await app.liveTransaction { tx in
-                    try await berth.save(on: tx)
+                    try await card.save(on: tx)
                     throw Boom()
                 }
             }
 
             // Rolled back …
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 3) // the seeded three only
 
             // … and nothing was emitted.
-            let sentinel = try Set([harbor.modelIdentity])
+            let sentinel = try Set([workspace.modelIdentity])
             await hub.emit(sentinel)
             #expect(await events.next() == sentinel)
         }
@@ -163,23 +163,23 @@ struct LiveTransactionTests {
     @Test func liveTransactionWithoutHubRunsTransaction() async throws {
         try await withFluentTestApp { app in
             // Registered graph, live NOT enabled.
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
 
-            let berth = try Berth(number: 95, dockName: dock1.name, dockId: dock1.requireId())
+            let card = try Card(number: 95, boardName: dock1.name, boardId: dock1.requireId())
             let value = try await app.liveTransaction { tx in
-                try await berth.save(on: tx)
+                try await card.save(on: tx)
                 return "committed"
             }
             #expect(value == "committed")
 
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 4)
         }
     }
@@ -187,14 +187,14 @@ struct LiveTransactionTests {
 
 private struct Boom: Error {}
 
-/// Registers the harbor graph and enables live invalidation.
-private func configureLiveHarbor(_ app: Application) throws {
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
+/// Registers the workspace graph and enables live invalidation.
+private func configureLiveWorkspace(_ app: Application) throws {
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useLiveInvalidation(on: app.routes)
 }
 

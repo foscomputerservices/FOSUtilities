@@ -19,9 +19,9 @@ import Foundation
 /// A ``ServerRequestQuery`` that names which loaded record a write request targets.
 ///
 /// ```swift
-/// struct UpdateBerthQuery: TargetedQuery, RootedQuery {
+/// struct UpdateCardQuery: TargetedQuery, RootedQuery {
 ///     let rootIdentity: ModelIdentity   // RootedQuery — the scope root
-///     let target: ModelIdentity         // TargetedQuery — which berth
+///     let target: ModelIdentity         // TargetedQuery — which card
 /// }
 /// ```
 ///

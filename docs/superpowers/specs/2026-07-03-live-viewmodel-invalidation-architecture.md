@@ -22,7 +22,7 @@ the client only learns of a change by re-issuing a request it has no reason to r
 
 Two *kinds* of change must be handled, and conflating them is the classic mistake:
 
-1. **Item change** — a single data record's fields mutate (e.g. `Dock #5.status`).
+1. **Item change** — a single data record's fields mutate (e.g. `Board #5.status`).
 2. **Container / projection change** — the *membership or ordering* of a collection changes:
    a record is inserted/deleted, an authorization is granted/revoked, or an existing record
    crosses a filter/sort boundary so it enters, leaves, or reorders within a projection. **No
@@ -186,9 +186,9 @@ so either is reversible.
   `Registration` bumps *one* bound view's re-fetch trigger.
 - **Two-granularity match** from a *single* emit:
   - **exact `ModelIdentity`** → item views and container views rooted at a parent id
-    (e.g. "the berths of Dock X" registers `ModelIdentity(Dock, X)`);
+    (e.g. "the cards of Board X" registers `ModelIdentity(Board, X)`);
   - **`ModelNamespace`** → *unbounded* container views over a whole population
-    ("all Docks" registers `ModelNamespace(Dock)`).
+    ("all Boards" registers `ModelNamespace(Board)`).
 - Refines the existing seam: today `viewModelInvalidated` is one global `Binding<Bool>` honored
   only by `VMServerResolverView`; the dispatcher replaces it with per-registration, identity-keyed
   callbacks. `.invalidateBinding($bool)` stays as the manual escape hatch.
@@ -241,14 +241,14 @@ so either is reversible.
 ## 6. Registration / emit convergence (worked example)
 
 A change inside a container emits against the **container's** identity, not the mutated leaf's.
-(Illustrated with a `Dock` that contains `Berth`s plus per-dock access grants.)
+(Illustrated with a `Board` that contains `Card`s plus per-board access grants.)
 
-- item view bound to Dock X → registers `ModelIdentity(Dock, X)`
-- container view (the berths *of* Dock X) → **also** registers `ModelIdentity(Dock, X)`
-- a field change to Dock X, a berth added to X, or an access grant on X → **all** emit
-  `ModelIdentity(Dock, X)` → one match, three change kinds.
-- "all Docks in the system" (unbounded) → registers `ModelNamespace(Dock)`; any
-  `ModelIdentity(Dock, n)` emit matches by namespace component.
+- item view bound to Board X → registers `ModelIdentity(Board, X)`
+- container view (the cards *of* Board X) → **also** registers `ModelIdentity(Board, X)`
+- a field change to Board X, a card added to X, or an access grant on X → **all** emit
+  `ModelIdentity(Board, X)` → one match, three change kinds.
+- "all Boards in the system" (unbounded) → registers `ModelNamespace(Board)`; any
+  `ModelIdentity(Board, n)` emit matches by namespace component.
 
 ## 7. Established concepts → FOSUtilities reconciliation
 

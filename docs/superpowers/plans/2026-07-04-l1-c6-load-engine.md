@@ -23,8 +23,8 @@
 - **FluentKit verified:** `QueryBuilder.sort(_ field: KeyPath, _ direction:)` requires `Field: QueryableProperty, Field.Model == Model`; `range(lower..<upper)` (or `.range(lower:upper:)`) — `Pagination(startIndex: s, maxResults: m)` maps to `range(s ..< s+m)`; `startIndex` nil = 0, `maxResults` nil = no upper bound (apply `.range(s...)`-equivalent via offset only... FluentKit's `range` takes `Range<Int>`/`PartialRangeFrom` variants — use `query.range(lower:)` shape per checkout; the implementer verifies the exact overload at compile time).
 - **Threshold check is per engine call** (= per cached unit). Log via `req.logger.warning`; the message names the registered container type + contained type + count via `String(describing:)` (diagnostic only — `ModelNamespace` stays sealed).
 - **Engine tests mint a real `Request`:** `Request(application: app, method: .GET, url: URI(string: "/"), on: app.eventLoopGroup.next())` — Vapor-public. Two calls on the SAME `Request` instance share the cache; a fresh `Request` gets a fresh cache (assert both).
-- **`Berth.dockName` is denormalized** (a plain `@Field` seeded with the dock's name) because `Field.Model == M` rules out joined-parent sorts in v1.
-- **Registration in engine tests:** remember FK order (CreatePier before `register(Dock…)`) and that `register` adds `CreateDock` itself — copy the configure blocks from `ModelTypeRegistryTests`.
+- **`Card.boardName` is denormalized** (a plain `@Field` seeded with the board's name) because `Field.Model == M` rules out joined-parent sorts in v1.
+- **Registration in engine tests:** remember FK order (CreatePier before `register(Board…)`) and that `register` adds `CreateBoard` itself — copy the configure blocks from `ModelTypeRegistryTests`.
 - **swiftformat gotchas** (established this branch): `docComments` forces `///` on pre-declaration comments (tool-overridden, acceptable); `redundantSendable` is DISABLED in `.swiftformat` (do not remove); swiftlint directives must not carry trailing prose.
 - **Do not add:** any public engine/cache surface, a whole-container engine entry, filter push-down, eager-loads, the C3 provider, `RecordOperation`. All explicitly out of scope.
 
@@ -44,7 +44,7 @@
 | `Sources/FOSMVVMVapor/Extensions/Request+ContainerLoad.swift` (create) | the `package` engine |
 | `Tests/FOSMVVMTests/Protocols/ContainerOperationTests.swift` (modify or create) | helper tests |
 | `Tests/FOSMVVMTests/Protocols/ContainerAuthorizationTests.swift` (create) | protocol contract tests (no DB) |
-| `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift` (modify) | `dockName` field + migration/seed; `BerthSortKey`; `Berth: SortableDataModel`; `TestGrant` |
+| `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift` (modify) | `boardName` field + migration/seed; `CardSortKey`; `Card: SortableDataModel`; `TestGrant` |
 | `Tests/FOSMVVMVaporTests/Containment/SortMappingTests.swift` (create) | C6a mapping application |
 | `Tests/FOSMVVMVaporTests/Containment/RefinedMembersTests.swift` (create) | spec groups 5 + 10 |
 | `Tests/FOSMVVMVaporTests/Containment/AuthorizedLoadEngineTests.swift` (create) | spec groups 1–4, 6–8 |
@@ -137,17 +137,17 @@
 
 ### Task 5: C6a `SortableDataModel` + `SortMapping` (+ fixtures)
 
-**Files:** Create `Sources/FOSMVVMVapor/Containment/SortableDataModel.swift`; Modify `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift` (Berth `dockName` `@Field` + migration column + seed passes the dock name; `enum BerthSortKey: String, SortKey { case number, dockName }`; `Berth: SortableDataModel` per the spec DocC example; `TestGrant: ContainerAuthorization` value fixture); Test `Tests/FOSMVVMVaporTests/Containment/SortMappingTests.swift`.
+**Files:** Create `Sources/FOSMVVMVapor/Containment/SortableDataModel.swift`; Modify `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift` (Card `boardName` `@Field` + migration column + seed passes the board name; `enum CardSortKey: String, SortKey { case number, boardName }`; `Card: SortableDataModel` per the spec DocC example; `TestGrant: ContainerAuthorization` value fixture); Test `Tests/FOSMVVMVaporTests/Containment/SortMappingTests.swift`.
 
-- [ ] **Step 1: Failing tests** — seed harbor; apply mappings directly to `Berth.query(on: db)` via the `package` apply (`mapping.apply(to:direction:)`): `.number` desc → `[3,2,1]` for dock1's berths (filter by dock in the test query); `dockName` mapping list applies in order (composite: name then number).
-- [ ] **Step 2:** FAIL. **Step 3:** implement per spec C6.2 (public protocol + `SortMapping` with public `keyPath` factory; the erased `@Sendable (QueryBuilder<M>, SortDirection) -> QueryBuilder<M>` closure stays **`private`** with a **`package` `apply(to:direction:)` method** as the seam — a package-visible stored closure would make the synthesized memberwise init package-reachable and reopen the only-the-factory-constructs hole. Same split applies to Task 6/7's erased closures. DocC verbatim incl. the one-vocabulary sentence). **Step 4:** PASS + prior Containment suites green (fixture migration change ripples — update `CreateBerth` and `seedHarbor`).
+- [ ] **Step 1: Failing tests** — seed workspace; apply mappings directly to `Card.query(on: db)` via the `package` apply (`mapping.apply(to:direction:)`): `.number` desc → `[3,2,1]` for dock1's cards (filter by board in the test query); `boardName` mapping list applies in order (composite: name then number).
+- [ ] **Step 2:** FAIL. **Step 3:** implement per spec C6.2 (public protocol + `SortMapping` with public `keyPath` factory; the erased `@Sendable (QueryBuilder<M>, SortDirection) -> QueryBuilder<M>` closure stays **`private`** with a **`package` `apply(to:direction:)` method** as the seam — a package-visible stored closure would make the synthesized memberwise init package-reachable and reopen the only-the-factory-constructs hole. Same split applies to Task 6/7's erased closures. DocC verbatim incl. the one-vocabulary sentence). **Step 4:** PASS + prior Containment suites green (fixture migration change ripples — update `CreateCard` and `seedWorkspace`).
 - [ ] **Step 5:** `git commit -m "feat(FOSMVVMVapor): add C6a SortableDataModel + SortMapping (meaning→order-by)"`
 
 ### Task 6: `AnySortTerm` + refinement + refined `members` (D1)
 
 **Files:** Create `Sources/FOSMVVMVapor/Containment/ContainmentQueryRefinement.swift`; Modify `ContainmentRelation.swift` (single private load closure + refined overload), `ContainmentError.swift` (+ `.unsortableContainedType(modelType:keyType:)`); Test `Tests/FOSMVVMVaporTests/Containment/RefinedMembersTests.swift` (spec groups 5 + 10).
 
-- [ ] **Step 1: Failing tests** — refined children honors sort (`AnySortTerm(SortTerm(key: BerthSortKey.number, direction: .descending))`) + window (`Pagination(startIndex: 1, maxResults: 1)` → middle berth of the sorted order); `.parent` ignores sort AND window (returns the single Pier regardless); unsortable: terms against CrewMember relation → `.unsortableContainedType`; wrong key type against Berth → same; unrefined `members(of:on:)` unchanged (C4's `ContainmentRelationTests` MUST pass untouched — run them).
+- [ ] **Step 1: Failing tests** — refined children honors sort (`AnySortTerm(SortTerm(key: CardSortKey.number, direction: .descending))`) + window (`Pagination(startIndex: 1, maxResults: 1)` → middle card of the sorted order); `.parent` ignores sort AND window (returns the single Pier regardless); unsortable: terms against Member relation → `.unsortableContainedType`; wrong key type against Card → same; unrefined `members(of:on:)` unchanged (C4's `ContainmentRelationTests` MUST pass untouched — run them).
 - [ ] **Step 2:** FAIL. **Step 3:** implement per spec C6.3 — `AnySortTerm` (manual `Hashable` via `AnyHashable`; `Sendable`), `SortCriteria.erasedTerms` (FOSMVVMVapor extension), `ContainmentQueryRefinement: Hashable, Sendable` with `static let none`; rework the three factories' closures to take `(container, db, refinement)`: cast container (existing backstop), build the relationship query, then if `To: SortableDataModel` and terms cast to `To.RequestSortKey` apply each key's `sortMappings` in term order with the term's direction; terms present but To not sortable / cast fails → throw; then apply `range` for pagination; `.parent` closure ignores the refinement. **Step 4:** PASS; ContainmentRelationTests + ErasedBridgeTests untouched-green. 
 - [ ] **Step 5:** `git commit -m "feat(FOSMVVMVapor): refined containment load — AnySortTerm + ContainmentQueryRefinement (D1)"`
 
@@ -156,13 +156,13 @@
 **Files:** Create `Sources/FOSMVVMVapor/Containment/ContainerRecordCache.swift`, `Sources/FOSMVVMVapor/Extensions/Request+ContainerLoad.swift`; Modify `ContainmentError.swift` (+ `.unregisteredNamespace(identity: String)`); Test `Tests/FOSMVVMVaporTests/Containment/AuthorizedLoadEngineTests.swift` (spec groups 1–4, 6–8).
 
 - [ ] **Step 1: Failing tests** (mint `Request(application:method:url:on:)` inside `withFluentTestApp`'s body; grants via `TestGrant`):
-  1. instance-scoping (dock1 grant → dock1 berths; dock2 identity → empty; `[]` auths → empty)
-  2. operation×type (`.readRecords` on Berth only → Berth call loads, CrewMember call empty; Berth call `for: .createRecords` → empty)
-  3. sort in-DB (erased `SortCriteria<BerthSortKey>` desc → `[3,2,1]`; composite `dockName`)
+  1. instance-scoping (dock1 grant → dock1 cards; dock2 identity → empty; `[]` auths → empty)
+  2. operation×type (`.readRecords` on Card only → Card call loads, Member call empty; Card call `for: .createRecords` → empty)
+  3. sort in-DB (erased `SortCriteria<CardSortKey>` desc → `[3,2,1]`; composite `boardName`)
   4. pagination (middle record; nil → full)
   6. cache (same `Request`: identical calls → same ELEMENT instances via `ObjectIdentifier`; differing sort → different instances; empty result cached — delete rows between two identical calls, second still returns cached; `invalidateContainerRecords` → recompute observes reality; fresh `Request` → fresh cache)
   7. missing row → `[]`; unregistered namespace (identity of an unregistered fixture type) → `.unregisteredNamespace`
-  8. threshold 2 vs 3 berths → all 3 returned (set `app` threshold via the package var)
+  8. threshold 2 vs 3 cards → all 3 returned (set `app` threshold via the package var)
 - [ ] **Step 2:** FAIL. **Step 3:** implement per spec C6.4/C6.5 — cache key struct, `Request.containerRecordCache` (StorageKey, get/modify), engine pipeline (cache probe → registry → find → scope → refined members per matching relation, declaration order → threshold warn → cache write incl. empty → return), `invalidateContainerRecords(of:)`, `Application.maxRecordsWarningThreshold` (package var, default 1000, storage-backed). Maintainer notes: one-auth-set-per-Request; readers must not mutate the shared snapshot. **Step 4:** all engine tests PASS; full suite green. 
 - [ ] **Step 5:** `git commit -m "feat(FOSMVVMVapor): add the authorized container load engine + request-scoped cache"`
 

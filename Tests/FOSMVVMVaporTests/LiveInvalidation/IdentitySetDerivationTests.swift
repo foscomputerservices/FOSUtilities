@@ -26,22 +26,22 @@ import FOSTestingVapor
 import Foundation
 import Testing
 
-/// The `.siblings` fixtures give CrewMember a docks relation but no container conformance. Declaring
+/// The `.siblings` fixtures give Member a boards relation but no container conformance. Declaring
 /// it here (same module as the fixtures — not retroactive) lets the pivot test register BOTH ends of
-/// DockCrew as containers, so the pivot inversion's far-end branch is exercised, not just the near.
-extension CrewMember: ContainerDataModel {
+/// BoardMember as containers, so the pivot inversion's far-end branch is exercised, not just the near.
+extension Member: ContainerDataModel {
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
-        [Dock.self]
+        [Board.self]
     }
 
     static var containment: [ContainmentRelation] {
-        [.siblings(\CrewMember.$docks)]
+        [.siblings(\Member.$boards)]
     }
 }
 
 /// The `.parent` inverter's EMITTING branch needs a registered `.parent` target — the shared
-/// fixtures register none, so `.parent(\Dock.$pier)` stays dormant everywhere else. Declaring Pier
-/// a (leaf) container here lets one test register it and assert the Dock→Pier contribution.
+/// fixtures register none, so `.parent(\Board.$pier)` stays dormant everywhere else. Declaring Pier
+/// a (leaf) container here lets one test register it and assert the Board→Pier contribution.
 /// Registration is per-app, so suites that don't register Pier are untouched.
 extension Pier: ContainerDataModel {
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
@@ -122,71 +122,71 @@ struct CreateBuoy: AsyncMigration {
 @Suite("Invalidation identity-set derivation (spec §3.1, group 3)")
 struct IdentitySetDerivationTests {
     /// A mutated `.children` member emits its own identity + its owning container's — read off the
-    /// Berth's `dock_id` FK through Dock's `.children(\Dock.$berths)` parent key.
+    /// Card's `board_id` FK through Board's `.children(\Board.$cards)` parent key.
     @Test func childEmitsOwnAndOwningContainer() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let berth = try #require(
-                await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).first()
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let card = try #require(
+                await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).first()
             )
 
             let derived = InvalidationIdentitySet.staleIdentities(
-                forMutated: berth,
+                forMutated: card,
                 registry: app.modelTypeRegistry
             )
 
-            #expect(try derived == Set([berth.modelIdentity, dock1.modelIdentity]))
+            #expect(try derived == Set([card.modelIdentity, dock1.modelIdentity]))
         }
     }
 
-    /// A mutated Dock emits its own identity + its apex Harbor's — read off the Dock's `harbor_id`
-    /// FK through Harbor's `.children(\Harbor.$docks)`. Its unregistered `.parent(\Dock.$pier)`
+    /// A mutated Board emits its own identity + its apex Workspace's — read off the Board's `workspace_id`
+    /// FK through Workspace's `.children(\Workspace.$boards)`. Its unregistered `.parent(\Board.$pier)`
     /// target (Pier) contributes nothing.
     @Test func containedContainerEmitsOwnAndApex() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
 
             let derived = InvalidationIdentitySet.staleIdentities(
                 forMutated: dock1,
                 registry: app.modelTypeRegistry
             )
 
-            #expect(try derived == Set([dock1.modelIdentity, harbor.modelIdentity]))
+            #expect(try derived == Set([dock1.modelIdentity, workspace.modelIdentity]))
         }
     }
 
-    /// A mutated pivot (DockCrew) covers `.siblings` membership: it emits its own identity + both
-    /// linked ends that are registered containers. With Dock AND CrewMember both registered, that is
+    /// A mutated pivot (BoardMember) covers `.siblings` membership: it emits its own identity + both
+    /// linked ends that are registered containers. With Board AND Member both registered, that is
     /// both ends.
     @Test func pivotEmitsBothRegisteredLinkedContainers() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
-            try app.register(CrewMember.self, migration: CreateCrewMember())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
+            try app.register(Member.self, migration: CreateMember())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let pivot = try #require(
-                await DockCrew.query(on: db).filter(\.$dock.$id == dock1.requireId()).first()
+                await BoardMember.query(on: db).filter(\.$board.$id == dock1.requireId()).first()
             )
-            let crew = try #require(await CrewMember.find(pivot.$crewMember.id, on: db))
+            let members = try #require(await Member.find(pivot.$member.id, on: db))
 
             let derived = InvalidationIdentitySet.staleIdentities(
                 forMutated: pivot,
@@ -196,47 +196,47 @@ struct IdentitySetDerivationTests {
             #expect(try derived == Set([
                 pivot.modelIdentity,
                 dock1.modelIdentity,
-                crew.modelIdentity
+                members.modelIdentity
             ]))
         }
     }
 
-    /// A registered model that no container declares (the apex Harbor) emits only its own identity.
+    /// A registered model that no container declares (the apex Workspace) emits only its own identity.
     @Test func uncontainedModelEmitsOnlyItself() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.find(dock1.$harbor.id, on: db))
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.find(dock1.$workspace.id, on: db))
 
             let derived = InvalidationIdentitySet.staleIdentities(
-                forMutated: harbor,
+                forMutated: workspace,
                 registry: app.modelTypeRegistry
             )
 
-            #expect(try derived == Set([harbor.modelIdentity]))
+            #expect(try derived == Set([workspace.modelIdentity]))
         }
     }
 
-    /// The `.parent` inverter's EMITTING branch: with Pier registered, a mutated Dock's own
-    /// `.parent(\Dock.$pier)` reads the to-one target directly and the Pier identity joins the set —
-    /// alongside the apex Harbor from the `.children` inversion.
+    /// The `.parent` inverter's EMITTING branch: with Pier registered, a mutated Board's own
+    /// `.parent(\Board.$pier)` reads the to-one target directly and the Pier identity joins the set —
+    /// alongside the apex Workspace from the `.children` inversion.
     @Test func registeredParentTargetContributes() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
+            try app.register(Workspace.self, migration: CreateWorkspace())
             try app.register(Pier.self, migration: CreatePier())
-            try app.register(Dock.self, migration: CreateDock())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            try app.register(Board.self, migration: CreateBoard())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.find(dock1.$harbor.id, on: db))
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.find(dock1.$workspace.id, on: db))
             let pier = try #require(await Pier.find(dock1.$pier.id, on: db))
 
             let derived = InvalidationIdentitySet.staleIdentities(
@@ -246,7 +246,7 @@ struct IdentitySetDerivationTests {
 
             #expect(try derived == Set([
                 dock1.modelIdentity,
-                harbor.modelIdentity,
+                workspace.modelIdentity,
                 pier.modelIdentity
             ]))
         }
@@ -280,23 +280,23 @@ struct IdentitySetDerivationTests {
         }
     }
 
-    /// An UNSET required reference contributes nothing and never crashes: an unsaved Berth with an
-    /// id but no `dock_id` set derives {self} only (the required-parent `$id.value` read is nil).
+    /// An UNSET required reference contributes nothing and never crashes: an unsaved Card with an
+    /// id but no `board_id` set derives {self} only (the required-parent `$id.value` read is nil).
     @Test func unsetRequiredReferenceContributesNothing() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, _ in
-            let berth = Berth()
-            berth._$id.value = ModelIdType()
-            let ownIdentity = try berth.modelIdentity
+            let card = Card()
+            card._$id.value = ModelIdType()
+            let ownIdentity = try card.modelIdentity
 
             let derived = InvalidationIdentitySet.staleIdentities(
-                forMutated: berth,
+                forMutated: card,
                 registry: app.modelTypeRegistry
             )
 

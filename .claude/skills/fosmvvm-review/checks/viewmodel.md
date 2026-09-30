@@ -17,7 +17,7 @@ The positive pattern lives in the `fosmvvm-viewmodel-generator` skill. This file
 - Do NOT recommend collapsing the VM/data-store separation. The VM is the single source of truth for what Views read; the `@Observable` data store is what Operations write to. The `bind(appState: .init(...))` projection edge is where they meet — do not propose moving or removing it.
 - Do NOT treat `@Observable` classes and structs as substitutable. They have different functional contracts: structs are values, `@Observable` classes participate in SwiftUI tracking. Recommending one in place of the other is an architectural error.
 - Re-projection happens at the top of the subtree that owns `bind(appState:)`. The parent body that constructs the child's AppState is the projection edge. Do NOT propose moving projection edges to "simplify."
-- **Resolve types by conformance, not by name.** A project protocol declared `LocalDockOperations: ViewModelOperations` is an Operations protocol regardless of its name; a type is a ViewModel because it carries `@ViewModel`, not because it ends in `ViewModel`. Name-keyed detection lets precisely the drifted types escape — which is the code most in need of review.
+- **Resolve types by conformance, not by name.** A project protocol declared `LocalBoardOperations: ViewModelOperations` is an Operations protocol regardless of its name; a type is a ViewModel because it carries `@ViewModel`, not because it ends in `ViewModel`. Name-keyed detection lets precisely the drifted types escape — which is the code most in need of review.
 - Do NOT recommend a random `vmId` as a way to "just make it compile" or to sidestep a missing data identity. If a row has no stable identity, that is a finding about the projection, not a licence to mint one per fetch.
 - **Several checks here are cross-layer and need the View layer, which is outside this area's `where:` globs.** Whether a ViewModel is rendered as a repeated row, how many views hold it, and whether a View `switch`es to select a localized value are all answered in `Sources/**/Views*/`. Read those files. Scoping yourself to the matched file list silently degrades four of the checks below to guesses.
 
@@ -71,7 +71,7 @@ A view count alone is not a hit. Three mutually-exclusive presentations of one s
 ## Check: ops-naming-trio
 **Severity:** warning
 **What:** The Operations trio for `{Name}ViewModel` is `{Name}ViewModelOperations`, in `{Name}ViewModelOperations.swift`.
-**Anti-pattern:** `LocalDockOperations` in `LocalDockOperations.swift` beside `LocalDockViewModel`.
+**Anti-pattern:** `LocalBoardOperations` in `LocalBoardOperations.swift` beside `LocalBoardViewModel`.
 **Detection:** For each protocol conforming to `ViewModelOperations`, resolve the ViewModel it serves — normally through that ViewModel's `operations` property, whose declared type names the protocol — and compare stems. Flag a mismatch. Beyond consistency this has teeth: a drifted name is what a name-keyed detection misses, so the misnamed type is the one that escapes the other checks in this file.
 
 ## Check: viewmodel-request-pairing
@@ -173,7 +173,7 @@ Credential-rejection defensive shapes belong to `no-defensive-error-for-credenti
 **Severity:** blocker
 **What:** Operations methods must not read from the same mutable state they write to. They take inputs, transform, write outputs — never read-modify-write on the output struct.
 **Anti-pattern:** A method on a `*ViewModelOperations` conformer that both reads from and writes to the same parameter (e.g., `settings.electrodeSettings[index].polarity` read, `settings.selectedPolarity = ...` write).
-**Detection:** For each type conforming to FOSMVVM's `ViewModelOperations` protocol — directly or through a project protocol that refines it — read each method body. Flag methods that both READ from and WRITE to the same parameter within the same call. Resolve conformance, not the name: a project protocol declared `LocalDockOperations: ViewModelOperations` is in scope despite not matching `*ViewModelOperations`, and a name-matching detection would let exactly the drifted types escape review.
+**Detection:** For each type conforming to FOSMVVM's `ViewModelOperations` protocol — directly or through a project protocol that refines it — read each method body. Flag methods that both READ from and WRITE to the same parameter within the same call. Resolve conformance, not the name: a project protocol declared `LocalBoardOperations: ViewModelOperations` is in scope despite not matching `*ViewModelOperations`, and a name-matching detection would let exactly the drifted types escape review.
 
 ## Check: ops-not-async-unless-needed
 **Severity:** warning

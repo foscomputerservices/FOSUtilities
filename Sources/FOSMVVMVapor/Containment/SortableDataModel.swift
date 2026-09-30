@@ -22,11 +22,11 @@ import Foundation
 /// applied everywhere the framework sorts this model.
 ///
 /// ```swift
-/// extension Berth: SortableDataModel {
-///     static func sortMappings(for key: BerthSortKey) -> [SortMapping<Berth>] {
+/// extension Card: SortableDataModel {
+///     static func sortMappings(for key: CardSortKey) -> [SortMapping<Card>] {
 ///         switch key {
-///         case .number:   [.keyPath(\Berth.$number)]
-///         case .dockName: [.keyPath(\Berth.$dockName), .keyPath(\Berth.$number)]  // stable tiebreak
+///         case .number:   [.keyPath(\Card.$number)]
+///         case .boardName: [.keyPath(\Card.$boardName), .keyPath(\Card.$number)]  // stable tiebreak
 ///         }
 ///     }
 /// }

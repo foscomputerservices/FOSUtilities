@@ -34,15 +34,15 @@ import NIOConcurrencyHelpers
 import Testing
 import Vapor
 
-/// Registers Harbor (the apex) + Dock and adds the remaining harbor migrations.
-/// CreateHarbor/CreatePier run BEFORE CreateDock — CreateDock's DDL references both tables.
-private func configureHarbor(_ app: Application) throws {
+/// Registers Workspace (the apex) + Board and adds the remaining workspace migrations.
+/// CreateWorkspace/CreatePier run BEFORE CreateBoard — CreateBoard's DDL references both tables.
+private func configureWorkspace(_ app: Application) throws {
     app.migrations.add(CreatePier())
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
 }
 
 /// Mints a real Request via Vapor's public initializer — the entry's receiver.
@@ -50,8 +50,8 @@ private func makeRequest(on app: Application) -> Request {
     Request(application: app, method: .GET, url: URI(string: "/"), on: app.eventLoopGroup.next())
 }
 
-private func berthNumbers(_ records: [any DataModel]) throws -> [Int] {
-    try records.map { try #require($0 as? Berth).number }
+private func cardNumbers(_ records: [any DataModel]) throws -> [Int] {
+    try records.map { try #require($0 as? Card).number }
 }
 
 /// Vends no authorizations — only its type identity matters for the duplicate-registration test;
@@ -70,17 +70,17 @@ private struct OtherProvider: ContainerAuthorizationProvider {
     }
 }
 
-/// Resolves dock1 at request time — grants need the seeded dock's identity, which exists only after
-/// seeding in the test body — and vends a Berth-read grant for that one container.
-private struct Dock1BerthReadProvider: ContainerAuthorizationProvider {
+/// Resolves dock1 at request time — grants need the seeded board's identity, which exists only after
+/// seeding in the test body — and vends a Card-read grant for that one container.
+private struct Dock1CardReadProvider: ContainerAuthorizationProvider {
     func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
-        guard let dock1 = try await Dock.query(on: request.db).filter(\.$name == "Dock 1").first() else {
+        guard let dock1 = try await Board.query(on: request.db).filter(\.$name == "Board 1").first() else {
             return []
         }
         return try [TestGrant(
             authorizedContainer: dock1.modelIdentity,
             operations: [.readRecords],
-            recordTypes: [Berth.modelIdentityNamespace]
+            recordTypes: [Card.modelIdentityNamespace]
         )]
     }
 }
@@ -97,15 +97,15 @@ private final class CountingProvider: ContainerAuthorizationProvider {
     }
 }
 
-/// Awaits real Fluent work (queries every dock row) before minting CrewMember-read grants — the
+/// Awaits real Fluent work (queries every board row) before minting Member-read grants — the
 /// async-provider shape an app's session/token lookup takes.
-private struct AsyncCrewGrantProvider: ContainerAuthorizationProvider {
+private struct AsyncMembersGrantProvider: ContainerAuthorizationProvider {
     func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
-        try await Dock.query(on: request.db).all().map { dock in
+        try await Board.query(on: request.db).all().map { board in
             try TestGrant(
-                authorizedContainer: dock.modelIdentity,
+                authorizedContainer: board.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [CrewMember.modelIdentityNamespace]
+                recordTypes: [Member.modelIdentityNamespace]
             )
         }
     }
@@ -138,26 +138,26 @@ struct AuthorizationProviderTests {
     }
 
     /// Spec test 2 (coverage): the registered provider's grants scope the load end-to-end through
-    /// acquisition — dock1's berths load; dock2's identity projects empty; and (fresh app) a
+    /// acquisition — dock1's cards load; dock2's identity projects empty; and (fresh app) a
     /// provider vending `[]` projects empty — the data-scoping invariant, never an error.
     @Test func providerGrantsScopeTheLoad() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
-            try app.useContainerAuthorizationProvider(Dock1BerthReadProvider())
+            try configureWorkspace(app)
+            try app.useContainerAuthorizationProvider(Dock1CardReadProvider())
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
+            let (dock1, dock2) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)
 
             let dock1Records = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(try berthNumbers(dock1Records).sorted() == [1, 2, 3])
+            #expect(try cardNumbers(dock1Records).sorted() == [1, 2, 3])
 
             let dock2Records = try await req.authorizedRecords(
                 of: dock2.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(dock2Records.isEmpty)
@@ -165,13 +165,13 @@ struct AuthorizationProviderTests {
 
         // Fresh app: the unauthenticated/unprivileged-subject shape — empty grants, empty loads.
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
             try app.useContainerAuthorizationProvider(EmptyProvider())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(records.isEmpty)
@@ -183,27 +183,27 @@ struct AuthorizationProviderTests {
     @Test func providerIsInvokedOncePerRequest() async throws {
         let provider = CountingProvider()
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
             try app.useContainerAuthorizationProvider(provider)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)
 
             _ = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             _ = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: CrewMember.self,
+                containing: Member.self,
                 for: .readRecords
             )
             #expect(provider.invocations.withLockedValue { $0 } == 1)
 
             _ = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(provider.invocations.withLockedValue { $0 } == 2)
@@ -214,13 +214,13 @@ struct AuthorizationProviderTests {
     /// — a configuration bug must never masquerade as universal denial (empty results).
     @Test func missingProviderThrows() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             do {
                 _ = try await makeRequest(on: app).authorizedRecords(
                     of: dock1.modelIdentity,
-                    containing: Berth.self,
+                    containing: Card.self,
                     for: .readRecords
                 )
                 Issue.record("expected ContainmentError.noAuthorizationProvider")
@@ -234,29 +234,29 @@ struct AuthorizationProviderTests {
     }
 
     /// Spec test 5 (coverage): a provider that awaits real Fluent work before minting grants
-    /// composes with acquisition end-to-end — dock1's crew loads; the un-granted Berth type
+    /// composes with acquisition end-to-end — dock1's members loads; the un-granted Card type
     /// projects empty.
     @Test func asyncFluentProviderScopesEndToEnd() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
-            try app.useContainerAuthorizationProvider(AsyncCrewGrantProvider())
+            try configureWorkspace(app)
+            try app.useContainerAuthorizationProvider(AsyncMembersGrantProvider())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)
 
-            let crew = try await req.authorizedRecords(
+            let members = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: CrewMember.self,
+                containing: Member.self,
                 for: .readRecords
             )
-            #expect(crew.count == 2)
+            #expect(members.count == 2)
 
-            let berths = try await req.authorizedRecords(
+            let cards = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(berths.isEmpty)
+            #expect(cards.isEmpty)
         }
     }
 }

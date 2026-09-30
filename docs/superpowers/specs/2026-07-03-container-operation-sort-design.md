@@ -63,11 +63,11 @@ and pagination types sit with the request protocols (`Sources/FOSMVVM/Protocols/
 ```swift
 /// A ``Model`` that owns and authorizes other records.
 ///
-/// Conform a model that contains others — a `Dock` owns its `Berth`s — and list what it contains:
+/// Conform a model that contains others — a `Board` owns its `Card`s — and list what it contains:
 ///
 /// ```swift
-/// struct Dock: Container {
-///     static var containedRecordTypes: [any Model.Type] { [Berth.self] }
+/// struct Board: Container {
+///     static var containedRecordTypes: [any Model.Type] { [Card.self] }
 ///     // ...Model requirements (id, requireId(), modelIdentityNamespace)...
 /// }
 /// ```
@@ -159,7 +159,7 @@ public extension Sequence where Element == ContainerOperation {
 /// Declare an enum of what a client may sort by:
 ///
 /// ```swift
-/// enum BerthSortKey: String, SortKey { case number, dockName, updatedAt }
+/// enum CardSortKey: String, SortKey { case number, boardName, updatedAt }
 /// ```
 ///
 /// The server maps each dimension to one or more sort keypaths; the client only ever names a dimension,
@@ -179,9 +179,9 @@ public struct SortTerm<Key: SortKey>: Codable, Hashable, Sendable {
 /// A client's chosen ordering for a container's records: an ordered list of ``SortTerm``s.
 ///
 /// ```swift
-/// // Sort berths by dock name, then by number descending:
-/// let sort = SortCriteria<BerthSortKey>([
-///     .init(key: .dockName, direction: .ascending),
+/// // Sort cards by board name, then by number descending:
+/// let sort = SortCriteria<CardSortKey>([
+///     .init(key: .boardName, direction: .ascending),
 ///     .init(key: .number, direction: .descending),
 /// ])
 /// let request = BerthsRequest(sort: sort)

@@ -24,11 +24,11 @@ import Vapor
 /// whose `ResponseBody` is this type (a read and the writes that return it) reuses it.
 ///
 /// ```swift
-/// extension DockPageViewModel: VaporResponseBodyFactory {
+/// extension BoardPageViewModel: VaporResponseBodyFactory {
 ///     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
 ///         where R.ResponseBody == Self {
-///         .init(berthCells: try context.records(Self.berths)
-///             .map { BerthCellViewModel(berth: $0) })
+///         .init(cardCells: try context.records(Self.cards)
+///             .map { CardCellViewModel(card: $0) })
 ///     }
 /// }
 /// ```

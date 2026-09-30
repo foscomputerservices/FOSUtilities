@@ -24,20 +24,20 @@ import FOSTestingVapor
 import Foundation
 import Testing
 
-/// Seeds one dock with three berths whose dockNames DISCRIMINATE the filter: two "North"
+/// Seeds one board with three cards whose boardNames DISCRIMINATE the filter: two "North"
 /// (numbers 3 and 1) and one "South" (number 2). A filter for "North" must return exactly the
-/// two North berths — never all three, never the wrong one.
-private func seedDockWithBerths(on db: any Database) async throws -> Dock {
-    let harbor = Harbor(name: "Filter Harbor")
-    try await harbor.save(on: db)
+/// two North cards — never all three, never the wrong one.
+private func seedBoardWithCards(on db: any Database) async throws -> Board {
+    let workspace = Workspace(name: "Filter Workspace")
+    try await workspace.save(on: db)
     let pier = Pier(name: "Filter Pier")
     try await pier.save(on: db)
-    let dock = try Dock(name: "Filter Dock", pierId: pier.requireId(), harborId: harbor.requireId())
-    try await dock.save(on: db)
-    try await Berth(number: 3, dockName: "North", dockId: dock.requireId()).save(on: db)
-    try await Berth(number: 2, dockName: "South", dockId: dock.requireId()).save(on: db)
-    try await Berth(number: 1, dockName: "North", dockId: dock.requireId()).save(on: db)
-    return dock
+    let board = try Board(name: "Filter Board", pierId: pier.requireId(), workspaceId: workspace.requireId())
+    try await board.save(on: db)
+    try await Card(number: 3, boardName: "North", boardId: board.requireId()).save(on: db)
+    try await Card(number: 2, boardName: "South", boardId: board.requireId()).save(on: db)
+    try await Card(number: 1, boardName: "North", boardId: board.requireId()).save(on: db)
+    return board
 }
 
 @Suite("Filtered containment member loads")
@@ -45,36 +45,36 @@ struct FilteredMembersTests {
     /// The request query pushes down into the children query as a WHERE — only the matching rows return.
     @Test func refinedChildrenHonorsFilter() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let dock = try await seedDockWithBerths(on: db)
+            let board = try await seedBoardWithCards(on: db)
             let refinement = ContainmentQueryRefinement(
-                filter: AnyFilter(BerthSearchQuery(dockName: "North"))
+                filter: AnyFilter(CardSearchQuery(boardName: "North"))
             )
-            let members = try await ContainmentRelation.children(\Dock.$berths)
-                .members(of: dock, on: db, applying: refinement)
-            return try members.map { try #require($0 as? Berth).number }.sorted()
+            let members = try await ContainmentRelation.children(\Board.$cards)
+                .members(of: board, on: db, applying: refinement)
+            return try members.map { try #require($0 as? Card).number }.sorted()
         }
-        #expect(numbers == [1, 3]) // the two North berths; the South berth (2) is excluded
+        #expect(numbers == [1, 3]) // the two North cards; the South card (2) is excluded
     }
 
     /// Filter, sort, and window compose: filter to North (numbers 3, 1), sort ascending, take the
     /// first — proves the filter narrows BEFORE the sort/window slice.
     @Test func filterComposesWithSortAndWindow() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let dock = try await seedDockWithBerths(on: db)
+            let board = try await seedBoardWithCards(on: db)
             let refinement = ContainmentQueryRefinement(
-                sortTerms: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .ascending)]).erasedTerms,
+                sortTerms: SortCriteria([SortTerm(key: CardSortKey.number, direction: .ascending)]).erasedTerms,
                 pagination: Pagination(startIndex: 0, maxResults: 1),
-                filter: AnyFilter(BerthSearchQuery(dockName: "North"))
+                filter: AnyFilter(CardSearchQuery(boardName: "North"))
             )
-            let members = try await ContainmentRelation.children(\Dock.$berths)
-                .members(of: dock, on: db, applying: refinement)
-            return try members.map { try #require($0 as? Berth).number }
+            let members = try await ContainmentRelation.children(\Board.$cards)
+                .members(of: board, on: db, applying: refinement)
+            return try members.map { try #require($0 as? Card).number }
         }
-        #expect(numbers == [1]) // North berths ascending = [1, 3]; window [0,1) = [1]
+        #expect(numbers == [1]) // North cards ascending = [1, 3]; window [0,1) = [1]
     }
 
     /// The critical new behavior: the COUNT twin honors the filter. Filter is the first axis that
@@ -82,61 +82,61 @@ struct FilteredMembersTests {
     /// unfiltered memberCount stays the full size (3). This is what keeps totalCount honest.
     @Test func memberCountHonorsFilter() async throws {
         let counts = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let dock = try await seedDockWithBerths(on: db)
-            let relation = ContainmentRelation.children(\Dock.$berths)
+            let board = try await seedBoardWithCards(on: db)
+            let relation = ContainmentRelation.children(\Board.$cards)
             let filtered = try await relation.memberCount(
-                of: dock, on: db,
-                applying: ContainmentQueryRefinement(filter: AnyFilter(BerthSearchQuery(dockName: "North")))
+                of: board, on: db,
+                applying: ContainmentQueryRefinement(filter: AnyFilter(CardSearchQuery(boardName: "North")))
             )
-            let unfiltered = try await relation.memberCount(of: dock, on: db)
+            let unfiltered = try await relation.memberCount(of: board, on: db)
             return (filtered: filtered, unfiltered: unfiltered)
         }
         #expect(counts.filtered == 2)
         #expect(counts.unfiltered == 3)
     }
 
-    /// Opportunistic: a query against a relation whose To is not FilterableDataModel (CrewMember) is
+    /// Opportunistic: a query against a relation whose To is not FilterableDataModel (Member) is
     /// simply not narrowed — the full set returns, nothing throws (a query is not a "filter demand").
     @Test func filterAgainstUnfilterableModelIsSkipped() async throws {
         let count = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db) // dock1 has 2 crew members
+            let (dock1, _) = try await seedWorkspace(on: db) // dock1 has 2 members members
             let refinement = ContainmentQueryRefinement(
-                filter: AnyFilter(BerthSearchQuery(dockName: "North"))
+                filter: AnyFilter(CardSearchQuery(boardName: "North"))
             )
-            return try await ContainmentRelation.siblings(\Dock.$crew)
+            return try await ContainmentRelation.siblings(\Board.$members)
                 .members(of: dock1, on: db, applying: refinement).count
         }
-        #expect(count == 2) // CrewMember is not filterable — unfiltered, all crew returned
+        #expect(count == 2) // Member is not filterable — unfiltered, all members returned
     }
 
-    /// Opportunistic: a filterable To (Berth) given a query of a type it does NOT read (its `Filter`
-    /// is BerthSearchQuery) is not narrowed — a different request's query reaching this model just
+    /// Opportunistic: a filterable To (Card) given a query of a type it does NOT read (its `Filter`
+    /// is CardSearchQuery) is not narrowed — a different request's query reaching this model just
     /// loads it unfiltered, never throws.
     @Test func wrongQueryTypeIsSkipped() async throws {
         let count = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let dock = try await seedDockWithBerths(on: db)
+            let board = try await seedBoardWithCards(on: db)
             let refinement = ContainmentQueryRefinement(
                 filter: AnyFilter(OtherQuery(value: 1))
             )
-            return try await ContainmentRelation.children(\Dock.$berths)
-                .members(of: dock, on: db, applying: refinement).count
+            return try await ContainmentRelation.children(\Board.$cards)
+                .members(of: board, on: db, applying: refinement).count
         }
-        #expect(count == 3) // OtherQuery is not Berth's Filter type — unfiltered, all berths returned
+        #expect(count == 3) // OtherQuery is not Card's Filter type — unfiltered, all cards returned
     }
 
     /// Cache-key behavior (the value IS the key): equal query meaning ⇒ equal refinements with
     /// equal hashes; a differing query — or a different query TYPE — ⇒ unequal. Behavior only,
     /// no representation.
     @Test func refinementEqualityFollowsFilter() {
-        let north = ContainmentQueryRefinement(filter: AnyFilter(BerthSearchQuery(dockName: "North")))
-        let sameNorth = ContainmentQueryRefinement(filter: AnyFilter(BerthSearchQuery(dockName: "North")))
-        let south = ContainmentQueryRefinement(filter: AnyFilter(BerthSearchQuery(dockName: "South")))
+        let north = ContainmentQueryRefinement(filter: AnyFilter(CardSearchQuery(boardName: "North")))
+        let sameNorth = ContainmentQueryRefinement(filter: AnyFilter(CardSearchQuery(boardName: "North")))
+        let south = ContainmentQueryRefinement(filter: AnyFilter(CardSearchQuery(boardName: "South")))
         let otherType = ContainmentQueryRefinement(filter: AnyFilter(OtherQuery(value: 1)))
         #expect(north == sameNorth)
         #expect(north.hashValue == sameNorth.hashValue)

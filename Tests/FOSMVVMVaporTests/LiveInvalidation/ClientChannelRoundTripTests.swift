@@ -30,13 +30,13 @@ import Vapor
 @Suite("Default SSE channel — end-to-end round-trip (spec §3.2, test group 6)")
 struct ClientChannelRoundTripTests {
     /// The default channel opens against the served endpoint, signals `.connected`, and — after a
-    /// real Fluent save — delivers `.invalidated` with the containment-derived set {Berth, Dock}.
+    /// real Fluent save — delivers `.invalidated` with the containment-derived set {Card, Board}.
     @Test func connectsThenReceivesInvalidation() async throws {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(200)
-            try configureLiveHarbor(app, on: app.routes)
+            try configureLiveWorkspace(app, on: app.routes)
         } _: { app, baseURL in
-            let (dock1, _) = try await seedHarbor(on: app.db)
+            let (dock1, _) = try await seedWorkspace(on: app.db)
             let session = URLSession(configuration: .ephemeral)
             defer { session.invalidateAndCancel() }
 
@@ -55,9 +55,9 @@ struct ClientChannelRoundTripTests {
                     throw RoundTripError.expectedConnected
                 }
 
-                let berth = try Berth(number: 777, dockName: dock1.name, dockId: dock1.requireId())
-                try await berth.save(on: app.db)
-                let expected = try Set([berth.modelIdentity, dock1.modelIdentity])
+                let card = try Card(number: 777, boardName: dock1.name, boardId: dock1.requireId())
+                try await card.save(on: app.db)
+                let expected = try Set([card.modelIdentity, dock1.modelIdentity])
 
                 while let event = await iterator.next() {
                     if case .invalidated(let identities) = event {
@@ -77,7 +77,7 @@ struct ClientChannelRoundTripTests {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(200)
             let secured = app.grouped(CapturingMiddleware(capture))
-            try configureLiveHarbor(app, on: secured)
+            try configureLiveWorkspace(app, on: secured)
         } _: { _, baseURL in
             let session = URLSession(configuration: .ephemeral)
             defer { session.invalidateAndCancel() }
@@ -106,7 +106,7 @@ struct ClientChannelRoundTripTests {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(200)
             let denied = app.grouped(DenyAllMiddleware())
-            try configureLiveHarbor(app, on: denied)
+            try configureLiveWorkspace(app, on: denied)
         } _: { _, baseURL in
             let session = URLSession(configuration: .ephemeral)
             defer { session.invalidateAndCancel() }
@@ -152,7 +152,7 @@ struct ClientChannelRoundTripTests {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(200)
             let denied = app.grouped(DenyAllMiddleware())
-            try configureLiveHarbor(app, on: denied)
+            try configureLiveWorkspace(app, on: denied)
         } _: { _, baseURL in
             let session = URLSession(configuration: .ephemeral)
             defer { session.invalidateAndCancel() }
@@ -199,7 +199,7 @@ struct ClientChannelRoundTripTests {
         try await withServedFluentTestApp { app in
             app.invalidationHeartbeatInterval = .milliseconds(200)
             let denied = app.grouped(Deny500Middleware())
-            try configureLiveHarbor(app, on: denied)
+            try configureLiveWorkspace(app, on: denied)
         } _: { _, baseURL in
             let session = URLSession(configuration: .ephemeral)
             defer { session.invalidateAndCancel() }
@@ -297,14 +297,14 @@ private actor EventLog {
     }
 }
 
-/// Registers the harbor graph and enables live invalidation, mounting the SSE endpoint on `routes`.
-private func configureLiveHarbor(_ app: Application, on routes: any RoutesBuilder) throws {
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
+/// Registers the workspace graph and enables live invalidation, mounting the SSE endpoint on `routes`.
+private func configureLiveWorkspace(_ app: Application, on routes: any RoutesBuilder) throws {
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useLiveInvalidation(on: routes)
 }
 

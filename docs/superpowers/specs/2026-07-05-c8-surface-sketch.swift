@@ -32,13 +32,13 @@ import Vapor
 /// factory, aggregated automatically, loaded once per request.
 ///
 /// ```swift
-/// extension DockPageViewModel: ComposableFactory {
-///     static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+/// extension BoardPageViewModel: ComposableFactory {
+///     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
 ///         .refinedByRequest
 ///
-///     static var dataRequirements: [any DataRequirement] { [berths] }
+///     static var dataRequirements: [any DataRequirement] { [cards] }
 ///     static var children: [ComposedChild] {
-///         [.child(BerthCellViewModel.self)]
+///         [.child(CardCellViewModel.self)]
 ///     }
 /// }
 /// ```
@@ -99,9 +99,9 @@ public struct LoadRequirement<Record: Model>: DataRequirement {
     /// Records this scope's grants authorize reading.
     ///
     /// ```swift
-    /// .read(Berth.self, in: .parentRoot)              // one hop: implicit
-    /// .read(SlipAssignment.self, in: .parentRoot,
-    ///       via: Berth.self)                          // via = INTERMEDIATE hops only
+    /// .read(Card.self, in: .parentRoot)              // one hop: implicit
+    /// .read(Assignment.self, in: .parentRoot,
+    ///       via: Card.self)                          // via = INTERMEDIATE hops only
     /// ```
     ///
     /// `via:` lists the *intermediate* containment hops from the root — the
@@ -199,8 +199,8 @@ public protocol TargetedQuery: ServerRequestQuery {
 // the genuine GET pipeline run on refreshRequest(), not a special path.
 // The authored bridge is a pure value mapping (shared module):
 //
-//     func refreshRequest() -> DockPageRequest {
-//         DockPageRequest(query: .init(dock: query.dock))
+//     func refreshRequest() -> BoardPageRequest {
+//         BoardPageRequest(query: .init(board: query.board))
 //     }
 //
 // The write request's ResponseBody is its refresh request's — by
@@ -215,10 +215,10 @@ public protocol TargetedQuery: ServerRequestQuery {
 /// every server-rendered body, ViewModel or not.
 ///
 /// ```swift
-/// extension DockPageViewModel: VaporResponseBodyFactory {
+/// extension BoardPageViewModel: VaporResponseBodyFactory {
 ///     static func body(context: ProjectionContext<Request, Void>) throws -> Self {
-///         .init(berthCells: try context.records(Self.berths)
-///             .map { BerthCellViewModel(berth: $0) })
+///         .init(cardCells: try context.records(Self.cards)
+///             .map { CardCellViewModel(card: $0) })
 ///     }
 /// }
 /// ```
@@ -256,8 +256,8 @@ public extension VaporResponseBodyFactory {
 ///
 /// ```swift
 /// static func body(context: ProjectionContext<Request, SessionBanner>) throws -> Self {
-///     let berths = try context.records(Self.berths)              // own handle
-///     let crew   = try context.records(CrewListViewModel.crew)   // a child's
+///     let cards = try context.records(Self.cards)              // own handle
+///     let members   = try context.records(MembersListViewModel.members)   // a child's
 ///     return .init(..., signedInAs: context.appState.userName)
 /// }
 /// ```
@@ -304,8 +304,8 @@ public struct ProjectionContext<Request: ServerRequest, AppState: Sendable>: Vie
 /// by the shared `RequestBody` in the SERVER target.
 ///
 /// ```swift
-/// extension DeleteBerthRequest.RequestBody: WriteTargetProviding {
-///     static let candidates = LoadRequirement.delete(Berth.self, in: .parentRoot)
+/// extension DeleteCardRequest.RequestBody: WriteTargetProviding {
+///     static let candidates = LoadRequirement.delete(Card.self, in: .parentRoot)
 /// }
 /// ```
 ///
@@ -337,12 +337,12 @@ public protocol WriteTargetProviding: Sendable {
 /// loading, saving, FK wiring, deletion, the refresh.
 ///
 /// ```swift
-/// extension UpdateBerthRequest.RequestBody: DataModelWriter {
-///     static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+/// extension UpdateCardRequest.RequestBody: DataModelWriter {
+///     static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
 ///
-///     func apply(to berth: Berth) throws {
-///         berth.name = name
-///         berth.capacity = capacity
+///     func apply(to card: Card) throws {
+///         card.name = name
+///         card.capacity = capacity
 ///     }
 /// }
 /// ```
@@ -392,7 +392,7 @@ public extension Vapor.Application {
     /// ViewModel-bodied or not (7A — `register(viewModel:)` is gone).
     ///
     /// ```swift
-    /// try app.register(request: DockPageRequest.self)
+    /// try app.register(request: BoardPageRequest.self)
     /// ```
     ///
     /// Register containers (`app.register(_:migration:)`) first — a
@@ -448,7 +448,7 @@ public extension Vapor.Application {
     ///
     /// ```swift
     /// app.useApexContainerResolver { req in
-    ///     try await req.auth.require(User.self).harborIdentity
+    ///     try await req.auth.require(User.self).workspaceIdentity
     /// }
     /// ```
     func useApexContainerResolver(
@@ -460,7 +460,7 @@ public extension Vapor.Application {
 
 // ═══════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════
-// MARK: - USAGE — the Harbor app, all five shapes
+// MARK: - USAGE — the Workspace app, all five shapes
 // ═══════════════════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -478,26 +478,26 @@ extension LandingPageViewModel: VaporResponseBodyFactory {
 // MARK: 2 · Read screen — trait + factory, child composition, appState
 // ───────────────────────────────────────────────────────────────────────
 
-extension DockPageViewModel: ComposableFactory {
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+extension BoardPageViewModel: ComposableFactory {
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
         .refinedByRequest // the request's Sort/Pagination land here
 
-    static var dataRequirements: [any DataRequirement] { [berths] }
+    static var dataRequirements: [any DataRequirement] { [cards] }
     static var children: [ComposedChild] {
-        [.child(CrewListViewModel.self)] // pulls crew's requirements in
+        [.child(MembersListViewModel.self)] // pulls members's requirements in
     }
 }
 
-extension DockPageViewModel: VaporResponseBodyFactory {
+extension BoardPageViewModel: VaporResponseBodyFactory {
     static func body(context: ProjectionContext<Request, SessionBanner>) throws -> Self {
         .init(
-            berthCells: try context.records(Self.berths)
-                .map { BerthCellViewModel(berth: $0) },
+            cardCells: try context.records(Self.cards)
+                .map { CardCellViewModel(card: $0) },
             // Child composition is authored value construction from the
             // child's OWN loaded handle — there is no framework child-
             // projection API:
-            crewList: CrewListViewModel(
-                members: try context.records(CrewListViewModel.crew)),
+            membersList: MembersListViewModel(
+                members: try context.records(MembersListViewModel.members)),
             signedInAs: context.appState.userName // via useAppState
         )
     }
@@ -509,10 +509,10 @@ extension DockPageViewModel: VaporResponseBodyFactory {
 
 // SHARED module — the request (its CRUD protocol picks the HTTP verb):
 
-final class UpdateBerthRequest: UpdateRequest {
+final class UpdateCardRequest: UpdateRequest {
     final class Query: TargetedQuery, RootedQuery {
-        let dock: ModelIdentity //   RootedQuery — the .query root
-        let target: ModelIdentity // TargetedQuery — WHICH berth (opaque,
+        let board: ModelIdentity //   RootedQuery — the .query root
+        let target: ModelIdentity // TargetedQuery — WHICH card (opaque,
     } //                             echoed from the VM the client displayed)
 
     final class RequestBody: ServerRequestBody, ValidatableModel {
@@ -525,24 +525,24 @@ final class UpdateBerthRequest: UpdateRequest {
     }
 
     // D-C8-7 — the typed bridge: pass #2 re-serves THIS read request.
-    typealias RefreshRequest = DockPageRequest
-    typealias ResponseBody = DockPageRequest.ResponseBody // by constraint
+    typealias RefreshRequest = BoardPageRequest
+    typealias ResponseBody = BoardPageRequest.ResponseBody // by constraint
 
-    func refreshRequest() -> DockPageRequest {
-        DockPageRequest(query: .init(dock: query.dock))
+    func refreshRequest() -> BoardPageRequest {
+        BoardPageRequest(query: .init(board: query.board))
     }
 }
 
 // SERVER target — ONE conformance carries candidates + apply:
 
-extension UpdateBerthRequest.RequestBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+extension UpdateCardRequest.RequestBody: DataModelWriter {
+    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
     // the candidate set — loaded on PATCH only; a GET of the page never
     // loads it (D-C8-8). Target must be a member, or not-found.
 
-    func apply(to berth: Berth) throws { // sync, no Database (D-C8-9)
-        berth.name = name
-        berth.capacity = capacity
+    func apply(to card: Card) throws { // sync, no Database (D-C8-9)
+        card.name = name
+        card.capacity = capacity
     }
 }
 
@@ -556,9 +556,9 @@ extension UpdateBerthRequest.RequestBody: DataModelWriter {
 // MARK: 4 · Delete — candidates only; nothing to apply
 // ───────────────────────────────────────────────────────────────────────
 
-final class DeleteBerthRequest: DeleteRequest {
+final class DeleteCardRequest: DeleteRequest {
     final class Query: TargetedQuery, RootedQuery {
-        let dock: ModelIdentity
+        let board: ModelIdentity
         let target: ModelIdentity
     }
 
@@ -566,16 +566,16 @@ final class DeleteBerthRequest: DeleteRequest {
     // WriteTargetProviding would collide on the second delete request.
     final class RequestBody: ServerRequestBody {}
 
-    typealias RefreshRequest = DockPageRequest
-    typealias ResponseBody = DockPageRequest.ResponseBody
+    typealias RefreshRequest = BoardPageRequest
+    typealias ResponseBody = BoardPageRequest.ResponseBody
 
-    func refreshRequest() -> DockPageRequest {
-        DockPageRequest(query: .init(dock: query.dock))
+    func refreshRequest() -> BoardPageRequest {
+        BoardPageRequest(query: .init(board: query.board))
     }
 }
 
-extension DeleteBerthRequest.RequestBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.delete(Berth.self, in: .parentRoot)
+extension DeleteCardRequest.RequestBody: WriteTargetProviding {
+    static let candidates = LoadRequirement.delete(Card.self, in: .parentRoot)
     // no apply — deletion is framework-owned
 }
 
@@ -583,18 +583,18 @@ extension DeleteBerthRequest.RequestBody: WriteTargetProviding {
 // MARK: 5 · Non-VM body — a CLI's manifest, same machinery (D-C8-4)
 // ───────────────────────────────────────────────────────────────────────
 
-struct DockManifest: ServerRequestBody {
+struct BoardManifest: ServerRequestBody {
     let lines: [ManifestLine]
 }
 
-extension DockManifest: ComposableFactory {
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] { [berths] }
+extension BoardManifest: ComposableFactory {
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
+    static var dataRequirements: [any DataRequirement] { [cards] }
 }
 
-extension DockManifest: VaporResponseBodyFactory {
+extension BoardManifest: VaporResponseBodyFactory {
     static func body(context: ProjectionContext<ManifestRequest, Void>) throws -> Self {
-        .init(lines: try context.records(Self.berths).map(ManifestLine.init))
+        .init(lines: try context.records(Self.cards).map(ManifestLine.init))
     }
 }
 
@@ -604,18 +604,18 @@ extension DockManifest: VaporResponseBodyFactory {
 
 func routes(_ app: Application) throws {
     try app.register(Pier.self, migration: CreatePier()) // containers first
-    try app.register(Dock.self, migration: CreateDock())
+    try app.register(Board.self, migration: CreateBoard())
 
     app.useApexContainerResolver { req in //                 .apex roots
-        try await req.auth.require(User.self).harborIdentity
+        try await req.auth.require(User.self).workspaceIdentity
     }
     try app.useAppState(SessionBanner.self) { req in //      projection appState
         SessionBanner(userName: try req.auth.require(User.self).displayName)
     }
 
     try app.register(request: LandingPageRequest.self) //    one door,
-    try app.register(request: DockPageRequest.self) //       reads and
-    try app.register(request: UpdateBerthRequest.self) //    writes alike
-    try app.register(request: DeleteBerthRequest.self)
+    try app.register(request: BoardPageRequest.self) //       reads and
+    try app.register(request: UpdateCardRequest.self) //    writes alike
+    try app.register(request: DeleteCardRequest.self)
     try app.register(request: ManifestRequest.self)
 }

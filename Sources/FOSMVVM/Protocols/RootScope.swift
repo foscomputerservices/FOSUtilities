@@ -21,8 +21,8 @@ import Foundation
 /// Read it as the preposition at the call site:
 ///
 /// ```swift
-/// .read(Berth.self, in: .parentRoot)              // shares the declaring factory's scope
-/// .read(HarborBanner.self, in: .newRoot(.apex))    // starts a fresh tree at the apex
+/// .read(Card.self, in: .parentRoot)              // shares the declaring factory's scope
+/// .read(WorkspaceBanner.self, in: .newRoot(.apex))    // starts a fresh tree at the apex
 /// ```
 public enum RootScope: Hashable, Sendable {
     /// Shares the declaring factory's scope — the overwhelmingly common case.
@@ -34,8 +34,8 @@ public enum RootScope: Hashable, Sendable {
 /// Where a fresh ``RootScope/newRoot(_:)`` root's identity comes from.
 ///
 /// ```swift
-/// .read(Berth.self, in: .newRoot(.query))          // the request's RootedQuery vends it
-/// .read(HarborBanner.self, in: .newRoot(.apex))     // the app's apex container, server-resolved
+/// .read(Card.self, in: .newRoot(.query))          // the request's RootedQuery vends it
+/// .read(WorkspaceBanner.self, in: .newRoot(.apex))     // the app's apex container, server-resolved
 /// ```
 public enum RootSource: Hashable, Sendable, CaseIterable {
     /// The request's ``RootedQuery`` vends the root identity.

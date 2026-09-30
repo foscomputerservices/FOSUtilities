@@ -63,8 +63,8 @@
 - Engine entries: `Extensions/Request+ContainerLoad.swift` — provider-driven
   `authorizedRecords(of:containing:for:authorizedAs:sortedBy:pagination:)` L112
   (KEEP; the executor calls it); internal `authorizedBy:` entry L40-48 (REMOVE, Task 7).
-- Harbor fixtures: `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift`
-  (Pier/Dock/Berth/CrewMember/DockCrew); composition test request/VM fixtures in
+- Workspace fixtures: `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift`
+  (Pier/Board/Card/Member/BoardMember); composition test request/VM fixtures in
   `Composition/PlanRegistrationTests.swift:141-176`.
 
 ## File structure (created/modified, by responsibility)
@@ -138,8 +138,8 @@ struct SealedRequirementTests {
     }
 
     @Test func packViaProducesIdenticalTuples() throws {
-        // fixture declaring .read(SlipFixture.self, in: .parentRoot, via: BerthFixture.self)
-        // walk it; assert tuple path == [BerthFixture.self] identity, record == Slip —
+        // fixture declaring .read(SlipFixture.self, in: .parentRoot, via: CardFixture.self)
+        // walk it; assert tuple path == [CardFixture.self] identity, record == Slip —
         // byte-equal to the C7 baseline expectations already asserted in walk tests
     }
 
@@ -284,7 +284,7 @@ func refreshRequest() -> RefreshRequest
   registration tests exercise a seam §3.10 removes:
   `PlanRegistrationTests.swift:626` and `PlanExecutorTests.swift:783` call
   `.grouped("api").register(viewModel:)` (fixtures `GroupedPageVM`, grouped
-  `DockPageVM`) and assert the C7 grouped-path config error. Under C8 there is
+  `BoardPageVM`) and assert the C7 grouped-path config error. Under C8 there is
   NO `RoutesBuilder` registration at all — `register(request:)` exists only on
   `Vapor.Application`. **Delete these tests + their fixtures** and replace with
   one compile-audit comment line pinning "registration is Application-only".
@@ -296,7 +296,7 @@ func refreshRequest() -> RefreshRequest
 - [ ] **Step 1: Failing tests** (write all four, expect compile failures):
 
 ```swift
-// ProjectionContextTests — withFluentTestApp; Harbor fixtures
+// ProjectionContextTests — withFluentTestApp; Workspace fixtures
 @Test func plannedHandleReadsBackCachedRecords()   // group 3: own handle + a child's
 @Test func unplannedHandleThrows()                  // never [] — assert throws; message
                                                     // names handle + factory (behavior only)
@@ -385,7 +385,7 @@ func refreshRequest() -> RefreshRequest
 - Test: `Tests/FOSMVVMVaporTests/Containment/WriteRouteTests.swift` (create),
   fixtures extended in `ContainmentFixtures.swift` + a new
   `Tests/FOSMVVMVaporTests/Containment/WriteFixtures.swift`
-  (UpdateBerthRequest/DeleteBerthRequest/CreateBerthRequest + bespoke RequestBodies —
+  (UpdateCardRequest/DeleteCardRequest/CreateCardRequest + bespoke RequestBodies —
   sketch MARK 3/4 verbatim, `rootIdentity` spelled per shipped `RootedQuery`;
   **no `ModelIdType` in any RequestBody — grep-audited in T8**)
 
@@ -523,8 +523,8 @@ grep -rn 'ModelIdType' Tests/FOSMVVMVaporTests/Containment/WriteFixtures.swift
   middleware, so read routes stay untouched and the decode error propagates as the
   request's error.
 - **`RootedQuery.rootIdentity`** is the shipped property name — fixtures use it
-  (the sketch's `let dock:` was illustrative; satisfy the protocol with
-  `var rootIdentity: ModelIdentity { dock }` or name the stored property
+  (the sketch's `let board:` was illustrative; satisfy the protocol with
+  `var rootIdentity: ModelIdentity { board }` or name the stored property
   `rootIdentity` outright).
 - **Fixture bodies must be bespoke types** (never `EmptyBody`) — the
   `WriteTargetProviding` conformance would otherwise be a single global retroactive

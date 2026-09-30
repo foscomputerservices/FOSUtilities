@@ -28,38 +28,38 @@ import Vapor
 
 // MARK: - Queries
 
-/// Roots a request at a Dock (the berths' container).
-struct DockRootQuery: RootedQuery {
+/// Roots a request at a Board (the cards' container).
+struct BoardRootQuery: RootedQuery {
     let rootIdentity: ModelIdentity
 }
 
-/// Names both the scope root (RootedQuery) and the targeted berth (TargetedQuery). The target is
+/// Names both the scope root (RootedQuery) and the targeted card (TargetedQuery). The target is
 /// an opaque identity echoed from the ViewModel — never a raw id in the body.
-struct BerthTargetQuery: TargetedQuery, RootedQuery {
+struct CardTargetQuery: TargetedQuery, RootedQuery {
     let rootIdentity: ModelIdentity
     let target: ModelIdentity
 }
 
 // MARK: - Refresh read screen (the write's fall-through body)
 
-/// A read screen that surfaces its dock's berths — the body every write request refreshes to.
+/// A read screen that surfaces its board's cards — the body every write request refreshes to.
 /// It reflects post-write state because it re-reads through the genuine load pipeline.
-struct BerthListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
-    typealias Request = BerthListRequest
+struct CardListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = CardListRequest
 
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
     static var dataRequirements: [any DataRequirement] {
-        [berths]
+        [cards]
     }
 
     var vmId = ViewModelId()
-    var berthNumbers: [Int] = []
-    var berthNames: [String] = []
+    var cardNumbers: [Int] = []
+    var cardNames: [String] = []
 
     init() {}
-    init(berthNumbers: [Int], berthNames: [String]) {
-        self.berthNumbers = berthNumbers
-        self.berthNames = berthNames
+    init(cardNumbers: [Int], cardNames: [String]) {
+        self.cardNumbers = cardNumbers
+        self.cardNames = cardNames
     }
 
     func propertyNames() -> [LocalizableId: String] {
@@ -71,26 +71,26 @@ struct BerthListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFa
     }
 
     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
-        let berths = try context.records(Self.berths)
+        let cards = try context.records(Self.cards)
         return .init(
-            berthNumbers: berths.map(\.number).sorted(),
-            berthNames: berths.map(\.dockName)
+            cardNumbers: cards.map(\.number).sorted(),
+            cardNames: cards.map(\.boardName)
         )
     }
 }
 
 /// The refresh body doubles as the write requests' ResponseBody — it adopts the write markers.
-extension BerthListVM: UpdateResponseBody, CreateResponseBody, ArchiveResponseBody {}
+extension CardListVM: UpdateResponseBody, CreateResponseBody, ArchiveResponseBody {}
 
-final class BerthListRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootQuery
+final class CardListRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = BoardRootQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootQuery?
-    var responseBody: BerthListVM?
+    let query: BoardRootQuery?
+    var responseBody: CardListVM?
 
-    init(query: DockRootQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BerthListVM? = nil) {
+    init(query: BoardRootQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: CardListVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -100,9 +100,9 @@ final class BerthListRequest: ViewModelRequest, @unchecked Sendable {
 // MARK: - Update
 
 /// A bespoke per-request body — validated (number must be non-negative), never EmptyBody.
-struct UpdateBerthBody: ServerRequestBody, ValidatableModel {
+struct UpdateCardBody: ServerRequestBody, ValidatableModel {
     var number: Int
-    var dockName: String
+    var boardName: String
 
     func validate(fields _: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
         guard number >= 0 else {
@@ -116,28 +116,28 @@ struct UpdateBerthBody: ServerRequestBody, ValidatableModel {
 }
 
 /// SERVER target: one conformance carries candidates + sync apply (no Database).
-extension UpdateBerthBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+extension UpdateCardBody: DataModelWriter {
+    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
 
-    func apply(to berth: Berth) throws {
-        berth.number = number
-        berth.dockName = dockName
+    func apply(to card: Card) throws {
+        card.number = number
+        card.boardName = boardName
     }
 }
 
-final class UpdateBerthRequest: UpdateRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
-    typealias RequestBody = UpdateBerthBody
+final class UpdateCardRequest: UpdateRequest, @unchecked Sendable {
+    typealias Query = CardTargetQuery
+    typealias RequestBody = UpdateCardBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
-    let query: BerthTargetQuery?
-    let requestBody: UpdateBerthBody?
-    var responseBody: BerthListVM?
+    let query: CardTargetQuery?
+    let requestBody: UpdateCardBody?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: UpdateBerthBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: UpdateCardBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.requestBody = requestBody
@@ -151,37 +151,37 @@ final class UpdateBerthRequest: UpdateRequest, @unchecked Sendable {
 
 // MARK: - Create
 
-struct CreateBerthBody: ServerRequestBody, ValidatableModel {
+struct CreateCardBody: ServerRequestBody, ValidatableModel {
     var number: Int
-    var dockName: String
+    var boardName: String
 
     func validate(fields _: [any FormFieldBase]?, validations _: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
         nil
     }
 }
 
-extension CreateBerthBody: DataModelWriter {
-    static let candidates = LoadRequirement.create(Berth.self, in: .parentRoot)
+extension CreateCardBody: DataModelWriter {
+    static let candidates = LoadRequirement.create(Card.self, in: .parentRoot)
 
-    func apply(to berth: Berth) throws {
-        berth.number = number
-        berth.dockName = dockName
+    func apply(to card: Card) throws {
+        card.number = number
+        card.boardName = boardName
     }
 }
 
-final class CreateBerthRequest: CreateRequest, @unchecked Sendable {
-    typealias Query = DockRootQuery
-    typealias RequestBody = CreateBerthBody
+final class CreateCardRequest: CreateRequest, @unchecked Sendable {
+    typealias Query = BoardRootQuery
+    typealias RequestBody = CreateCardBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
-    let query: DockRootQuery?
-    let requestBody: CreateBerthBody?
-    var responseBody: BerthListVM?
+    let query: BoardRootQuery?
+    let requestBody: CreateCardBody?
+    var responseBody: CardListVM?
 
-    init(query: DockRootQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: CreateBerthBody?, responseBody: BerthListVM?) {
+    init(query: BoardRootQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: CreateCardBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.requestBody = requestBody
@@ -197,25 +197,25 @@ final class CreateBerthRequest: CreateRequest, @unchecked Sendable {
 
 /// A bespoke empty body — conforming a shared empty-body type to WriteTargetProviding would be one
 /// global retroactive conformance colliding across every delete request.
-struct ArchiveBerthBody: ServerRequestBody {}
+struct ArchiveCardBody: ServerRequestBody {}
 
-extension ArchiveBerthBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.archive(Berth.self, in: .parentRoot)
+extension ArchiveCardBody: WriteTargetProviding {
+    static let candidates = LoadRequirement.archive(Card.self, in: .parentRoot)
 }
 
-final class ArchiveBerthRequest: ArchiveRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
-    typealias RequestBody = ArchiveBerthBody
+final class ArchiveCardRequest: ArchiveRequest, @unchecked Sendable {
+    typealias Query = CardTargetQuery
+    typealias RequestBody = ArchiveCardBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
-    let query: BerthTargetQuery?
-    let requestBody: ArchiveBerthBody?
-    var responseBody: BerthListVM?
+    let query: CardTargetQuery?
+    let requestBody: ArchiveCardBody?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: ArchiveBerthBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: ArchiveCardBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.requestBody = requestBody
@@ -321,20 +321,20 @@ struct TargetOnlyQuery: TargetedQuery {
 
 final class NoRootUpdateRequest: UpdateRequest, @unchecked Sendable {
     typealias Query = TargetOnlyQuery
-    typealias RequestBody = UpdateBerthBody
+    typealias RequestBody = UpdateCardBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
-    var requestBody: UpdateBerthBody? {
+    var requestBody: UpdateCardBody? {
         nil
     }
 
     let query: TargetOnlyQuery?
-    var responseBody: BerthListVM?
+    var responseBody: CardListVM?
 
-    init(query: TargetOnlyQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: UpdateBerthBody?, responseBody: BerthListVM?) {
+    init(query: TargetOnlyQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: UpdateCardBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -356,29 +356,29 @@ struct ApexUpdateBody: ServerRequestBody, ValidatableModel {
 }
 
 extension ApexUpdateBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Berth.self, in: .newRoot(.apex), via: Dock.self)
+    static let candidates = LoadRequirement.write(Card.self, in: .newRoot(.apex), via: Board.self)
 
-    func apply(to berth: Berth) throws {
-        berth.number = number
+    func apply(to card: Card) throws {
+        card.number = number
     }
 }
 
 final class ApexUpdateRequest: UpdateRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
+    typealias Query = CardTargetQuery
     typealias RequestBody = ApexUpdateBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
     var requestBody: ApexUpdateBody? {
         nil
     }
 
-    let query: BerthTargetQuery?
-    var responseBody: BerthListVM?
+    let query: CardTargetQuery?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ApexUpdateBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ApexUpdateBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -401,31 +401,31 @@ struct ComputedCandidatesBody: ServerRequestBody, ValidatableModel {
 
 extension ComputedCandidatesBody: DataModelWriter {
     /// Deliberately computed (a `var`, not a stored `let`) — the token-stability lint rejects it.
-    static var candidates: LoadRequirement<Berth> {
-        .write(Berth.self, in: .parentRoot)
+    static var candidates: LoadRequirement<Card> {
+        .write(Card.self, in: .parentRoot)
     }
 
-    func apply(to berth: Berth) throws {
-        berth.number = number
+    func apply(to card: Card) throws {
+        card.number = number
     }
 }
 
 final class ComputedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
+    typealias Query = CardTargetQuery
     typealias RequestBody = ComputedCandidatesBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
     var requestBody: ComputedCandidatesBody? {
         nil
     }
 
-    let query: BerthTargetQuery?
-    var responseBody: BerthListVM?
+    let query: CardTargetQuery?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ComputedCandidatesBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ComputedCandidatesBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -443,7 +443,7 @@ struct ComputedReadVM: RequestableViewModel, ComposableFactory, VaporResponseBod
 
     /// Deliberately computed — mints fresh tokens on each access.
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Berth.self, in: .parentRoot)]
+        [LoadRequirement.read(Card.self, in: .parentRoot)]
     }
 
     var vmId = ViewModelId()
@@ -463,14 +463,14 @@ struct ComputedReadVM: RequestableViewModel, ComposableFactory, VaporResponseBod
 }
 
 final class ComputedReadRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootQuery
+    typealias Query = BoardRootQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootQuery?
+    let query: BoardRootQuery?
     var responseBody: ComputedReadVM?
 
-    init(query: DockRootQuery? = nil, sort _: EmptySort? = nil, fragment _: EmptyFragment? = nil, requestBody _: EmptyBody? = nil, responseBody: ComputedReadVM? = nil) {
+    init(query: BoardRootQuery? = nil, sort _: EmptySort? = nil, fragment _: EmptyFragment? = nil, requestBody _: EmptyBody? = nil, responseBody: ComputedReadVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -482,25 +482,25 @@ final class ComputedReadRequest: ViewModelRequest, @unchecked Sendable {
 struct WrongVerbArchiveBody: ServerRequestBody {}
 
 extension WrongVerbArchiveBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
 }
 
 final class WrongVerbArchiveRequest: ArchiveRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
+    typealias Query = CardTargetQuery
     typealias RequestBody = WrongVerbArchiveBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
-    let query: BerthTargetQuery?
+    let query: CardTargetQuery?
     var requestBody: WrongVerbArchiveBody? {
         nil
     }
 
-    var responseBody: BerthListVM?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: WrongVerbArchiveBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: WrongVerbArchiveBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -522,29 +522,29 @@ struct RefinedCandidatesBody: ServerRequestBody, ValidatableModel {
 }
 
 extension RefinedCandidatesBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot).refinedByRequest
+    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot).refinedByRequest
 
-    func apply(to berth: Berth) throws {
-        berth.number = number
+    func apply(to card: Card) throws {
+        card.number = number
     }
 }
 
 final class RefinedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
+    typealias Query = CardTargetQuery
     typealias RequestBody = RefinedCandidatesBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
-    typealias ResponseBody = BerthListVM
+    typealias ResponseBody = CardListVM
 
     let id: String
-    let query: BerthTargetQuery?
+    let query: CardTargetQuery?
     var requestBody: RefinedCandidatesBody? {
         nil
     }
 
-    var responseBody: BerthListVM?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: RefinedCandidatesBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: RefinedCandidatesBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -588,7 +588,7 @@ final class EchoDestroyRequest: DestroyRequest, @unchecked Sendable {
 // MARK: - The archivable container: a Quay of Moorings
 
 // Mooring declares a delete timestamp, so `delete(on:)` marks its row and `delete(force:on:)`
-// removes it. Berth deliberately declares none — it is the model an archive registration refuses.
+// removes it. Card deliberately declares none — it is the model an archive registration refuses.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 final class Quay: ContainerDataModel, @unchecked Sendable {
@@ -795,15 +795,15 @@ final class DestroyMooringRequest: DestroyRequest, @unchecked Sendable {
 // The typed-error path: whatever the route refuses with, the client decodes as THIS type.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
-struct BerthWriteRefusal: ValidatableViewModelRequestError {
+struct CardWriteRefusal: ValidatableViewModelRequestError {
     let validations: [FOSMVVM.ValidationResult]
 }
 
-/// Carries the same non-negative rule as `UpdateBerthBody`, so one request proves both refusal
+/// Carries the same non-negative rule as `UpdateCardBody`, so one request proves both refusal
 /// paths: the body's own rules, and a `ValidationError` raised during the save.
 struct TypedErrorUpdateBody: ServerRequestBody, ValidatableModel {
     var number: Int
-    var dockName: String
+    var boardName: String
 
     func validate(fields _: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
         guard number >= 0 else {
@@ -817,27 +817,27 @@ struct TypedErrorUpdateBody: ServerRequestBody, ValidatableModel {
 }
 
 extension TypedErrorUpdateBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
 
-    func apply(to berth: Berth) throws {
-        berth.number = number
-        berth.dockName = dockName
+    func apply(to card: Card) throws {
+        card.number = number
+        card.boardName = boardName
     }
 }
 
 final class TypedErrorUpdateRequest: UpdateRequest, @unchecked Sendable {
-    typealias Query = BerthTargetQuery
+    typealias Query = CardTargetQuery
     typealias RequestBody = TypedErrorUpdateBody
     typealias Fragment = EmptyFragment
-    typealias ResponseError = BerthWriteRefusal
-    typealias ResponseBody = BerthListVM
+    typealias ResponseError = CardWriteRefusal
+    typealias ResponseBody = CardListVM
 
     let id: String
-    let query: BerthTargetQuery?
+    let query: CardTargetQuery?
     let requestBody: TypedErrorUpdateBody?
-    var responseBody: BerthListVM?
+    var responseBody: CardListVM?
 
-    init(query: BerthTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody: TypedErrorUpdateBody?, responseBody: BerthListVM?) {
+    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody: TypedErrorUpdateBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.requestBody = requestBody

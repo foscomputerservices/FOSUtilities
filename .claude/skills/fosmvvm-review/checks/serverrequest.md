@@ -106,7 +106,7 @@ The full composed shape is `ServerRequestBody` + Fields + `ValidatableModel` + `
 ## Check: registration-uses-the-request-door
 **Severity:** blocker
 **What:** Requests are registered with `register(request:app:)`, mounted on middleware-only groups.
-**Anti-pattern:** `try app.grouped("admin").register(request: DockPageRequest.self, app: app)` — a path-prefixing group; or a `ServerRequestController` route collection standing in for requests the request door already covers.
+**Anti-pattern:** `try app.grouped("admin").register(request: BoardPageRequest.self, app: app)` — a path-prefixing group; or a `ServerRequestController` route collection standing in for requests the request door already covers.
 **Detection:** Establish first what the door can actually reach, because a controller is legitimate whenever the constraints cannot be met — and in some codebases they never can:
 
 - **Read route** — `register(request:app:)` requires `SR.ResponseBody: VaporResponseBodyFactory`.

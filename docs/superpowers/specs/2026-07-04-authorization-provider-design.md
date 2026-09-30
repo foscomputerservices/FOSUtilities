@@ -81,10 +81,10 @@ Everything else is `internal` — the floor for the acquisition/convenience spli
 ///
 /// ```swift
 /// struct GrantProvider: ContainerAuthorizationProvider {
-///     func containerAuthorizations(for request: Request) async throws -> [DockGrant] {
+///     func containerAuthorizations(for request: Request) async throws -> [BoardGrant] {
 ///         // however your app resolves the subject — session, token, headers…
 ///         let userId = try request.auth.require(SessionUser.self).id
-///         return try await UserDockGrantRow.query(on: request.db)
+///         return try await UserBoardGrantRow.query(on: request.db)
 ///             .filter(\.$user.$id == userId).all()
 ///             .map(\.snapshot)                       // project Sendable value snapshots
 ///     }
@@ -169,13 +169,13 @@ representation. No access level is widened for tests.
    `.duplicateAuthorizationProvider` case assertion is a coverage rider reading package API) —
    registering succeeds once; a second registration (same or different provider type) throws.
 2. **Provider-driven scoping (coverage)** — register a provider vending dock1-only grants; the
-   internal entry returns dock1's berths; dock2's identity → empty; a provider vending `[]` → empty
+   internal entry returns dock1's cards; dock2's identity → empty; a provider vending `[]` → empty
    (data-scoping invariant end-to-end through acquisition).
 3. **Memoization (coverage)** — a counting provider (locked counter) is invoked exactly once across
    multiple entry calls on the same `Request` (different containers/types); a fresh `Request` invokes
    it again.
 4. **No provider (coverage)** — the entry throws `.noAuthorizationProvider` (never returns empty).
-5. **Async provider (coverage)** — a provider that awaits real Fluent work (query the harbor
+5. **Async provider (coverage)** — a provider that awaits real Fluent work (query the workspace
    fixtures' grant-like rows) works end-to-end.
 
 ## Risks & mitigations

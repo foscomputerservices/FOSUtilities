@@ -42,7 +42,7 @@ struct InvalidateProjectionsTests {
     /// Outside any transaction, the call emits exactly the model's own identity.
     @Test func emitsOwnIdentityImmediately() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, _ in
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
@@ -58,29 +58,29 @@ struct InvalidateProjectionsTests {
     /// commit, containing the actor identity AND the SQL write's derived set.
     @Test func joinsLiveTransactionUnionOnCommit() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
             let status = StatusSnapshot(id: ModelIdType(), activeSessions: 1)
-            let berth = try Berth(number: 42, dockName: dock1.name, dockId: dock1.requireId())
+            let card = try Card(number: 42, boardName: dock1.name, boardId: dock1.requireId())
             try await app.liveTransaction { tx in
-                try await berth.save(on: tx)
+                try await card.save(on: tx)
                 try await app.invalidateProjections(of: status)
             }
 
             let expected = try Set([
                 status.modelIdentity,
-                berth.modelIdentity,
+                card.modelIdentity,
                 dock1.modelIdentity
             ])
             #expect(try await events.next() == expected)
 
             // Exactly one flush: the next event is the sentinel, not a second emission.
-            let sentinel = try Set([harbor.modelIdentity])
+            let sentinel = try Set([workspace.modelIdentity])
             await hub.emit(sentinel)
             #expect(try await events.next() == sentinel)
         }
@@ -89,10 +89,10 @@ struct InvalidateProjectionsTests {
     /// A thrown liveTransaction discards the collected nudge — sentinel-first.
     @Test func rolledBackTransactionEmitsNothing() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
@@ -105,7 +105,7 @@ struct InvalidateProjectionsTests {
             }
 
             // Nothing was emitted: the first event the subscriber sees is the sentinel.
-            let sentinel = try Set([harbor.modelIdentity])
+            let sentinel = try Set([workspace.modelIdentity])
             await hub.emit(sentinel)
             #expect(try await events.next() == sentinel)
         }
@@ -125,7 +125,7 @@ struct InvalidateProjectionsTests {
     /// An unpersisted model (nil id) throws ModelError.missingId — never a silent skip.
     @Test func nilIdThrowsMissingId() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, _ in
             await #expect(throws: ModelError.self) {
                 try await app.invalidateProjections(of: StatusSnapshot(id: nil))
@@ -136,7 +136,7 @@ struct InvalidateProjectionsTests {
     /// Request forwarding reaches the same hub.
     @Test func requestForwardingEmits() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
             app.get("poke") { req async throws -> HTTPStatus in
                 try await req.invalidateProjections(of: StatusSnapshot(id: pokeId))
                 return .ok
@@ -161,15 +161,15 @@ struct InvalidateProjectionsTests {
 
 private struct Boom: Error {}
 
-/// Registers the harbor graph and enables live invalidation.
+/// Registers the workspace graph and enables live invalidation.
 /// (File-private and duplicated per test file with differing signatures — copied from
 /// LiveTransactionTests; not callable across files.)
-private func configureLiveHarbor(_ app: Application) throws {
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
+private func configureLiveWorkspace(_ app: Application) throws {
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useLiveInvalidation(on: app.routes)
 }

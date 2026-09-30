@@ -68,7 +68,7 @@ noise.
 | `DashboardViewModel` | `DashboardRequest` |
 
 This is still noun-first — the noun is the screen. It composes with 1a: an entity that
-has both a screen read and writes reads as `Docks` + `Docks…Request`.
+has both a screen read and writes reads as `Boards` + `Boards…Request`.
 
 ### 1c. Raw-data Show requests → `<Entity>ShowRequest`
 
@@ -118,14 +118,14 @@ The Operations protocol for `{Name}ViewModel` is `{Name}ViewModelOperations`, in
 
 | ✅ Correct | ❌ Wrong |
 |-----------|---------|
-| `LocalDockViewModelOperations` beside `LocalDockViewModel` | `LocalDockOperations` beside `LocalDockViewModel` |
+| `LocalBoardViewModelOperations` beside `LocalBoardViewModel` | `LocalBoardOperations` beside `LocalBoardViewModel` |
 
 Beyond consistency this has teeth: a drifted name is exactly what a name-keyed search
 misses, so the misnamed protocol escapes the review and tooling aimed at it.
 
 ### 3b. A `ViewModelView` shares its ViewModel's stem
 
-`{Name}View` renders `{Name}ViewModel` — `LocalDockView` ↔ `LocalDockViewModel`. A
+`{Name}View` renders `{Name}ViewModel` — `LocalBoardView` ↔ `LocalBoardViewModel`. A
 near-miss stem (`LocalDocView`) hides the pairing from every reader and every search.
 
 ---
@@ -139,8 +139,8 @@ near-miss stem (`LocalDocView`) hides the pairing from every reader and every se
 | Screen/page ViewModel read request | `<Noun>Request` | `DocksRequest` |
 | Raw-entity read request | `<Entity>ShowRequest` | `UserShowRequest` |
 | Display type colliding with a domain type | name for meaning; collision is fine | `CatalogViewModels.Tier` |
-| Operations protocol | `<Name>ViewModelOperations` | `LocalDockViewModelOperations` |
-| View for a ViewModel | shares the ViewModel's stem | `LocalDockView` |
+| Operations protocol | `<Name>ViewModelOperations` | `LocalBoardViewModelOperations` |
+| View for a ViewModel | shares the ViewModel's stem | `LocalBoardView` |
 
 ## Red flags — STOP
 
@@ -151,4 +151,4 @@ near-miss stem (`LocalDocView`) hides the pairing from every reader and every se
 - A screen read request carrying a `Show`/`Get`/`Fetch` verb — drop it; the noun alone
   is the read.
 - An Operations protocol or a `ViewModelView` whose stem does not match its ViewModel's
-  (`LocalDockOperations`, `LocalDocView`) — rename to the shared stem.
+  (`LocalBoardOperations`, `LocalDocView`) — rename to the shared stem.

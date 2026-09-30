@@ -54,9 +54,9 @@ public protocol DataRequirement { /* package-facing walk surface */ }
 public struct LoadRequirement<Record: Model>: DataRequirement {
 
     /// Loads the records this scope's grants authorize reading.
-    ///     .read(Berth.self, in: .parentRoot)        // one hop: implicit
-    ///     .read(SlipAssignment.self, in: .parentRoot,
-    ///           via: Berth.self)                    // via = INTERMEDIATE hops only
+    ///     .read(Card.self, in: .parentRoot)        // one hop: implicit
+    ///     .read(Assignment.self, in: .parentRoot,
+    ///           via: Card.self)                    // via = INTERMEDIATE hops only
     public static func read(_ record: Record.Type,
                             in root: RootScope,
                             via intermediates: any Model.Type...)
@@ -124,7 +124,7 @@ public struct ComposedChild {
 /// Whether authority granted on an ancestor flows through this container
 /// to its contained records, or stops here.
 /// Directionality (David): a guards b; b is guarded by a — the
-/// declaration sits on the actor: "Dock guards; Berth inherits."
+/// declaration sits on the actor: "Board guards; Card inherits."
 public enum AuthorityFlow {
     case inherits
     case guards
@@ -173,24 +173,24 @@ public protocol Container /* : Model — existing, gains: */ {
 
 extension BerthsViewModel: ComposableViewModelFactory {
 
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
         .refinedByRequest
 
-    static let crew = LoadRequirement.read(CrewMember.self, in: .parentRoot)
+    static let members = LoadRequirement.read(Member.self, in: .parentRoot)
 
-    static let slips = LoadRequirement.read(SlipAssignment.self,
+    static let slips = LoadRequirement.read(Assignment.self,
                                             in: .parentRoot,
-                                            via: Berth.self)
+                                            via: Card.self)
 
     static var dataRequirements: [any DataRequirement] {
-        [berths, crew, slips]
+        [cards, members, slips]
         // Residual gap until the macro: a declared handle forgotten here is
         // boot-invisible; C8's read surface fail-fasts on plan-absent handles.
     }
 
     static var children: [ComposedChild] {
-        [.child(BerthCellViewModel.self),
-         .child(HarborBannerViewModel.self, rootedAt: .apex)]
+        [.child(CardCellViewModel.self),
+         .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
     }
 
     // The projection — the factory's existing job, unchanged by C7

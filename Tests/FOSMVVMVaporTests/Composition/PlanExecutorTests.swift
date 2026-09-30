@@ -31,27 +31,27 @@ import Vapor
 // MARK: - Shared configure/seed plumbing
 
 /// Registers the full container graph the executor descends:
-/// Harbor (apex) → Dock → {Berth, CrewMember, PersonnelFolder (.guards) → PersonnelFile}.
+/// Workspace (apex) → Board → {Card, Member, Checklist (.guards) → ChecklistItem}.
 private func configureContainers(_ app: Application) throws {
-    app.migrations.add(CreatePier()) // CreateDock's DDL references piers
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    try app.register(PersonnelFolder.self, migration: CreatePersonnelFolder())
-    app.migrations.add(CreatePersonnelFile())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    try app.register(Checklist.self, migration: CreateChecklist())
+    app.migrations.add(CreateChecklistItem())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useContainerAuthorizationProvider(StorageGrantProvider())
 }
 
-/// Registers the apex resolver: the one seeded Harbor. Seeding happens after boot, so the
+/// Registers the apex resolver: the one seeded Workspace. Seeding happens after boot, so the
 /// resolver queries at request time (the multi-tenant shape from the resolver's contract).
 private func registerApexResolver(_ app: Application) throws {
     try app.useApexContainerResolver { req in
-        guard let harbor = try await Harbor.query(on: req.db).first() else {
-            throw Abort(.internalServerError, reason: "no harbor seeded")
+        guard let workspace = try await Workspace.query(on: req.db).first() else {
+            throw Abort(.internalServerError, reason: "no workspace seeded")
         }
-        return try harbor.modelIdentity
+        return try workspace.modelIdentity
     }
 }
 
@@ -67,19 +67,19 @@ private struct StorageGrantProvider: ContainerAuthorizationProvider {
     }
 }
 
-/// Seeds one folder per dock: folder1 (2 files) under dock1, folder2 (1 file) under dock2.
+/// Seeds one folder per board: folder1 (2 files) under dock1, folder2 (1 file) under dock2.
 private func seedPersonnel(
     on db: any Database,
-    dock1: Dock,
-    dock2: Dock
-) async throws -> (folder1: PersonnelFolder, folder2: PersonnelFolder) {
-    let folder1 = try PersonnelFolder(name: "Folder 1", dockId: dock1.requireId())
-    let folder2 = try PersonnelFolder(name: "Folder 2", dockId: dock2.requireId())
+    dock1: Board,
+    dock2: Board
+) async throws -> (folder1: Checklist, folder2: Checklist) {
+    let folder1 = try Checklist(name: "Folder 1", boardId: dock1.requireId())
+    let folder2 = try Checklist(name: "Folder 2", boardId: dock2.requireId())
     try await folder1.save(on: db)
     try await folder2.save(on: db)
-    try await PersonnelFile(name: "File A", folderId: folder1.requireId()).save(on: db)
-    try await PersonnelFile(name: "File B", folderId: folder1.requireId()).save(on: db)
-    try await PersonnelFile(name: "File C", folderId: folder2.requireId()).save(on: db)
+    try await ChecklistItem(name: "File A", folderId: folder1.requireId()).save(on: db)
+    try await ChecklistItem(name: "File B", folderId: folder1.requireId()).save(on: db)
+    try await ChecklistItem(name: "File C", folderId: folder2.requireId()).save(on: db)
     return (folder1, folder2)
 }
 
@@ -114,12 +114,12 @@ private func cachedRecords(
     }?.value
 }
 
-private func berthNumbers(_ records: [any DataModel]?) throws -> [Int] {
-    try (records ?? []).map { try #require($0 as? Berth).number }
+private func cardNumbers(_ records: [any DataModel]?) throws -> [Int] {
+    try (records ?? []).map { try #require($0 as? Card).number }
 }
 
 private func fileNames(_ records: [any DataModel]?) throws -> [String] {
-    try (records ?? []).map { try #require($0 as? PersonnelFile).name }
+    try (records ?? []).map { try #require($0 as? ChecklistItem).name }
 }
 
 // MARK: - Factory fixture plumbing (mirrors PlanRegistrationTests' RegistrationFixture)
@@ -152,30 +152,30 @@ private extension ExecutorFixture {
     }
 }
 
-/// The query vending a request-scoped root identity (usually a Dock's).
+/// The query vending a request-scoped root identity (usually a Board's).
 private struct ExecRootedQuery: RootedQuery {
     let rootIdentity: ModelIdentity
 }
 
 /// Test 10's query: roots the tree AND declares the window axis.
-private struct PagedBerthQuery: RootedQuery, PaginatedQuery {
+private struct PagedCardQuery: RootedQuery, PaginatedQuery {
     let rootIdentity: ModelIdentity
     let pagination: Pagination
 }
 
-// MARK: - Test 8: the forest (dock-rooted .query tree + apex-rooted tree, one request)
+// MARK: - Test 8: the forest (board-rooted .query tree + apex-rooted tree, one request)
 
-private struct ApexDockListVM: ExecutorFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Dock.self, in: .parentRoot)]
+private struct ApexBoardListVM: ExecutorFixture {
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Board.self, in: .parentRoot)]
 }
 
 private struct ForestPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = ForestPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 
     static var children: [ComposedChild] {
-        [.child(ApexDockListVM.self, rootedAt: .apex)]
+        [.child(ApexBoardListVM.self, rootedAt: .apex)]
     }
 }
 
@@ -199,7 +199,7 @@ private final class ForestPageRequest: ViewModelRequest, @unchecked Sendable {
 private struct ThreeLevelVM: ExecutorFixture, RequestableViewModel {
     typealias Request = ThreeLevelRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .newRoot(.apex), via: Dock.self)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .newRoot(.apex), via: Board.self)]
 }
 
 private final class ThreeLevelRequest: ViewModelRequest, @unchecked Sendable {
@@ -220,7 +220,7 @@ private final class ThreeLevelRequest: ViewModelRequest, @unchecked Sendable {
 private struct GuardedFilesVM: ExecutorFixture, RequestableViewModel {
     typealias Request = GuardedFilesRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(PersonnelFile.self, in: .newRoot(.apex), via: Dock.self, PersonnelFolder.self)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(ChecklistItem.self, in: .newRoot(.apex), via: Board.self, Checklist.self)]
 }
 
 private final class GuardedFilesRequest: ViewModelRequest, @unchecked Sendable {
@@ -238,17 +238,17 @@ private final class GuardedFilesRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Test 9: anchor-conflict diamond — same (container, type) under two anchors
 
-private struct ApexBerthListVM: ExecutorFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot, via: Dock.self)]
+private struct ApexCardListVM: ExecutorFixture {
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot, via: Board.self)]
 }
 
 private struct DiamondPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = DiamondPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 
     static var children: [ComposedChild] {
-        [.child(ApexBerthListVM.self, rootedAt: .apex)]
+        [.child(ApexCardListVM.self, rootedAt: .apex)]
     }
 }
 
@@ -273,22 +273,22 @@ private struct RefinedBerthsVM: ExecutorFixture, RequestableViewModel {
     typealias Request = RefinedBerthsRequest
 
     static let dataRequirements: [any DataRequirement] = [
-        LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest,
-        LoadRequirement.read(CrewMember.self, in: .parentRoot)
+        LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
+        LoadRequirement.read(Member.self, in: .parentRoot)
     ]
 }
 
 private final class RefinedBerthsRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = PagedBerthQuery
+    typealias Query = PagedCardQuery
     typealias ResponseError = EmptyError
-    typealias Sort = SortCriteria<BerthSortKey>
+    typealias Sort = SortCriteria<CardSortKey>
 
     let id: String
-    let query: PagedBerthQuery?
-    let sort: SortCriteria<BerthSortKey>?
+    let query: PagedCardQuery?
+    let sort: SortCriteria<CardSortKey>?
     var responseBody: RefinedBerthsVM?
 
-    init(query: PagedBerthQuery? = nil, sort: SortCriteria<BerthSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: RefinedBerthsVM? = nil) {
+    init(query: PagedCardQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: RefinedBerthsVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.sort = sort
@@ -306,22 +306,22 @@ private enum SupplementalHookError: Error {
 private struct SupplementalPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = SupplementalPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 }
 
 /// The hook proves its post-declarative ordering structurally: it reads the declarative
-/// berth tuple FROM THE CACHE (throwing if absent) and loads crew through the
+/// card tuple FROM THE CACHE (throwing if absent) and loads members through the
 /// provider-driven entry using that cached tuple's container.
 extension SupplementalPageVM: SupplementalRecordLoading {
     static func loadSupplementalRecords(for request: Vapor.Request) async throws {
-        guard let berthEntry = request.containerRecordCache.first(where: {
-            $0.key.containedType == ObjectIdentifier(Berth.self) && !$0.value.isEmpty
+        guard let cardEntry = request.containerRecordCache.first(where: {
+            $0.key.containedType == ObjectIdentifier(Card.self) && !$0.value.isEmpty
         }) else {
             throw SupplementalHookError.declarativeTupleNotCached
         }
         _ = try await request.authorizedRecords(
-            of: berthEntry.key.container,
-            containing: CrewMember.self,
+            of: cardEntry.key.container,
+            containing: Member.self,
             for: .readRecords
         )
     }
@@ -345,7 +345,7 @@ private final class SupplementalPageRequest: ViewModelRequest, @unchecked Sendab
 private struct ThrowingSupplementalVM: ExecutorFixture, RequestableViewModel {
     typealias Request = ThrowingSupplementalRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 }
 
 extension ThrowingSupplementalVM: SupplementalRecordLoading {
@@ -377,7 +377,7 @@ private final class ThrowingSupplementalRequest: ViewModelRequest, @unchecked Se
 private struct UnregisteredPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = UnregisteredPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 }
 
 private final class UnregisteredPageRequest: ViewModelRequest, @unchecked Sendable {
@@ -400,7 +400,7 @@ private final class UnregisteredPageRequest: ViewModelRequest, @unchecked Sendab
 private struct MisrootedVM: ExecutorFixture, RequestableViewModel {
     typealias Request = MisrootedRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 }
 
 private final class MisrootedRequest: ViewModelRequest, @unchecked Sendable {
@@ -422,7 +422,7 @@ private final class MisrootedRequest: ViewModelRequest, @unchecked Sendable {
 
 @Suite("RecordLoadPlan execution through the authorized engine (C7)")
 struct PlanExecutorTests {
-    /// Spec test 8 — the forest: a dock-rooted `.query` tree and an apex-rooted tree execute
+    /// Spec test 8 — the forest: a board-rooted `.query` tree and an apex-rooted tree execute
     /// in ONE request; both trees' records land in the engine's cache.
     @Test func forestLoadsBothTreesIntoTheCache() async throws {
         try await withFluentTestApp { app in
@@ -430,18 +430,18 @@ struct PlanExecutorTests {
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: ForestPageRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
                     authorizedContainer: dock1.modelIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Berth.modelIdentityNamespace]
+                    recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: harbor.modelIdentity,
+                    authorizedContainer: workspace.modelIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Dock.modelIdentityNamespace]
+                    recordTypes: [Board.modelIdentityNamespace]
                 )
             ]
 
@@ -449,52 +449,52 @@ struct PlanExecutorTests {
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
 
-            let berths = try cachedRecords(in: req, of: Berth.self, in: dock1.modelIdentity)
-            #expect(try berthNumbers(berths).sorted() == [1, 2, 3])
+            let cards = try cachedRecords(in: req, of: Card.self, in: dock1.modelIdentity)
+            #expect(try cardNumbers(cards).sorted() == [1, 2, 3])
 
-            let docks = try cachedRecords(in: req, of: Dock.self, in: harbor.modelIdentity)
-            #expect(docks?.count == 2)
+            let boards = try cachedRecords(in: req, of: Board.self, in: workspace.modelIdentity)
+            #expect(boards?.count == 2)
         }
     }
 
-    /// Spec test 9 — `.inherits` descent: ONE grant on the harbor (apex) covering Dock and
-    /// Berth loads the whole three-level tree (harbor → docks → berths, all docks' berths).
+    /// Spec test 9 — `.inherits` descent: ONE grant on the workspace (apex) covering Board and
+    /// Card loads the whole three-level tree (workspace → boards → cards, all boards' cards).
     @Test func apexGrantDescendsThreeLevelsUnderInherits() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: ThreeLevelRequest.self)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
-            let harborIdentity = try harbor.modelIdentity
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
+            let workspaceIdentity = try workspace.modelIdentity
             app.storage[ExecutorGrantsKey.self] = [
                 TestGrant(
-                    authorizedContainer: harborIdentity,
+                    authorizedContainer: workspaceIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Dock.modelIdentityNamespace, Berth.modelIdentityNamespace]
+                    recordTypes: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
             ]
 
             let req = makeRequest(on: app)
             try await req.executeRecordLoadPlan(for: ThreeLevelRequest())
 
-            let docks = cachedRecords(in: req, of: Dock.self, in: harborIdentity)
-            #expect(docks?.count == 2)
+            let boards = cachedRecords(in: req, of: Board.self, in: workspaceIdentity)
+            #expect(boards?.count == 2)
 
-            // Every level's grant check ran against the ROOT anchor (harbor), never the dock.
-            let dock1Berths = try cachedRecords(
-                in: req, of: Berth.self, in: dock1.modelIdentity, anchoredAt: harborIdentity
+            // Every level's grant check ran against the ROOT anchor (workspace), never the board.
+            let dock1Cards = try cachedRecords(
+                in: req, of: Card.self, in: dock1.modelIdentity, anchoredAt: workspaceIdentity
             )
-            let dock2Berths = try cachedRecords(
-                in: req, of: Berth.self, in: dock2.modelIdentity, anchoredAt: harborIdentity
+            let dock2Cards = try cachedRecords(
+                in: req, of: Card.self, in: dock2.modelIdentity, anchoredAt: workspaceIdentity
             )
-            #expect(try berthNumbers(dock1Berths).sorted() == [1, 2, 3])
-            #expect(try berthNumbers(dock2Berths) == [9])
+            #expect(try cardNumbers(dock1Cards).sorted() == [1, 2, 3])
+            #expect(try cardNumbers(dock2Cards) == [9])
         }
     }
 
-    /// Spec test 9 — `.guards` denial: an apex grant covering PersonnelFile does NOT descend
+    /// Spec test 9 — `.guards` denial: an apex grant covering ChecklistItem does NOT descend
     /// past the folder guard; the folders themselves (above the guard) still load.
     @Test func apexGrantDoesNotDescendPastTheGuard() async throws {
         try await withFluentTestApp { app in
@@ -502,17 +502,17 @@ struct PlanExecutorTests {
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: GuardedFilesRequest.self)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
+            let (dock1, dock2) = try await seedWorkspace(on: db)
             let (folder1, folder2) = try await seedPersonnel(on: db, dock1: dock1, dock2: dock2)
-            let harbor = try #require(try await Harbor.query(on: db).first())
+            let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: harbor.modelIdentity,
+                    authorizedContainer: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [
-                        Dock.modelIdentityNamespace,
-                        PersonnelFolder.modelIdentityNamespace,
-                        PersonnelFile.modelIdentityNamespace // deliberately covered — must not descend
+                        Board.modelIdentityNamespace,
+                        Checklist.modelIdentityNamespace,
+                        ChecklistItem.modelIdentityNamespace // deliberately covered — must not descend
                     ]
                 )
             ]
@@ -520,11 +520,11 @@ struct PlanExecutorTests {
             let req = makeRequest(on: app)
             try await req.executeRecordLoadPlan(for: GuardedFilesRequest())
 
-            let folders = try cachedRecords(in: req, of: PersonnelFolder.self, in: dock1.modelIdentity)
+            let folders = try cachedRecords(in: req, of: Checklist.self, in: dock1.modelIdentity)
             #expect(folders?.count == 1)
 
-            let files1 = try cachedRecords(in: req, of: PersonnelFile.self, in: folder1.modelIdentity)
-            let files2 = try cachedRecords(in: req, of: PersonnelFile.self, in: folder2.modelIdentity)
+            let files1 = try cachedRecords(in: req, of: ChecklistItem.self, in: folder1.modelIdentity)
+            let files2 = try cachedRecords(in: req, of: ChecklistItem.self, in: folder2.modelIdentity)
             #expect(files1?.isEmpty == true)
             #expect(files2?.isEmpty == true)
         }
@@ -538,19 +538,19 @@ struct PlanExecutorTests {
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: GuardedFilesRequest.self)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
+            let (dock1, dock2) = try await seedWorkspace(on: db)
             let (folder1, folder2) = try await seedPersonnel(on: db, dock1: dock1, dock2: dock2)
-            let harbor = try #require(try await Harbor.query(on: db).first())
+            let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: harbor.modelIdentity,
+                    authorizedContainer: workspace.modelIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Dock.modelIdentityNamespace, PersonnelFolder.modelIdentityNamespace]
+                    recordTypes: [Board.modelIdentityNamespace, Checklist.modelIdentityNamespace]
                 ),
                 TestGrant(
                     authorizedContainer: folder1.modelIdentity,
                     operations: [.readRecords],
-                    recordTypes: [PersonnelFile.modelIdentityNamespace]
+                    recordTypes: [ChecklistItem.modelIdentityNamespace]
                 )
             ]
 
@@ -559,16 +559,16 @@ struct PlanExecutorTests {
 
             // The file loads' cache entries are anchored at each branch's own folder.
             let files1 = try cachedRecords(
-                in: req, of: PersonnelFile.self, in: folder1.modelIdentity, anchoredAt: folder1.modelIdentity
+                in: req, of: ChecklistItem.self, in: folder1.modelIdentity, anchoredAt: folder1.modelIdentity
             )
-            let files2 = try cachedRecords(in: req, of: PersonnelFile.self, in: folder2.modelIdentity)
+            let files2 = try cachedRecords(in: req, of: ChecklistItem.self, in: folder2.modelIdentity)
             #expect(try fileNames(files1).sorted() == ["File A", "File B"])
             #expect(files2?.isEmpty == true)
         }
     }
 
     /// Spec test 9 — anchor-conflict diamond: the SAME (container, type) reached through the
-    /// query root (anchor = dock) and through the apex root (anchor = harbor) keys TWO cache
+    /// query root (anchor = board) and through the apex root (anchor = workspace) keys TWO cache
     /// entries with independent outcomes — one authorized, one empty.
     @Test func anchorConflictDiamondKeysIndependentEntries() async throws {
         try await withFluentTestApp { app in
@@ -576,20 +576,20 @@ struct PlanExecutorTests {
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: DiamondPageRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
-            let harborIdentity = try harbor.modelIdentity
-            // Berths granted on dock1 ONLY — the harbor grant covers docks, not berths.
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
+            let workspaceIdentity = try workspace.modelIdentity
+            // Cards granted on dock1 ONLY — the workspace grant covers boards, not cards.
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
                     authorizedContainer: dock1.modelIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Berth.modelIdentityNamespace]
+                    recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: harborIdentity,
+                    authorizedContainer: workspaceIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Dock.modelIdentityNamespace]
+                    recordTypes: [Board.modelIdentityNamespace]
                 )
             ]
 
@@ -597,69 +597,69 @@ struct PlanExecutorTests {
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
 
-            let dockAnchored = try cachedRecords(
-                in: req, of: Berth.self, in: dock1.modelIdentity, anchoredAt: dock1.modelIdentity
+            let boardAnchored = try cachedRecords(
+                in: req, of: Card.self, in: dock1.modelIdentity, anchoredAt: dock1.modelIdentity
             )
-            let harborAnchored = try cachedRecords(
-                in: req, of: Berth.self, in: dock1.modelIdentity, anchoredAt: harborIdentity
+            let workspaceAnchored = try cachedRecords(
+                in: req, of: Card.self, in: dock1.modelIdentity, anchoredAt: workspaceIdentity
             )
-            #expect(try berthNumbers(dockAnchored).sorted() == [1, 2, 3])
-            #expect(harborAnchored?.isEmpty == true)
+            #expect(try cardNumbers(boardAnchored).sorted() == [1, 2, 3])
+            #expect(workspaceAnchored?.isEmpty == true)
         }
     }
 
     /// Spec test 10 — `.refinedByRequest`: the request's sort + window land on exactly the
-    /// marked tuple (berths, descending, first 2); the unmarked tuple (crew) stays unrefined.
+    /// marked tuple (cards, descending, first 2); the unmarked tuple (members) stays unrefined.
     @Test func requestRefinementAppliesToExactlyTheMarkedTuple() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
             try app.registerRecordLoadPlan(for: RefinedBerthsRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let dock1Identity = try dock1.modelIdentity
             app.storage[ExecutorGrantsKey.self] = [
                 TestGrant(
                     authorizedContainer: dock1Identity,
                     operations: [.readRecords],
-                    recordTypes: [Berth.modelIdentityNamespace, CrewMember.modelIdentityNamespace]
+                    recordTypes: [Card.modelIdentityNamespace, Member.modelIdentityNamespace]
                 )
             ]
 
             let request = RefinedBerthsRequest(
                 query: .init(rootIdentity: dock1Identity, pagination: .init(startIndex: 0, maxResults: 2)),
-                sort: SortCriteria([.init(key: BerthSortKey.number, direction: .descending)])
+                sort: SortCriteria([.init(key: CardSortKey.number, direction: .descending)])
             )
             let req = try makeRequest(on: app, url: requestURL(for: request))
             try await req.executeRecordLoadPlan(for: request)
 
-            let berths = cachedRecords(in: req, of: Berth.self, in: dock1Identity)
-            #expect(try berthNumbers(berths) == [3, 2]) // sorted desc, windowed to 2
+            let cards = cachedRecords(in: req, of: Card.self, in: dock1Identity)
+            #expect(try cardNumbers(cards) == [3, 2]) // sorted desc, windowed to 2
 
-            let crew = cachedRecords(in: req, of: CrewMember.self, in: dock1Identity)
-            #expect(crew?.count == 2) // full set — no window leaked onto the unmarked tuple
+            let members = cachedRecords(in: req, of: Member.self, in: dock1Identity)
+            #expect(members?.count == 2) // full set — no window leaked onto the unmarked tuple
 
-            let crewKey = req.containerRecordCache.keys.first {
-                $0.containedType == ObjectIdentifier(CrewMember.self)
+            let membersKey = req.containerRecordCache.keys.first {
+                $0.containedType == ObjectIdentifier(Member.self)
             }
-            #expect(crewKey?.refinement == ContainmentQueryRefinement.none)
+            #expect(membersKey?.refinement == ContainmentQueryRefinement.none)
         }
     }
 
     /// Spec test 11 — supplemental seam: the conformer's hook runs AFTER the declarative
-    /// tuples (it reads the cached berth tuple; a miss throws) and loads extra records
+    /// tuples (it reads the cached card tuple; a miss throws) and loads extra records
     /// through the provider-driven entry.
     @Test func supplementalHookRunsPostDeclarative() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
             try app.registerRecordLoadPlan(for: SupplementalPageRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let dock1Identity = try dock1.modelIdentity
             app.storage[ExecutorGrantsKey.self] = [
                 TestGrant(
                     authorizedContainer: dock1Identity,
                     operations: [.readRecords],
-                    recordTypes: [Berth.modelIdentityNamespace, CrewMember.modelIdentityNamespace]
+                    recordTypes: [Card.modelIdentityNamespace, Member.modelIdentityNamespace]
                 )
             ]
 
@@ -668,8 +668,8 @@ struct PlanExecutorTests {
             try await req.executeRecordLoadPlan(for: vmRequest)
 
             // The hook completed (no declarativeTupleNotCached throw) and its load deposited.
-            let crew = cachedRecords(in: req, of: CrewMember.self, in: dock1Identity)
-            #expect(crew?.count == 2)
+            let members = cachedRecords(in: req, of: Member.self, in: dock1Identity)
+            #expect(members?.count == 2)
         }
     }
 
@@ -680,7 +680,7 @@ struct PlanExecutorTests {
             try configureContainers(app)
             try app.registerRecordLoadPlan(for: ThrowingSupplementalRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let vmRequest = try ThrowingSupplementalRequest(query: .init(rootIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             await #expect(throws: SupplementalHookError.self) {
@@ -699,13 +699,13 @@ struct PlanExecutorTests {
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: ThreeLevelRequest.self)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: harbor.modelIdentity,
+                    authorizedContainer: workspace.modelIdentity,
                     operations: [.readRecords],
-                    recordTypes: [Dock.modelIdentityNamespace, Berth.modelIdentityNamespace]
+                    recordTypes: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
             ]
 
@@ -714,14 +714,14 @@ struct PlanExecutorTests {
             let second = makeRequest(on: app)
             try await second.executeRecordLoadPlan(for: ThreeLevelRequest())
 
-            // All sibling deposits present: one dock entry + one berth entry per dock.
+            // All sibling deposits present: one board entry + one card entry per board.
             #expect(first.containerRecordCache.count == 3)
-            for dock in [dock1, dock2] {
-                let firstRun = try cachedRecords(in: first, of: Berth.self, in: dock.modelIdentity)
-                let secondRun = try cachedRecords(in: second, of: Berth.self, in: dock.modelIdentity)
+            for board in [dock1, dock2] {
+                let firstRun = try cachedRecords(in: first, of: Card.self, in: board.modelIdentity)
+                let secondRun = try cachedRecords(in: second, of: Card.self, in: board.modelIdentity)
                 #expect(firstRun != nil)
                 // Determinism: both executions produced the same records in the same order.
-                #expect(try berthNumbers(firstRun) == berthNumbers(secondRun))
+                #expect(try cardNumbers(firstRun) == cardNumbers(secondRun))
             }
             #expect(Set(first.containerRecordCache.keys) == Set(second.containerRecordCache.keys))
         }
@@ -746,7 +746,7 @@ struct PlanExecutorTests {
             try configureContainers(app)
             // UnregisteredPageRequest is deliberately NOT registered — no plan is derived.
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let vmRequest = try UnregisteredPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             do {
@@ -763,15 +763,15 @@ struct PlanExecutorTests {
 
     /// Obligation 2 — a RootedQuery vending an identity whose registered descriptor does not
     /// declare containment of the tuple's first hop throws typed: the misrooted-query
-    /// silent-empty mode is dead. (Harbor is registered but contains Dock, never Berth.)
+    /// silent-empty mode is dead. (Workspace is registered but contains Board, never Card.)
     @Test func misrootedQueryAgainstRegisteredContainerThrowsTyped() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
             try app.registerRecordLoadPlan(for: MisrootedRequest.self)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
-            let vmRequest = try MisrootedRequest(query: .init(rootIdentity: harbor.modelIdentity))
+            _ = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
+            let vmRequest = try MisrootedRequest(query: .init(rootIdentity: workspace.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             do {
                 try await req.executeRecordLoadPlan(for: vmRequest)
@@ -790,14 +790,14 @@ struct PlanExecutorTests {
     /// and `apexGrantDescendsThreeLevelsUnderInherits` exercise the happy path). Here the negative:
     /// an apex that cannot resolve at request time fails the request — the resolver's error
     /// propagates with the existing semantics (no silent empty). The resolver queries for a seeded
-    /// harbor; none is seeded, so it throws.
+    /// workspace; none is seeded, so it throws.
     @Test func unresolvedApexFailsTheRequest() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
             try registerApexResolver(app)
             try app.registerRecordLoadPlan(for: ThreeLevelRequest.self)
         } _: { app, _ in
-            // No harbor seeded ⇒ the apex resolver throws when the plan resolves its apex root.
+            // No workspace seeded ⇒ the apex resolver throws when the plan resolves its apex root.
             let req = makeRequest(on: app)
             await #expect(throws: (any Error).self) {
                 try await req.executeRecordLoadPlan(for: ThreeLevelRequest())
@@ -812,7 +812,7 @@ struct PlanExecutorTests {
             try configureContainers(app)
             try app.registerRecordLoadPlan(for: MisrootedRequest.self)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
+            _ = try await seedWorkspace(on: db)
             let pier = try #require(try await Pier.query(on: db).first())
             let vmRequest = try MisrootedRequest(query: .init(rootIdentity: pier.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))

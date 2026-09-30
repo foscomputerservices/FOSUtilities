@@ -46,8 +46,8 @@ public extension Vapor.Request {
     /// Retrieves the *ServerRequestSort* from the Vapor Request
     ///
     /// ```swift
-    /// app.get("berths") { req in
-    ///     let sort = try req.serverRequestSort(ofType: SortCriteria<BerthSortKey>.self)
+    /// app.get("cards") { req in
+    ///     let sort = try req.serverRequestSort(ofType: SortCriteria<CardSortKey>.self)
     ///     ...
     /// }
     /// ```

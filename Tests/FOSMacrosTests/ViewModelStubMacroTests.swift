@@ -181,28 +181,28 @@ final class ViewModelStubMacroTests: XCTestCase {
         assertMacroExpansion(
             #"""
             @ViewModel struct RowViewModel {
-                let berths: [Int]
+                let cards: [Int]
                 let label: String
                 var vmId: FOSMVVM.ViewModelId = .init()
-                static func stub(_ berths: [Int] = [1, 2], named label: String = "row") -> RowViewModel {
-                    .init(berths: berths, label: label)
+                static func stub(_ cards: [Int] = [1, 2], named label: String = "row") -> RowViewModel {
+                    .init(cards: cards, label: label)
                 }
-                init(berths: [Int], label: String) {
-                    self.berths = berths
+                init(cards: [Int], label: String) {
+                    self.cards = cards
                     self.label = label
                 }
             }
             """#,
             expandedSource: #"""
             struct RowViewModel {
-                let berths: [Int]
+                let cards: [Int]
                 let label: String
                 var vmId: FOSMVVM.ViewModelId = .init()
-                static func stub(_ berths: [Int] = [1, 2], named label: String = "row") -> RowViewModel {
-                    .init(berths: berths, label: label)
+                static func stub(_ cards: [Int] = [1, 2], named label: String = "row") -> RowViewModel {
+                    .init(cards: cards, label: label)
                 }
-                init(berths: [Int], label: String) {
-                    self.berths = berths
+                init(cards: [Int], label: String) {
+                    self.cards = cards
                     self.label = label
                 }
 

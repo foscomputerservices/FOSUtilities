@@ -19,7 +19,7 @@ import Foundation
 import Testing
 
 /// A Sendable value-snapshot fixture composed exactly as the spec's ``ContainerAuthorization`` DocC
-/// example (the DockGrant sketch) — the shared-core contract under pure-logic test, no persistence involved.
+/// example (the BoardGrant sketch) — the shared-core contract under pure-logic test, no persistence involved.
 private struct TestAuthorization: ContainerAuthorization {
     let authorizedContainer: ModelIdentity
     let operations: [ContainerOperation]

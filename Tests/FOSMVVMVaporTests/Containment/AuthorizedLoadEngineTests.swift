@@ -30,16 +30,16 @@ import Foundation
 import Testing
 import Vapor
 
-/// Registers Harbor (the apex) + Dock, adds the remaining harbor migrations, and registers the
-/// provider that vends the per-test grants. CreateHarbor/CreatePier run BEFORE CreateDock —
-/// CreateDock's DDL references both tables.
-private func configureHarbor(_ app: Application, countCallsInto counter: ProviderCallCounter? = nil) throws {
+/// Registers Workspace (the apex) + Board, adds the remaining workspace migrations, and registers the
+/// provider that vends the per-test grants. CreateWorkspace/CreatePier run BEFORE CreateBoard —
+/// CreateBoard's DDL references both tables.
+private func configureWorkspace(_ app: Application, countCallsInto counter: ProviderCallCounter? = nil) throws {
     app.migrations.add(CreatePier())
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     if let counter {
         app.storage[ProviderCallCounterKey.self] = counter
         try app.useContainerAuthorizationProvider(CountingGrantsProvider())
@@ -71,8 +71,8 @@ private func makeRequest(on app: Application) -> Request {
     Request(application: app, method: .GET, url: URI(string: "/"), on: app.eventLoopGroup.next())
 }
 
-private func berthNumbers(_ records: [any DataModel]) throws -> [Int] {
-    try records.map { try #require($0 as? Berth).number }
+private func cardNumbers(_ records: [any DataModel]) throws -> [Int] {
+    try records.map { try #require($0 as? Card).number }
 }
 
 private func instanceIds(_ records: [any DataModel]) -> [ObjectIdentifier] {
@@ -84,28 +84,28 @@ struct AuthorizedLoadEngineTests {
     // MARK: - Group 1: instance scoping
 
     /// Spec test group 1: a grant names ONE container instance — dock1's grant loads dock1's
-    /// berths and projects nothing for dock2's identity.
+    /// cards and projects nothing for dock2's identity.
     @Test func grantScopedToInstanceLoadsOnlyThatContainer() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
+            let (dock1, dock2) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let req = makeRequest(on: app)
             let dock1Records = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(try berthNumbers(dock1Records).sorted() == [1, 2, 3])
+            #expect(try cardNumbers(dock1Records).sorted() == [1, 2, 3])
 
             let dock2Records = try await req.authorizedRecords(
                 of: dock2.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(dock2Records.isEmpty)
@@ -116,13 +116,13 @@ struct AuthorizedLoadEngineTests {
     /// (the data-scoping invariant), never an error the caller could confuse with "not found".
     @Test func emptyAuthorizationsLoadEmpty() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = []
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(records.isEmpty)
@@ -131,37 +131,37 @@ struct AuthorizedLoadEngineTests {
 
     // MARK: - Group 2: operation × type scoping
 
-    /// Spec test group 2: a `.readRecords`-on-Berth grant loads Berths, projects nothing for
-    /// CrewMember, and projects nothing for `.createRecords` on Berth.
+    /// Spec test group 2: a `.readRecords`-on-Card grant loads Cards, projects nothing for
+    /// Member, and projects nothing for `.createRecords` on Card.
     @Test func operationAndTypeScopingGateTheLoad() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let req = makeRequest(on: app)
 
-            let berths = try await req.authorizedRecords(
+            let cards = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(berths.count == 3)
+            #expect(cards.count == 3)
 
-            let crew = try await req.authorizedRecords(
+            let members = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: CrewMember.self,
+                containing: Member.self,
                 for: .readRecords
             )
-            #expect(crew.isEmpty)
+            #expect(members.isEmpty)
 
             let creations = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .createRecords
             )
             #expect(creations.isEmpty)
@@ -174,44 +174,44 @@ struct AuthorizedLoadEngineTests {
     /// differs from the descending result, so ordering proves the push-down.
     @Test func sortAppliesInDatabase() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
-                sortedBy: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms
+                sortedBy: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms
             )
-            #expect(try berthNumbers(records) == [3, 2, 1])
+            #expect(try cardNumbers(records) == [3, 2, 1])
         }
     }
 
-    /// Spec test group 3: the composite key (`dockName` → dockName then number) yields the
-    /// composite order. dock1's berths share one dockName, so descending [3,2,1] can only come
+    /// Spec test group 3: the composite key (`boardName` → boardName then number) yields the
+    /// composite order. dock1's cards share one boardName, so descending [3,2,1] can only come
     /// from the number tiebreak — a single-mapping sort would leave insertion order [1,2,3].
     @Test func compositeSortKeyAppliesTiebreakOrder() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
-                sortedBy: SortCriteria([SortTerm(key: BerthSortKey.dockName, direction: .descending)]).erasedTerms
+                sortedBy: SortCriteria([SortTerm(key: CardSortKey.boardName, direction: .descending)]).erasedTerms
             )
-            #expect(try berthNumbers(records) == [3, 2, 1])
+            #expect(try cardNumbers(records) == [3, 2, 1])
         }
     }
 
@@ -221,34 +221,34 @@ struct AuthorizedLoadEngineTests {
     /// descending order; `nil` pagination returns the full set.
     @Test func paginationWindowsTheSortedSet() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
-            let sort = SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms
+            let sort = SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms
             let req = makeRequest(on: app)
 
             let middle = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
                 sortedBy: sort,
                 pagination: Pagination(startIndex: 1, maxResults: 1)
             )
-            #expect(try berthNumbers(middle) == [2])
+            #expect(try cardNumbers(middle) == [2])
 
             let full = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
                 sortedBy: sort,
                 pagination: nil
             )
-            #expect(try berthNumbers(full) == [3, 2, 1])
+            #expect(try cardNumbers(full) == [3, 2, 1])
         }
     }
 
@@ -258,21 +258,21 @@ struct AuthorizedLoadEngineTests {
     /// authorized set comes back, same as `pagination: nil`.
     @Test func negativePaginationComponentsBehaveAsAbsent() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
                 pagination: Pagination(startIndex: -3, maxResults: -1)
             )
-            #expect(try berthNumbers(records).sorted() == [1, 2, 3])
+            #expect(try cardNumbers(records).sorted() == [1, 2, 3])
         }
     }
 
@@ -281,17 +281,17 @@ struct AuthorizedLoadEngineTests {
     /// above.
     @Test func zeroMaxResultsYieldsEmptyPageWithoutThrowing() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
                 pagination: Pagination(startIndex: 0, maxResults: 0)
             )
@@ -306,33 +306,33 @@ struct AuthorizedLoadEngineTests {
     /// recomputes (the OQ-L1-4 collision test).
     @Test func identicalCallsShareInstancesDifferingSortRecomputes() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let req = makeRequest(on: app)
 
             let first = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             let second = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(instanceIds(first) == instanceIds(second))
 
             let sorted = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords,
-                sortedBy: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]).erasedTerms
+                sortedBy: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]).erasedTerms
             )
             #expect(Set(instanceIds(sorted)).isDisjoint(with: Set(instanceIds(first))))
         }
@@ -342,28 +342,28 @@ struct AuthorizedLoadEngineTests {
     /// `invalidateContainerRecords` makes the next call recompute and observe reality.
     @Test func cachedResultSurvivesDeletionUntilInvalidated() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let req = makeRequest(on: app)
 
             let first = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(first.count == 3)
 
-            try await Berth.query(on: db).delete()
+            try await Card.query(on: db).delete()
 
             let cached = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(instanceIds(cached) == instanceIds(first))
@@ -371,7 +371,7 @@ struct AuthorizedLoadEngineTests {
             try req.invalidateContainerRecords(of: dock1.modelIdentity)
             let recomputed = try await req.authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(recomputed.isEmpty)
@@ -382,70 +382,70 @@ struct AuthorizedLoadEngineTests {
     /// stay invisible until `invalidateContainerRecords` drops the entry.
     @Test func emptyResultIsCachedUntilInvalidated() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let harbor = Harbor(name: "Empty Harbor")
-            try await harbor.save(on: db)
+            let workspace = Workspace(name: "Empty Workspace")
+            try await workspace.save(on: db)
             let pier = Pier(name: "Empty Pier")
             try await pier.save(on: db)
-            let dock = try Dock(name: "Empty Dock", pierId: pier.requireId(), harborId: harbor.requireId())
-            try await dock.save(on: db)
+            let board = try Board(name: "Empty Board", pierId: pier.requireId(), workspaceId: workspace.requireId())
+            try await board.save(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock.modelIdentity,
+                authorizedContainer: board.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let req = makeRequest(on: app)
 
             let first = try await req.authorizedRecords(
-                of: dock.modelIdentity,
-                containing: Berth.self,
+                of: board.modelIdentity,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(first.isEmpty)
 
-            try await Berth(number: 42, dockName: dock.name, dockId: dock.requireId()).save(on: db)
+            try await Card(number: 42, boardName: board.name, boardId: board.requireId()).save(on: db)
 
             let cached = try await req.authorizedRecords(
-                of: dock.modelIdentity,
-                containing: Berth.self,
+                of: board.modelIdentity,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(cached.isEmpty)
 
-            try req.invalidateContainerRecords(of: dock.modelIdentity)
+            try req.invalidateContainerRecords(of: board.modelIdentity)
             let recomputed = try await req.authorizedRecords(
-                of: dock.modelIdentity,
-                containing: Berth.self,
+                of: board.modelIdentity,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(try berthNumbers(recomputed) == [42])
+            #expect(try cardNumbers(recomputed) == [42])
         }
     }
 
     /// Spec test group 6: a FRESH Request owns a fresh cache — same call, new instances.
     @Test func freshRequestOwnsFreshCache() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
 
             let first = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             let second = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(try berthNumbers(first).sorted() == berthNumbers(second).sorted())
+            #expect(try cardNumbers(first).sorted() == cardNumbers(second).sorted())
             #expect(Set(instanceIds(first)).isDisjoint(with: Set(instanceIds(second))))
         }
     }
@@ -456,25 +456,25 @@ struct AuthorizedLoadEngineTests {
     /// condition, indistinguishable from unauthorized by design (never a throw).
     @Test func missingContainerRowLoadsEmpty() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
-            let harbor = Harbor(name: "Ghost Harbor")
-            try await harbor.save(on: db)
+            let workspace = Workspace(name: "Ghost Workspace")
+            try await workspace.save(on: db)
             let pier = Pier(name: "Ghost Pier")
             try await pier.save(on: db)
-            let dock = try Dock(name: "Ghost Dock", pierId: pier.requireId(), harborId: harbor.requireId())
-            try await dock.save(on: db)
-            let identity = try dock.modelIdentity
+            let board = try Board(name: "Ghost Board", pierId: pier.requireId(), workspaceId: workspace.requireId())
+            try await board.save(on: db)
+            let identity = try board.modelIdentity
             app.storage[TestGrantsKey.self] = [TestGrant(
                 authorizedContainer: identity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
-            try await dock.delete(on: db)
+            try await board.delete(on: db)
 
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: identity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(records.isEmpty)
@@ -487,25 +487,25 @@ struct AuthorizedLoadEngineTests {
     @Test func missingContainerLoadsEmptyWithoutConsultingProvider() async throws {
         let counter = ProviderCallCounter()
         try await withFluentTestApp { app in
-            try configureHarbor(app, countCallsInto: counter)
+            try configureWorkspace(app, countCallsInto: counter)
         } _: { app, db in
-            let harbor = Harbor(name: "Vanished Harbor")
-            try await harbor.save(on: db)
+            let workspace = Workspace(name: "Vanished Workspace")
+            try await workspace.save(on: db)
             let pier = Pier(name: "Vanished Pier")
             try await pier.save(on: db)
-            let dock = try Dock(name: "Vanished Dock", pierId: pier.requireId(), harborId: harbor.requireId())
-            try await dock.save(on: db)
-            let identity = try dock.modelIdentity
+            let board = try Board(name: "Vanished Board", pierId: pier.requireId(), workspaceId: workspace.requireId())
+            try await board.save(on: db)
+            let identity = try board.modelIdentity
             app.storage[TestGrantsKey.self] = [TestGrant(
                 authorizedContainer: identity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
-            try await dock.delete(on: db)
+            try await board.delete(on: db)
 
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: identity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
             #expect(records.isEmpty)
@@ -517,7 +517,7 @@ struct AuthorizedLoadEngineTests {
     /// misconfiguration must not hide as empty (≠ unauthorized). Pier is never registered.
     @Test func unregisteredNamespaceThrows() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
             let pier = Pier(name: "Rogue Pier")
             try await pier.save(on: db)
@@ -525,12 +525,12 @@ struct AuthorizedLoadEngineTests {
             app.storage[TestGrantsKey.self] = [TestGrant(
                 authorizedContainer: identity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             do {
                 _ = try await makeRequest(on: app).authorizedRecords(
                     of: identity,
-                    containing: Berth.self,
+                    containing: Card.self,
                     for: .readRecords
                 )
                 Issue.record("expected ContainmentError.unregisteredNamespace")
@@ -546,25 +546,25 @@ struct AuthorizedLoadEngineTests {
     // MARK: - Group 8: threshold never truncates
 
     /// Spec test group 8: exceeding `maxRecordsWarningThreshold` warns but NEVER truncates —
-    /// threshold 2, three berths, all three returned. (Warning emission is observability, not a
+    /// threshold 2, three cards, all three returned. (Warning emission is observability, not a
     /// public contract — documented rather than logger-captured.)
     @Test func thresholdWarnsButNeverTruncates() async throws {
         try await withFluentTestApp { app in
-            try configureHarbor(app)
+            try configureWorkspace(app)
         } _: { app, db in
             app.maxRecordsWarningThreshold = 2
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
             let records = try await makeRequest(on: app).authorizedRecords(
                 of: dock1.modelIdentity,
-                containing: Berth.self,
+                containing: Card.self,
                 for: .readRecords
             )
-            #expect(try berthNumbers(records).sorted() == [1, 2, 3])
+            #expect(try cardNumbers(records).sorted() == [1, 2, 3])
         }
     }
 }

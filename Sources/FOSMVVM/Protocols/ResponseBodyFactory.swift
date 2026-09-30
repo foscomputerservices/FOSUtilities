@@ -20,10 +20,10 @@
 /// `body(context:)`:
 ///
 /// ```swift
-/// extension BerthListVM: ResponseBodyFactory {
+/// extension CardListVM: ResponseBodyFactory {
 ///     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
 ///         where R.ResponseBody == Self {
-///         BerthListVM(berths: try context.records(Self.berths).map(BerthCell.init))
+///         CardListVM(cards: try context.records(Self.cards).map(CardCell.init))
 ///     }
 /// }
 /// ```
