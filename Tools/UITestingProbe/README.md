@@ -17,6 +17,12 @@ xcodegen generate
 xcodebuild test -project UITestingProbe.xcodeproj -scheme UITestingProbe \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 
+# iPad — the app is universal, so it runs natively rather than letterboxed. An iPad menu
+# card shows every row of the 24-row picker, so the in-menu scroll fold is exercised on
+# the iPhone only; run both when a change touches selectPickerItem.
+xcodebuild test -project UITestingProbe.xcodeproj -scheme UITestingProbe \
+  -destination 'platform=iOS Simulator,name=iPad (A16)'
+
 # macOS
 xcodebuild test -project UITestingProbe.xcodeproj -scheme UITestingProbeMac \
   -destination 'platform=macOS,arch=arm64'

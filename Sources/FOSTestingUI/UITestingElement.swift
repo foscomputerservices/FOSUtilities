@@ -1469,6 +1469,13 @@ public extension UITestingElement {
             for step in 0..<(Self.menuSwipesPerDirection * 3) {
                 if item.exists, item.xcuiElement.isHittable {
                     itemAppeared = true
+                    // Settle before the dispatch, on the row's own frame; a row that never
+                    // settles inside the budget is still tapped at its last-known frame, as
+                    // tap()'s coordinate branch does. Only a row that left the tree during
+                    // the settle is not tapped: the tree is re-asked at the next step, with
+                    // no fling in between to carry the menu away from it.
+                    _ = item.waitForStableFrame(timeout: Self.coordinateSettleBudget)
+                    guard item.exists else { continue }
                     item.tap(file: file, line: line)
                     tapped = true
                     break
@@ -1478,7 +1485,7 @@ public extension UITestingElement {
                 } else {
                     app.swipeDown()
                 }
-                RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.menuScrollSettle))
+                settleMenuScroll(toward: item)
             }
 
             // isHittable steered the scan; it does not gate the tap. If the hint never
@@ -1533,6 +1540,21 @@ private extension UITestingElement {
     // first undo the up leg. Deeper menus fail loudly through the fold-teaching message.
     static let menuSwipesPerDirection = 2
     static let menuScrollSettle: TimeInterval = 0.4
+
+    // swiftformat:disable docComments
+    // A fling decelerates for longer on a contended host than any fixed pause allows for,
+    // and a row the tree still reports mid-deceleration can be recycled out of it between
+    // the hittable check above and the native dispatch inside tap() (reported from a CI
+    // runner sharing its host with a second VM: XCUITest's own "No matches found" from the
+    // tap's re-query, past the outer retry). The sought row's frame is the settle signal
+    // while the row is in the tree; a row not yet reported gets the fixed pause, there
+    // being nothing to watch.
+    // swiftformat:enable docComments
+    func settleMenuScroll(toward item: UITestingElement) {
+        if !item.waitForStableFrame(timeout: Self.coordinateSettleBudget) {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: Self.menuScrollSettle))
+        }
+    }
 
     // swiftformat:disable docComments
     // The commit signal, pinned by fixture: the collapsed Picker's native control carries

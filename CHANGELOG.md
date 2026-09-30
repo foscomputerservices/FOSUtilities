@@ -204,6 +204,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A picker selection survives a contended runner** (FOSTestingUI) — `selectPickerItem`
+  waits for a row reached by scrolling within the presented menu to stop moving before it
+  taps. It used to pause a fixed interval after each fling, and on a CI runner sharing its
+  host with a second VM the menu was still decelerating when the tap dispatched, so XCUITest
+  re-resolved the row to nothing and failed the test outright, past the retry.
+
 - **A form field submits unless its validator reported an error** (FOSMVVM) — `FormFieldView`'s
   submit guard was inverted: a field carrying an error submitted, and a field carrying only a
   warning did not. A warning or an informational result no longer blocks submission; an error does.
