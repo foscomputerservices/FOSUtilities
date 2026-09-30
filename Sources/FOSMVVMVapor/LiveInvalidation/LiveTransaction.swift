@@ -42,6 +42,10 @@ public extension Vapor.Request {
     /// > Note: One `liveTransaction` opened inside another is a second, independent transaction
     /// > that commits — and runs the work collected inside it — on its own, so nest one only when
     /// > its writes are meant to stand whether or not the enclosing transaction commits.
+    ///
+    /// > Warning: On SQLite, write only through the database the closure hands you. SQLite holds one
+    /// > connection per event loop, and the transaction holds it, so a query on `req.db` or `app.db`
+    /// > from inside the closure can wait for that same connection and fail after the pool timeout.
     func liveTransaction<T: Sendable>(
         _ closure: @Sendable @escaping (any Database) async throws -> T
     ) async throws -> T {
@@ -72,6 +76,10 @@ public extension Vapor.Application {
     /// > Note: One `liveTransaction` opened inside another is a second, independent transaction
     /// > that commits — and runs the work collected inside it — on its own, so nest one only when
     /// > its writes are meant to stand whether or not the enclosing transaction commits.
+    ///
+    /// > Warning: On SQLite, write only through the database the closure hands you. SQLite holds one
+    /// > connection per event loop, and the transaction holds it, so a query on `req.db` or `app.db`
+    /// > from inside the closure can wait for that same connection and fail after the pool timeout.
     func liveTransaction<T: Sendable>(
         _ closure: @Sendable @escaping (any Database) async throws -> T
     ) async throws -> T {
