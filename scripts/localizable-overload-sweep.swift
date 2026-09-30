@@ -1470,17 +1470,17 @@ func classifyPolicy(
     case .unavailable, nil: false
     }
 
-    /// Platforms whose graphs hold both the candidate and this sibling — the
-    /// provably-compilable set for a member delegating to the sibling.
-    ///
-    /// macCatalyst guard: Catalyst has no SDK or graphs of its own and
-    /// compiles as `os(iOS)`, so graph intersection alone would gate
-    /// Catalyst-available API out of the iOS compile it rides. When BOTH
-    /// sides declare macCatalyst available, the pair provably exists in the
-    /// shared iphoneos SDK universe (Catalyst declarations cannot be
-    /// `#if`-compiled out of it), so `iphoneos` joins the set. One side
-    /// alone is not enough — the other may still be absent from the iOS SDK,
-    /// and adding `os(iOS)` would break device builds.
+    // Platforms whose graphs hold both the candidate and this sibling — the
+    // provably-compilable set for a member delegating to the sibling.
+    //
+    // macCatalyst guard: Catalyst has no SDK or graphs of its own and
+    // compiles as `os(iOS)`, so graph intersection alone would gate
+    // Catalyst-available API out of the iOS compile it rides. When BOTH
+    // sides declare macCatalyst available, the pair provably exists in the
+    // shared iphoneos SDK universe (Catalyst declarations cannot be
+    // `#if`-compiled out of it), so `iphoneos` joins the set. One side
+    // alone is not enough — the other may still be absent from the iOS SDK,
+    // and adding `os(iOS)` would break device builds.
     func sharedPlatforms(with sibling: SiblingEntry) -> Set<String> {
         var shared = Set(api.contributingPlatforms)
             .intersection(siblings.graphPlatformsByUSR[sibling.usr] ?? [])
@@ -1491,16 +1491,16 @@ func classifyPolicy(
         return shared
     }
 
-    /// The sibling's parsed slots, when its shape matches everywhere except
-    /// (possibly) the LSK positions; nil otherwise.
-    ///
-    /// Constraint rule (spec: a sibling may be MORE general, never more
-    /// constrained): every sibling constraint — extension-level AND
-    /// declaration-level (`swiftGenerics`; AccessibilityRotorEntry's String
-    /// sibling spells `ID == Never` only there) — must either appear among
-    /// the candidate's constraints or bind a generic parameter the sibling
-    /// introduces beyond the candidate's (the `S`/`L` of its string slot,
-    /// which the forwarded `String` argument satisfies).
+    // The sibling's parsed slots, when its shape matches everywhere except
+    // (possibly) the LSK positions; nil otherwise.
+    //
+    // Constraint rule (spec: a sibling may be MORE general, never more
+    // constrained): every sibling constraint — extension-level AND
+    // declaration-level (`swiftGenerics`; AccessibilityRotorEntry's String
+    // sibling spells `ID == Never` only there) — must either appear among
+    // the candidate's constraints or bind a generic parameter the sibling
+    // introduces beyond the candidate's (the `S`/`L` of its string slot,
+    // which the forwarded `String` argument satisfies).
     func matchingSlots(of sibling: SiblingEntry) -> [ParameterSlot]? {
         guard sibling.usr != api.usr, sibling.kind == api.kind,
               // A pair that coexists in no compile can delegate nowhere.
