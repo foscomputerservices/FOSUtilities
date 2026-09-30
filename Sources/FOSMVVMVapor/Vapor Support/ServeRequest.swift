@@ -55,7 +55,7 @@ package extension Vapor.Request {
     func recordsByTuple() -> [RecordLoadPlan.Tuple: [any Model]] {
         var result: [RecordLoadPlan.Tuple: [any Model]] = [:]
         for (tuple, keys) in tupleCacheKeys {
-            result[tuple] = keys.flatMap { containerRecordCache[$0] ?? [] }.map { $0 as any Model }
+            result[tuple] = keys.flatMap { cachedRecords(for: $0) ?? [] }.map { $0 as any Model }
         }
         return result
     }
@@ -68,7 +68,7 @@ package extension Vapor.Request {
         var result: [RecordLoadPlan.Tuple: Int] = [:]
         for (tuple, keys) in tupleCacheKeys {
             result[tuple] = keys.reduce(0) { running, key in
-                running + (containerRecordCountCache[key] ?? (containerRecordCache[key]?.count ?? 0))
+                running + (cachedCount(for: key) ?? (cachedRecords(for: key)?.count ?? 0))
             }
         }
         return result

@@ -77,7 +77,7 @@ extension Application {
 
 /// A registered `AppState` builder, type-erased for storage in a type-keyed registry. The concrete
 /// `AppState` is recovered by a typed downcast in the generic context that knows AppState at build
-/// time (the mirror of `ApexContainerResolver`, here keyed by the `AppState` type rather than held
+/// time (the mirror of `ApplicationScope`, here keyed by the `AppState` type rather than held
 /// as one closure).
 struct AppStateBuilder: Sendable {
     let build: @Sendable (Vapor.Request) async throws -> any Sendable

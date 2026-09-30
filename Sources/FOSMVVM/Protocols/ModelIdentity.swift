@@ -42,11 +42,12 @@ public struct ModelIdentity: Hashable, Codable, Sendable {
     package let namespace: ModelNamespace
     package let id: ModelIdType
 
-    // Kept explicit (not synthesized): this init IS the minting seam.
-    // swiftlint:disable:next unneeded_synthesized_initializer
-    init(namespace: ModelNamespace, id: ModelIdType) { // internal ⇒ only Model.modelIdentity mints one
-        self.namespace = namespace
-        self.id = id
+    /// The one identity of a system container — a container with no rows, so not a `Model`, which
+    /// is why it cannot mint through ``Model/modelIdentity``. `package`, not public: the server's
+    /// `SystemContainer.identity` is its only caller, and it mints exactly one shape — the type's
+    /// namespace with the framework's constant id part — never an arbitrary namespace and id.
+    package static func systemContainer(for type: Any.Type) -> ModelIdentity {
+        .init(namespace: ModelNamespace(for: type), id: systemContainerId)
     }
 
     // Frozen: L1 persists these in DB columns — never rename/reorder/remove a key (breaks stored
@@ -56,6 +57,11 @@ public struct ModelIdentity: Hashable, Codable, Sendable {
         case id
     }
 }
+
+/// The constant id part every system container's identity carries: the namespace (the type) is
+/// what tells two apart. Pinned by SystemContainerTests — changing it orphans every stored grant on
+/// a system container.
+let systemContainerId = UUID(uuid: (0x5F, 0x05, 0xC0, 0xDE, 0x00, 0x00, 0x40, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01))
 
 public extension ModelIdentity {
     /// The HTTP response header FOSMVVM uses to keep ``LiveViewModel`` screens current
@@ -84,6 +90,6 @@ public extension ModelIdentity {
     /// self.vmId = try user.modelIdentity.viewModelId
     /// ```
     var viewModelId: ViewModelId {
-        .init(id: "\(namespace.rawValue)|\(id.uuidString)")
+        namespace.viewModelId(rooting: id)
     }
 }

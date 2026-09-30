@@ -29,14 +29,14 @@ import Vapor
 // MARK: - Queries
 
 /// Roots a request at a Board (the cards' container).
-struct BoardRootQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+struct BoardRootQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
-/// Names both the scope root (RootedQuery) and the targeted card (TargetedQuery). The target is
+/// Names both the scope root (ScopedQuery) and the targeted card (TargetedQuery). The target is
 /// an opaque identity echoed from the ViewModel — never a raw id in the body.
-struct CardTargetQuery: TargetedQuery, RootedQuery {
-    let rootIdentity: ModelIdentity
+struct CardTargetQuery: TargetedQuery, ScopedQuery {
+    let scopeIdentity: ModelIdentity
     let target: ModelIdentity
 }
 
@@ -47,9 +47,9 @@ struct CardTargetQuery: TargetedQuery, RootedQuery {
 struct CardListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = CardListRequest
 
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 
     var vmId = ViewModelId()
@@ -117,7 +117,7 @@ struct UpdateCardBody: ServerRequestBody, ValidatableModel {
 
 /// SERVER target: one conformance carries candidates + sync apply (no Database).
 extension UpdateCardBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
+    static let candidates = Card.loadingPlan(.write, within: .parent)
 
     func apply(to card: Card) throws {
         card.number = number
@@ -161,7 +161,7 @@ struct CreateCardBody: ServerRequestBody, ValidatableModel {
 }
 
 extension CreateCardBody: DataModelWriter {
-    static let candidates = LoadRequirement.create(Card.self, in: .parentRoot)
+    static let candidates = Card.creationPlan(within: .parent)
 
     func apply(to card: Card) throws {
         card.number = number
@@ -200,7 +200,7 @@ final class CreateCardRequest: CreateRequest, @unchecked Sendable {
 struct ArchiveCardBody: ServerRequestBody {}
 
 extension ArchiveCardBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.archive(Card.self, in: .parentRoot)
+    static let candidates = Card.loadingPlan(.archive, within: .parent)
 }
 
 final class ArchiveCardRequest: ArchiveRequest, @unchecked Sendable {
@@ -313,7 +313,7 @@ final class SelfRefreshUpdateRequest: UpdateRequest, @unchecked Sendable {
     }
 }
 
-// MARK: An UpdateRequest whose candidate roots at `.query` but whose query is not RootedQuery.
+// MARK: An UpdateRequest whose candidate roots at `.query` but whose query is not ScopedQuery.
 
 struct TargetOnlyQuery: TargetedQuery {
     let target: ModelIdentity
@@ -345,9 +345,9 @@ final class NoRootUpdateRequest: UpdateRequest, @unchecked Sendable {
     }
 }
 
-// MARK: An UpdateRequest whose candidate roots at `.apex` with no resolver registered.
+// MARK: An UpdateRequest whose candidate is within `.application` with none registered.
 
-struct ApexUpdateBody: ServerRequestBody, ValidatableModel {
+struct ApplicationUpdateBody: ServerRequestBody, ValidatableModel {
     var number: Int
 
     func validate(fields _: [any FormFieldBase]?, validations _: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
@@ -355,30 +355,30 @@ struct ApexUpdateBody: ServerRequestBody, ValidatableModel {
     }
 }
 
-extension ApexUpdateBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Card.self, in: .newRoot(.apex), via: Board.self)
+extension ApplicationUpdateBody: DataModelWriter {
+    static let candidates = Card.loadingPlan(.write, within: .application, via: Board.self)
 
     func apply(to card: Card) throws {
         card.number = number
     }
 }
 
-final class ApexUpdateRequest: UpdateRequest, @unchecked Sendable {
+final class ApplicationUpdateRequest: UpdateRequest, @unchecked Sendable {
     typealias Query = CardTargetQuery
-    typealias RequestBody = ApexUpdateBody
+    typealias RequestBody = ApplicationUpdateBody
     typealias Fragment = EmptyFragment
     typealias ResponseError = ValidationError
     typealias ResponseBody = CardListVM
 
     let id: String
-    var requestBody: ApexUpdateBody? {
+    var requestBody: ApplicationUpdateBody? {
         nil
     }
 
     let query: CardTargetQuery?
     var responseBody: CardListVM?
 
-    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ApexUpdateBody?, responseBody: CardListVM?) {
+    init(query: CardTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ApplicationUpdateBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -401,8 +401,8 @@ struct ComputedCandidatesBody: ServerRequestBody, ValidatableModel {
 
 extension ComputedCandidatesBody: DataModelWriter {
     /// Deliberately computed (a `var`, not a stored `let`) — the token-stability lint rejects it.
-    static var candidates: LoadRequirement<Card> {
-        .write(Card.self, in: .parentRoot)
+    static var candidates: LoadingPlan<Card> {
+        Card.loadingPlan(.write, within: .parent)
     }
 
     func apply(to card: Card) throws {
@@ -436,14 +436,14 @@ final class ComputedCandidatesUpdateRequest: UpdateRequest, @unchecked Sendable 
     }
 }
 
-// MARK: A read request whose `dataRequirements` is COMPUTED — the read-plan token lint rejects it.
+// MARK: A read request whose `loadingPlans` mints inline — the read-plan token lint rejects it.
 
 struct ComputedReadVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = ComputedReadRequest
 
     /// Deliberately computed — mints fresh tokens on each access.
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static var loadingPlans: LoadingPlans {
+        Card.loadingPlan(.read, within: .parent)
     }
 
     var vmId = ViewModelId()
@@ -482,7 +482,7 @@ final class ComputedReadRequest: ViewModelRequest, @unchecked Sendable {
 struct WrongVerbArchiveBody: ServerRequestBody {}
 
 extension WrongVerbArchiveBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
+    static let candidates = Card.loadingPlan(.write, within: .parent)
 }
 
 final class WrongVerbArchiveRequest: ArchiveRequest, @unchecked Sendable {
@@ -522,7 +522,7 @@ struct RefinedCandidatesBody: ServerRequestBody, ValidatableModel {
 }
 
 extension RefinedCandidatesBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot).refinedByRequest
+    static let candidates = Card.loadingPlan(.write, within: .parent).refinedByRequest
 
     func apply(to card: Card) throws {
         card.number = number
@@ -666,14 +666,14 @@ struct CreateMooring: AsyncMigration {
 }
 
 /// Roots a request at a Quay and names the targeted mooring.
-struct MooringTargetQuery: TargetedQuery, RootedQuery {
-    let rootIdentity: ModelIdentity
+struct MooringTargetQuery: TargetedQuery, ScopedQuery {
+    let scopeIdentity: ModelIdentity
     let target: ModelIdentity
 }
 
 /// Roots a request at a Quay.
-struct QuayRootQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+struct QuayRootQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
 /// The refresh body both deletion verbs fall through to — a live mooring is one Fluent excludes
@@ -681,9 +681,9 @@ struct QuayRootQuery: RootedQuery {
 struct MooringListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = MooringListRequest
 
-    static let moorings = LoadRequirement.read(Mooring.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [moorings]
+    static let moorings = Mooring.loadingPlan(.read, within: .parent)
+    static var loadingPlans: LoadingPlans {
+        moorings
     }
 
     var vmId = ViewModelId()
@@ -728,7 +728,7 @@ final class MooringListRequest: ViewModelRequest, @unchecked Sendable {
 struct ArchiveMooringBody: ServerRequestBody {}
 
 extension ArchiveMooringBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.archive(Mooring.self, in: .parentRoot)
+    static let candidates = Mooring.loadingPlan(.archive, within: .parent)
 }
 
 final class ArchiveMooringRequest: ArchiveRequest, @unchecked Sendable {
@@ -760,7 +760,7 @@ final class ArchiveMooringRequest: ArchiveRequest, @unchecked Sendable {
 struct DestroyMooringBody: ServerRequestBody {}
 
 extension DestroyMooringBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.destroy(Mooring.self, in: .parentRoot)
+    static let candidates = Mooring.loadingPlan(.destroy, within: .parent)
 }
 
 final class DestroyMooringRequest: DestroyRequest, @unchecked Sendable {
@@ -779,6 +779,231 @@ final class DestroyMooringRequest: DestroyRequest, @unchecked Sendable {
     var responseBody: MooringListVM?
 
     init(query: MooringTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: DestroyMooringBody?, responseBody: MooringListVM?) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.responseBody = responseBody
+    }
+
+    static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// MARK: - Writes within the subject scope
+
+// The candidate set is whatever the subject's grants reach — a Mooring a grant names with the
+// verb's model operation, or a Mooring inside a Quay whose grant extends the verb to Moorings —
+// so the query names only the target. The refresh body lists the subject's Moorings the same way.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+struct SubjectMooringListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = SubjectMooringListRequest
+
+    static let moorings = Mooring.loadingPlan(.read, within: .subject)
+    static var loadingPlans: LoadingPlans {
+        moorings
+    }
+
+    var vmId = ViewModelId()
+    var tags: [String] = []
+
+    init() {}
+    init(tags: [String]) {
+        self.tags = tags
+    }
+
+    func propertyNames() -> [LocalizableId: String] {
+        [:]
+    }
+
+    static func stub() -> Self {
+        .init()
+    }
+
+    static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
+        let moorings = try context.records(Self.moorings)
+        return .init(tags: moorings.map(\.tag).sorted())
+    }
+}
+
+extension SubjectMooringListVM: UpdateResponseBody, ArchiveResponseBody, DestroyResponseBody {}
+
+final class SubjectMooringListRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    var responseBody: SubjectMooringListVM?
+
+    init(query _: EmptyQuery? = nil, sort _: EmptySort? = nil, fragment _: EmptyFragment? = nil, requestBody _: EmptyBody? = nil, responseBody: SubjectMooringListVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+struct UpdateMooringBody: ServerRequestBody, ValidatableModel {
+    var tag: String
+
+    func validate(fields _: [any FormFieldBase]?, validations _: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
+        nil
+    }
+}
+
+extension UpdateMooringBody: DataModelWriter {
+    static let candidates = Mooring.loadingPlan(.write, within: .subject)
+
+    func apply(to mooring: Mooring) throws {
+        mooring.tag = tag
+    }
+}
+
+final class SubjectUpdateMooringRequest: UpdateRequest, @unchecked Sendable {
+    typealias Query = TargetOnlyQuery
+    typealias RequestBody = UpdateMooringBody
+    typealias Fragment = EmptyFragment
+    typealias ResponseError = ValidationError
+    typealias ResponseBody = SubjectMooringListVM
+
+    let id: String
+    let query: TargetOnlyQuery?
+    let requestBody: UpdateMooringBody?
+    var responseBody: SubjectMooringListVM?
+
+    init(query: TargetOnlyQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody: UpdateMooringBody?, responseBody: SubjectMooringListVM?) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.requestBody = requestBody
+        self.responseBody = responseBody
+    }
+
+    static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+struct SubjectArchiveMooringBody: ServerRequestBody {}
+
+extension SubjectArchiveMooringBody: WriteTargetProviding {
+    static let candidates = Mooring.loadingPlan(.archive, within: .subject)
+}
+
+final class SubjectArchiveMooringRequest: ArchiveRequest, @unchecked Sendable {
+    typealias Query = TargetOnlyQuery
+    typealias RequestBody = SubjectArchiveMooringBody
+    typealias Fragment = EmptyFragment
+    typealias ResponseError = ValidationError
+    typealias ResponseBody = SubjectMooringListVM
+
+    let id: String
+    let query: TargetOnlyQuery?
+    var requestBody: SubjectArchiveMooringBody? {
+        nil
+    }
+
+    var responseBody: SubjectMooringListVM?
+
+    init(query: TargetOnlyQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: SubjectArchiveMooringBody?, responseBody: SubjectMooringListVM?) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.responseBody = responseBody
+    }
+
+    static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+struct SubjectDestroyMooringBody: ServerRequestBody {}
+
+extension SubjectDestroyMooringBody: WriteTargetProviding {
+    static let candidates = Mooring.loadingPlan(.destroy, within: .subject)
+}
+
+final class SubjectDestroyMooringRequest: DestroyRequest, @unchecked Sendable {
+    typealias Query = TargetOnlyQuery
+    typealias RequestBody = SubjectDestroyMooringBody
+    typealias Fragment = EmptyFragment
+    typealias ResponseError = ValidationError
+    typealias ResponseBody = SubjectMooringListVM
+
+    let id: String
+    let query: TargetOnlyQuery?
+    var requestBody: SubjectDestroyMooringBody? {
+        nil
+    }
+
+    var responseBody: SubjectMooringListVM?
+
+    init(query: TargetOnlyQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: SubjectDestroyMooringBody?, responseBody: SubjectMooringListVM?) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.responseBody = responseBody
+    }
+
+    static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+/// A create declared within the subject scope — refused at registration: a create names the
+/// container it creates into.
+struct SubjectCreateCardBody: ServerRequestBody, ValidatableModel {
+    var number: Int
+
+    func validate(fields _: [any FormFieldBase]?, validations _: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
+        nil
+    }
+}
+
+extension SubjectCreateCardBody: DataModelWriter {
+    static let candidates = Card.creationPlan(within: .subject)
+
+    func apply(to card: Card) throws {
+        card.number = number
+    }
+}
+
+final class SubjectCreateCardRequest: CreateRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias RequestBody = SubjectCreateCardBody
+    typealias Fragment = EmptyFragment
+    typealias ResponseError = ValidationError
+    typealias ResponseBody = CardListVM
+
+    let id: String
+    let requestBody: SubjectCreateCardBody?
+    var responseBody: CardListVM?
+
+    init(query _: EmptyQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody: SubjectCreateCardBody?, responseBody: CardListVM?) {
+        self.id = .random(length: 10)
+        self.requestBody = requestBody
+        self.responseBody = responseBody
+    }
+
+    static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+/// The mixed shape: candidates within the request's container, the refresh body within the
+/// subject scope.
+final class MixedArchiveMooringRequest: ArchiveRequest, @unchecked Sendable {
+    typealias Query = MooringTargetQuery
+    typealias RequestBody = ArchiveMooringBody
+    typealias Fragment = EmptyFragment
+    typealias ResponseError = ValidationError
+    typealias ResponseBody = SubjectMooringListVM
+
+    let id: String
+    let query: MooringTargetQuery?
+    var requestBody: ArchiveMooringBody? {
+        nil
+    }
+
+    var responseBody: SubjectMooringListVM?
+
+    init(query: MooringTargetQuery?, sort _: EmptySort?, fragment _: EmptyFragment?, requestBody _: ArchiveMooringBody?, responseBody: SubjectMooringListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -817,7 +1042,7 @@ struct TypedErrorUpdateBody: ServerRequestBody, ValidatableModel {
 }
 
 extension TypedErrorUpdateBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
+    static let candidates = Card.loadingPlan(.write, within: .parent)
 
     func apply(to card: Card) throws {
         card.number = number
@@ -862,7 +1087,7 @@ struct MooringWriteRefusal: ValidatableViewModelRequestError {
 struct TypedErrorArchiveMooringBody: ServerRequestBody {}
 
 extension TypedErrorArchiveMooringBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.archive(Mooring.self, in: .parentRoot)
+    static let candidates = Mooring.loadingPlan(.archive, within: .parent)
 }
 
 final class TypedErrorArchiveMooringRequest: ArchiveRequest, @unchecked Sendable {
@@ -894,7 +1119,7 @@ final class TypedErrorArchiveMooringRequest: ArchiveRequest, @unchecked Sendable
 struct TypedErrorDestroyMooringBody: ServerRequestBody {}
 
 extension TypedErrorDestroyMooringBody: WriteTargetProviding {
-    static let candidates = LoadRequirement.destroy(Mooring.self, in: .parentRoot)
+    static let candidates = Mooring.loadingPlan(.destroy, within: .parent)
 }
 
 final class TypedErrorDestroyMooringRequest: DestroyRequest, @unchecked Sendable {

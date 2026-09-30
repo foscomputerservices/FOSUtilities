@@ -23,15 +23,14 @@ import Foundation
 ///
 /// ```swift
 /// extension CardArchiveRequest.RequestBody: WriteTargetProviding {
-///     static let candidates = LoadRequirement.archive(Card.self, in: .parentRoot)
+///     static let candidates = Card.loadingPlan(.archive, within: .request)
 /// }
 /// ```
 ///
-/// Declare `candidates` as a stored `static let` — anything else fails fast at boot. On a
-/// writer, `.parentRoot`
-/// anchors at the write request's own query root (there is no parent factory). The submitted
-/// ``TargetedQuery`` target must resolve to a member of this set, or the request fails with
-/// not-found semantics (not-yours is indistinguishable from not-found).
+/// Declare `candidates` as a stored `static let` — anything else fails fast at boot. A writer has
+/// no parent factory, so `within: .parent` resolves to the write request's own request scope. The
+/// submitted ``TargetedQuery`` target must resolve to a member of this set, or the request fails
+/// with not-found semantics (not-yours is indistinguishable from not-found).
 ///
 /// An `ArchiveRequest` body conforms to this protocol **alone** — archiving is framework-owned,
 /// so there is nothing to apply. An update or create body adds ``DataModelWriter``.
@@ -39,9 +38,10 @@ public protocol WriteTargetProviding: Sendable {
     /// The persisted model this request writes.
     associatedtype Target: DataModel
 
-    /// The write-verb requirement (`.write` / `.create` / `.delete`) naming what this request
-    /// may touch, and from where. Declare it as a stored `static let`.
-    static var candidates: LoadRequirement<Target> { get }
+    /// The plan naming what this request may touch, and from where — `loadingPlan(.write,)`,
+    /// `creationPlan(within:)`, `loadingPlan(.archive,)`, or `loadingPlan(.destroy,)`. Declare it
+    /// as a stored `static let`.
+    static var candidates: LoadingPlan<Target> { get }
 }
 
 /// The write half of an update or create request: applies the submitted, validated body onto
@@ -49,7 +49,7 @@ public protocol WriteTargetProviding: Sendable {
 ///
 /// ```swift
 /// extension CardUpdateRequest.RequestBody: DataModelWriter {
-///     static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
+///     static let candidates = Card.loadingPlan(.write, within: .request)
 ///
 ///     func apply(to card: Card) throws {
 ///         card.title = title

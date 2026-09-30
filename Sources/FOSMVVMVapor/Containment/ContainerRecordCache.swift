@@ -70,6 +70,58 @@ struct ContainerRecordCacheKey: Hashable, Sendable {
     }
 }
 
+/// The subject-scope engine's key: no container — the scope is the subject's whole grant set.
+struct SubjectScopeCacheKey: Hashable, Sendable {
+    let containedType: ObjectIdentifier
+    let operation: ContainerOperation
+    let refinement: ContainmentQueryRefinement
+
+    /// The exact key the subject-scope engine deposits for one load call — the single
+    /// construction point shared by the engine's deposit and the executor's tuple→keys side
+    /// map (the twin of `ContainerRecordCacheKey.forLoad`).
+    static func forLoad(
+        ofType type: any DataModel.Type,
+        for operation: ContainerOperation,
+        sortedBy sortTerms: [AnySortTerm],
+        pagination: Pagination?,
+        filter: AnyFilter?
+    ) -> SubjectScopeCacheKey {
+        .init(
+            containedType: ObjectIdentifier(type),
+            operation: operation,
+            refinement: .normalized(sortTerms: sortTerms, pagination: pagination, filter: filter)
+        )
+    }
+}
+
+/// One deposited load unit, whichever engine entry loaded it: a container's members, or the
+/// subject scope's union. The executor's tuple→keys side map holds these so every reader of a
+/// tuple's records (`recordsByTuple`, the write route's candidate set) resolves through
+/// `Request.cachedRecords(for:)` and never has to know which cache a tuple landed in.
+enum RecordCacheKey: Hashable, Sendable {
+    case container(ContainerRecordCacheKey)
+    case subject(SubjectScopeCacheKey)
+}
+
+extension Vapor.Request {
+    /// The records one deposited key names, from whichever cache holds them (`nil` when nothing
+    /// was deposited under it).
+    func cachedRecords(for key: RecordCacheKey) -> [any DataModel]? {
+        switch key {
+        case .container(let key): containerRecordCache[key]
+        case .subject(let key): subjectScopeCache[key]
+        }
+    }
+
+    /// The total a windowed load under `key` is a view into; `nil` when the load carried no window.
+    func cachedCount(for key: RecordCacheKey) -> Int? {
+        switch key {
+        case .container(let key): containerRecordCountCache[key]
+        case .subject(let key): subjectScopeCountCache[key]
+        }
+    }
+}
+
 extension Vapor.Request {
     /// CONTRACT (one authorization set per Request): the key deliberately does NOT name the
     /// authorizations. This is structural — the provider is fetched and memoized once per Request
@@ -94,6 +146,21 @@ extension Vapor.Request {
         set { storage[ContainerRecordCountCacheStore.self] = newValue }
     }
 
+    /// The subject-scope engine's deposits (`authorizedModels(ofType:for:sortedBy:pagination:filter:)`
+    /// is the only writer): one entry per (type, operation, refinement) — the union of both
+    /// authorities, already refined. Same single-writer / snapshot-sharing contract as
+    /// `containerRecordCache`.
+    var subjectScopeCache: [SubjectScopeCacheKey: [any DataModel]] {
+        get { storage[SubjectScopeCacheStore.self]?.entries ?? [:] }
+        set { storage[SubjectScopeCacheStore.self] = SubjectScopeCacheEntries(entries: newValue) }
+    }
+
+    /// Per-window totals for `subjectScopeCache`, written only when a load carries a window.
+    var subjectScopeCountCache: [SubjectScopeCacheKey: Int] {
+        get { storage[SubjectScopeCountCacheStore.self] ?? [:] }
+        set { storage[SubjectScopeCountCacheStore.self] = newValue }
+    }
+
     /// Pass-#2 support: a mutating caller invalidates after commit so its re-run recomputes.
     /// Drops ALL of the identity's entries — every contained type, operation, and refinement.
     func invalidateContainerRecords(of container: ModelIdentity) {
@@ -109,6 +176,14 @@ extension Application {
     var maxRecordsWarningThreshold: Int {
         get { storage[MaxRecordsWarningThresholdStore.self] ?? 1000 }
         set { storage[MaxRecordsWarningThresholdStore.self] = newValue }
+    }
+
+    /// Observability, not truncation: a response whose live-refresh registration set exceeds this
+    /// logs ONE warning and still registers every identity. The subject scope registers one
+    /// identity per bound model, so a wide grant set grows the header with it (OQ60).
+    var maxRegistrationsWarningThreshold: Int {
+        get { storage[MaxRegistrationsWarningThresholdStore.self] ?? 1000 }
+        set { storage[MaxRegistrationsWarningThresholdStore.self] = newValue }
     }
 }
 
@@ -128,6 +203,24 @@ private struct MaxRecordsWarningThresholdStore: StorageKey {
     typealias Value = Int
 }
 
+private struct MaxRegistrationsWarningThresholdStore: StorageKey {
+    typealias Value = Int
+}
+
 private struct ContainerRecordCountCacheStore: StorageKey {
     typealias Value = [ContainerRecordCacheKey: Int]
+}
+
+/// Same @unchecked Sendable contract as ContainerRecordCacheEntries: touched sequentially within
+/// the request's handler task.
+private struct SubjectScopeCacheEntries: @unchecked Sendable {
+    let entries: [SubjectScopeCacheKey: [any DataModel]]
+}
+
+private struct SubjectScopeCacheStore: StorageKey {
+    typealias Value = SubjectScopeCacheEntries
+}
+
+private struct SubjectScopeCountCacheStore: StorageKey {
+    typealias Value = [SubjectScopeCacheKey: Int]
 }

@@ -92,7 +92,7 @@ struct GroupMountedRegistrationTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords, .writeRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -102,7 +102,7 @@ struct GroupMountedRegistrationTests {
 
             // No credential → the middleware rejects before the handler mutates anything.
             let unauthed = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: originalNumber + 100, boardName: "Hijacked"),
                 responseBody: nil
@@ -118,7 +118,7 @@ struct GroupMountedRegistrationTests {
 
             // Valid credential → the write commits and the response is the refreshed body.
             let authedReq = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 88, boardName: "Wired"),
                 responseBody: nil
@@ -165,13 +165,13 @@ struct GroupMountedRegistrationTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
 
             try await app.testing().test(
-                CardListRequest(query: .init(rootIdentity: dock1.modelIdentity)),
+                CardListRequest(query: .init(scopeIdentity: dock1.modelIdentity)),
                 headers: ["Authorization": "Bearer current-token"]
             ) { response in
                 #expect(response.status == .ok)
@@ -226,7 +226,7 @@ private func withGuardWriteApp(
         app.migrations.add(CreateCard())
         app.migrations.add(CreateMember())
         app.migrations.add(CreateBoardMember())
-        try app.useContainerAuthorizationProvider(TestGrantsProvider())
+        try app.useModelAuthorizationProvider(TestGrantsProvider())
         try configure(app)
     } _: { app, db in
         try await body(app, db)

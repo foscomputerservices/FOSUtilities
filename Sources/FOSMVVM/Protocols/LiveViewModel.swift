@@ -20,7 +20,7 @@
 ///
 /// ```swift
 /// @ViewModel(options: [.live])
-/// public struct DocksViewModel: RequestableViewModel { ... }
+/// public struct BoardListViewModel: RequestableViewModel { ... }
 /// ```
 ///
 /// Any view bound with `.bind()` then re-fetches whenever another actor mutates

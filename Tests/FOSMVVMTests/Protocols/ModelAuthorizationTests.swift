@@ -1,4 +1,4 @@
-// ContainerAuthorizationTests.swift
+// ModelAuthorizationTests.swift
 //
 // Copyright 2026 FOS Computer Services, LLC
 //
@@ -18,10 +18,10 @@ import FOSMVVM
 import Foundation
 import Testing
 
-/// A Sendable value-snapshot fixture composed exactly as the spec's ``ContainerAuthorization`` DocC
+/// A Sendable value-snapshot fixture composed exactly as the spec's ``ModelAuthorization`` DocC
 /// example (the BoardGrant sketch) — the shared-core contract under pure-logic test, no persistence involved.
-private struct TestAuthorization: ContainerAuthorization {
-    let authorizedContainer: ModelIdentity
+private struct TestAuthorization: ModelAuthorization {
+    let authorizedModel: ModelIdentity
     let operations: [ContainerOperation]
     let recordTypes: [ModelNamespace]
 
@@ -30,19 +30,19 @@ private struct TestAuthorization: ContainerAuthorization {
         ofType recordType: any FOSMVVM.Model.Type,
         in container: ModelIdentity
     ) -> Bool {
-        container == authorizedContainer
+        container == authorizedModel
             && operations.authorizes(operation) // honors the wildcard — never `contains`
             && recordTypes.contains(recordType.modelIdentityNamespace)
     }
 }
 
-@Suite("ContainerAuthorization")
-struct ContainerAuthorizationTests {
+@Suite("ModelAuthorization")
+struct ModelAuthorizationTests {
     @Test("A covering grant authorizes the operation, type, and container")
     func coveringGrantAuthorizes() throws {
         let containerIdentity = try TestGadget(id: UUID()).modelIdentity
         let auth = TestAuthorization(
-            authorizedContainer: containerIdentity,
+            authorizedModel: containerIdentity,
             operations: [.readRecords],
             recordTypes: [TestWidget.modelIdentityNamespace]
         )
@@ -55,7 +55,7 @@ struct ContainerAuthorizationTests {
         let containerIdentity = try TestGadget(id: UUID()).modelIdentity
         let otherIdentity = try TestGadget(id: UUID()).modelIdentity
         let auth = TestAuthorization(
-            authorizedContainer: containerIdentity,
+            authorizedModel: containerIdentity,
             operations: [.readRecords],
             recordTypes: [TestWidget.modelIdentityNamespace]
         )
@@ -67,7 +67,7 @@ struct ContainerAuthorizationTests {
     func wildcardGrantExcludesDestroy() throws {
         let containerIdentity = try TestGadget(id: UUID()).modelIdentity
         let auth = TestAuthorization(
-            authorizedContainer: containerIdentity,
+            authorizedModel: containerIdentity,
             operations: [.anyOperation],
             recordTypes: [TestWidget.modelIdentityNamespace]
         )
@@ -80,7 +80,7 @@ struct ContainerAuthorizationTests {
     func recordTypeMismatchNotAuthorized() throws {
         let containerIdentity = try TestGadget(id: UUID()).modelIdentity
         let auth = TestAuthorization(
-            authorizedContainer: containerIdentity,
+            authorizedModel: containerIdentity,
             operations: [.anyOperation],
             recordTypes: [TestWidget.modelIdentityNamespace]
         )

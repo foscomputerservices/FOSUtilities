@@ -11,8 +11,8 @@ import Vapor
 // in particular. Replace this with a credential-scoped provider that returns only
 // the grants the authenticated caller holds (mount the reads/writes behind a
 // credential-middleware group). See docs/deferrals.md → "credential-middleware auth".
-struct SkeletonGrant: ContainerAuthorization {
-    let authorizedContainer: ModelIdentity
+struct SkeletonGrant: ModelAuthorization {
+    let authorizedModel: ModelIdentity
     let operations: [ContainerOperation]
     let recordTypes: [ModelNamespace]
 
@@ -21,17 +21,17 @@ struct SkeletonGrant: ContainerAuthorization {
         ofType recordType: any FOSMVVM.Model.Type,
         in container: ModelIdentity
     ) -> Bool {
-        container == authorizedContainer
+        container == authorizedModel
             && operations.authorizes(operation)
             && recordTypes.contains(recordType.modelIdentityNamespace)
     }
 }
 
-struct SkeletonAuthProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Vapor.Request) async throws -> [SkeletonGrant] {
+struct SkeletonAuthProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Vapor.Request) async throws -> [SkeletonGrant] {
         try await Board.query(on: request.db).all().map { board in
             try SkeletonGrant(
-                authorizedContainer: board.modelIdentity,
+                authorizedModel: board.modelIdentity,
                 operations: [.readRecords, .createRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )

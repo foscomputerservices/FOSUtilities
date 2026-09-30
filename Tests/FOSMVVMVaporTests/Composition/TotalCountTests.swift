@@ -29,8 +29,8 @@ import Vapor
 
 private struct GrantsKey: StorageKey { typealias Value = [TestGrant] }
 
-private struct GrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct GrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         request.application.storage[GrantsKey.self] ?? []
     }
 }
@@ -42,7 +42,7 @@ private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreateCard())
     app.migrations.add(CreateMember())
     app.migrations.add(CreateBoardMember())
-    try app.useContainerAuthorizationProvider(GrantProvider())
+    try app.useModelAuthorizationProvider(GrantProvider())
 }
 
 private func makeRequest(on app: Application, url: URL? = nil) -> Vapor.Request {
@@ -57,7 +57,7 @@ private func requestURL(for request: some ServerRequest) throws -> URL {
 private func grantBoardReadsCards(_ app: Application, board: Board) throws {
     app.storage[GrantsKey.self] = try [
         TestGrant(
-            authorizedContainer: board.modelIdentity,
+            authorizedModel: board.modelIdentity,
             operations: [.readRecords],
             recordTypes: [Card.modelIdentityNamespace]
         )
@@ -65,8 +65,8 @@ private func grantBoardReadsCards(_ app: Application, board: Board) throws {
 }
 
 /// A rooted query that ALSO carries a window — the search-window shape.
-private struct PagedBoardQuery: RootedQuery, PaginatedQuery {
-    let rootIdentity: ModelIdentity
+private struct PagedBoardQuery: ScopedQuery, PaginatedQuery {
+    let scopeIdentity: ModelIdentity
     let pagination: Pagination
 }
 
@@ -75,9 +75,9 @@ private struct PagedBoardQuery: RootedQuery, PaginatedQuery {
 private struct PagedBoardVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = PagedBoardRequest
 
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 
     var vmId = ViewModelId()
@@ -129,7 +129,7 @@ struct TotalCountTests {
             let (dock1, _) = try await seedWorkspace(on: db) // dock1 has 3 cards
             try grantBoardReadsCards(app, board: dock1)
 
-            let vmRequest = try PagedBoardRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
+            let vmRequest = try PagedBoardRequest(query: .init(scopeIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -148,7 +148,7 @@ struct TotalCountTests {
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[GrantsKey.self] = [] // no grant
 
-            let vmRequest = try PagedBoardRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
+            let vmRequest = try PagedBoardRequest(query: .init(scopeIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -167,12 +167,12 @@ struct TotalCountTests {
             let (dock1, _) = try await seedWorkspace(on: db)
             try grantBoardReadsCards(app, board: dock1)
 
-            let vmRequest = try PagedBoardRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
+            let vmRequest = try PagedBoardRequest(query: .init(scopeIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
 
-            let undeclared = LoadRequirement.read(Pier.self, in: .parentRoot)
+            let undeclared = Pier.loadingPlan(.read, within: .parent)
             do {
                 _ = try context.totalCount(for: undeclared)
                 Issue.record("expected a throw for an unplanned requirement, not 0")

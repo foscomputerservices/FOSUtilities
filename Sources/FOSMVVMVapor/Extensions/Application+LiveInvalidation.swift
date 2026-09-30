@@ -63,7 +63,7 @@ extension Vapor.Application {
     /// model type gets exactly one middleware no matter how many descriptors reach it — a
     /// duplicate would double-emit.
     func registerInvalidationEmitMiddleware(for descriptor: RegisteredModel, hub: InvalidationHub) {
-        var modelTypes: [any DataModel.Type] = [descriptor.modelType]
+        var modelTypes: [any DataModel.Type] = descriptor.modelType.map { [$0] } ?? []
         for relation in descriptor.containment {
             modelTypes.append(relation.containedType)
             if let pivotType = relation.pivotType {

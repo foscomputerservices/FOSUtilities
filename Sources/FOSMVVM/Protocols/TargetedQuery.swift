@@ -19,8 +19,8 @@ import Foundation
 /// A ``ServerRequestQuery`` that names which loaded record a write request targets.
 ///
 /// ```swift
-/// struct UpdateCardQuery: TargetedQuery, RootedQuery {
-///     let rootIdentity: ModelIdentity   // RootedQuery — the scope root
+/// struct UpdateCardQuery: TargetedQuery, ScopedQuery {
+///     let scopeIdentity: ModelIdentity   // ScopedQuery — the scope root
 ///     let target: ModelIdentity         // TargetedQuery — which card
 /// }
 /// ```
@@ -31,7 +31,7 @@ import Foundation
 /// the auth-scoped candidate set it loaded itself, so a submit cannot retarget.
 /// Resolution failure is indistinguishable from not-found.
 ///
-/// Sibling of ``RootedQuery`` / ``PaginatedQuery`` — one trait per concern.
+/// Sibling of ``ScopedQuery`` / ``PaginatedQuery`` — one trait per concern.
 public protocol TargetedQuery: ServerRequestQuery {
     /// The targeted record's opaque identity, from the ViewModel the client
     /// displayed. Resolved server-side against the loaded candidate set.

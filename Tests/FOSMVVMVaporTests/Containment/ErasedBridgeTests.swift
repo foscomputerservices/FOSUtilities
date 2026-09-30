@@ -44,7 +44,7 @@ struct ErasedBridgeTests {
             // From here down: NO concrete container/record type names — the erased path only.
             return try await loadAllMembers(of: identity, registry: app.modelTypeRegistry, on: db)
         }
-        // dock1: 3 cards (children), 2 members (siblings), 1 pier (parent), 0 personnel folders.
+        // board1: 3 cards (children), 2 members (siblings), 1 workspace (parent), 0 checklists.
         #expect(membersByRelation.sorted() == [0, 1, 2, 3])
     }
 }

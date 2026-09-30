@@ -17,7 +17,7 @@
 // Test-taxonomy discipline (C3 spec §Testing): C3's full contract — "the registered provider's
 // grants scope every load" — becomes observable at a *public* surface only once C8's factory ships.
 // Test 1 below is the CONTRACT test: it exercises only the public registration API
-// (`Application.useContainerAuthorizationProvider(_:)`); its typed `.duplicateAuthorizationProvider`
+// (`Application.useModelAuthorizationProvider(_:)`); its typed `.duplicateAuthorizationProvider`
 // case assertion is a labeled COVERAGE RIDER reading package (`ContainmentError`) API. Tests 2-5
 // (added in Task 2) are COVERAGE tests of the internal acquisition path via `@testable import
 // FOSMVVMVapor` — sanctioned because that path has no public surface yet. No access level is
@@ -34,7 +34,7 @@ import NIOConcurrencyHelpers
 import Testing
 import Vapor
 
-/// Registers Workspace (the apex) + Board and adds the remaining workspace migrations.
+/// Registers Workspace (the top container) + Board and adds the remaining workspace migrations.
 /// CreateWorkspace/CreatePier run BEFORE CreateBoard — CreateBoard's DDL references both tables.
 private func configureWorkspace(_ app: Application) throws {
     app.migrations.add(CreatePier())
@@ -56,29 +56,29 @@ private func cardNumbers(_ records: [any DataModel]) throws -> [Int] {
 
 /// Vends no authorizations — only its type identity matters for the duplicate-registration test;
 /// the scoping test reuses it as the unauthenticated/unprivileged-subject variant.
-private struct EmptyProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct EmptyProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         []
     }
 }
 
 /// A distinct provider TYPE (also vending `TestGrant`) — proves duplicate detection isn't fooled by
 /// registering a different conforming type once one is already registered.
-private struct OtherProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct OtherProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         []
     }
 }
 
 /// Resolves dock1 at request time — grants need the seeded board's identity, which exists only after
 /// seeding in the test body — and vends a Card-read grant for that one container.
-private struct Dock1CardReadProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct Dock1CardReadProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         guard let dock1 = try await Board.query(on: request.db).filter(\.$name == "Board 1").first() else {
             return []
         }
         return try [TestGrant(
-            authorizedContainer: dock1.modelIdentity,
+            authorizedModel: dock1.modelIdentity,
             operations: [.readRecords],
             recordTypes: [Card.modelIdentityNamespace]
         )]
@@ -88,10 +88,10 @@ private struct Dock1CardReadProvider: ContainerAuthorizationProvider {
 /// Counts invocations behind a lock — a locked class keeps the count synchronously readable in
 /// `#expect` assertions (an actor's count would need an `await` the assertion can't take) — proves
 /// fetch-when-first-needed-then-reused.
-private final class CountingProvider: ContainerAuthorizationProvider {
+private final class CountingProvider: ModelAuthorizationProvider {
     let invocations = NIOLockedValueBox(0)
 
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         invocations.withLockedValue { $0 += 1 }
         return []
     }
@@ -99,11 +99,11 @@ private final class CountingProvider: ContainerAuthorizationProvider {
 
 /// Awaits real Fluent work (queries every board row) before minting Member-read grants — the
 /// async-provider shape an app's session/token lookup takes.
-private struct AsyncMembersGrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct AsyncMembersGrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         try await Board.query(on: request.db).all().map { board in
             try TestGrant(
-                authorizedContainer: board.modelIdentity,
+                authorizedModel: board.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Member.modelIdentityNamespace]
             )
@@ -111,20 +111,20 @@ private struct AsyncMembersGrantProvider: ContainerAuthorizationProvider {
     }
 }
 
-@Suite("ContainerAuthorizationProvider registration + acquisition (C3)")
+@Suite("ModelAuthorizationProvider registration + acquisition (C3)")
 struct AuthorizationProviderTests {
     /// Spec test 1 (contract): registration succeeds once; a second registration — same or a
     /// different provider type — throws `.duplicateAuthorizationProvider`, never silently replaces.
     @Test func duplicateProviderRegistrationThrows() async throws {
         try await withFluentTestApp { app in
-            try app.useContainerAuthorizationProvider(EmptyProvider())
+            try app.useModelAuthorizationProvider(EmptyProvider())
             for duplicate in 0..<2 {
                 do {
                     // attempt 0: same type again; attempt 1: a different provider type
                     if duplicate == 0 {
-                        try app.useContainerAuthorizationProvider(EmptyProvider())
+                        try app.useModelAuthorizationProvider(EmptyProvider())
                     } else {
-                        try app.useContainerAuthorizationProvider(OtherProvider())
+                        try app.useModelAuthorizationProvider(OtherProvider())
                     }
                     Issue.record("expected ContainmentError.duplicateAuthorizationProvider")
                 } catch let error as ContainmentError {
@@ -143,7 +143,7 @@ struct AuthorizationProviderTests {
     @Test func providerGrantsScopeTheLoad() async throws {
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(Dock1CardReadProvider())
+            try app.useModelAuthorizationProvider(Dock1CardReadProvider())
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)
@@ -166,7 +166,7 @@ struct AuthorizationProviderTests {
         // Fresh app: the unauthenticated/unprivileged-subject shape — empty grants, empty loads.
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(EmptyProvider())
+            try app.useModelAuthorizationProvider(EmptyProvider())
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let records = try await makeRequest(on: app).authorizedRecords(
@@ -184,7 +184,7 @@ struct AuthorizationProviderTests {
         let provider = CountingProvider()
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(provider)
+            try app.useModelAuthorizationProvider(provider)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)
@@ -239,7 +239,7 @@ struct AuthorizationProviderTests {
     @Test func asyncFluentProviderScopesEndToEnd() async throws {
         try await withFluentTestApp { app in
             try configureWorkspace(app)
-            try app.useContainerAuthorizationProvider(AsyncMembersGrantProvider())
+            try app.useModelAuthorizationProvider(AsyncMembersGrantProvider())
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let req = makeRequest(on: app)

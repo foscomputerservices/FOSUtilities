@@ -30,7 +30,7 @@ import Testing
 import Vapor
 
 /// Registers the container graph the hop checks resolve against:
-/// Workspace (apex) → Board → Checklist (.guards) → ChecklistItem.
+/// Workspace (the top container) → Board → Checklist (.guards) → ChecklistItem.
 private func configureContainers(_ app: Application) throws {
     try app.register(Workspace.self, migration: CreateWorkspace())
     app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
@@ -97,9 +97,9 @@ private func captureWarnings(of app: Application) -> CapturedWarnings {
     return captured
 }
 
-/// A ModelIdentity for apex-resolver fixtures (id minted locally — no DB round-trip needed).
-private func mintApexIdentity() throws -> ModelIdentity {
-    let workspace = Workspace(name: "Apex Workspace")
+/// A ModelIdentity for application-scope fixtures (id minted locally — no DB round-trip needed).
+private func mintApplicationIdentity() throws -> ModelIdentity {
+    let workspace = Workspace(name: "Top Workspace")
     workspace.id = ModelIdType()
     return try workspace.modelIdentity
 }
@@ -138,8 +138,8 @@ private extension RegistrationFixture {
 }
 
 /// The Query fixture that vends a root — `.query`-rooted plans boot-check for this conformance.
-private struct BoardRootedQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+private struct BoardScopedQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
 /// A no-op middleware — grouping on it proves the registration door works on a middleware group
@@ -173,21 +173,24 @@ private struct BoardPageVM: RequestableViewModel, ComposableFactory, VaporRespon
         .init()
     }
 
-    static let dataRequirements: [any DataRequirement] = [
-        LoadRequirement.read(Card.self, in: .parentRoot, via: Board.self),
-        LoadRequirement.read(ChecklistItem.self, in: .parentRoot, via: Board.self, Checklist.self)
-    ]
+    static let cards = Card.loadingPlan(.read, within: .parent, via: Board.self)
+    static let checklistItems = ChecklistItem.loadingPlan(.read, within: .parent, via: Board.self, Checklist.self)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+        checklistItems
+    }
 }
 
 private final class BoardPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: BoardPageVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BoardPageVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BoardPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -234,10 +237,13 @@ private final class CyclePageRequest: ViewModelRequest, @unchecked Sendable {
 private struct DoubleMarkVM: RegistrationFixture, RequestableViewModel {
     typealias Request = DoubleMarkRequest
 
-    static let dataRequirements: [any DataRequirement] = [
-        LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
-        LoadRequirement.read(Member.self, in: .parentRoot).refinedByRequest
-    ]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+    static let members = Member.loadingPlan(.read, within: .parent).refinedByRequest
+
+    static var loadingPlans: LoadingPlans {
+        cards
+        members
+    }
 }
 
 private final class DoubleMarkRequest: ViewModelRequest, @unchecked Sendable {
@@ -253,43 +259,51 @@ private final class DoubleMarkRequest: ViewModelRequest, @unchecked Sendable {
     }
 }
 
-// MARK: - .query root WITHOUT a RootedQuery
+// MARK: - .query root WITHOUT a ScopedQuery
 
-private struct UnrootedQueryVM: RegistrationFixture, RequestableViewModel {
-    typealias Request = UnrootedQueryRequest
+private struct UnscopedQueryVM: RegistrationFixture, RequestableViewModel {
+    typealias Request = UnscopedQueryRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
-private final class UnrootedQueryRequest: ViewModelRequest, @unchecked Sendable {
+private final class UnscopedQueryRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    var responseBody: UnrootedQueryVM?
+    var responseBody: UnscopedQueryVM?
 
-    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: UnrootedQueryVM? = nil) {
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: UnscopedQueryVM? = nil) {
         self.id = .random(length: 10)
         self.responseBody = responseBody
     }
 }
 
-// MARK: - .apex root (resolver required)
+// MARK: - .application scope (a registration is required)
 
-private struct ApexPageVM: RegistrationFixture, RequestableViewModel {
-    typealias Request = ApexPageRequest
+private struct ApplicationPageVM: RegistrationFixture, RequestableViewModel {
+    typealias Request = ApplicationPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Board.self, in: .newRoot(.apex))]
+    static let boards = Board.loadingPlan(.read, within: .application)
+
+    static var loadingPlans: LoadingPlans {
+        boards
+    }
 }
 
-private final class ApexPageRequest: ViewModelRequest, @unchecked Sendable {
+private final class ApplicationPageRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    var responseBody: ApexPageVM?
+    var responseBody: ApplicationPageVM?
 
-    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ApexPageVM? = nil) {
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ApplicationPageVM? = nil) {
         self.id = .random(length: 10)
         self.responseBody = responseBody
     }
@@ -320,18 +334,22 @@ private final class EmptyPageRequest: ViewModelRequest, @unchecked Sendable {
 private struct BadHopVM: RegistrationFixture, RequestableViewModel {
     typealias Request = BadHopRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(ChecklistItem.self, in: .parentRoot, via: Board.self)]
+    static let checklistItems = ChecklistItem.loadingPlan(.read, within: .parent, via: Board.self)
+
+    static var loadingPlans: LoadingPlans {
+        checklistItems
+    }
 }
 
 private final class BadHopRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: BadHopVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BadHopVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BadHopVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -342,18 +360,22 @@ private final class BadHopRequest: ViewModelRequest, @unchecked Sendable {
 private struct PierHopVM: RegistrationFixture, RequestableViewModel {
     typealias Request = PierHopRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot, via: Pier.self)]
+    static let cards = Card.loadingPlan(.read, within: .parent, via: Pier.self)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class PierHopRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: PierHopVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: PierHopVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: PierHopVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -367,18 +389,22 @@ private final class PierHopRequest: ViewModelRequest, @unchecked Sendable {
 private struct DeadMarkerVM: RegistrationFixture, RequestableViewModel {
     typealias Request = DeadMarkerRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class DeadMarkerRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: DeadMarkerVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DeadMarkerVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DeadMarkerVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -390,18 +416,22 @@ private final class DeadMarkerRequest: ViewModelRequest, @unchecked Sendable {
 private struct GuardsOffPathVM: RegistrationFixture, RequestableViewModel {
     typealias Request = GuardsOffPathRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(ChecklistItem.self, in: .parentRoot)]
+    static let checklistItems = ChecklistItem.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        checklistItems
+    }
 }
 
 private final class GuardsOffPathRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     var responseBody: GuardsOffPathVM?
 
-    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: GuardsOffPathVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: GuardsOffPathVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -421,20 +451,24 @@ private struct ForeignSort: ServerRequestSort {
 private struct ForeignSortVM: RegistrationFixture, RequestableViewModel {
     typealias Request = ForeignSortRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class ForeignSortRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias Sort = ForeignSort
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     let sort: ForeignSort?
     var responseBody: ForeignSortVM?
 
-    init(query: BoardRootedQuery? = nil, sort: ForeignSort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ForeignSortVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: ForeignSort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ForeignSortVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.sort = sort
@@ -446,25 +480,141 @@ private final class ForeignSortRequest: ViewModelRequest, @unchecked Sendable {
 private struct CriteriaSortVM: RegistrationFixture, RequestableViewModel {
     typealias Request = CriteriaSortRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class CriteriaSortRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = BoardRootedQuery
+    typealias Query = BoardScopedQuery
     typealias Sort = SortCriteria<CardSortKey>
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: BoardRootedQuery?
+    let query: BoardScopedQuery?
     let sort: SortCriteria<CardSortKey>?
     var responseBody: CriteriaSortVM?
 
-    init(query: BoardRootedQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: CriteriaSortVM? = nil) {
+    init(query: BoardScopedQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: CriteriaSortVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.sort = sort
         self.responseBody = responseBody
     }
+}
+
+// MARK: - .subject scope (bound from the subject's grants — no binding to register)
+
+private struct SubjectPageVM: RegistrationFixture, RequestableViewModel {
+    typealias Request = SubjectPageRequest
+
+    static let boards = Board.loadingPlan(.read, within: .subject)
+
+    static var loadingPlans: LoadingPlans {
+        boards
+    }
+}
+
+/// A subject-scoped plan on a type this suite never registers (Card has no registration here).
+private struct SubjectUnregisteredPageVM: RegistrationFixture, RequestableViewModel {
+    typealias Request = SubjectUnregisteredPageRequest
+
+    static let cards = Card.loadingPlan(.read, within: .subject)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
+}
+
+private final class SubjectUnregisteredPageRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    var responseBody: SubjectUnregisteredPageVM?
+
+    init(query _: EmptyQuery? = nil, sort _: EmptySort? = nil, fragment _: EmptyFragment? = nil, requestBody _: EmptyBody? = nil, responseBody: SubjectUnregisteredPageVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+private final class SubjectPageRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    var responseBody: SubjectPageVM?
+
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SubjectPageVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+/// A creation plan within `.subject` — a create names the container it creates into, so the
+/// subject scope cannot be one.
+private struct SubjectCreateVM: RegistrationFixture, RequestableViewModel {
+    typealias Request = SubjectCreateRequest
+
+    static let boards = Board.creationPlan(within: .subject)
+
+    static var loadingPlans: LoadingPlans {
+        boards
+    }
+}
+
+private final class SubjectCreateRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    var responseBody: SubjectCreateVM?
+
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SubjectCreateVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+// MARK: - .anyOperation is not a plan
+
+private struct AnyOperationVM: RegistrationFixture, RequestableViewModel {
+    typealias Request = AnyOperationRequest
+
+    static let cards = Card.loadingPlan(.anyOperation, within: .request)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
+}
+
+private final class AnyOperationRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = BoardScopedQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    let query: BoardScopedQuery?
+    var responseBody: AnyOperationVM?
+
+    init(query: BoardScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: AnyOperationVM? = nil) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.responseBody = responseBody
+    }
+}
+
+/// Mints a bare Vapor.Request — enough for the executor's binding step, which is where a
+/// `.subject` plan stops today.
+private func makeBareRequest(on app: Application) -> Vapor.Request {
+    Request(
+        application: app,
+        method: .GET,
+        url: URI(string: "/"),
+        on: app.eventLoopGroup.next()
+    )
 }
 
 // MARK: - Tests (spec test 7)
@@ -479,7 +629,7 @@ struct PlanRegistrationTests {
             try app.registerRecordLoadPlan(for: BoardPageRequest.self)
             let plan = try #require(app.recordLoadPlan(for: BoardPageRequest.self))
             #expect(plan.tuples.count == 2)
-            #expect(plan.tuples.allSatisfy { $0.root == .query })
+            #expect(plan.tuples.allSatisfy { $0.root == .request })
         } _: { _, _ in }
     }
 
@@ -553,11 +703,11 @@ struct PlanRegistrationTests {
         } _: { _, _ in }
     }
 
-    /// Boot check: `.query`-rooted loads require the request's Query to conform to RootedQuery.
-    @Test func queryRootWithoutRootedQueryFailsFast() async throws {
+    /// Boot check: loads within `.request` require the request's Query to conform to ScopedQuery.
+    @Test func requestScopeWithoutScopedQueryFailsFast() async throws {
         try await withFluentTestApp { app in
             do {
-                try app.registerRecordLoadPlan(for: UnrootedQueryRequest.self)
+                try app.registerRecordLoadPlan(for: UnscopedQueryRequest.self)
                 Issue.record("expected ContainmentError.invalidLoadPlan")
             } catch let error as ContainmentError {
                 guard case .invalidLoadPlan = error else {
@@ -565,15 +715,15 @@ struct PlanRegistrationTests {
                     return
                 }
             }
-            #expect(app.recordLoadPlan(for: UnrootedQueryRequest.self) == nil)
+            #expect(app.recordLoadPlan(for: UnscopedQueryRequest.self) == nil)
         } _: { _, _ in }
     }
 
-    /// Boot check: `.apex`-rooted loads require a registered apex container resolver.
-    @Test func apexRootWithoutResolverFailsFast() async throws {
+    /// Boot check: loads within `.application` require a registered application scope.
+    @Test func applicationScopeWithoutRegistrationFailsFast() async throws {
         try await withFluentTestApp { app in
             do {
-                try app.registerRecordLoadPlan(for: ApexPageRequest.self)
+                try app.registerRecordLoadPlan(for: ApplicationPageRequest.self)
                 Issue.record("expected ContainmentError.invalidLoadPlan")
             } catch let error as ContainmentError {
                 guard case .invalidLoadPlan = error else {
@@ -581,32 +731,32 @@ struct PlanRegistrationTests {
                     return
                 }
             }
-            #expect(app.recordLoadPlan(for: ApexPageRequest.self) == nil)
+            #expect(app.recordLoadPlan(for: ApplicationPageRequest.self) == nil)
         } _: { _, _ in }
     }
 
-    /// With a resolver registered, the same `.apex`-rooted plan derives and stores.
-    @Test func apexRootWithResolverDerives() async throws {
-        let apexIdentity = try mintApexIdentity()
+    /// With a resolver registered, the same `.application` plan derives and stores.
+    @Test func applicationScopeWithRegistrationDerives() async throws {
+        let applicationIdentity = try mintApplicationIdentity()
         try await withFluentTestApp { app in
-            try app.useApexContainerResolver { _ in apexIdentity }
-            try app.registerRecordLoadPlan(for: ApexPageRequest.self)
-            let plan = try #require(app.recordLoadPlan(for: ApexPageRequest.self))
+            try app.useApplicationScope { _ in applicationIdentity }
+            try app.registerRecordLoadPlan(for: ApplicationPageRequest.self)
+            let plan = try #require(app.recordLoadPlan(for: ApplicationPageRequest.self))
             #expect(plan.tuples.count == 1)
-            #expect(plan.tuples.allSatisfy { $0.root == .apex })
+            #expect(plan.tuples.allSatisfy { $0.root == .application })
         } _: { _, _ in }
     }
 
-    /// Exactly one apex resolver per application — a second registration throws.
-    @Test func duplicateApexResolverThrows() async throws {
-        let apexIdentity = try mintApexIdentity()
+    /// Exactly one application scope per application — a second registration throws.
+    @Test func duplicateApplicationScopeThrows() async throws {
+        let applicationIdentity = try mintApplicationIdentity()
         try await withFluentTestApp { app in
-            try app.useApexContainerResolver { _ in apexIdentity }
+            try app.useApplicationScope { _ in applicationIdentity }
             do {
-                try app.useApexContainerResolver { _ in apexIdentity }
-                Issue.record("expected ContainmentError.duplicateApexContainerResolver")
+                try app.useApplicationScope { _ in applicationIdentity }
+                Issue.record("expected ContainmentError.duplicateApplicationScope")
             } catch let error as ContainmentError {
-                guard case .duplicateApexContainerResolver = error else {
+                guard case .duplicateApplicationScope = error else {
                     Issue.record("wrong case: \(error)")
                     return
                 }
@@ -614,7 +764,7 @@ struct PlanRegistrationTests {
         } _: { _, _ in }
     }
 
-    /// Boot check: a conformer declaring neither dataRequirements nor children is meaningless.
+    /// Boot check: a conformer declaring neither loadingPlans nor children is meaningless.
     @Test func allEmptyConformerFailsFast() async throws {
         try await withFluentTestApp { app in
             do {
@@ -715,6 +865,101 @@ struct PlanRegistrationTests {
             // Neither recognized bridge emits the foreign-Sort (zero-terms) warning.
             #expect(!warnings.contains(allOf: "zero sort terms"))
         } _: { _, _ in }
+    }
+
+    /// Boot check: a plan `within: .subject` needs no binding — its first hop is registered, so
+    /// registration succeeds and the tuple carries the subject scope.
+    @Test func subjectScopeNeedsNoBindingAndRegisters() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectPageRequest.self)
+            let plan = try #require(app.recordLoadPlan(for: SubjectPageRequest.self))
+            #expect(plan.tuples.count == 1)
+            #expect(plan.tuples.allSatisfy { $0.root == .subject })
+        } _: { _, _ in }
+    }
+
+    /// Boot check: a subject-scoped plan's first type must be registered — a grant binds it
+    /// directly, so the registry must know it. Card is never registered in this suite.
+    @Test func subjectScopedUnregisteredFirstTypeFailsFast() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            do {
+                try app.registerRecordLoadPlan(for: SubjectUnregisteredPageRequest.self)
+                Issue.record("expected ContainmentError.invalidLoadPlan")
+            } catch let error as ContainmentError {
+                guard case .invalidLoadPlan(_, let reason) = error else {
+                    Issue.record("wrong case: \(error)")
+                    return
+                }
+                #expect(reason.contains("is declared within the subject scope but is not registered"))
+            }
+            #expect(app.recordLoadPlan(for: SubjectUnregisteredPageRequest.self) == nil)
+        } _: { _, _ in }
+    }
+
+    /// Boot check: a creation plan within `.subject` is rejected — a create names the container
+    /// it creates into.
+    @Test func subjectScopedCreationPlanFailsFast() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            do {
+                try app.registerRecordLoadPlan(for: SubjectCreateRequest.self)
+                Issue.record("expected ContainmentError.invalidLoadPlan")
+            } catch let error as ContainmentError {
+                guard case .invalidLoadPlan(_, let reason) = error else {
+                    Issue.record("wrong case: \(error)")
+                    return
+                }
+                #expect(reason.contains("creation plan cannot be within the subject scope"))
+            }
+            #expect(app.recordLoadPlan(for: SubjectCreateRequest.self) == nil)
+        } _: { _, _ in }
+    }
+
+    /// Boot check: `.anyOperation` is a grant's wildcard, never a plan — a plan states the one
+    /// authority its subject must hold.
+    @Test func anyOperationPlanFailsFast() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            do {
+                try app.registerRecordLoadPlan(for: AnyOperationRequest.self)
+                Issue.record("expected ContainmentError.invalidLoadPlan")
+            } catch let error as ContainmentError {
+                guard case .invalidLoadPlan(_, let reason) = error else {
+                    Issue.record("wrong case: \(error)")
+                    return
+                }
+                #expect(reason.contains("cannot be .anyOperation"))
+            }
+            #expect(app.recordLoadPlan(for: AnyOperationRequest.self) == nil)
+        } _: { _, _ in }
+    }
+
+    /// Request time: a `.subject` plan needs no query and no application scope to bind — a bare
+    /// request executes it, and the subject's grants alone decide what it holds.
+    @Test func subjectScopeBindsFromTheGrantsAlone() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.useModelAuthorizationProvider(TestGrantsProvider())
+            try app.registerRecordLoadPlan(for: SubjectPageRequest.self)
+        } _: { app, db in
+            let workspace = Workspace(name: "Grand Workspace")
+            try await workspace.save(on: db)
+            let pier = Pier(name: "North Pier")
+            try await pier.save(on: db)
+            let dock1 = try Board(name: "Board 1", pierId: pier.requireId(), workspaceId: workspace.requireId())
+            try await dock1.save(on: db)
+            app.storage[TestGrantsKey.self] = try [
+                TestGrant(authorizedModel: dock1.modelIdentity, operations: [], recordTypes: [], modelOperations: [.read])
+            ]
+            let req = makeBareRequest(on: app)
+            try await req.executeRecordLoadPlan(for: SubjectPageRequest())
+
+            let tuple = try #require(req.tupleCacheKeys.keys.first)
+            #expect(req.recordsByTuple()[tuple]?.count == 1)
+            #expect(try req.registrationSet == [dock1.modelIdentity])
+        }
     }
 
     // contract: `register(request:app:)` is a `RoutesBuilder` method, so grouped mounting compiles —

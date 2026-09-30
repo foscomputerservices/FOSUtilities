@@ -23,7 +23,7 @@ import Vapor
 // each load unit lands in the container-record cache before projection begins.
 
 extension Vapor.Request {
-    /// Executes the typed request's boot-derived ``RecordLoadPlan``: binds the roots and the
+    /// Executes the typed request's boot-derived ``RecordLoadPlan``: binds the scopes and the
     /// request refinement from the INSTANCE (its `query`/`sort` properties — the single source
     /// of truth; nothing is re-parsed from the URL), loads every declared tuple through the
     /// authorized engine (results land in ``containerRecordCache``, and each tuple's deposited
@@ -56,20 +56,35 @@ extension Vapor.Request {
     /// Derived from the executed plan's tuples only (spec §3.4): containers touched solely by a
     /// SupplementalRecordLoading hook are outside the v1 registration surface.
     private func depositRegistrationSet(from resolved: ResolvedRecordLoadPlan) {
-        registrationSet = touchedContainers(of: resolved)
+        let identities = touchedContainers(of: resolved)
+        let threshold = application.maxRegistrationsWarningThreshold
+        if identities.count > threshold {
+            logger.warning("\(resolved.requestName) registers \(identities.count) identities for live refresh — over maxRegistrationsWarningThreshold (\(threshold)). Every identity was registered; a load within the subject scope registers one per bound model, so consider narrowing the plan or paginating it.")
+        }
+        registrationSet = identities
     }
 
-    /// The containers an executed plan touched: its resolved root identities plus every container
-    /// its tuples' cache keys name. The ONE traversal behind both the read path's registration set
-    /// (`depositRegistrationSet`) and the write path's cache invalidation
-    /// (`invalidateWrittenContainers`, WriteRoute.swift) — the live-invalidation contract holds
-    /// only while a client registers on exactly what a write invalidates, so neither site may
-    /// re-derive this shape on its own.
+    /// The identities an executed plan touched: every scope's bound identities (one per named
+    /// scope; one per bound model within the subject scope, plus the subject itself when the
+    /// provider vends it) and every container its tuples' cache keys name. The ONE traversal
+    /// behind both the read path's registration set (`depositRegistrationSet`) and the write
+    /// path's cache invalidation (`invalidateWrittenContainers`, WriteRoute.swift) — the
+    /// live-invalidation contract holds only while a client registers on exactly what a write
+    /// invalidates, so neither site may re-derive this shape on its own.
     func touchedContainers(of resolved: ResolvedRecordLoadPlan) -> Set<ModelIdentity> {
         var identities = Set(resolved.rootIdentities.values)
+        for bound in resolved.subjectBindings.values {
+            identities.formUnion(bound)
+        }
+        if let subject = resolved.subjectIdentity {
+            identities.insert(subject)
+        }
         for tuple in resolved.plan.tuples {
             for key in tupleCacheKeys[tuple] ?? [] {
-                identities.insert(key.container)
+                // A subject-scope key names no container: its rows are the bound identities above.
+                if case .container(let key) = key {
+                    identities.insert(key.container)
+                }
             }
         }
         return identities
@@ -86,27 +101,36 @@ extension Vapor.Request {
     /// its branches deposited, in deposit order. ``ProjectionContext`` snapshots it so a
     /// handle's read returns exactly its own tuple's loaded set — never a same-type sweep
     /// across other tuples' entries.
-    var tupleCacheKeys: [RecordLoadPlan.Tuple: [ContainerRecordCacheKey]] {
+    var tupleCacheKeys: [RecordLoadPlan.Tuple: [RecordCacheKey]] {
         get { storage[TupleCacheKeysStore.self] ?? [:] }
         set { storage[TupleCacheKeysStore.self] = newValue }
     }
 }
 
 private struct TupleCacheKeysStore: StorageKey {
-    typealias Value = [RecordLoadPlan.Tuple: [ContainerRecordCacheKey]]
+    typealias Value = [RecordLoadPlan.Tuple: [RecordCacheKey]]
 }
 
 private struct RegistrationSetStore: StorageKey {
     typealias Value = Set<ModelIdentity>
 }
 
-/// A ``RecordLoadPlan`` bound to one request: each root source resolved to an identity and
-/// the request's refinement axes bound to the marked tuple. Grants stay per-call — every
-/// load goes through the provider-driven engine entry, which memoizes them per Request.
+/// A ``RecordLoadPlan`` bound to one request: each named scope resolved to an identity, each
+/// subject-scoped tuple bound to the models its first type's grants reach, and the request's
+/// refinement axes bound to the marked tuple. Grants stay per-call — every load goes through
+/// the provider-driven engine entry, which memoizes them per Request.
 struct ResolvedRecordLoadPlan: Sendable {
     let requestName: String
     let plan: RecordLoadPlan
-    let rootIdentities: [RootSource: ModelIdentity]
+    /// `.request` and `.application` bind one identity each.
+    let rootIdentities: [ContainmentScope: ModelIdentity]
+    /// `.subject` binds PER TUPLE, not per scope: two subject-scoped tuples with different first
+    /// types bind different sets (the Workspaces this subject may read; the SystemStatuses it may
+    /// read), so the scope alone names no set. In query order, distinct by identity.
+    let subjectBindings: [RecordLoadPlan.Tuple: [ModelIdentity]]
+    /// The provider's identity for the subject, when any tuple is within the subject scope and
+    /// the provider vends one; registered so a grant write refreshes the subject's lists.
+    let subjectIdentity: ModelIdentity?
     let sortTerms: [AnySortTerm]
     let pagination: Pagination?
     let filter: AnyFilter?
@@ -135,15 +159,40 @@ private extension ResolvedRecordLoadPlan {
     typealias Branch = (container: ModelIdentity, anchor: ModelIdentity)
 
     func load(_ tuple: RecordLoadPlan.Tuple, on request: Request) async throws {
-        guard let root = rootIdentities[tuple.root] else {
-            throw ContainmentError.invalidLoadPlan(
-                request: requestName,
-                reason: "tuple rooted at .\(tuple.root) has no bound root identity — resolution invariant breakage; file an issue"
-            )
+        var branches: [Branch]
+        var hops: ArraySlice<any FOSMVVM.Model.Type>
+        switch tuple.root {
+        case .subject:
+            guard let bound = subjectBindings[tuple] else {
+                throw ContainmentError.invalidLoadPlan(
+                    request: requestName,
+                    reason: "tuple within the .subject scope has no bound model set — resolution invariant breakage; file an issue"
+                )
+            }
+            if tuple.path.isEmpty {
+                // The bound rows ARE the records: the binding's one refined query already deposited
+                // them under the subject key (a cache hit here); the tuple just names that key.
+                let key = try await request.loadSubjectScope(of: tuple, request: requestName, sortedBy: sortTerms, pagination: pagination, filter: filter)
+                request.tupleCacheKeys[tuple] = [.subject(key)]
+                return
+            }
+            // Each bound model of the first type is its own root and anchors its own subtree —
+            // exactly what a `.request` root does, one branch per bound identity. The remaining
+            // hops descend through ordinary containment, re-anchoring at `.guards` as below.
+            branches = bound.map { (container: $0, anchor: $0) }
+            hops = tuple.path.dropFirst()
+        case .request, .application, .parent:
+            guard let root = rootIdentities[tuple.root] else {
+                throw ContainmentError.invalidLoadPlan(
+                    request: requestName,
+                    reason: "tuple within the .\(tuple.root) scope has no bound container identity — resolution invariant breakage; file an issue"
+                )
+            }
+            branches = [(container: root, anchor: root)]
+            hops = tuple.path[...]
         }
 
-        var branches: [Branch] = [(container: root, anchor: root)]
-        for hop in tuple.path {
+        for hop in hops {
             let hopType = try dataModelType(of: hop)
             // A `.guards` hop re-anchors each subtree at ITS OWN instance: a guard with N
             // instances anchors each instance's records at that instance, never globally.
@@ -165,7 +214,7 @@ private extension ResolvedRecordLoadPlan {
         }
 
         let recordType = try dataModelType(of: tuple.recordType)
-        var depositedKeys = [ContainerRecordCacheKey]()
+        var depositedKeys = [RecordCacheKey]()
         for branch in branches {
             let sortedBy = tuple.isRefinedByRequest ? sortTerms : []
             let paginatedBy = tuple.isRefinedByRequest ? pagination : nil
@@ -181,7 +230,7 @@ private extension ResolvedRecordLoadPlan {
             )
             // Same inputs → the same key the engine just deposited (shared constructor —
             // ContainerRecordCacheKey.forLoad — is the no-drift guarantee).
-            depositedKeys.append(.forLoad(
+            depositedKeys.append(.container(.forLoad(
                 of: branch.container,
                 containing: recordType,
                 for: tuple.operation,
@@ -189,7 +238,7 @@ private extension ResolvedRecordLoadPlan {
                 sortedBy: sortedBy,
                 pagination: paginatedBy,
                 filter: filteredBy
-            ))
+            )))
         }
         request.tupleCacheKeys[tuple] = depositedKeys
     }
@@ -223,31 +272,8 @@ extension Vapor.Request {
         let requestName = String(describing: SR.self)
         let query = vmRequest.query
 
-        var rootIdentities = [RootSource: ModelIdentity]()
-        for source in Set(plan.tuples.map(\.root)) {
-            let identity: ModelIdentity
-            switch source {
-            case .query:
-                // Boot validated the TYPE conformance (RootedQuery); only the instance can
-                // be missing here — a malformed request, not a configuration error.
-                guard let rooted = query.flatMap({ $0 as? any RootedQuery }) else {
-                    throw Abort(.badRequest, reason: "\(requestName) requires a \(String(describing: SR.Query.self)) query to vend its root identity")
-                }
-                identity = rooted.rootIdentity
-            case .apex:
-                guard let resolver = application.apexContainerResolver else {
-                    throw ContainmentError.invalidLoadPlan(
-                        request: requestName,
-                        reason: "the plan has .apex-rooted loads but no apex container resolver is registered — register one in configure(_:) via useApexContainerResolver(_:)"
-                    )
-                }
-                identity = try await resolver.resolve(self)
-            }
-            try verifyRootContainment(of: identity, boundTo: source, in: plan, request: requestName)
-            rootIdentities[source] = identity
-        }
-
         // The request's axes bind to the ONE marked tuple; without a mark they apply nowhere.
+        // Bound first: a refined tuple within the subject scope binds through its refined query.
         var sortTerms = [AnySortTerm]()
         var pagination: Pagination?
         var filter: AnyFilter?
@@ -260,34 +286,119 @@ extension Vapor.Request {
             filter = query.map(AnyFilter.init)
         }
 
+        var rootIdentities = [ContainmentScope: ModelIdentity]()
+        for scope in Set(plan.tuples.map(\.root)) {
+            let identity: ModelIdentity
+            switch scope {
+            case .request:
+                // Boot validated the TYPE conformance (ScopedQuery); only the instance can
+                // be missing here — a malformed request, not a configuration error.
+                guard let scoped = query.flatMap({ $0 as? any ScopedQuery }) else {
+                    throw Abort(.badRequest, reason: "\(requestName) requires a \(String(describing: SR.Query.self)) query to name its container")
+                }
+                identity = scoped.scopeIdentity
+            case .application:
+                guard let applicationScope = application.resolvedApplicationScope else {
+                    throw ContainmentError.invalidLoadPlan(
+                        request: requestName,
+                        reason: "the plan has loads within the application scope but none is registered — register one in configure(_:) via useApplicationScope(_:), or register exactly one SystemContainer"
+                    )
+                }
+                identity = try await applicationScope.resolve(self)
+            case .subject:
+                continue // bound per tuple below
+            case .parent:
+                // The walk resolves every `.parent` declaration to the scope its composition
+                // chain opened, so no tuple reaches the executor within `.parent`.
+                throw ContainmentError.invalidLoadPlan(
+                    request: requestName,
+                    reason: "a tuple reached the executor within the .parent scope, which the walk always resolves — framework-invariant breakage; file an issue"
+                )
+            }
+            try verifyRootContainment(of: identity, boundTo: scope, in: plan, request: requestName)
+            rootIdentities[scope] = identity
+        }
+
+        // The subject scope binds per tuple: its first type's one refined query runs here and its
+        // rows are the bound set (the load re-reads the same cache entry). No root-containment
+        // check: every row is of the first type by construction, and boot (resolveHops) already
+        // validated the chain from that type down.
+        var subjectBindings = [RecordLoadPlan.Tuple: [ModelIdentity]]()
+        var subjectIdentity: ModelIdentity?
+        let subjectTuples = plan.tuples.filter { $0.root == .subject }
+        if !subjectTuples.isEmpty {
+            subjectIdentity = try await self.subjectIdentity()
+            for tuple in subjectTuples {
+                let key = try await loadSubjectScope(of: tuple, request: requestName, sortedBy: sortTerms, pagination: pagination, filter: filter)
+                var seen = Set<ModelIdentity>()
+                subjectBindings[tuple] = try (subjectScopeCache[key] ?? []).compactMap { row in
+                    let identity = try row.modelIdentity
+                    return seen.insert(identity).inserted ? identity : nil
+                }
+            }
+        }
+
         return ResolvedRecordLoadPlan(
             requestName: requestName,
             plan: plan,
             rootIdentities: rootIdentities,
+            subjectBindings: subjectBindings,
+            subjectIdentity: subjectIdentity,
             sortTerms: sortTerms,
             pagination: pagination,
             filter: filter
         )
     }
 
-    /// The root-edge check boot deliberately could not run (roots bind to identities only at
-    /// request time): the bound root's registered descriptor must declare containment of each
-    /// of its tuples' first hops — a misrooted query is a typed error, never a silent empty.
+    /// The subject scope's one query for a tuple's FIRST type: refined by the request only when
+    /// the first type is also the record type (no `via:`) and the tuple carries the mark — a
+    /// refinement never applies to an intermediate level. Returns the key the engine deposited
+    /// under (shared constructor — SubjectScopeCacheKey.forLoad — is the no-drift guarantee).
+    func loadSubjectScope(
+        of tuple: RecordLoadPlan.Tuple,
+        request requestName: String,
+        sortedBy sortTerms: [AnySortTerm],
+        pagination: Pagination?,
+        filter: AnyFilter?
+    ) async throws -> SubjectScopeCacheKey {
+        guard let firstType = (tuple.path.first ?? tuple.recordType) as? any DataModel.Type else {
+            throw ContainmentError.invalidLoadPlan(
+                request: requestName,
+                reason: "\(String(describing: tuple.path.first ?? tuple.recordType)) is not a server DataModel — framework-invariant breakage; file an issue"
+            )
+        }
+        let refined = tuple.path.isEmpty && tuple.isRefinedByRequest
+        let sortedBy = refined ? sortTerms : []
+        let paginatedBy = refined ? pagination : nil
+        let filteredBy = refined ? filter : nil
+        _ = try await authorizedModels(
+            ofType: firstType,
+            for: tuple.operation,
+            sortedBy: sortedBy,
+            pagination: paginatedBy,
+            filter: filteredBy
+        )
+        return .forLoad(ofType: firstType, for: tuple.operation, sortedBy: sortedBy, pagination: paginatedBy, filter: filteredBy)
+    }
+
+    /// The scope-edge check boot deliberately could not run (a scope binds to an identity only
+    /// at request time): the bound container's registered descriptor must declare containment of
+    /// each of its tuples' first hops — a mis-scoped query is a typed error, never a silent empty.
     func verifyRootContainment(
         of root: ModelIdentity,
-        boundTo source: RootSource,
+        boundTo scope: ContainmentScope,
         in plan: RecordLoadPlan,
         request: String
     ) throws {
         guard let descriptor = modelTypeRegistry.registered(for: root.namespace) else {
             throw ContainmentError.unregisteredNamespace(identity: String(describing: root))
         }
-        for tuple in plan.tuples where tuple.root == source {
+        for tuple in plan.tuples where tuple.root == scope {
             let firstHop = tuple.path.first ?? tuple.recordType
             guard descriptor.containment.contains(where: { ObjectIdentifier($0.containedType) == ObjectIdentifier(firstHop) }) else {
                 throw ContainmentError.invalidLoadPlan(
                     request: request,
-                    reason: "the .\(source) root resolved to \(descriptor.typeName), which declares no containment of \(String(describing: firstHop)) — the bound root identity does not match the plan's declared path"
+                    reason: "the .\(scope) scope resolved to \(descriptor.typeName), which declares no containment of \(String(describing: firstHop)) — the bound container identity does not match the plan's declared path"
                 )
             }
         }

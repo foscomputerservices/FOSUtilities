@@ -30,7 +30,7 @@ import Foundation
 import Testing
 import Vapor
 
-/// Registers Workspace (the apex) + Board, adds the remaining workspace migrations, and registers the
+/// Registers Workspace (the top container) + Board, adds the remaining workspace migrations, and registers the
 /// provider that vends the per-test grants. CreateWorkspace/CreatePier run BEFORE CreateBoard —
 /// CreateBoard's DDL references both tables.
 private func configureWorkspace(_ app: Application, countCallsInto counter: ProviderCallCounter? = nil) throws {
@@ -42,9 +42,9 @@ private func configureWorkspace(_ app: Application, countCallsInto counter: Prov
     app.migrations.add(CreateBoardMember())
     if let counter {
         app.storage[ProviderCallCounterKey.self] = counter
-        try app.useContainerAuthorizationProvider(CountingGrantsProvider())
+        try app.useModelAuthorizationProvider(CountingGrantsProvider())
     } else {
-        try app.useContainerAuthorizationProvider(TestGrantsProvider())
+        try app.useModelAuthorizationProvider(TestGrantsProvider())
     }
 }
 
@@ -59,8 +59,8 @@ private struct ProviderCallCounterKey: StorageKey {
 }
 
 /// Same vend as ``TestGrantsProvider``, but tallies each consultation into the app's counter.
-private struct CountingGrantsProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct CountingGrantsProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         request.application.storage[ProviderCallCounterKey.self]?.count += 1
         return request.application.storage[TestGrantsKey.self] ?? []
     }
@@ -91,7 +91,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -139,7 +139,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -178,7 +178,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -201,7 +201,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -225,7 +225,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -262,7 +262,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -285,7 +285,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -310,7 +310,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -346,7 +346,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -391,7 +391,7 @@ struct AuthorizedLoadEngineTests {
             let board = try Board(name: "Empty Board", pierId: pier.requireId(), workspaceId: workspace.requireId())
             try await board.save(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: board.modelIdentity,
+                authorizedModel: board.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -430,7 +430,7 @@ struct AuthorizedLoadEngineTests {
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -466,7 +466,7 @@ struct AuthorizedLoadEngineTests {
             try await board.save(on: db)
             let identity = try board.modelIdentity
             app.storage[TestGrantsKey.self] = [TestGrant(
-                authorizedContainer: identity,
+                authorizedModel: identity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -497,7 +497,7 @@ struct AuthorizedLoadEngineTests {
             try await board.save(on: db)
             let identity = try board.modelIdentity
             app.storage[TestGrantsKey.self] = [TestGrant(
-                authorizedContainer: identity,
+                authorizedModel: identity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -523,7 +523,7 @@ struct AuthorizedLoadEngineTests {
             try await pier.save(on: db)
             let identity = try pier.modelIdentity
             app.storage[TestGrantsKey.self] = [TestGrant(
-                authorizedContainer: identity,
+                authorizedModel: identity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]
@@ -555,7 +555,7 @@ struct AuthorizedLoadEngineTests {
             app.maxRecordsWarningThreshold = 2
             let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
-                authorizedContainer: dock1.modelIdentity,
+                authorizedModel: dock1.modelIdentity,
                 operations: [.readRecords],
                 recordTypes: [Card.modelIdentityNamespace]
             )]

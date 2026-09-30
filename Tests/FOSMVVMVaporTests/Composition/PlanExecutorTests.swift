@@ -31,23 +31,23 @@ import Vapor
 // MARK: - Shared configure/seed plumbing
 
 /// Registers the full container graph the executor descends:
-/// Workspace (apex) → Board → {Card, Member, Checklist (.guards) → ChecklistItem}.
+/// Workspace (the top container) → Board → {Card, Member, Checklist (.guards) → ChecklistItem}.
 private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
     try app.register(Workspace.self, migration: CreateWorkspace())
     try app.register(Board.self, migration: CreateBoard())
     try app.register(Checklist.self, migration: CreateChecklist())
     app.migrations.add(CreateChecklistItem())
-    app.migrations.add(CreateCard())
+    try app.register(Card.self, migration: CreateCard()) // a leaf within the subject scope must be registered
     app.migrations.add(CreateMember())
     app.migrations.add(CreateBoardMember())
-    try app.useContainerAuthorizationProvider(StorageGrantProvider())
+    try app.useModelAuthorizationProvider(StorageGrantProvider())
 }
 
-/// Registers the apex resolver: the one seeded Workspace. Seeding happens after boot, so the
+/// Registers the application scope: the one seeded Workspace. Seeding happens after boot, so the
 /// resolver queries at request time (the multi-tenant shape from the resolver's contract).
-private func registerApexResolver(_ app: Application) throws {
-    try app.useApexContainerResolver { req in
+private func registerApplicationScope(_ app: Application) throws {
+    try app.useApplicationScope { req in
         guard let workspace = try await Workspace.query(on: req.db).first() else {
             throw Abort(.internalServerError, reason: "no workspace seeded")
         }
@@ -61,14 +61,38 @@ private struct ExecutorGrantsKey: StorageKey {
     typealias Value = [TestGrant]
 }
 
-private struct StorageGrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+/// The subject's identity, when a test vends one (nil by default — the provider's default answer).
+private struct ExecutorSubjectKey: StorageKey {
+    typealias Value = ModelIdentity
+}
+
+private struct StorageGrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         request.application.storage[ExecutorGrantsKey.self] ?? []
+    }
+
+    func subjectIdentity(for request: Request) async throws -> ModelIdentity? {
+        request.application.storage[ExecutorSubjectKey.self]
     }
 }
 
+/// A second Workspace holding one Board ("Board 3") — a model the seeded Workspace's grant never
+/// reaches, so a grant NAMING it is the only way into the subject scope.
+private func seedSecondWorkspaceBoard(on db: any Database) async throws -> Board {
+    let workspace = Workspace(name: "Second Workspace")
+    try await workspace.save(on: db)
+    let pier = try #require(try await Pier.query(on: db).first())
+    let board = try Board(name: "Board 3", pierId: pier.requireId(), workspaceId: workspace.requireId())
+    try await board.save(on: db)
+    return board
+}
+
+private func boardNames(_ records: [any FOSMVVM.Model]?) throws -> Set<String> {
+    try Set((records ?? []).map { try #require($0 as? Board).name })
+}
+
 /// Seeds one folder per board: folder1 (2 files) under dock1, folder2 (1 file) under dock2.
-private func seedPersonnel(
+private func seedChecklists(
     on db: any Database,
     dock1: Board,
     dock2: Board
@@ -153,53 +177,65 @@ private extension ExecutorFixture {
 }
 
 /// The query vending a request-scoped root identity (usually a Board's).
-private struct ExecRootedQuery: RootedQuery {
-    let rootIdentity: ModelIdentity
+private struct ExecScopedQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity
 }
 
 /// Test 10's query: roots the tree AND declares the window axis.
-private struct PagedCardQuery: RootedQuery, PaginatedQuery {
-    let rootIdentity: ModelIdentity
+private struct PagedCardQuery: ScopedQuery, PaginatedQuery {
+    let scopeIdentity: ModelIdentity
     let pagination: Pagination
 }
 
-// MARK: - Test 8: the forest (board-rooted .query tree + apex-rooted tree, one request)
+// MARK: - Test 8: the forest (a .request tree + an .application tree, one request)
 
-private struct ApexBoardListVM: ExecutorFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Board.self, in: .parentRoot)]
+private struct ApplicationBoardListVM: ExecutorFixture {
+    static let boards = Board.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        boards
+    }
 }
 
 private struct ForestPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = ForestPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 
     static var children: [ComposedChild] {
-        [.child(ApexBoardListVM.self, rootedAt: .apex)]
+        [.child(ApplicationBoardListVM.self, within: .application)]
     }
 }
 
 private final class ForestPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = ExecRootedQuery
+    typealias Query = ExecScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: ExecRootedQuery?
+    let query: ExecScopedQuery?
     var responseBody: ForestPageVM?
 
-    init(query: ExecRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ForestPageVM? = nil) {
+    init(query: ExecScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ForestPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
     }
 }
 
-// MARK: - Test 9: three-level .inherits descent under one apex grant
+// MARK: - Test 9: three-level .inherits descent under one top-container grant
 
 private struct ThreeLevelVM: ExecutorFixture, RequestableViewModel {
     typealias Request = ThreeLevelRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .newRoot(.apex), via: Board.self)]
+    static let cards = Card.loadingPlan(.read, within: .application, via: Board.self)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class ThreeLevelRequest: ViewModelRequest, @unchecked Sendable {
@@ -220,7 +256,11 @@ private final class ThreeLevelRequest: ViewModelRequest, @unchecked Sendable {
 private struct GuardedFilesVM: ExecutorFixture, RequestableViewModel {
     typealias Request = GuardedFilesRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(ChecklistItem.self, in: .newRoot(.apex), via: Board.self, Checklist.self)]
+    static let checklistItems = ChecklistItem.loadingPlan(.read, within: .application, via: Board.self, Checklist.self)
+
+    static var loadingPlans: LoadingPlans {
+        checklistItems
+    }
 }
 
 private final class GuardedFilesRequest: ViewModelRequest, @unchecked Sendable {
@@ -238,29 +278,37 @@ private final class GuardedFilesRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Test 9: anchor-conflict diamond — same (container, type) under two anchors
 
-private struct ApexCardListVM: ExecutorFixture {
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot, via: Board.self)]
+private struct ApplicationCardListVM: ExecutorFixture {
+    static let cards = Card.loadingPlan(.read, within: .parent, via: Board.self)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private struct DiamondPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = DiamondPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 
     static var children: [ComposedChild] {
-        [.child(ApexCardListVM.self, rootedAt: .apex)]
+        [.child(ApplicationCardListVM.self, within: .application)]
     }
 }
 
 private final class DiamondPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = ExecRootedQuery
+    typealias Query = ExecScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: ExecRootedQuery?
+    let query: ExecScopedQuery?
     var responseBody: DiamondPageVM?
 
-    init(query: ExecRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DiamondPageVM? = nil) {
+    init(query: ExecScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DiamondPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -269,16 +317,19 @@ private final class DiamondPageRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Test 10: .refinedByRequest — sort/window on exactly the marked tuple
 
-private struct RefinedBerthsVM: ExecutorFixture, RequestableViewModel {
-    typealias Request = RefinedBerthsRequest
+private struct RefinedCardListVM: ExecutorFixture, RequestableViewModel {
+    typealias Request = RefinedCardListRequest
 
-    static let dataRequirements: [any DataRequirement] = [
-        LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
-        LoadRequirement.read(Member.self, in: .parentRoot)
-    ]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+    static let members = Member.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+        members
+    }
 }
 
-private final class RefinedBerthsRequest: ViewModelRequest, @unchecked Sendable {
+private final class RefinedCardListRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = PagedCardQuery
     typealias ResponseError = EmptyError
     typealias Sort = SortCriteria<CardSortKey>
@@ -286,9 +337,9 @@ private final class RefinedBerthsRequest: ViewModelRequest, @unchecked Sendable 
     let id: String
     let query: PagedCardQuery?
     let sort: SortCriteria<CardSortKey>?
-    var responseBody: RefinedBerthsVM?
+    var responseBody: RefinedCardListVM?
 
-    init(query: PagedCardQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: RefinedBerthsVM? = nil) {
+    init(query: PagedCardQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: RefinedCardListVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.sort = sort
@@ -306,7 +357,11 @@ private enum SupplementalHookError: Error {
 private struct SupplementalPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = SupplementalPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 /// The hook proves its post-declarative ordering structurally: it reads the declarative
@@ -328,14 +383,14 @@ extension SupplementalPageVM: SupplementalRecordLoading {
 }
 
 private final class SupplementalPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = ExecRootedQuery
+    typealias Query = ExecScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: ExecRootedQuery?
+    let query: ExecScopedQuery?
     var responseBody: SupplementalPageVM?
 
-    init(query: ExecRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SupplementalPageVM? = nil) {
+    init(query: ExecScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SupplementalPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -345,7 +400,11 @@ private final class SupplementalPageRequest: ViewModelRequest, @unchecked Sendab
 private struct ThrowingSupplementalVM: ExecutorFixture, RequestableViewModel {
     typealias Request = ThrowingSupplementalRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 extension ThrowingSupplementalVM: SupplementalRecordLoading {
@@ -355,14 +414,14 @@ extension ThrowingSupplementalVM: SupplementalRecordLoading {
 }
 
 private final class ThrowingSupplementalRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = ExecRootedQuery
+    typealias Query = ExecScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: ExecRootedQuery?
+    let query: ExecScopedQuery?
     var responseBody: ThrowingSupplementalVM?
 
-    init(query: ExecRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ThrowingSupplementalVM? = nil) {
+    init(query: ExecScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ThrowingSupplementalVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -377,18 +436,22 @@ private final class ThrowingSupplementalRequest: ViewModelRequest, @unchecked Se
 private struct UnregisteredPageVM: ExecutorFixture, RequestableViewModel {
     typealias Request = UnregisteredPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class UnregisteredPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = ExecRootedQuery
+    typealias Query = ExecScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: ExecRootedQuery?
+    let query: ExecScopedQuery?
     var responseBody: UnregisteredPageVM?
 
-    init(query: ExecRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: UnregisteredPageVM? = nil) {
+    init(query: ExecScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: UnregisteredPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -400,18 +463,22 @@ private final class UnregisteredPageRequest: ViewModelRequest, @unchecked Sendab
 private struct MisrootedVM: ExecutorFixture, RequestableViewModel {
     typealias Request = MisrootedRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
 }
 
 private final class MisrootedRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = ExecRootedQuery
+    typealias Query = ExecScopedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: ExecRootedQuery?
+    let query: ExecScopedQuery?
     var responseBody: MisrootedVM?
 
-    init(query: ExecRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: MisrootedVM? = nil) {
+    init(query: ExecScopedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: MisrootedVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -420,32 +487,113 @@ private final class MisrootedRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Tests (spec tests 8–11 + 13)
 
+// MARK: - The subject scope (D5): bound from the grants, no container named
+
+private struct SubjectBoardsVM: ExecutorFixture, RequestableViewModel {
+    typealias Request = SubjectBoardsRequest
+
+    static let boards = Board.loadingPlan(.read, within: .subject)
+
+    static var loadingPlans: LoadingPlans {
+        boards
+    }
+}
+
+private final class SubjectBoardsRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    var responseBody: SubjectBoardsVM?
+
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SubjectBoardsVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+private struct SubjectCardsViaBoardVM: ExecutorFixture, RequestableViewModel {
+    typealias Request = SubjectCardsViaBoardRequest
+
+    static let cards = Card.loadingPlan(.read, within: .subject, via: Board.self)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
+}
+
+private final class SubjectCardsViaBoardRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = EmptyQuery
+    typealias ResponseError = EmptyError
+
+    let id: String
+    var responseBody: SubjectCardsViaBoardVM?
+
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SubjectCardsViaBoardVM? = nil) {
+        self.id = .random(length: 10)
+        self.responseBody = responseBody
+    }
+}
+
+/// A window with no container to name: the subject scope needs no ScopedQuery.
+private struct SubjectPagedQuery: PaginatedQuery {
+    let pagination: Pagination
+}
+
+private struct SubjectRefinedCardsVM: ExecutorFixture, RequestableViewModel {
+    typealias Request = SubjectRefinedCardsRequest
+
+    static let cards = Card.loadingPlan(.read, within: .subject).refinedByRequest
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
+}
+
+private final class SubjectRefinedCardsRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = SubjectPagedQuery
+    typealias ResponseError = EmptyError
+    typealias Sort = SortCriteria<CardSortKey>
+
+    let id: String
+    let query: SubjectPagedQuery?
+    let sort: SortCriteria<CardSortKey>?
+    var responseBody: SubjectRefinedCardsVM?
+
+    init(query: SubjectPagedQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: SubjectRefinedCardsVM? = nil) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.sort = sort
+        self.responseBody = responseBody
+    }
+}
+
 @Suite("RecordLoadPlan execution through the authorized engine (C7)")
 struct PlanExecutorTests {
-    /// Spec test 8 — the forest: a board-rooted `.query` tree and an apex-rooted tree execute
+    /// Spec test 8 — the forest: a `.request` tree and an `.application` tree execute
     /// in ONE request; both trees' records land in the engine's cache.
     @Test func forestLoadsBothTreesIntoTheCache() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: ForestPageRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: dock1.modelIdentity,
+                    authorizedModel: dock1.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace]
                 )
             ]
 
-            let vmRequest = try ForestPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try ForestPageRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
 
@@ -457,12 +605,12 @@ struct PlanExecutorTests {
         }
     }
 
-    /// Spec test 9 — `.inherits` descent: ONE grant on the workspace (apex) covering Board and
+    /// Spec test 9 — `.inherits` descent: ONE grant on the workspace (the top container) covering Board and
     /// Card loads the whole three-level tree (workspace → boards → cards, all boards' cards).
-    @Test func apexGrantDescendsThreeLevelsUnderInherits() async throws {
+    @Test func applicationGrantDescendsThreeLevelsUnderInherits() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: ThreeLevelRequest.self)
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
@@ -470,7 +618,7 @@ struct PlanExecutorTests {
             let workspaceIdentity = try workspace.modelIdentity
             app.storage[ExecutorGrantsKey.self] = [
                 TestGrant(
-                    authorizedContainer: workspaceIdentity,
+                    authorizedModel: workspaceIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
@@ -494,20 +642,20 @@ struct PlanExecutorTests {
         }
     }
 
-    /// Spec test 9 — `.guards` denial: an apex grant covering ChecklistItem does NOT descend
+    /// Spec test 9 — `.guards` denial: a top-container grant covering ChecklistItem does NOT descend
     /// past the folder guard; the folders themselves (above the guard) still load.
-    @Test func apexGrantDoesNotDescendPastTheGuard() async throws {
+    @Test func topContainerGrantDoesNotDescendPastTheGuard() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: GuardedFilesRequest.self)
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
-            let (folder1, folder2) = try await seedPersonnel(on: db, dock1: dock1, dock2: dock2)
+            let (folder1, folder2) = try await seedChecklists(on: db, dock1: dock1, dock2: dock2)
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [
                         Board.modelIdentityNamespace,
@@ -535,20 +683,20 @@ struct PlanExecutorTests {
     @Test func folderAnchoredGrantLoadsExactlyThatSubtree() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: GuardedFilesRequest.self)
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
-            let (folder1, folder2) = try await seedPersonnel(on: db, dock1: dock1, dock2: dock2)
+            let (folder1, folder2) = try await seedChecklists(on: db, dock1: dock1, dock2: dock2)
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace, Checklist.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: folder1.modelIdentity,
+                    authorizedModel: folder1.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [ChecklistItem.modelIdentityNamespace]
                 )
@@ -568,12 +716,12 @@ struct PlanExecutorTests {
     }
 
     /// Spec test 9 — anchor-conflict diamond: the SAME (container, type) reached through the
-    /// query root (anchor = board) and through the apex root (anchor = workspace) keys TWO cache
+    /// request scope (anchor = board) and through the application scope (anchor = workspace) keys TWO cache
     /// entries with independent outcomes — one authorized, one empty.
     @Test func anchorConflictDiamondKeysIndependentEntries() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: DiamondPageRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
@@ -582,18 +730,18 @@ struct PlanExecutorTests {
             // Cards granted on dock1 ONLY — the workspace grant covers boards, not cards.
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: dock1.modelIdentity,
+                    authorizedModel: dock1.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace]
                 ),
                 TestGrant(
-                    authorizedContainer: workspaceIdentity,
+                    authorizedModel: workspaceIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace]
                 )
             ]
 
-            let vmRequest = try DiamondPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try DiamondPageRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
 
@@ -613,20 +761,20 @@ struct PlanExecutorTests {
     @Test func requestRefinementAppliesToExactlyTheMarkedTuple() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.registerRecordLoadPlan(for: RefinedBerthsRequest.self)
+            try app.registerRecordLoadPlan(for: RefinedCardListRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
             let dock1Identity = try dock1.modelIdentity
             app.storage[ExecutorGrantsKey.self] = [
                 TestGrant(
-                    authorizedContainer: dock1Identity,
+                    authorizedModel: dock1Identity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace, Member.modelIdentityNamespace]
                 )
             ]
 
-            let request = RefinedBerthsRequest(
-                query: .init(rootIdentity: dock1Identity, pagination: .init(startIndex: 0, maxResults: 2)),
+            let request = RefinedCardListRequest(
+                query: .init(scopeIdentity: dock1Identity, pagination: .init(startIndex: 0, maxResults: 2)),
                 sort: SortCriteria([.init(key: CardSortKey.number, direction: .descending)])
             )
             let req = try makeRequest(on: app, url: requestURL(for: request))
@@ -657,13 +805,13 @@ struct PlanExecutorTests {
             let dock1Identity = try dock1.modelIdentity
             app.storage[ExecutorGrantsKey.self] = [
                 TestGrant(
-                    authorizedContainer: dock1Identity,
+                    authorizedModel: dock1Identity,
                     operations: [.readRecords],
                     recordTypes: [Card.modelIdentityNamespace, Member.modelIdentityNamespace]
                 )
             ]
 
-            let vmRequest = SupplementalPageRequest(query: .init(rootIdentity: dock1Identity))
+            let vmRequest = SupplementalPageRequest(query: .init(scopeIdentity: dock1Identity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
 
@@ -681,7 +829,7 @@ struct PlanExecutorTests {
             try app.registerRecordLoadPlan(for: ThrowingSupplementalRequest.self)
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
-            let vmRequest = try ThrowingSupplementalRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try ThrowingSupplementalRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             await #expect(throws: SupplementalHookError.self) {
                 try await req.executeRecordLoadPlan(for: vmRequest)
@@ -696,14 +844,14 @@ struct PlanExecutorTests {
     @Test func sequentialExecutionDepositsAllSiblingsDeterministically() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: ThreeLevelRequest.self)
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)
             let workspace = try #require(try await Workspace.query(on: db).first())
             app.storage[ExecutorGrantsKey.self] = try [
                 TestGrant(
-                    authorizedContainer: workspace.modelIdentity,
+                    authorizedModel: workspace.modelIdentity,
                     operations: [.readRecords],
                     recordTypes: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
@@ -747,7 +895,7 @@ struct PlanExecutorTests {
             // UnregisteredPageRequest is deliberately NOT registered — no plan is derived.
         } _: { app, db in
             let (dock1, _) = try await seedWorkspace(on: db)
-            let vmRequest = try UnregisteredPageRequest(query: .init(rootIdentity: dock1.modelIdentity))
+            let vmRequest = try UnregisteredPageRequest(query: .init(scopeIdentity: dock1.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             do {
                 try await req.executeRecordLoadPlan(for: vmRequest)
@@ -761,7 +909,7 @@ struct PlanExecutorTests {
         }
     }
 
-    /// Obligation 2 — a RootedQuery vending an identity whose registered descriptor does not
+    /// Obligation 2 — a ScopedQuery vending an identity whose registered descriptor does not
     /// declare containment of the tuple's first hop throws typed: the misrooted-query
     /// silent-empty mode is dead. (Workspace is registered but contains Board, never Card.)
     @Test func misrootedQueryAgainstRegisteredContainerThrowsTyped() async throws {
@@ -771,7 +919,7 @@ struct PlanExecutorTests {
         } _: { app, db in
             _ = try await seedWorkspace(on: db)
             let workspace = try #require(try await Workspace.query(on: db).first())
-            let vmRequest = try MisrootedRequest(query: .init(rootIdentity: workspace.modelIdentity))
+            let vmRequest = try MisrootedRequest(query: .init(scopeIdentity: workspace.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             do {
                 try await req.executeRecordLoadPlan(for: vmRequest)
@@ -785,19 +933,19 @@ struct PlanExecutorTests {
         }
     }
 
-    /// Spec §9 group 14 — apex publicization: an `.apex`-rooted plan is usable end-to-end through
-    /// the now-PUBLIC `useApexContainerResolver` registration (`forestLoadsBothTreesIntoTheCache`
-    /// and `apexGrantDescendsThreeLevelsUnderInherits` exercise the happy path). Here the negative:
-    /// an apex that cannot resolve at request time fails the request — the resolver's error
+    /// Spec §9 group 14 — application-scope publicization: a plan within `.application` is usable end-to-end through
+    /// the now-PUBLIC `useApplicationScope` registration (`forestLoadsBothTreesIntoTheCache`
+    /// and `applicationGrantDescendsThreeLevelsUnderInherits` exercise the happy path). Here the negative:
+    /// an application scope that cannot resolve at request time fails the request — its error
     /// propagates with the existing semantics (no silent empty). The resolver queries for a seeded
     /// workspace; none is seeded, so it throws.
-    @Test func unresolvedApexFailsTheRequest() async throws {
+    @Test func unresolvedApplicationScopeFailsTheRequest() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try registerApexResolver(app)
+            try registerApplicationScope(app)
             try app.registerRecordLoadPlan(for: ThreeLevelRequest.self)
         } _: { app, _ in
-            // No workspace seeded ⇒ the apex resolver throws when the plan resolves its apex root.
+            // No workspace seeded ⇒ the application scope throws when the plan resolves it.
             let req = makeRequest(on: app)
             await #expect(throws: (any Error).self) {
                 try await req.executeRecordLoadPlan(for: ThreeLevelRequest())
@@ -805,7 +953,7 @@ struct PlanExecutorTests {
         }
     }
 
-    /// Obligation 2 — a RootedQuery vending an identity of an UNREGISTERED type (Pier is a
+    /// Obligation 2 — a ScopedQuery vending an identity of an UNREGISTERED type (Pier is a
     /// DataModel, never a registered container) throws typed at root binding.
     @Test func misrootedQueryAgainstUnregisteredTypeThrowsTyped() async throws {
         try await withFluentTestApp { app in
@@ -814,7 +962,7 @@ struct PlanExecutorTests {
         } _: { app, db in
             _ = try await seedWorkspace(on: db)
             let pier = try #require(try await Pier.query(on: db).first())
-            let vmRequest = try MisrootedRequest(query: .init(rootIdentity: pier.modelIdentity))
+            let vmRequest = try MisrootedRequest(query: .init(scopeIdentity: pier.modelIdentity))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             do {
                 try await req.executeRecordLoadPlan(for: vmRequest)
@@ -825,6 +973,160 @@ struct PlanExecutorTests {
                     return
                 }
             }
+        }
+    }
+
+    // MARK: - The subject scope (D5)
+
+    /// The subject scope binds the union: the Boards inside the granted Workspace (extension)
+    /// plus the Board a grant names with `.read` (model authority) — one query, deposited under
+    /// the subject key, no per-container load; every bound identity registers.
+    @Test func subjectScopeBindsTheUnionAndRegistersEveryBoundModel() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectBoardsRequest.self)
+        } _: { app, db in
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
+            let dock3 = try await seedSecondWorkspaceBoard(on: db)
+            app.storage[ExecutorGrantsKey.self] = try [
+                TestGrant(
+                    authorizedModel: workspace.modelIdentity,
+                    operations: [.readRecords],
+                    recordTypes: [Board.modelIdentityNamespace]
+                ),
+                TestGrant(authorizedModel: dock3.modelIdentity, operations: [], recordTypes: [], modelOperations: [.read])
+            ]
+
+            let req = makeRequest(on: app)
+            try await req.executeRecordLoadPlan(for: SubjectBoardsRequest())
+
+            let tuple = try #require(req.tupleCacheKeys.keys.first)
+            #expect(try boardNames(req.recordsByTuple()[tuple]) == ["Board 1", "Board 2", "Board 3"])
+            #expect(req.containerRecordCache.isEmpty) // the union loaded through ONE subject query
+            #expect(try req.registrationSet == Set([dock1.modelIdentity, dock2.modelIdentity, dock3.modelIdentity]))
+        }
+    }
+
+    /// A subject with no grants loads EMPTY — the tuple still deposits its (empty) entry, so a
+    /// projection reads `[]` rather than throwing unplanned — and registers nothing.
+    @Test func subjectWithNoGrantsLoadsEmptyAndRegistersNothing() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectBoardsRequest.self)
+        } _: { app, db in
+            _ = try await seedWorkspace(on: db)
+            app.storage[ExecutorGrantsKey.self] = []
+
+            let req = makeRequest(on: app)
+            try await req.executeRecordLoadPlan(for: SubjectBoardsRequest())
+
+            let tuple = try #require(req.tupleCacheKeys.keys.first)
+            let boards = try #require(req.recordsByTuple()[tuple])
+            #expect(boards.isEmpty)
+            #expect(req.registrationSet.isEmpty)
+        }
+    }
+
+    /// The request's axes refine the UNION: cards of two granted Boards, sorted descending and
+    /// windowed to two, page as one set; the total is the whole union's count.
+    @Test func subjectScopeRefinementAppliesAcrossTheUnion() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectRefinedCardsRequest.self)
+        } _: { app, db in
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            app.storage[ExecutorGrantsKey.self] = try [
+                TestGrant(authorizedModel: dock1.modelIdentity, operations: [.readRecords], recordTypes: [Card.modelIdentityNamespace]),
+                TestGrant(authorizedModel: dock2.modelIdentity, operations: [.readRecords], recordTypes: [Card.modelIdentityNamespace])
+            ]
+
+            let request = SubjectRefinedCardsRequest(
+                query: .init(pagination: .init(startIndex: 0, maxResults: 2)),
+                sort: SortCriteria([.init(key: CardSortKey.number, direction: .descending)])
+            )
+            let req = try makeRequest(on: app, url: requestURL(for: request))
+            try await req.executeRecordLoadPlan(for: request)
+
+            let tuple = try #require(req.tupleCacheKeys.keys.first)
+            let numbers = try (req.recordsByTuple()[tuple] ?? []).map { try #require($0 as? Card).number }
+            #expect(numbers == [9, 3])
+            #expect(req.countsByTuple()[tuple] == 4)
+        }
+    }
+
+    /// `via:` descends from the bound set, anchored per bound model: the Workspace grant binds
+    /// both Boards; only the Board holding a Card grant loads its Cards, the other loads empty.
+    @Test func viaDescendsFromEachBoundModelAnchoredThere() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectCardsViaBoardRequest.self)
+        } _: { app, db in
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
+            let dock1Identity = try dock1.modelIdentity
+            let dock2Identity = try dock2.modelIdentity
+            app.storage[ExecutorGrantsKey.self] = try [
+                TestGrant(authorizedModel: workspace.modelIdentity, operations: [.readRecords], recordTypes: [Board.modelIdentityNamespace]),
+                TestGrant(authorizedModel: dock1Identity, operations: [.readRecords], recordTypes: [Card.modelIdentityNamespace])
+            ]
+
+            let req = makeRequest(on: app)
+            try await req.executeRecordLoadPlan(for: SubjectCardsViaBoardRequest())
+
+            let dock1Cards = cachedRecords(in: req, of: Card.self, in: dock1Identity, anchoredAt: dock1Identity)
+            #expect(try cardNumbers(dock1Cards).sorted() == [1, 2, 3])
+            let dock2Cards = try #require(cachedRecords(in: req, of: Card.self, in: dock2Identity, anchoredAt: dock2Identity))
+            #expect(dock2Cards.isEmpty) // bound, descended, denied at its own anchor
+
+            let tuple = try #require(req.tupleCacheKeys.keys.first)
+            let projected = try (req.recordsByTuple()[tuple] ?? []).map { try #require($0 as? Card).number }
+            #expect(projected.sorted() == [1, 2, 3])
+            #expect(req.registrationSet == [dock1Identity, dock2Identity])
+        }
+    }
+
+    /// When the provider vends the subject's identity, the response registers it beside the
+    /// bound models — a grant write on a subject-contained grant model then reaches this list.
+    @Test func subjectIdentityRegistersWhenVended() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectBoardsRequest.self)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let alice = try #require(try await Member.query(on: db).filter(\.$name == "Alice").first())
+            let subject = try alice.modelIdentity
+            app.storage[ExecutorSubjectKey.self] = subject
+            app.storage[ExecutorGrantsKey.self] = try [
+                TestGrant(authorizedModel: dock1.modelIdentity, operations: [], recordTypes: [], modelOperations: [.read])
+            ]
+
+            let req = makeRequest(on: app)
+            try await req.executeRecordLoadPlan(for: SubjectBoardsRequest())
+
+            #expect(try req.registrationSet == Set([subject, dock1.modelIdentity]))
+        }
+    }
+
+    /// Exceeding `maxRegistrationsWarningThreshold` warns but NEVER drops a registration —
+    /// threshold 1, three bound Boards, all three registered. (Warning emission is observability,
+    /// not a public contract — documented rather than logger-captured.)
+    @Test func registrationThresholdWarnsButRegistersEverything() async throws {
+        try await withFluentTestApp { app in
+            try configureContainers(app)
+            try app.registerRecordLoadPlan(for: SubjectBoardsRequest.self)
+        } _: { app, db in
+            app.maxRegistrationsWarningThreshold = 1
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let dock3 = try await seedSecondWorkspaceBoard(on: db)
+            app.storage[ExecutorGrantsKey.self] = try [dock1, dock2, dock3].map {
+                try TestGrant(authorizedModel: $0.modelIdentity, operations: [], recordTypes: [], modelOperations: [.read])
+            }
+
+            let req = makeRequest(on: app)
+            try await req.executeRecordLoadPlan(for: SubjectBoardsRequest())
+
+            #expect(req.registrationSet.count == 3)
         }
     }
 }

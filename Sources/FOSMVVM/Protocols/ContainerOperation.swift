@@ -16,28 +16,55 @@
 
 import Foundation
 
-/// The operations a subject can be authorized to perform on a container's records.
+/// What a grant lets its holder do to the models a container contains — the container-extension
+/// axis of authorization, beside ``ModelOperation`` for the container itself.
 ///
-/// Check authorization by **intent**, never by comparing cases — this honors the ``anyOperation``
-/// wildcard and stays correct as operations are added:
+/// A grant on a Workspace can say both: `.write` on the Workspace's own row (``ModelOperation``)
+/// and `readRecords` of type `Board` inside it (this enum). A grant answers this axis per
+/// contained type:
 ///
 /// ```swift
-/// if grantedOperations.authorizesReadRecords {   // grantedOperations: [ContainerOperation]
-///     // ...load the records...
+/// func authorizes(_ operation: ContainerOperation, ofType recordType: any FOSMVVM.Model.Type, in container: ModelIdentity) -> Bool {
+///     container == authorizedModel && memberOperations.authorizes(operation) && memberTypes.contains(recordType.modelIdentityNamespace)
 /// }
 /// ```
+///
+/// A loading plan never names this enum directly: `Board.loadingPlan(.read, within: .request)`
+/// asks the request's container for `readRecords` of `Board`, and `Board.creationPlan(within:
+/// .request)` asks it for `createRecords`. With ``AuthorityFlow/inherits`` a grant's extension
+/// reaches every level beneath the container along a declared path.
+///
+/// Check by intent, never by comparing cases: `grantedOperations.authorizes(.readRecords)`.
 public enum ContainerOperation: Hashable, CaseIterable, Sendable {
-    /// Read the records the container owns.
+    /// Read the models the container owns. Asked by every `loadingPlan(.read, ...)` whose scope
+    /// is a container, per contained type.
     case readRecords
-    /// Modify the records the container owns.
+
+    /// Modify the models the container owns. Asked by `loadingPlan(.write, ...)` within a
+    /// container: an update request's candidates.
     case writeRecords
-    /// Create new records in the container.
+
+    /// Create new models in the container. Asked by `creationPlan(within:)` — the only way
+    /// a create is authorized, since a model that does not exist has no grant of its own.
+    ///
+    /// ```swift
+    /// static let newBoard = Board.creationPlan(within: .request)   // into the Workspace the client named
+    /// ```
     case createRecords
-    /// Archive the container's records: they stay, marked deleted (recoverable).
+
+    /// Archive the container's models: they stay, marked deleted and recoverable. Asked by
+    /// `loadingPlan(.archive, ...)` within a container.
     case archiveRecords
-    /// Permanently destroy the container's records (unrecoverable).
+
+    /// Permanently destroy the container's models. Never implied by ``anyOperation``. Asked by
+    /// `loadingPlan(.destroy, ...)` within a container.
     case destroyRecords
-    /// Wildcard: authorizes every operation **except** ``destroyRecords``, which must be granted explicitly.
+
+    /// Wildcard: every operation except ``destroyRecords``, which must be granted explicitly.
+    ///
+    /// ```swift
+    /// let memberOperations: [ContainerOperation] = [.anyOperation]   // read, write, create, archive — not destroy
+    /// ```
     case anyOperation
 }
 

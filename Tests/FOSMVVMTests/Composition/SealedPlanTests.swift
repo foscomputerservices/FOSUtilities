@@ -1,4 +1,4 @@
-// SealedRequirementTests.swift
+// SealedPlanTests.swift
 //
 // Copyright 2026 FOS Computer Services, LLC
 //
@@ -14,10 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Contract note (spec Testing group 10/11): `DataRequirement` is a sealed public
-// marker; its declaration data is asserted THROUGH the walk's `package` tuple
-// surface — the contract the FOSMVVMVapor executor binds — never by reading
-// requirement members (they are internal after the seal).
+// Contract note (spec Testing group 10/11): a ``LoadingPlan``'s declaration data is
+// sealed; it is asserted THROUGH the walk's `package` tuple surface — the contract the
+// FOSMVVMVapor executor binds — never by reading plan members.
 
 import FOSFoundation
 import FOSMVVM
@@ -48,10 +47,12 @@ private struct Board: Model {
     var id: ModelIdType?
 }
 
-// MARK: - Foreign requirement (compiles — the marker is public and memberless)
+// MARK: - Foreign requirement (compiles — the former marker is public and memberless)
 
-/// A conformer minted OUTSIDE ``LoadRequirement``. It satisfies the public marker
-/// but not the internal walk face, so the walk cannot honor it.
+/// A conformer minted OUTSIDE ``LoadingPlan``. It satisfies the former public marker but is
+/// not a plan, so it can only be listed in the deprecated `dataRequirements` — the
+/// `loadingPlans` builder accepts nothing but a ``LoadingPlan``.
+@available(*, deprecated, message: "exercises the former dataRequirements list")
 private struct ForeignRequirement: DataRequirement {}
 
 // MARK: - Factory fixture plumbing
@@ -86,78 +87,102 @@ private extension PlanFixture {
 
 // MARK: - Factory fixtures
 
-/// Lists a foreign requirement — the walk must reject it, naming this factory
-/// and the offending type.
+/// Lists a foreign requirement alongside a genuine plan through the deprecated
+/// `dataRequirements` — the foreign entry is not a plan, so the walk drops it.
+@available(*, deprecated, message: "exercises the former dataRequirements list")
 private struct ForeignReqVM: PlanFixture {
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
     static var dataRequirements: [any DataRequirement] {
-        [ForeignRequirement()]
+        [ForeignRequirement(), cards]
     }
 }
 
-/// One `via:` requirement — its C7 baseline tuple is `path: [Card]`.
+/// One `via:` plan — its C7 baseline tuple is `path: [Card]`.
 private struct PackViaVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Assignment.self, in: .parentRoot, via: Card.self)]
+    static let assignments = Assignment.loadingPlan(.read, within: .parent, via: Card.self)
+
+    static var loadingPlans: LoadingPlans {
+        assignments
     }
 }
 
-/// The three write-family verbs, one requirement each.
+/// The three write operations, one plan each.
 private struct WriteVerbsVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.write(Card.self, in: .parentRoot),
-            LoadRequirement.create(Member.self, in: .parentRoot),
-            LoadRequirement.archive(Assignment.self, in: .parentRoot)
-        ]
+    static let cards = Card.loadingPlan(.write, within: .parent)
+    static let members = Member.creationPlan(within: .parent)
+    static let assignments = Assignment.loadingPlan(.archive, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+        members
+        assignments
     }
 }
 
 /// Minting shapes re-pointed from the sealed representation onto the walk.
 private struct ImplicitTerminalVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 }
 
-private struct ApexRootVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Card.self, in: .newRoot(.apex))]
+private struct ApplicationScopeVM: PlanFixture {
+    static let cards = Card.loadingPlan(.read, within: .application)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+    }
+}
+
+private struct SubjectScopeVM: PlanFixture {
+    static let cards = Card.loadingPlan(.read, within: .subject)
+
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 }
 
 private struct MultiHopViaVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Assignment.self, in: .parentRoot, via: Board.self, Card.self)]
+    static let assignments = Assignment.loadingPlan(.read, within: .parent, via: Board.self, Card.self)
+
+    static var loadingPlans: LoadingPlans {
+        assignments
     }
 }
 
 private struct MarkedVM: PlanFixture {
-    static var dataRequirements: [any DataRequirement] {
-        [
-            LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
-            LoadRequirement.read(Member.self, in: .parentRoot)
-        ]
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+    static let members = Member.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
+        members
     }
 }
 
 // MARK: - Handle-resolution fixtures (tuples(matching:) — declaration-token exactness)
 
-/// A child that loads Card at ITS OWN root — composed one hop deeper (via Board), so the
-/// walk records its tuple path absolutely as `[Board]`. Its own handle declares no `via:`.
+/// A child that loads Card within ITS OWN parent scope — composed one hop deeper (via Board),
+/// so the walk records its tuple path absolutely as `[Board]`. Its own handle declares no `via:`.
 private struct DeepCardVM: PlanFixture {
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 }
 
-/// Parent loads Card at the query root (path `[]`) AND composes ``DeepCardVM`` via Board
+/// Parent loads Card within the request scope (path `[]`) AND composes ``DeepCardVM`` via Board
 /// (child path `[Board]`). Two same-typed Card tuples in one plan — each declaration's
 /// handle must resolve to exactly its OWN tuple.
 private struct TwoCardPathsVM: PlanFixture {
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 
     static var children: [ComposedChild] {
@@ -179,49 +204,42 @@ private struct TwiceComposedParentVM: PlanFixture {
 /// Declares Card twice, textually identically — two declaration sites collapsing (by dedup)
 /// onto ONE tuple. Each handle must still resolve, unambiguously, to that tuple.
 private struct TwinDeclarationsVM: PlanFixture {
-    static let portCards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static let starboardCards = LoadRequirement.read(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [portCards, starboardCards]
+    static let firstCards = Card.loadingPlan(.read, within: .parent)
+    static let secondCards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        firstCards
+        secondCards
     }
 }
 
 // MARK: - Non-ViewModel factory fixture (the un-pin: spec §3.4)
 
 /// A `ServerRequestBody` that is NOT a ViewModel — a report/CLI body — adopting
-/// the composable trait with one `.read` requirement. Before the un-pin this
+/// the composable trait with one `.read` plan. Before the un-pin this
 /// could not conform: the trait required `ViewModelFactory where Self: ViewModel`.
 private struct NonVMReportBody: ServerRequestBody, ComposableFactory {
-    static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Card.self, in: .parentRoot)]
+    static let cards = Card.loadingPlan(.read, within: .parent)
+
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 }
 
 // MARK: - Tests
 
-@Suite("Sealed DataRequirement")
-struct SealedRequirementTests {
-    @Test("A foreign DataRequirement conformer is rejected by the walk, naming the factory and the type")
-    func foreignConformerIsRejectedByWalk() {
-        #expect(throws: RecordLoadPlan.WalkError.unknownRequirementKind(
-            factory: "ForeignReqVM",
-            requirementType: "ForeignRequirement"
-        )) {
-            try RecordLoadPlan.walk(from: ForeignReqVM.self)
-        }
-    }
+@Suite("Sealed LoadingPlan")
+struct SealedPlanTests {
+    @available(*, deprecated, message: "exercises the former dataRequirements list")
+    @Test("A foreign DataRequirement in the former dataRequirements list is dropped from the plan")
+    func foreignConformerIsDroppedFromThePlan() throws {
+        let plan = try RecordLoadPlan.walk(from: ForeignReqVM.self)
 
-    @Test("The rejection message names both the factory and the offending requirement type")
-    func rejectionMessageNamesFactoryAndType() {
-        do {
-            _ = try RecordLoadPlan.walk(from: ForeignReqVM.self)
-            Issue.record("Expected the walk to reject a foreign requirement")
-        } catch let error as RecordLoadPlan.WalkError {
-            #expect(error.debugDescription.contains("ForeignReqVM"))
-            #expect(error.debugDescription.contains("ForeignRequirement"))
-        } catch {
-            Issue.record("Unexpected error: \(error)")
-        }
+        // Only the genuine plan survives: the foreign entry is not a LoadingPlan, so the walk
+        // has no declaration to derive a tuple from — it never loads, and never throws either.
+        #expect(plan.tuples.count == 1)
+        #expect(try same(#require(plan.tuples.first).recordType, Card.self))
+        #expect(plan.tuples(matching: ForeignReqVM.cards).count == 1)
     }
 
     @Test("pack-based via: produces the C7 baseline tuple, byte-identical")
@@ -229,7 +247,7 @@ struct SealedRequirementTests {
         let plan = try RecordLoadPlan.walk(from: PackViaVM.self)
 
         let expected = RecordLoadPlan.Tuple(
-            root: .query,
+            root: .request,
             path: [Card.self],
             recordType: Assignment.self,
             operation: .readRecords,
@@ -240,42 +258,50 @@ struct SealedRequirementTests {
         #expect(plan.tuples == [expected])
     }
 
-    @Test("Each write-family verb carries its ContainerOperation into the plan")
+    @Test("Each write operation carries its ContainerOperation into the plan")
     func writeVerbsCarryTheirOperations() throws {
         let plan = try RecordLoadPlan.walk(from: WriteVerbsVM.self)
 
         let write = try #require(plan.tuples.first { same($0.recordType, Card.self) })
         let create = try #require(plan.tuples.first { same($0.recordType, Member.self) })
-        let delete = try #require(plan.tuples.first { same($0.recordType, Assignment.self) })
+        let archive = try #require(plan.tuples.first { same($0.recordType, Assignment.self) })
 
         #expect(write.operation == .writeRecords)
         #expect(create.operation == .createRecords)
-        #expect(delete.operation == .archiveRecords)
+        #expect(archive.operation == .archiveRecords)
     }
 
-    // compile-audit: `.create` accepts no `via:` intermediates — the root
-    // container IS the create scope. Uncommenting the next line must fail to
-    // compile (extra argument 'via' in call).
-    // _ = LoadRequirement.create(Card.self, in: .parentRoot, via: Board.self)
+    // compile-audit: `creationPlan(within:)` accepts no `via:` intermediates — the scope's
+    // container IS the create scope. Uncommenting the next line must fail to compile
+    // (extra argument 'via' in call).
+    // _ = Card.creationPlan(within: .parent, via: Board.self)
 
-    @Test(".read with no via: is the implicit terminal hop — an empty path at the query root")
+    @Test(".read with no via: is the implicit terminal hop — an empty path in the request scope")
     func implicitTerminalReadWalksToEmptyPath() throws {
         let plan = try RecordLoadPlan.walk(from: ImplicitTerminalVM.self)
 
         let tuple = try #require(plan.tuples.first)
         #expect(same(tuple.recordType, Card.self))
         #expect(tuple.path.isEmpty)
-        #expect(tuple.root == .query)
+        #expect(tuple.root == .request)
         #expect(tuple.operation == .readRecords)
         #expect(tuple.isRefinedByRequest == false)
     }
 
-    @Test(".newRoot(.apex) roots a fresh apex tree")
-    func apexRootWalksToApexTuple() throws {
-        let plan = try RecordLoadPlan.walk(from: ApexRootVM.self)
+    @Test("within: .application opens the application scope")
+    func applicationScopeWalksToApplicationTuple() throws {
+        let plan = try RecordLoadPlan.walk(from: ApplicationScopeVM.self)
 
         let tuple = try #require(plan.tuples.first)
-        #expect(tuple.root == .apex)
+        #expect(tuple.root == .application)
+    }
+
+    @Test("within: .subject opens the subject scope")
+    func subjectScopeWalksToSubjectTuple() throws {
+        let plan = try RecordLoadPlan.walk(from: SubjectScopeVM.self)
+
+        let tuple = try #require(plan.tuples.first)
+        #expect(tuple.root == .subject)
     }
 
     @Test("via: hops land on the tuple path in declaration order")
@@ -289,8 +315,8 @@ struct SealedRequirementTests {
         #expect(same(tuple.path[1], Card.self))
     }
 
-    @Test(".refinedByRequest marks exactly its own requirement, leaving siblings unmarked")
-    func refinedByRequestMarksOnlyItsRequirement() throws {
+    @Test(".refinedByRequest marks exactly its own plan, leaving siblings unmarked")
+    func refinedByRequestMarksOnlyItsPlan() throws {
         let plan = try RecordLoadPlan.walk(from: MarkedVM.self)
 
         let marked = plan.tuples.filter(\.isRefinedByRequest)
@@ -332,7 +358,7 @@ struct SealedRequirementTests {
 
         // A textually identical — but freshly minted — handle is a DIFFERENT declaration
         // site: it never reached this plan, so it matches nothing (the reader fails fast).
-        let freshTwin = LoadRequirement.read(Card.self, in: .parentRoot)
+        let freshTwin = Card.loadingPlan(.read, within: .parent)
         #expect(plan.tuples(matching: freshTwin).isEmpty)
     }
 
@@ -349,10 +375,10 @@ struct SealedRequirementTests {
         let plan = try RecordLoadPlan.walk(from: TwinDeclarationsVM.self)
         #expect(plan.tuples.count == 1)
 
-        let port = plan.tuples(matching: TwinDeclarationsVM.portCards)
-        let starboard = plan.tuples(matching: TwinDeclarationsVM.starboardCards)
-        #expect(port.count == 1)
-        #expect(starboard.count == 1)
-        #expect(port.first == starboard.first)
+        let first = plan.tuples(matching: TwinDeclarationsVM.firstCards)
+        let second = plan.tuples(matching: TwinDeclarationsVM.secondCards)
+        #expect(first.count == 1)
+        #expect(second.count == 1)
+        #expect(first.first == second.first)
     }
 }

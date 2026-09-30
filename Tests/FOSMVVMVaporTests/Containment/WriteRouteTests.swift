@@ -40,8 +40,8 @@ private struct GrantBoxKey: StorageKey {
     typealias Value = GrantBox
 }
 
-private struct CountingGrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [TestGrant] {
+private struct CountingGrantProvider: ModelAuthorizationProvider {
+    func modelAuthorizations(for request: Request) async throws -> [TestGrant] {
         let box = request.application.storage[GrantBoxKey.self] ?? GrantBox()
         box.callCount += 1
         return box.grants
@@ -61,8 +61,42 @@ private func configureWriteContainers(
     app.migrations.add(CreateMember())
     app.migrations.add(uniqueBoardMember ? UniqueBoardMemberMigration() : CreateBoardMember())
     try app.register(Quay.self, migration: CreateQuay())
-    app.migrations.add(CreateMooring())
-    try app.useContainerAuthorizationProvider(CountingGrantProvider())
+    try app.register(Mooring.self, migration: CreateMooring()) // a leaf within the subject scope must be registered
+    try app.useModelAuthorizationProvider(CountingGrantProvider())
+}
+
+/// Two quays, three moorings, and the subject scope's three cases for a write verb:
+/// `reachedByExtension` sits in the granted quay; `reachedByName` sits in the other quay and a
+/// grant names it; `reachedByNeither` sits beside it with no grant at all.
+private struct SubjectWriteFixture {
+    let reachedByExtension: Mooring
+    let reachedByName: Mooring
+    let reachedByNeither: Mooring
+}
+
+/// Seeds the fixture and sets grants covering `memberOperation` on the first quay's Moorings and
+/// `modelOperation` on the named Mooring (both read too, for the refresh body).
+private func seedSubjectWrite(
+    _ app: Application,
+    on db: any Database,
+    memberOperation: ContainerOperation,
+    modelOperation: ModelOperation
+) async throws -> SubjectWriteFixture {
+    let granted = Quay(name: "Granted Quay")
+    try await granted.save(on: db)
+    let other = Quay(name: "Other Quay")
+    try await other.save(on: db)
+    let byExtension = try Mooring(tag: "EXT", quayId: granted.requireId())
+    let byName = try Mooring(tag: "NAMED", quayId: other.requireId())
+    let byNeither = try Mooring(tag: "NEITHER", quayId: other.requireId())
+    for mooring in [byExtension, byName, byNeither] {
+        try await mooring.save(on: db)
+    }
+    try setGrants(app, [
+        mooringGrant(granted, [.readRecords, memberOperation]),
+        TestGrant(authorizedModel: byName.modelIdentity, operations: [], recordTypes: [], modelOperations: [.read, modelOperation])
+    ])
+    return .init(reachedByExtension: byExtension, reachedByName: byName, reachedByNeither: byNeither)
 }
 
 private func makeRequest(on app: Application) -> Vapor.Request {
@@ -80,7 +114,7 @@ private func grantCount(_ app: Application) -> Int {
 /// Grants `ops` on Card in `board`.
 private func cardGrant(_ board: Board, _ ops: [ContainerOperation]) throws -> TestGrant {
     try TestGrant(
-        authorizedContainer: board.modelIdentity,
+        authorizedModel: board.modelIdentity,
         operations: ops,
         recordTypes: [Card.modelIdentityNamespace]
     )
@@ -93,7 +127,7 @@ private func cards(of board: Board, on db: any Database) async throws -> [Card] 
 /// Grants `ops` on Mooring in `quay`.
 private func mooringGrant(_ quay: Quay, _ ops: [ContainerOperation]) throws -> TestGrant {
     try TestGrant(
-        authorizedContainer: quay.modelIdentity,
+        authorizedModel: quay.modelIdentity,
         operations: ops,
         recordTypes: [Mooring.modelIdentityNamespace]
     )
@@ -132,7 +166,7 @@ struct WriteRouteUpdateTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let base = try #require(URL(string: "http://localhost"))
@@ -166,7 +200,7 @@ struct WriteRouteUpdateTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 99, boardName: "Renamed"),
                 responseBody: nil
@@ -195,7 +229,7 @@ struct WriteRouteUpdateTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 5, boardName: "X"),
                 responseBody: nil
@@ -225,10 +259,10 @@ struct WriteRouteUpdateTests {
 
             let req = makeRequest(on: app)
             // Prime the read-op cache with pre-write cards.
-            try await req.executeRecordLoadPlan(for: CardListRequest(query: .init(rootIdentity: dock1.modelIdentity)))
+            try await req.executeRecordLoadPlan(for: CardListRequest(query: .init(scopeIdentity: dock1.modelIdentity)))
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 77, boardName: "Fresh"),
                 responseBody: nil
@@ -250,7 +284,7 @@ struct WriteRouteUpdateTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 3, boardName: "Y"),
                 responseBody: nil
@@ -276,7 +310,7 @@ struct WriteRouteUpdateTests {
 
             // Update card #1 → number 2, colliding with card #2 on the unique index.
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: first.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: first.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: second.number, boardName: "Collide"),
                 responseBody: nil
@@ -304,7 +338,7 @@ struct WriteRouteCreateTests {
             try setGrants(app, [cardGrant(dock1, [.readRecords, .createRecords])])
 
             let vmRequest = try CreateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: CreateCardBody(number: 42, boardName: "New Card"),
                 responseBody: nil
@@ -323,7 +357,7 @@ struct WriteRouteCreateTests {
     /// containers; the create scope must be exactly one). This line only compiles because `.create`
     /// has no `via:` parameter.
     @Test func createTakesNoIntermediates() {
-        _ = LoadRequirement.create(Card.self, in: .parentRoot)
+        _ = Card.creationPlan(within: .parent)
     }
 }
 
@@ -343,7 +377,7 @@ struct WriteRouteArchiveTests {
             let goneTag = mooring.tag
 
             let vmRequest = try ArchiveMooringRequest(
-                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
+                query: .init(scopeIdentity: quay.modelIdentity, target: mooring.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -367,7 +401,7 @@ struct WriteRouteArchiveTests {
             let archivedTag = mooring.tag
 
             let vmRequest = try ArchiveMooringRequest(
-                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
+                query: .init(scopeIdentity: quay.modelIdentity, target: mooring.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -434,7 +468,7 @@ struct WriteRouteDestroyTests {
             let goneTag = mooring.tag
 
             let vmRequest = try DestroyMooringRequest(
-                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
+                query: .init(scopeIdentity: quay.modelIdentity, target: mooring.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -444,6 +478,214 @@ struct WriteRouteDestroyTests {
             let all = try await moorings(of: quay, on: db, includingDeleted: true)
             #expect(all.count == 2)
             #expect(!all.contains { $0.tag == goneTag })
+        }
+    }
+}
+
+// MARK: - Writes within the subject scope
+
+@Suite("Write route: candidates within the subject scope")
+struct WriteRouteSubjectScopeTests {
+    /// An update accepts a target reachable by either authority — the Mooring inside the granted
+    /// Quay, and the Mooring a grant names — and the refresh lists the new tag: the subject-scope
+    /// cache was dropped with the write, so the re-served body reflects post-write state.
+    @Test func updateAcceptsEitherAuthorityAndRefreshesTheUnion() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: SubjectUpdateMooringRequest.self, app: app)
+        } _: { app, db in
+            let fixture = try await seedSubjectWrite(app, on: db, memberOperation: .writeRecords, modelOperation: .write)
+            let req = makeRequest(on: app)
+
+            let viaExtension = try SubjectUpdateMooringRequest(
+                query: .init(target: fixture.reachedByExtension.modelIdentity),
+                sort: nil, fragment: nil, requestBody: .init(tag: "EXT2"), responseBody: nil
+            )
+            let afterFirst = try await req.serveUpdate(viaExtension, body: #require(viaExtension.requestBody))
+            #expect(afterFirst.tags == ["EXT2", "NAMED"])
+
+            let viaName = try SubjectUpdateMooringRequest(
+                query: .init(target: fixture.reachedByName.modelIdentity),
+                sort: nil, fragment: nil, requestBody: .init(tag: "NAMED2"), responseBody: nil
+            )
+            let afterSecond = try await req.serveUpdate(viaName, body: #require(viaName.requestBody))
+            #expect(afterSecond.tags == ["EXT2", "NAMED2"])
+        }
+    }
+
+    /// A target reachable by neither authority is not-found — the same shape a missing row
+    /// produces — and the row is untouched.
+    @Test func updateRejectsATargetReachedByNeither() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: SubjectUpdateMooringRequest.self, app: app)
+        } _: { app, db in
+            let fixture = try await seedSubjectWrite(app, on: db, memberOperation: .writeRecords, modelOperation: .write)
+
+            let vmRequest = try SubjectUpdateMooringRequest(
+                query: .init(target: fixture.reachedByNeither.modelIdentity),
+                sort: nil, fragment: nil, requestBody: .init(tag: "X"), responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            await #expect(throws: Abort.self) {
+                _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
+            }
+            let untouched = try #require(try await Mooring.find(fixture.reachedByNeither.requireId(), on: db))
+            #expect(untouched.tag == "NEITHER")
+        }
+    }
+
+    /// An archive accepts a target by either authority and rejects one by neither; each archived
+    /// row keeps its delete timestamp and drops out of the refreshed list.
+    @Test func archiveAcceptsEitherAuthorityRejectsNeither() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: SubjectArchiveMooringRequest.self, app: app)
+        } _: { app, db in
+            let fixture = try await seedSubjectWrite(app, on: db, memberOperation: .archiveRecords, modelOperation: .archive)
+            let req = makeRequest(on: app)
+
+            let afterExtension = try await req.serveArchive(SubjectArchiveMooringRequest(
+                query: .init(target: fixture.reachedByExtension.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            ))
+            #expect(afterExtension.tags == ["NAMED"])
+
+            let afterName = try await req.serveArchive(SubjectArchiveMooringRequest(
+                query: .init(target: fixture.reachedByName.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            ))
+            #expect(afterName.tags == [])
+
+            await #expect(throws: Abort.self) {
+                _ = try await req.serveArchive(SubjectArchiveMooringRequest(
+                    query: .init(target: fixture.reachedByNeither.modelIdentity),
+                    sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+                ))
+            }
+
+            let all = try await Mooring.query(on: db).withDeleted().all()
+            #expect(all.count == 3)
+            #expect(all.first { $0.tag == "EXT" }?.deletedAt != nil)
+            #expect(all.first { $0.tag == "NAMED" }?.deletedAt != nil)
+            #expect(all.first { $0.tag == "NEITHER" }?.deletedAt == nil)
+        }
+    }
+
+    /// A destroy accepts a target by either authority and rejects one by neither; the accepted
+    /// rows are gone, the rejected one stays.
+    @Test func destroyAcceptsEitherAuthorityRejectsNeither() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: SubjectDestroyMooringRequest.self, app: app)
+        } _: { app, db in
+            let fixture = try await seedSubjectWrite(app, on: db, memberOperation: .destroyRecords, modelOperation: .destroy)
+            let req = makeRequest(on: app)
+
+            let afterExtension = try await req.serveDestroy(SubjectDestroyMooringRequest(
+                query: .init(target: fixture.reachedByExtension.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            ))
+            #expect(afterExtension.tags == ["NAMED"])
+
+            let afterName = try await req.serveDestroy(SubjectDestroyMooringRequest(
+                query: .init(target: fixture.reachedByName.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            ))
+            #expect(afterName.tags == [])
+
+            await #expect(throws: Abort.self) {
+                _ = try await req.serveDestroy(SubjectDestroyMooringRequest(
+                    query: .init(target: fixture.reachedByNeither.modelIdentity),
+                    sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+                ))
+            }
+
+            let remaining = try await Mooring.query(on: db).withDeleted().all()
+            #expect(remaining.map(\.tag) == ["NEITHER"])
+        }
+    }
+
+    /// Not-yours is indistinguishable from not-found: a target reachable by neither authority
+    /// and an identity of a row that no longer exists both refuse with the same status.
+    @Test func neitherAuthorityMatchesTheMissingRowShape() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: SubjectUpdateMooringRequest.self, app: app)
+        } _: { app, db in
+            let fixture = try await seedSubjectWrite(app, on: db, memberOperation: .writeRecords, modelOperation: .write)
+            let gone = try Mooring(tag: "GONE", quayId: fixture.reachedByNeither.$quay.id)
+            try await gone.save(on: db)
+            let goneIdentity = try gone.modelIdentity
+            try await gone.delete(force: true, on: db)
+            let req = makeRequest(on: app)
+
+            func status(for target: ModelIdentity) async -> HTTPResponseStatus? {
+                let vmRequest = SubjectUpdateMooringRequest(query: .init(target: target), sort: nil, fragment: nil, requestBody: .init(tag: "X"), responseBody: nil)
+                do {
+                    _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
+                    return nil
+                } catch let abort as Abort {
+                    return abort.status
+                } catch {
+                    return nil
+                }
+            }
+
+            let neither = try await status(for: fixture.reachedByNeither.modelIdentity)
+            let missing = await status(for: goneIdentity)
+            #expect(neither == .notFound)
+            #expect(neither == missing)
+        }
+    }
+
+    /// A write within the request's container whose refresh body is subject-scoped re-serves
+    /// fresh: the subject caches are dropped whichever scope the candidates were within.
+    @Test func requestScopedWriteRefreshesASubjectScopedBody() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: MixedArchiveMooringRequest.self, app: app)
+        } _: { app, db in
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .archiveRecords])])
+            let tags = try await moorings(of: quay, on: db).map(\.tag).sorted()
+            let first = try #require(try await moorings(of: quay, on: db).first { $0.tag == tags[0] })
+            let second = try #require(try await moorings(of: quay, on: db).first { $0.tag == tags[1] })
+            let req = makeRequest(on: app)
+
+            let afterFirst = try await req.serveArchive(MixedArchiveMooringRequest(
+                query: .init(scopeIdentity: quay.modelIdentity, target: first.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            ))
+            #expect(afterFirst.tags == Array(tags[1...]))
+
+            let afterSecond = try await req.serveArchive(MixedArchiveMooringRequest(
+                query: .init(scopeIdentity: quay.modelIdentity, target: second.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            ))
+            #expect(afterSecond.tags == Array(tags[2...]))
+        }
+    }
+
+    /// The verb gates both authorities: a read-only container grant and a read-only model grant
+    /// make no Mooring a write candidate, so both targets are not-found.
+    @Test func readOnlyGrantsAuthorizeNoWriteCandidate() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: SubjectUpdateMooringRequest.self, app: app)
+        } _: { app, db in
+            let fixture = try await seedSubjectWrite(app, on: db, memberOperation: .readRecords, modelOperation: .read)
+            let req = makeRequest(on: app)
+
+            for target in [fixture.reachedByExtension, fixture.reachedByName] {
+                let vmRequest = try SubjectUpdateMooringRequest(
+                    query: .init(target: target.modelIdentity),
+                    sort: nil, fragment: nil, requestBody: .init(tag: "X"), responseBody: nil
+                )
+                await #expect(throws: Abort.self) {
+                    _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
+                }
+            }
         }
     }
 }
@@ -465,7 +707,7 @@ struct WriteRouteValidationTests {
 
             // number == -1 fails UpdateCardBody.validate.
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: -1, boardName: "Nope"),
                 responseBody: nil
@@ -496,7 +738,7 @@ struct WriteRouteRetargetTests {
             let foreignCard = try #require(try await cards(of: dock2, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: foreignCard.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: foreignCard.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 1, boardName: "Z"),
                 responseBody: nil
@@ -520,7 +762,7 @@ struct WriteRouteRetargetTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 1, boardName: "Z"),
                 responseBody: nil
@@ -544,7 +786,7 @@ struct WriteRouteRetargetTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 1, boardName: "Z"),
                 responseBody: nil
@@ -603,9 +845,9 @@ struct WriteRouteBootTests {
         }
     }
 
-    /// Candidate root-source validation: a `.query`-rooted candidate whose query is not RootedQuery
+    /// Candidate scope validation: a `.query`-rooted candidate whose query is not ScopedQuery
     /// fails fast at boot.
-    @Test func candidateQueryRootWithoutRootedQueryFailsFast() async throws {
+    @Test func candidateRequestScopeWithoutScopedQueryFailsFast() async throws {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
@@ -614,13 +856,24 @@ struct WriteRouteBootTests {
         }
     }
 
-    /// Candidate root-source validation: an `.apex`-rooted candidate with no registered resolver
+    /// Candidate scope validation: a candidate within `.application` with no registered application scope
     /// fails fast at boot.
-    @Test func candidateApexRootWithoutResolverFailsFast() async throws {
+    @Test func candidateApplicationScopeWithoutRegistrationFailsFast() async throws {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: ApexUpdateRequest.self, app: app)
+                try app.register(request: ApplicationUpdateRequest.self, app: app)
+            } _: { _, _ in }
+        }
+    }
+
+    /// A creation plan within `.subject` is refused on the write registration path too — a
+    /// create names the container it creates into.
+    @Test func subjectScopedCreateCandidatesFailFast() async throws {
+        await #expect(throws: ContainmentError.self) {
+            try await withFluentTestApp { app in
+                try configureWriteContainers(app)
+                try app.register(request: SubjectCreateCardRequest.self, app: app)
             } _: { _, _ in }
         }
     }
@@ -635,8 +888,8 @@ struct WriteRouteBootTests {
         }
     }
 
-    /// The read-plan token lint: a computed `dataRequirements` on a read factory fails fast too.
-    @Test func computedDataRequirementsFailsFast() async throws {
+    /// The read-plan token lint: a `loadingPlans` block minting its plans inline fails fast too.
+    @Test func inlineLoadingPlansFailsFast() async throws {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
@@ -663,7 +916,7 @@ struct WriteRouteResponseParityTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try UpdateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: UpdateCardBody(number: 55, boardName: "Bridged"),
                 responseBody: nil
@@ -754,7 +1007,7 @@ struct WriteRouteCreateGateTests {
 
             let rowsBefore = try await Card.query(on: db).count()
             let vmRequest = try CreateCardRequest(
-                query: .init(rootIdentity: board.modelIdentity),
+                query: .init(scopeIdentity: board.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: CreateCardBody(number: 7, boardName: "Nope"),
                 responseBody: nil
@@ -782,7 +1035,7 @@ struct WriteRouteCreateGateTests {
 
             let rowsBefore = try await Card.query(on: db).count()
             let vmRequest = try CreateCardRequest(
-                query: .init(rootIdentity: board.modelIdentity),
+                query: .init(scopeIdentity: board.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: CreateCardBody(number: 8, boardName: "Nope"),
                 responseBody: nil
@@ -810,7 +1063,7 @@ struct WriteRouteCreateGateTests {
             try setGrants(app, [cardGrant(board, [.createRecords])])
 
             let vmRequest = try CreateCardRequest(
-                query: .init(rootIdentity: board.modelIdentity),
+                query: .init(scopeIdentity: board.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: CreateCardBody(number: 21, boardName: "Landed"),
                 responseBody: nil
@@ -845,7 +1098,7 @@ struct WriteRouteCreateGateTests {
 
             func createStatus(into root: ModelIdentity) async throws -> HTTPResponseStatus? {
                 let vmRequest = CreateCardRequest(
-                    query: .init(rootIdentity: root),
+                    query: .init(scopeIdentity: root),
                     sort: nil, fragment: nil,
                     requestBody: CreateCardBody(number: 1, boardName: "X"),
                     responseBody: nil
@@ -872,9 +1125,9 @@ struct WriteRouteCreateGateTests {
 /// a `.createRecords` tuple with a non-empty path (deriveCandidatePlan's childless CandidateFactory
 /// can never produce one); exercises the defense-in-depth branch directly.
 private struct CreateLeafFactory: ComposableFactory {
-    static let scope = LoadRequirement.create(Card.self, in: .parentRoot)
-    static var dataRequirements: [any DataRequirement] {
-        [scope]
+    static let scope = Card.creationPlan(within: .parent)
+    static var loadingPlans: LoadingPlans {
+        scope
     }
 }
 
@@ -1101,7 +1354,7 @@ struct WriteRouteHTTPPipelineTests {
             try setGrants(app, [cardGrant(dock1, [.readRecords, .createRecords])])
 
             let vmRequest = try CreateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let base = try #require(URL(string: "http://localhost"))
@@ -1137,7 +1390,7 @@ struct WriteRouteHTTPPipelineTests {
             let goneTag = mooring.tag
 
             let vmRequest = try ArchiveMooringRequest(
-                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
+                query: .init(scopeIdentity: quay.modelIdentity, target: mooring.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let base = try #require(URL(string: "http://localhost"))
@@ -1204,7 +1457,7 @@ struct WriteRouteTypedErrorTests {
             let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try TypedErrorUpdateRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: TypedErrorUpdateBody(number: -1, boardName: "Refused"),
                 responseBody: nil
@@ -1231,7 +1484,7 @@ struct WriteRouteTypedErrorTests {
             let originalNumber = card.number
 
             let vmRequest = try TypedErrorUpdateRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: TypedErrorUpdateBody(number: 55, boardName: "Refused"),
                 responseBody: nil
@@ -1261,7 +1514,7 @@ struct WriteRouteTypedErrorTests {
             try await refused.save(on: db)
 
             let vmRequest = try TypedErrorArchiveMooringRequest(
-                query: .init(rootIdentity: quay.modelIdentity, target: refused.modelIdentity),
+                query: .init(scopeIdentity: quay.modelIdentity, target: refused.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -1289,7 +1542,7 @@ struct WriteRouteTypedErrorTests {
             try await refused.save(on: db)
 
             let vmRequest = try TypedErrorDestroyMooringRequest(
-                query: .init(rootIdentity: quay.modelIdentity, target: refused.modelIdentity),
+                query: .init(scopeIdentity: quay.modelIdentity, target: refused.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -1316,7 +1569,7 @@ struct WriteRouteTypedErrorTests {
             try setGrants(app, [cardGrant(dock1, [.readRecords, .createRecords])])
 
             let vmRequest = try CreateCardRequest(
-                query: .init(rootIdentity: dock1.modelIdentity),
+                query: .init(scopeIdentity: dock1.modelIdentity),
                 sort: nil, fragment: nil,
                 requestBody: CreateCardBody(number: 77, boardName: "Rolled Back"),
                 responseBody: nil

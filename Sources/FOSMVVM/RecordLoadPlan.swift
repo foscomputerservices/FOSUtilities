@@ -21,17 +21,17 @@ import Foundation
 // package; no app-facing need; internal cannot cross modules; package is the
 // only level that serves. Its `tuples(matching:)` member serves one further
 // cross-module consumer — FOSMVVMVapor's `ProjectionContext.records(_:)`, which
-// resolves a sealed requirement handle (by its hidden declaration token) to the
-// exact tuple(s) the walk derived from that declaration site; same target
-// boundary, same justification. Its `requirementTokensAreStable(for:)` member
-// serves that same consumer — FOSMVVMVapor's boot registration lints a factory's
-// `dataRequirements`/`candidates` for token stability, reading only a Bool verdict
+// resolves a plan handle (by its hidden declaration token) to the exact tuple(s)
+// the walk derived from that declaration site; same target boundary, same
+// justification. Its `requirementTokensAreStable(for:)` member serves that same
+// consumer — FOSMVVMVapor's boot registration lints a factory's
+// `loadingPlans`/`candidates` for token stability, reading only a Bool verdict
 // (never a token value) across the boundary.
 /// The walk's output for one root factory: every record load its composition
 /// graph declares, absolute and deduplicated, ready for the executor to resolve.
 ///
 /// ```swift
-/// let plan = try RecordLoadPlan.walk(from: BerthsViewModel.self)
+/// let plan = try RecordLoadPlan.walk(from: BoardPageViewModel.self)
 /// for tuple in plan.tuples { /* resolve + load through the engine */ }
 /// ```
 ///
@@ -39,7 +39,7 @@ import Foundation
 /// request *instance* never changes the plan, it only parameterizes resolution.
 package struct RecordLoadPlan: Hashable, Sendable {
     /// The declared loads, in deterministic walk order (a factory's own
-    /// requirements first, then its children depth-first, declaration order).
+    /// plans first, then its children depth-first, declaration order).
     package let tuples: [Tuple]
 
     /// The M2 collapse-legality map: maximal runs of consecutive ``tuples``
@@ -54,7 +54,7 @@ package struct RecordLoadPlan: Hashable, Sendable {
     /// cross-module reads go through ``tuples(matching:)``.
     ///
     /// Excluded from Hashable (see the manual conformance below): tokens are declaration
-    /// IDENTITY, not walk structure — a factory whose `dataRequirements` is a computed var
+    /// IDENTITY, not walk structure — a factory whose `loadingPlans` mints its plans inline
     /// mints fresh tokens per walk, yet its two walks are structurally the same plan.
     let declarationTuples: [ObjectIdentifier: [Int]]
 
@@ -76,10 +76,10 @@ package struct RecordLoadPlan: Hashable, Sendable {
     /// the walk dedups on: same-anchor duplicates collapse; different anchors
     /// are different security questions and never merge.
     package struct Tuple: Hashable, Sendable {
-        /// The source of the root this load descends from. `.parentRoot`
-        /// declarations resolve through the composition chain: to the nearest
-        /// `.newRoot` ancestor's source, else to the request root (`.query`).
-        package let root: RootSource
+        /// The scope this load descends from — never ``ContainmentScope/parent``:
+        /// a `.parent` declaration resolves through the composition chain to the
+        /// nearest ancestor that opened a scope, else to ``ContainmentScope/request``.
+        package let root: ContainmentScope
 
         /// The absolute containment hops from the root down to — but not
         /// including — ``recordType``, in traversal order.
@@ -100,7 +100,7 @@ package struct RecordLoadPlan: Hashable, Sendable {
         package let isRefinedByRequest: Bool
 
         package init(
-            root: RootSource,
+            root: ContainmentScope,
             path: [any Model.Type],
             recordType: any Model.Type,
             operation: ContainerOperation,
@@ -155,20 +155,12 @@ package struct RecordLoadPlan: Hashable, Sendable {
         /// declaration composed on two differently-anchored paths.
         case multipleRefinedByRequest(recordTypes: [String])
 
-        /// A `dataRequirements` entry does not realize the framework's
-        /// requirement kind — the walk reads requirements through an internal
-        /// face, so a foreign conformer cannot be honored and could never load.
-        /// Names the declaring factory and the offending type.
-        case unknownRequirementKind(factory: String, requirementType: String)
-
         package var debugDescription: String {
             switch self {
             case .cycle(let factoryPath):
                 "RecordLoadPlan.WalkError: composition cycle: \(factoryPath.joined(separator: " → "))"
             case .multipleRefinedByRequest(let recordTypes):
                 "RecordLoadPlan.WalkError: multiple .refinedByRequest marks: \(recordTypes.joined(separator: ", "))"
-            case .unknownRequirementKind(let factory, let requirementType):
-                "RecordLoadPlan.WalkError: unknown requirement kind \(requirementType) declared by \(factory)"
             }
         }
     }
@@ -178,7 +170,7 @@ package struct RecordLoadPlan: Hashable, Sendable {
     /// collapse, cycles and multiple `.refinedByRequest` marks throw.
     ///
     /// ```swift
-    /// let plan = try RecordLoadPlan.walk(from: BerthsViewModel.self)
+    /// let plan = try RecordLoadPlan.walk(from: BoardPageViewModel.self)
     /// ```
     ///
     /// - Throws: ``WalkError``.
@@ -186,7 +178,7 @@ package struct RecordLoadPlan: Hashable, Sendable {
         from rootFactory: any ComposableFactory.Type
     ) throws -> RecordLoadPlan {
         var walker = Walker()
-        try walker.visit(rootFactory, root: .query, prefix: [])
+        try walker.visit(rootFactory, root: .request, prefix: [])
 
         let marked = walker.tuples.filter(\.isRefinedByRequest)
         guard marked.count <= 1 else {
@@ -202,11 +194,11 @@ package struct RecordLoadPlan: Hashable, Sendable {
         )
     }
 
-    /// Whether `factory`'s `dataRequirements` mints the SAME declaration identities on two
-    /// consecutive reads — `false` when it is a computed property (each access allocates fresh
-    /// tokens), `true` for stored `static let`s. The declaration token is the exact-match key the
-    /// handle→tuple lookup resolves on, so an unstable `dataRequirements` silently breaks
-    /// ``tuples(matching:)``; the boot registration lints this and fails fast.
+    /// Whether `factory`'s `loadingPlans` block names the SAME declaration identities on two
+    /// consecutive reads — `false` when the block mints its plans inline (each access allocates
+    /// fresh tokens), `true` when it lists stored `static let` handles. The declaration token is
+    /// the exact-match key the handle→tuple lookup resolves on, so an unstable `loadingPlans`
+    /// silently breaks ``tuples(matching:)``; the boot registration lints this and fails fast.
     ///
     /// (Package, not internal: the declaration-token vocabulary is FOSMVVM-internal, but the
     /// FOSMVVMVapor boot registration — a different target — needs this verdict. It reads no token
@@ -217,28 +209,24 @@ package struct RecordLoadPlan: Hashable, Sendable {
         // Both reads MUST be held alive at once: a token is a class-instance address, so if the
         // first array were released before the second is built, ARC could recycle the same address
         // into the second's tokens — a false "stable" verdict. Keep both alive across the compare.
-        let first = factory.dataRequirements
-        let second = factory.dataRequirements
+        let first = factory.loadingPlans.plans
+        let second = factory.loadingPlans.plans
         defer { withExtendedLifetime((first, second)) {} }
-        func tokens(_ requirements: [any DataRequirement]) -> [ObjectIdentifier] {
-            requirements.compactMap { ($0 as? any DataRequirementWalkFace)?.declarationToken }
+        func tokens(_ plans: [any LoadingPlanWalkFace]) -> [ObjectIdentifier] {
+            plans.map(\.declarationToken)
         }
         return tokens(first) == tokens(second)
     }
 
-    /// Every plan tuple a declared requirement handle resolves to — an EXACT match on the
+    /// Every plan tuple a declared plan handle resolves to — an EXACT match on the
     /// handle's hidden declaration-site identity, never a structural heuristic.
     ///
     /// Empty means the handle never reached this plan (the caller fails fast, never serving
     /// an empty result). Exactly one is the resolved tuple. More than one means the same
     /// declaration was composed onto multiple distinct paths (the same child composed twice)
     /// — genuine ambiguity the caller must reject rather than guess.
-    package func tuples(matching requirement: any DataRequirement) -> [Tuple] {
-        guard let face = requirement as? any DataRequirementWalkFace else {
-            return []
-        }
-
-        return (declarationTuples[face.declarationToken] ?? []).map { tuples[$0] }
+    package func tuples(matching face: any LoadingPlanWalkFace) -> [Tuple] {
+        (declarationTuples[face.declarationToken] ?? []).map { tuples[$0] }
     }
 
     private struct Walker {
@@ -249,7 +237,7 @@ package struct RecordLoadPlan: Hashable, Sendable {
 
         mutating func visit(
             _ factory: any ComposableFactory.Type,
-            root: RootSource,
+            root: ContainmentScope,
             prefix: [any Model.Type]
         ) throws {
             let factoryId = ObjectIdentifier(factory)
@@ -261,14 +249,8 @@ package struct RecordLoadPlan: Hashable, Sendable {
             descent.append((id: factoryId, name: factoryName))
             defer { descent.removeLast() }
 
-            for requirement in factory.dataRequirements {
-                guard let face = requirement as? any DataRequirementWalkFace else {
-                    throw WalkError.unknownRequirementKind(
-                        factory: factoryName,
-                        requirementType: String(describing: type(of: requirement))
-                    )
-                }
-                let scope = resolve(face.rootScope, root: root, prefix: prefix)
+            for face in factory.loadingPlans.plans {
+                let scope = resolve(face.scope, root: root, prefix: prefix)
                 let path = scope.prefix + face.intermediates
                 let tuple = Tuple(
                     root: scope.root,
@@ -296,7 +278,7 @@ package struct RecordLoadPlan: Hashable, Sendable {
             }
 
             for child in factory.children {
-                let scope = resolve(child.rootScope, root: root, prefix: prefix)
+                let scope = resolve(child.scope, root: root, prefix: prefix)
                 try visit(
                     child.factoryType,
                     root: scope.root,
@@ -306,13 +288,13 @@ package struct RecordLoadPlan: Hashable, Sendable {
         }
 
         private func resolve(
-            _ rootScope: RootScope,
-            root: RootSource,
+            _ scope: ContainmentScope,
+            root: ContainmentScope,
             prefix: [any Model.Type]
-        ) -> (root: RootSource, prefix: [any Model.Type]) {
-            switch rootScope {
-            case .parentRoot: (root: root, prefix: prefix)
-            case .newRoot(let source): (root: source, prefix: [])
+        ) -> (root: ContainmentScope, prefix: [any Model.Type]) {
+            switch scope {
+            case .parent: (root: root, prefix: prefix)
+            case .request, .application, .subject: (root: scope, prefix: [])
             }
         }
 

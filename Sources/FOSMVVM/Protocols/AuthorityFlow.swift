@@ -16,22 +16,25 @@
 
 import Foundation
 
-/// Whether authority granted on an ancestor flows through this container to its contained records, or
-/// stops here.
-///
-/// The default — ``inherits`` — means one grant at the apex (or any ancestor) covers the descent;
-/// nothing to declare. Declare ``guards`` on a container whose records need authority anchored at *it*:
+/// Whether a grant on a container reaches the models beneath the models it contains, or stops
+/// at its direct members.
 ///
 /// ```swift
-/// extension Checklist {
-///     static var authorityFlow: AuthorityFlow { .guards }
-/// }
+/// final class Workspace: ContainerDataModel { static var authorityFlow: AuthorityFlow { .inherits } }  // the default
+/// final class Board: ContainerDataModel     { static var authorityFlow: AuthorityFlow { .guards } }
 /// ```
 ///
-/// Reads from the declaration site: *"Checklist guards; everything else inherits."*
+/// With `Card.loadingPlan(.read, within: .request, via: Board.self)` the plan descends
+/// Workspace → Board → Card; each hop's grant check runs against the nearest guarding
+/// container above it, else the scope's own container.
 public enum AuthorityFlow: Hashable, Sendable, CaseIterable {
-    /// An ancestor's grant covers this container's records too — the default; nothing to declare.
+    /// A grant on this container extends through it: `readRecords` of `Card` granted on a
+    /// Workspace reaches the Cards of every Board inside it. The default. One grant high up
+    /// serves a whole subtree.
     case inherits
-    /// This container's records need their own grant, anchored at this container.
+
+    /// A grant on this container stops here: to read the Cards of a Board the subject needs a
+    /// grant on that Board, whatever the Workspace grants. Use it where a container is its own
+    /// unit of authority — a private Board inside a shared Workspace.
     case guards
 }

@@ -16,30 +16,34 @@
 
 import Foundation
 
-/// Where a data requirement or composed child roots its containment scope.
-///
-/// Read it as the preposition at the call site:
-///
-/// ```swift
-/// .read(Card.self, in: .parentRoot)              // shares the declaring factory's scope
-/// .read(WorkspaceBanner.self, in: .newRoot(.apex))    // starts a fresh tree at the apex
-/// ```
+/// The former spelling of a plan's scope. `.parentRoot` is ``ContainmentScope/parent``;
+/// `.newRoot(.query)` is ``ContainmentScope/request``; `.newRoot(.apex)` is
+/// ``ContainmentScope/application``.
+@available(*, deprecated, message: "declare the plan within: a ContainmentScope")
 public enum RootScope: Hashable, Sendable {
-    /// Shares the declaring factory's scope — the overwhelmingly common case.
     case parentRoot
-    /// Starts a fresh root — a new tree in the request's forest — sourced as declared.
     case newRoot(RootSource)
+
+    package var containmentScope: ContainmentScope {
+        switch self {
+        case .parentRoot: .parent
+        case .newRoot(.query): .request
+        case .newRoot(.apex): .application
+        }
+    }
 }
 
-/// Where a fresh ``RootScope/newRoot(_:)`` root's identity comes from.
-///
-/// ```swift
-/// .read(Card.self, in: .newRoot(.query))          // the request's RootedQuery vends it
-/// .read(WorkspaceBanner.self, in: .newRoot(.apex))     // the app's apex container, server-resolved
-/// ```
+/// The former binder of a fresh root: `.query` is ``ContainmentScope/request``, `.apex` is
+/// ``ContainmentScope/application``.
+@available(*, deprecated, message: "declare the plan within: a ContainmentScope")
 public enum RootSource: Hashable, Sendable, CaseIterable {
-    /// The request's ``RootedQuery`` vends the root identity.
     case query
-    /// The app's apex container resolves the root identity — server-resolved, no query required.
     case apex
+
+    package var containmentScope: ContainmentScope {
+        switch self {
+        case .query: .request
+        case .apex: .application
+        }
+    }
 }

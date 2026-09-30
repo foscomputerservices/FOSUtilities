@@ -47,7 +47,7 @@ private let knownId = ModelIdType()
 /// identities so the merge test proves both halves land.
 private let mergeSnapshotId = ModelIdType()
 
-/// A zero-data body (no ``dataRequirements``, no plan) whose factory registers a StatusSnapshot —
+/// A zero-data body (no ``ComposableFactory`` conformance, no plan) whose factory registers a StatusSnapshot —
 /// exercises the serve else-branch sink.
 private struct StatusDashboardVM: RequestableViewModel, VaporResponseBodyFactory {
     typealias Request = StatusDashboardRequest
@@ -88,14 +88,14 @@ private final class StatusDashboardRequest: ViewModelRequest, @unchecked Sendabl
     }
 }
 
-/// An apex-rooted read WITH a plan (the WorkspaceBerthsVM shape) whose factory ALSO registers a
+/// A read within `.application` WITH a plan whose factory ALSO registers a
 /// StatusSnapshot — so the header must carry the plan's container identities AND the snapshot's.
 private struct WorkspaceStatusVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
     typealias Request = WorkspaceStatusRequest
 
-    static let cards = LoadRequirement.read(Card.self, in: .newRoot(.apex), via: Board.self)
-    static var dataRequirements: [any DataRequirement] {
-        [cards]
+    static let cards = Card.loadingPlan(.read, within: .application, via: Board.self)
+    static var loadingPlans: LoadingPlans {
+        cards
     }
 
     var vmId = ViewModelId()
@@ -179,7 +179,7 @@ private func configureServe(_ app: Application) throws {
     app.migrations.add(CreateCard())
     app.migrations.add(CreateMember())
     app.migrations.add(CreateBoardMember())
-    try app.useContainerAuthorizationProvider(TestGrantsProvider())
+    try app.useModelAuthorizationProvider(TestGrantsProvider())
 }
 
 /// The serving side PLUS live invalidation — the end-to-end test needs both the header (serving)
@@ -189,8 +189,8 @@ private func configureLiveServe(_ app: Application) throws {
     try app.useLiveInvalidation(on: app.routes)
 }
 
-private func registerApexWorkspaceResolver(_ app: Application) throws {
-    try app.useApexContainerResolver { req in
+private func registerWorkspaceApplicationScope(_ app: Application) throws {
+    try app.useApplicationScope { req in
         guard let workspace = try await Workspace.query(on: req.db).first() else {
             throw Abort(.internalServerError, reason: "no workspace seeded")
         }
@@ -203,7 +203,7 @@ private func setGrants(_ app: Application, _ grants: [TestGrant]) {
 }
 
 private func cardReadGrant(container: ModelIdentity, _ ops: [ContainerOperation], types: [ModelNamespace]) -> TestGrant {
-    TestGrant(authorizedContainer: container, operations: ops, recordTypes: types)
+    TestGrant(authorizedModel: container, operations: ops, recordTypes: types)
 }
 
 private func getResponse(_ app: Application, for request: some ServerRequest) async throws -> Vapor.Response {
@@ -226,7 +226,7 @@ struct RegisterDependencyTests {
     @Test func factoryRegisterMergesWithPlanSet() async throws {
         try await withFluentTestApp { app in
             try configureServe(app)
-            try registerApexWorkspaceResolver(app)
+            try registerWorkspaceApplicationScope(app)
             try app.register(request: WorkspaceStatusRequest.self, app: app)
         } _: { app, db in
             let (dock1, dock2) = try await seedWorkspace(on: db)

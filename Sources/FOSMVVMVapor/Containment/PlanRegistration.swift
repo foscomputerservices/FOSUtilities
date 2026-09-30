@@ -30,9 +30,10 @@ extension Application {
     ///
     /// Boot fail-fasts (typed): composition cycles and duplicate `.refinedByRequest` marks
     /// (`RecordLoadPlan.WalkError`); all-empty conformers, unresolvable containment hops,
-    /// `.query` roots without a `RootedQuery`, and `.apex` roots without a registered
-    /// resolver (`ContainmentError.invalidLoadPlan`). Dead `.refinedByRequest` markers and
-    /// `.guards` containers bypassed by every declared path only warn.
+    /// `.request` scopes without a `ScopedQuery`, `.application` scopes with no
+    /// `useApplicationScope(_:)` registration, a creation plan within `.subject`, and a plan
+    /// naming `.anyOperation` (`ContainmentError.invalidLoadPlan`). Dead `.refinedByRequest`
+    /// markers and `.guards` containers bypassed by every declared path only warn.
     func registerRecordLoadPlan<Request: ServerRequest>(for _: Request.Type) throws {
         // Conditional conformances surface through this runtime metatype cast too —
         // the trait is detected on the concrete ResponseBody type, however it conforms.
@@ -71,9 +72,10 @@ extension Application {
 // MARK: - Boot checks
 
 private extension Application {
-    /// Every factory in the graph must declare its `dataRequirements` as stored `static let`s: a
-    /// computed property mints a fresh declaration identity on each access, which silently breaks
-    /// the handle→tuple resolution a projection reads back through. Lint it at boot.
+    /// Every factory in the graph must list stored `static let` handles in its `loadingPlans`
+    /// block: a plan minted inline in the block carries a fresh declaration identity on each
+    /// access, which silently breaks the handle→tuple resolution a projection reads back
+    /// through. Lint it at boot.
     func assertStableRequirementTokens(
         from factory: any ComposableFactory.Type,
         request: String
@@ -81,7 +83,7 @@ private extension Application {
         guard RecordLoadPlan.requirementTokensAreStable(for: factory) else {
             throw ContainmentError.unstableRequirementTokens(
                 request: request,
-                handle: "\(String(describing: factory)).dataRequirements"
+                handle: "\(String(describing: factory)).loadingPlans"
             )
         }
         for child in factory.children {
@@ -89,16 +91,16 @@ private extension Application {
         }
     }
 
-    /// A conformance declaring neither requirements nor children is meaningless — each
-    /// default is meaningful only against the other (pure composer / leaf).
+    /// A conformance declaring neither plans nor children is meaningless — each default is
+    /// meaningful only against the other (pure composer / leaf).
     func rejectAllEmptyConformers(
         from factory: any ComposableFactory.Type,
         request: String
     ) throws {
-        if factory.dataRequirements.isEmpty, factory.children.isEmpty {
+        if factory.loadingPlans.plans.isEmpty, factory.children.isEmpty {
             throw ContainmentError.invalidLoadPlan(
                 request: request,
-                reason: "\(String(describing: factory)) conforms to ComposableFactory but declares neither dataRequirements nor children — declare the factory's data or drop the conformance"
+                reason: "\(String(describing: factory)) conforms to ComposableFactory but declares neither loadingPlans nor children — declare the factory's data or drop the conformance"
             )
         }
         for child in factory.children {
@@ -109,14 +111,26 @@ private extension Application {
     /// Every consecutive hop pair — and the terminal hop to the record type — must resolve
     /// to a registered ContainmentRelation (C4 invariant (a), generalized to declared paths).
     func resolveHops(of plan: RecordLoadPlan, request: String) throws {
-        // The root→first-hop edge is deliberately NOT validated HERE: a root binds to an
-        // IDENTITY at request time (.query — the RootedQuery's value; .apex — the resolver's),
-        // so its container TYPE is unknown at boot. That edge fail-fasts on first load instead:
-        // ContainmentError.unregisteredNamespace when the root identity's namespace was never
-        // registered, else Request.verifyRootContainment (PlanExecutor.swift) throws
-        // ContainmentError.invalidLoadPlan when the bound root's registered descriptor declares
-        // no containment of the tuple's first hop. No silent-empty mode remains on this edge.
+        // The scope→first-hop edge is deliberately NOT validated HERE for a named scope: it
+        // binds to an IDENTITY at request time (.request — the ScopedQuery's value;
+        // .application — the registered closure's), so its container TYPE is unknown at boot.
+        // That edge fail-fasts on first load instead: ContainmentError.unregisteredNamespace
+        // when the bound identity's namespace was never registered, else
+        // Request.verifyRootContainment (PlanExecutor.swift) throws
+        // ContainmentError.invalidLoadPlan when the bound descriptor declares no containment of
+        // the tuple's first hop. No silent-empty mode remains on that edge. A `.subject` scope
+        // names no container at all, so its first hop is the type the grants bind directly:
+        // only its registration can be checked, and there is no containment edge above it.
         for tuple in plan.tuples {
+            if tuple.root == .subject {
+                let firstHop = tuple.path.first ?? tuple.recordType
+                guard modelTypeRegistry.registered(for: firstHop.modelIdentityNamespace) != nil else {
+                    throw ContainmentError.invalidLoadPlan(
+                        request: request,
+                        reason: "\(String(describing: firstHop)) is declared within the subject scope but is not registered — a grant binds it directly, so register it in configure(_:) via register(_:migration:) (a leaf DataModel registers the same way a container does)"
+                    )
+                }
+            }
             let chain: [any FOSMVVM.Model.Type] = tuple.path + [tuple.recordType]
             for index in chain.indices.dropLast() {
                 let container = chain[index]
@@ -137,24 +151,42 @@ private extension Application {
         }
     }
 
-    /// `.query` roots need the request type to vend the root (``RootedQuery``); `.apex`
-    /// roots need the application to resolve it (``useApexContainerResolver(_:)``).
+    /// A plan `within: .request` needs the request type to name the container
+    /// (``ScopedQuery``); `within: .application` needs the application to resolve it
+    /// (``useApplicationScope(_:)``); `within: .subject` binds from the subject's grants
+    /// alone, so it needs no binding at all.
+    ///
+    /// Two declarations are rejected here whatever the scope: a creation plan within
+    /// `.subject` (a create names the container it creates into) and a plan naming
+    /// `.anyOperation` (a plan states the one authority its subject must hold).
     func requireRootBindings<Request: ServerRequest>(
         of plan: RecordLoadPlan,
         for _: Request.Type
     ) throws {
         let requestName = String(describing: Request.self)
-        if plan.tuples.contains(where: { $0.root == .query }),
-           !(Request.Query.self is any RootedQuery.Type) {
+        if plan.tuples.contains(where: { $0.operation == .createRecords && $0.root == .subject }) {
             throw ContainmentError.invalidLoadPlan(
                 request: requestName,
-                reason: "the plan has .query-rooted loads but \(String(describing: Request.Query.self)) does not conform to RootedQuery — the request's query must vend the root identity"
+                reason: "a creation plan cannot be within the subject scope — a create names the container it creates into; declare it within .request or .application"
             )
         }
-        if plan.tuples.contains(where: { $0.root == .apex }), apexContainerResolver == nil {
+        if plan.tuples.contains(where: { $0.operation == .anyOperation }) {
             throw ContainmentError.invalidLoadPlan(
                 request: requestName,
-                reason: "the plan has .apex-rooted loads but no apex container resolver is registered — register one in configure(_:) via useApexContainerResolver(_:)"
+                reason: "a loading plan cannot be .anyOperation — declare the operation the subject must hold: .read, .write, .archive, or .destroy"
+            )
+        }
+        if plan.tuples.contains(where: { $0.root == .request }),
+           !(Request.Query.self is any ScopedQuery.Type) {
+            throw ContainmentError.invalidLoadPlan(
+                request: requestName,
+                reason: "the plan has loads within the request scope but \(String(describing: Request.Query.self)) does not conform to ScopedQuery — the request's query must name the container"
+            )
+        }
+        if plan.tuples.contains(where: { $0.root == .application }), resolvedApplicationScope == nil {
+            throw ContainmentError.invalidLoadPlan(
+                request: requestName,
+                reason: "the plan has loads within the application scope but none is registered — register one in configure(_:) via useApplicationScope(_:), or register exactly one SystemContainer"
             )
         }
     }
@@ -224,8 +256,8 @@ private struct RecordLoadPlanStorageKey: StorageKey {
 /// and reused): re-reading a computed `candidates` would mint fresh declaration tokens, which the
 /// token-stability lint rejects at boot.
 private struct CandidateFactory<Writer: WriteTargetProviding>: ComposableFactory {
-    static var dataRequirements: [any DataRequirement] {
-        [Writer.candidates]
+    static var loadingPlans: LoadingPlans {
+        Writer.candidates
     }
 }
 
@@ -236,8 +268,8 @@ extension Application {
     /// (`expectedOperation` — e.g. `.write` candidates on a delete registration); a `.create`
     /// candidate with intermediate hops; a `.refinedByRequest`-marked candidate (a windowed
     /// candidate set would fabricate not-found for targets outside the window); an unresolvable
-    /// candidate hop; a `.query`-rooted candidate whose request query is not `RootedQuery`; a
-    /// `.apex`-rooted candidate with no registered resolver.
+    /// candidate hop; a candidate within `.request` whose request query is not `ScopedQuery`; a
+    /// candidate within `.application` with no `useApplicationScope(_:)` registration.
     func deriveCandidatePlan<SR: ServerRequest, Writer: WriteTargetProviding>(
         for _: SR.Type,
         writer _: Writer.Type,
@@ -290,13 +322,13 @@ extension Application {
             guard tuple.operation == expectedOperation else {
                 throw ContainmentError.invalidLoadPlan(
                     request: request,
-                    reason: "\(writerName).candidates declares a .\(tuple.operation) load but this route registers .\(expectedOperation) — the candidate verb must match the write route (LoadRequirement.write for update, .create for create, .archive for archive, .destroy for destroy)"
+                    reason: "\(writerName).candidates declares a .\(tuple.operation) load but this route registers .\(expectedOperation) — the candidate operation must match the write route (loadingPlan(.write,) for update, creationPlan(within:) for create, loadingPlan(.archive,) for archive, loadingPlan(.destroy,) for destroy)"
                 )
             }
             if expectedOperation == .createRecords, !tuple.path.isEmpty {
                 throw ContainmentError.invalidLoadPlan(
                     request: request,
-                    reason: "\(writerName).candidates declares a .create scope with intermediate hops — the create scope is exactly one container; declare it with no via: path"
+                    reason: "\(writerName).candidates declares a creation plan with intermediate hops — the create scope is exactly one container; creationPlan(within:) takes no via: path"
                 )
             }
             if tuple.isRefinedByRequest {
@@ -316,44 +348,70 @@ private struct CandidatePlanStorageKey: StorageKey {
     typealias Value = [ObjectIdentifier: RecordLoadPlan]
 }
 
-// MARK: - Apex container resolver
+// MARK: - Application scope
 
-/// The boot-registered `.apex` root binding: resolves the application's apex container
-/// identity for a request (constant apps return a constant; multi-tenant apps resolve
-/// per request).
-struct ApexContainerResolver: Sendable {
+/// The boot-registered `.application` scope binding: resolves the container the application
+/// scopes this caller to (a constant for a single-tenant app, the caller's tenant for a
+/// multi-tenant one).
+struct ApplicationScope: Sendable {
     let resolve: @Sendable (Vapor.Request) async throws -> ModelIdentity
 }
 
-extension Application {
-    /// Registers the app's apex container resolver — answers "who is the top container for this
-    /// caller?" so `.apex`-rooted loads bind their root identity through it:
+public extension Application {
+    /// Registers the container the application scopes a caller to — answers "which container is
+    /// the top of the world for this caller?", so every plan declared `within: .application`
+    /// binds through it:
     ///
     /// ```swift
-    /// try app.useApexContainerResolver { req in
-    ///     try await req.auth.require(User.self).workspaceIdentity
+    /// // configure(_:)
+    /// try app.useApplicationScope { req in
+    ///     try await req.auth.require(SessionUser.self).workspaceIdentity
     /// }
     /// ```
     ///
-    /// Constant apps return a constant; multi-tenant apps resolve per request. Plan validation
-    /// requires a registered resolver for any `.apex`-rooted plan.
+    /// A single-tenant app returns a constant; a multi-tenant one resolves per request. With
+    /// nothing registered and exactly one ``SystemContainer`` registered, that container is the
+    /// application scope by itself; otherwise plan validation requires this registration for any
+    /// plan within `.application`.
     ///
-    /// - Throws: if a resolver is already registered — exactly one per application, caught at boot.
-    public func useApexContainerResolver(
+    /// - Throws: if one is already registered — exactly one per application, caught at boot.
+    func useApplicationScope(
         _ resolver: @escaping @Sendable (Vapor.Request) async throws -> ModelIdentity
     ) throws {
-        guard storage[ApexContainerResolverStorageKey.self] == nil else {
-            throw ContainmentError.duplicateApexContainerResolver
+        guard storage[ApplicationScopeStorageKey.self] == nil else {
+            throw ContainmentError.duplicateApplicationScope
         }
-        storage[ApexContainerResolverStorageKey.self] = ApexContainerResolver(resolve: resolver)
+        storage[ApplicationScopeStorageKey.self] = ApplicationScope(resolve: resolver)
     }
 
-    /// Read side of the seam — consumed by the `.apex` boot check and the plan executor.
-    var apexContainerResolver: ApexContainerResolver? {
-        storage[ApexContainerResolverStorageKey.self]
+    /// The former spelling of ``useApplicationScope(_:)``.
+    @available(*, deprecated, renamed: "useApplicationScope")
+    func useApexContainerResolver(
+        _ resolver: @escaping @Sendable (Vapor.Request) async throws -> ModelIdentity
+    ) throws {
+        try useApplicationScope(resolver)
+    }
+
+    /// The registered resolver alone (nil when none) — the registration-time duplicate check reads it.
+    internal var applicationScope: ApplicationScope? {
+        storage[ApplicationScopeStorageKey.self]
+    }
+
+    /// Read side of the seam — consumed by the `.application` boot check and the plan executor. A
+    /// registered resolver wins; with none and exactly one ``SystemContainer`` registered, the
+    /// application scope binds to that container's identity by itself; otherwise there is none.
+    internal var resolvedApplicationScope: ApplicationScope? {
+        if let registered = applicationScope {
+            return registered
+        }
+        let systemContainers = modelTypeRegistry.allRegistered.filter(\.isTableless)
+        guard systemContainers.count == 1, let identity = systemContainers.first?.identity else {
+            return nil
+        }
+        return ApplicationScope(resolve: { _ in identity })
     }
 }
 
-private struct ApexContainerResolverStorageKey: StorageKey {
-    typealias Value = ApexContainerResolver
+private struct ApplicationScopeStorageKey: StorageKey {
+    typealias Value = ApplicationScope
 }

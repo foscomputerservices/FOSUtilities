@@ -31,9 +31,9 @@ public func configure(_ app: Application) async throws {
 /// Everything that isn't database/lifecycle — registered once, and reusable from a
 /// test (the FOSTestingVapor harness owns the DB + autoMigrate + boot). Every DataModel
 /// registers via register(_:migration:) (migration + identity descriptor + lifecycle
-/// hooks in one call), container or not. The apex resolver answers "which
-/// container roots an apex read/create?" so a client can fetch the board without
-/// knowing its id. Register containers BEFORE the requests — the requests' load plans
+/// hooks in one call), container or not. The application scope answers "which
+/// container is the top of the world for this caller?" so a client can fetch the
+/// board without knowing its id. Register containers BEFORE the requests — the requests' load plans
 /// are derived and validated against the registry here.
 func registerServices(_ app: Application) throws {
     SystemVersion.setCurrentVersion(.currentApplicationVersion)
@@ -46,9 +46,9 @@ func registerServices(_ app: Application) throws {
     try app.register(Board.self, migration: Board.Initial())
     try app.register(Card.self, migration: Card.Initial())
 
-    try app.useContainerAuthorizationProvider(SkeletonAuthProvider())
+    try app.useModelAuthorizationProvider(SkeletonAuthProvider())
 
-    try app.useApexContainerResolver { req in
+    try app.useApplicationScope { req in
         guard let board = try await Board.query(on: req.db).first() else {
             throw Abort(.internalServerError, reason: "no Board seeded")
         }
@@ -61,8 +61,8 @@ func registerServices(_ app: Application) throws {
     try routes(app)
 }
 
-/// One demo Board with one Card, so the first fetch shows something and the apex
-/// resolver has a container to resolve.
+/// One demo Board with one Card, so the first fetch shows something and the
+/// application scope has a container to resolve.
 private func seedIfEmpty(_ db: any Database) async throws {
     guard try await Board.query(on: db).first() == nil else { return }
     let board = Board(name: "Demo Board")

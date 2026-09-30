@@ -9,14 +9,14 @@ import {{PROJECT_NAME}}ViewModels
 
 // Server-side write seam. `apply` is field-assignment ONLY — it cannot touch the
 // database. The framework owns everything else: it instantiates a fresh Card, calls
-// apply, sets the container foreign key from the apex-resolved Board, saves, and
+// apply, sets the container foreign key from the application-scoped Board, saves, and
 // re-serves BoardViewModel's factory. The committed save auto-emits live invalidation,
 // so every open Board client re-fetches and the new card appears.
 extension CardCreateBody: DataModelWriter {
-    // Apex-rooted create (the root container IS the create scope; create takes no
-    // `via:`). `public` because CardCreateBody is public and these are public
+    // Create within the application scope (that container IS the create scope; a creation
+    // plan takes no `via:`). `public` because CardCreateBody is public and these are public
     // protocol requirements referencing the public `Card`.
-    public static let candidates = LoadRequirement.create(Card.self, in: .newRoot(.apex))
+    public static let candidates = Card.creationPlan(within: .application)
 
     public func apply(to card: Card) throws {
         card.title = title
