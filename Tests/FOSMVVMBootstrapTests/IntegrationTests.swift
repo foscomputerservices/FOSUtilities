@@ -23,9 +23,12 @@ extension Tag {
 }
 
 // Walking skeletons (migration design §7): emit each shape and run its
-// verification doors. Slow (~8 min) and network-resolving, so they only run
-// when FOSMVVM_BOOTSTRAP_SKELETONS=1 — CI's generation-matrix job sets it;
+// verification doors. Slow (~8 min), so they only run when
+// FOSMVVM_BOOTSTRAP_SKELETONS=1 — CI's generation-matrix job sets it;
 // bare `swift test` skips them.
+// Every skeleton resolves FOSUtilities from THIS checkout, so a template may
+// use an API the same branch introduces; the release pin customers get is
+// covered by the fixture tests.
 // .serialized: each skeleton resolves and compiles the full FOSUtilities
 // dependency graph; in parallel they contend for a 3–4 core hosted runner
 // (localOnly: 123s alone vs 300s contended), and one timed-out test's
@@ -35,6 +38,15 @@ extension Tag {
     .serialized,
     .enabled(if: ProcessInfo.processInfo.environment["FOSMVVM_BOOTSTRAP_SKELETONS"] == "1")
 ) struct IntegrationTests {
+    /// The FOSUtilities checkout these tests run in: three levels up from
+    /// `Tests/FOSMVVMBootstrapTests/IntegrationTests.swift`.
+    private static let checkout = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+
+    private static let fosUtilities: FOSUtilitiesSource = .localCheckout(checkout)
+
     /// Full walking-skeleton proof for the shared-library shape:
     /// emit → swift build → swift test inside the generated project,
     /// exercising the real FOSUtilities dependency, the YAML
@@ -50,7 +62,7 @@ extension Tag {
             shape: .sharedLibrary,
             platforms: [.macOS: "14.0", .iOS: "17.0"]
         )
-        try Emitter.emit(config: config, into: out)
+        try Emitter.emit(config: config, into: out, fosUtilities: Self.fosUtilities)
         try Verifier.verify(projectDir: out, steps: Verifier.steps(for: .sharedLibrary))
         try expectDoctorClean(out, shape: .sharedLibrary)
     }
@@ -71,7 +83,7 @@ extension Tag {
             bundleIdRoot: "com.example.palettepress",
             teamId: "ABCDE12345"
         )
-        try Emitter.emit(config: config, into: out)
+        try Emitter.emit(config: config, into: out, fosUtilities: Self.fosUtilities)
         try Verifier.verify(
             projectDir: out,
             steps: Verifier.generationSteps(for: .localOnly) + Verifier.steps(for: .localOnly),
@@ -98,7 +110,7 @@ extension Tag {
             bundleIdRoot: "com.example.palettepress",
             teamId: "ABCDE12345"
         )
-        try Emitter.emit(config: config, into: out)
+        try Emitter.emit(config: config, into: out, fosUtilities: Self.fosUtilities)
         try Verifier.verify(
             projectDir: out,
             steps: Verifier.generationSteps(for: .clientServer) + Verifier.steps(for: .clientServer),

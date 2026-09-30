@@ -72,7 +72,7 @@ When the conformance exists, spot-check that it is real: the model's stored prop
 - **Dialect-forked migrations fork the net schema.** A migration that guards on the SQL dialect (`postgresql`-only drops, say) leaves a different net schema on the test dialect than in production. When a column is dropped on one dialect and survives on another, that divergence is itself the finding — name both nets.
 - **Data-preservation columns are exemptible at the same bar as `modelid-outside-id`** (ratified 2026-08-25). A Fluent-created column no wrapper reads, documented at its migration site as deliberately retained for existing data, is exempt *while its stated plan is live*; a retention note whose restore-or-remove milestone has passed is the drift finding, not an exemption. Raw-SQL (SQLKit) database-only columns — search vectors and the like — are deliberately invisible to the model and are not mismatches; the generator's own pattern says so.
 
-Then confirm each migration type is registered (`app.migrations.add(...)`, conventionally `database.swift`); flag one that never is. **Conditional registration is acceptable when it is deliberate** — seeds gated on non-release environments are the generator's own pattern; registration gated on something that looks accidental is the finding.
+Then confirm each migration type reaches the application — a model's own schema through `try app.register({Model}.self, migration: …)` and every other migration through `app.migrations.add(...)`, conventionally `database.swift`; flag one that never does. Which of the two calls a model's schema is owed belongs to `datamodel-registers-with-its-migration` below; this check only asks whether it arrives at all. **Conditional registration is acceptable when it is deliberate** — seeds gated on non-release environments are the generator's own pattern; registration gated on something that looks accidental is the finding.
 
 ## Check: migration-honors-the-fields-contract
 
@@ -92,3 +92,60 @@ var signalType: GovernanceSignalType {
 }
 ```
 **Detection:** For each DataModel storing an enum as a raw value — through `@Enum`, or a `String`/`Int` field paired with a computed decode — find the decode path and its failure posture. Flag `?? .meaningBearingCase` at blocker: unknown historical values become a live business category. An explicit `?? .unknown` (a case that exists to mean "not recognized") is the tolerant-reader pattern done honestly — warning at most, and only when nothing downstream treats `.unknown` as a real category. A throwing or optional decode that surfaces the mismatch is correct and is not a hit. Applies to every DataModel, Fields-backed or bare — the field evidence for this check came from bare models.
+
+## Check: validators-never-mutate
+
+**Severity:** blocker
+**What:** Validation judges the model; it does not change it. Neither `DataModelLifecycle.validateModel(in:)` nor a Fields protocol's `validate(fields:validations:)` assigns a stored property of the model being validated. `willWrite(in:)` is the one hook that mutates, and it runs before both of them, so a derivation, a trim or a stamp has a home that is not a validator.
+**Anti-pattern:**
+```swift
+public func validateModel(in context: DataModelWriteContext) async throws -> [ValidationResult] {
+    title = title.trimmingCharacters(in: .whitespaces)   // field validation already passed the untrimmed value
+    $board.id = context.application.defaultBoardId       // a relation rewritten by a method that only reports
+    return []
+}
+```
+**Detection:** For each `validateModel(in:)` implementation, and each `validate(fields:validations:)` — on a Fields protocol, in a Fields extension, or on an adopter — list the assignments whose destination is the receiver's own stored state: `property = …`, `self.property = …`, a Fluent projected write (`$relation.id = …`), a `mutating` call on a stored property (`items.append`, `title.removeAll`), and a write through a computed property that assigns one. Every one is a hit.
+
+The damage is in three directions, and the finding should name whichever applies:
+
+- **The write is judged against a value nothing validated.** Field validation runs before model validation, so anything `validateModel` changes has already passed the Fields rules and will never be re-checked.
+- **The same default runs on three types.** A Fields protocol's `validate` is inherited by the request body, the form ViewModel and the `DataModel`. A mutation there changes a form the user is still editing, or a wire body already sent, with the same line of code that was written for the model about to be persisted.
+- **It runs twice on a routed write.** The write route validates the request body, and the lifecycle validates again at the save. A validator that mutates applies its change twice, which is a defect for anything that is not idempotent.
+
+**Not hits:** writing to a local; `validations.append(…)` / the returned `[ValidationResult]`; mutating a value the method itself constructed; reading configuration off `context.application`; caching into a `private var` that is not persisted — that last one deserves a note rather than a finding, since a Fluent model has no non-persisted stored state by convention.
+
+## Check: batch-write-skips-the-lifecycle
+
+**Severity:** warning
+**What:** A collection of a `DataModel` written in one call — `[Card].create(on:)`, `[Card].delete(on:)` — gets a reduced lifecycle, and the code should either accept that knowingly or write the models one at a time. FluentKit calls each model's middleware with a `next` that writes nothing, then issues one bulk statement once every middleware has returned.
+**Anti-pattern:**
+```swift
+try await cards.create(on: db)          // Card declares didWrite; it runs before any row exists
+try await staleCards.delete(on: db)     // Card has a delete timestamp; this is still a destroy
+```
+**Detection:** Find calls of `create(on:)` or `delete(on:)` whose receiver is a collection of a type conforming to `DataModel` — an array literal, a mapped collection, a stored `[Model]` — as distinct from the per-model call on a single instance. For each hit, say which of the three consequences actually bites this model:
+
+- `didWrite(in:)` runs before the row exists, so anything it writes that references the new id is wrong.
+- A constraint failure is never offered to `validationResult(for:)`, so a model that claims one gets the driver's error instead of its message.
+- A batch delete always dispatches `.destroy`. A model with a `@Timestamp(key:, on: .delete)` is **hard-deleted** by `[Model].delete(on:)`, whatever an archive route would have done with the same model.
+
+Grade it warning: a batch write is legitimate for a model that declares none of the affected hooks and no delete timestamp, and the remedy — a loop of per-model saves — costs round trips. Say plainly which of the three applies, and recommend per-model writes only when one does. Framework-internal batch writes inside FOSUtilities itself are out of scope.
+
+## Check: datamodel-registers-with-its-migration
+
+**Severity:** blocker
+**What:** A `DataModel`'s own schema migration reaches the application through `try app.register({Model}.self, migration: {Model}.Initial())`, never through a bare `app.migrations.add({Model}.Initial())`. That one call adds the migration, enters the model in the type registry, and installs the lifecycle; declaring the migration *is* registering the model, so there is no second step to forget. The bare call creates the table and leaves the model outside everything else.
+**Anti-pattern:**
+```swift
+// in configure(_:)
+try app.register(Board.self, migration: Board.Initial())
+app.migrations.add(Card.Initial())        // table created; hooks, validation and live invalidation never run
+```
+**Detection:** Enumerate the `DataModel` conformers in the project, then enumerate every `app.migrations.add(...)` (conventionally `database.swift` or `configure.swift`) and every `app.register(_:migration:)`. Flag a model whose *initial schema* migration arrives through `migrations.add`. Resolve migrations to their model by the schema they create, not by name — a migration named for the model is the convention, not the contract.
+
+**Not hits — these stay `migrations.add`:** a seed, a data backfill, a later alter or index migration on a table whose model is already registered, and a migration for a Fluent `Model` that is not a `DataModel` at all. Registration happens once per model; everything after it is an ordinary migration.
+
+**State what the bypass costs, because nothing about it fails loudly.** The table exists, the rows save, and the tests that only read and write columns pass. What is missing is silent: the Fields rules never run at the save, `validateModel(in:)` is dead code, `willWrite` / `didWrite` / `didCommit` never fire, and live clients are never nudged. A model whose hooks are declared but whose registration is a bare `migrations.add` is the sharpest form of this finding — say that the hooks are written and unreachable.
+
+**Version floor first.** `register(_:migration:)` for a plain `DataModel` (the non-container overload) is newer than the container one; check the project's FOSUtilities pin before grading, per the dispatch prompt's version-floor rule. Below the floor, a bare `migrations.add` for an uncontained model is the only spelling available and is not a violation.

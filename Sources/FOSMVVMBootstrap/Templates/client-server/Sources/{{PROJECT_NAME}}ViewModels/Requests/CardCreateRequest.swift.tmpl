@@ -12,7 +12,7 @@ public final class CardCreateRequest: CreateRequest, @unchecked Sendable {
     public typealias Query = EmptyQuery
     public typealias RequestBody = CardCreateBody
     public typealias Fragment = EmptyFragment
-    public typealias ResponseError = EmptyError
+    public typealias ResponseError = ValidationError
     public typealias ResponseBody = BoardViewModel
 
     public let id: String

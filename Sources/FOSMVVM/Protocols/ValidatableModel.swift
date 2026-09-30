@@ -14,102 +14,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Defines a model that contains data and the validations that ensure the integrity of the data
+/// Defines the validation rules for a set of fields, shared by every type that adopts them
 ///
-/// The suggested way to implement validation, is to implement functions for each property that
-/// validate that property's data.  Then implement ``validate(fields:validations:)``
-/// combining each property's results.
-///
-/// ## Example
+/// Put the rules on a `Fields` protocol so the request body, the form ViewModel and the
+/// `DataModel` run the same checks:
 ///
 /// ```swift
-/// protocol UserFields: AnyObject, Codable, Sendable, ValidatableModel {
-///     var email: String? { get set }
-///     var firstName: String? { get set }
-///     var lastName: String { get set }
-///
-///     var validationMessages: UserFieldsMessages { get }
+/// public protocol CardFields: ValidatableModel {
+///     var title: String { get set }
+///     var validationMessages: CardFieldsMessages { get }
 /// }
 ///
-/// @ValidationModel public struct UserFieldsMessages: FieldValidationModel {
-///     @LocalizedString(parentKey: "email", propertyName: "required") public var emailRequired
-///     @LocalizedString(parentKey: "firstName", propertyName: "required") public var firstNameRequired
-///     @LocalizedString(parentKey: "firstName", propertyName: "required") public var firstNameTooLong
-/// }
+/// public extension CardFields {
+///     static var titleField: FormField<String> { .init(fieldId: #fieldId(\Self.title), …) }
 ///
-/// extension UserFields {
-///     func validateEmail(_ fields: [FormFieldBase]?) -> [ValidationResult]? {
-///         guard fields == nil || fields!.map(\.fieldId).contains(.init(id: "email")) else {
-///             return nil
+///     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? {
+///         var results = [ValidationResult]()
+///         if fields?.contains(Self.titleField) ?? true, title.isEmpty {
+///             results.append(.init(status: .error, fieldId: #fieldId(\Self.title), message: validationMessages.titleRequired))
 ///         }
-///
-///         var result = [ValidationResult]()
-///
-///         if email?.isEmpty == true {
-///             result.append(.init(status: .error, field: Self.emailField, message: validationMessages.emailRequired))
-///         }
-///
-///         return result.isEmpty ? nil : result
-///     }
-///
-///     func validateFirstName(_ fields: [FormFieldBase]?) -> [ValidationResult]? {
-///         guard fields == nil || fields!.map(\.fieldId).contains(.init(id: "firstName")) else {
-///             return nil
-///         }
-///
-///         var result = [ValidationResult]()
-///
-///         if firstName?.isEmpty == true {
-///             firstName = nil
-///                 result.append(.init(
-///                     status: .error,
-///                     field: Self.firstNameField,
-///                     message: validationMessages.firstNameRequired
-///                 ))
-///         }
-///
-///         if let firstName, NSString(string: firstName).length > Self.firstNameMaxLength {
-///             result.append(.init(
-///                 status: .error,
-///                 field: Self.firstNameField,
-///                 message: validationMessages.firstNameTooLong
-///             ))
-///         }
-///
-///         return result.isEmpty ? nil : result
-///     }
-///
-///     func validateLastName(_ fields: [FormFieldBase]?) -> [ValidationResult]? { /* ... */ }
-///
-///     // MARK: ValidatableModel
-///
-///     func validate(fields: [FormFieldBase]?, validations: Validations) -> ValidationResult.Status? {
-///         var result = [ValidationResult]()
-///
-///         result += validateEmail(fields)
-///         result += validateFirstName(fields)
-///         result += validateLastName(fields)
-///
-///         // If there are cross-field constraints, verify them here
-///
-///         if !result.isEmpty {
-///             validations.elements = result
-///         }
-///
-///         return .init(for: result)
+///         validations.replace(with: results)
+///         return validations.status
 ///     }
 /// }
 /// ```
+///
+/// Hand your results to `validations.replace(with:)`: your rules own the fields they name, so a
+/// form that validates on every edit re-answers for those fields instead of stacking a second copy
+/// of the same message, and what a `DataModel` added after yours still stands. Pass `fields` to
+/// check only the fields a form is editing; `nil` checks every field.
 public protocol ValidatableModel {
-    /// Performs all validation checks on the ``ViewModel``
-    ///
-    /// Each field in the ``ViewModel`` is validated and any ``ValidationResult`` models that are
-    /// generated are added to validations.  The result of the function is a call to validations.status.
+    /// Answers for this model's fields, writing the results into `validations`
     ///
     /// - Parameters:
-    ///   - fields: If specified, restricts the fields to be checked; nil checks all fields
-    ///   - validations: An instance of ``Validations`` that will be added to if the validation checks
-    /// - Returns: The status of **validations** (e.g., validations.status)
+    ///   - fields: The fields to check; `nil` checks all of them
+    ///   - validations: The form's accumulator, which your results replace field by field
+    /// - Returns: `validations.status` once your results are in
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status?
 }
 

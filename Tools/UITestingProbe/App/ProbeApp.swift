@@ -206,11 +206,18 @@ struct RowResolutionProbe: View {
 /// suspicion for SwiftUI's "Accessing FocusState's value outside of the body of a View"
 /// runtime warning. The probe asserts nothing about the warning itself; the harness reads
 /// the simulator's runtime-issue log around this scene.
+/// The properties `FormFocusProbe`'s two fields edit; `#fieldId` mints each field's
+/// identity from one of them.
+private struct FocusProbeFields {
+    var first: String
+    var second: String
+}
+
 struct FormFocusProbe: View {
     @FocusState private var focusedField: FormFieldIdentifier?
     @State private var firstModel = FormFieldModel<String>(
         FormField(
-            fieldId: .init(id: "focusProbeFirst"),
+            fieldId: #fieldId(\FocusProbeFields.first),
             title: .constant("First"),
             type: .text(inputType: .text)
         ),
@@ -218,7 +225,7 @@ struct FormFocusProbe: View {
     )
     @State private var secondModel = FormFieldModel<String>(
         FormField(
-            fieldId: .init(id: "focusProbeSecond"),
+            fieldId: #fieldId(\FocusProbeFields.second),
             title: .constant("Second"),
             type: .text(inputType: .text)
         ),
@@ -253,16 +260,28 @@ struct FormFocusProbe: View {
 /// `fieldId`, so a `ScrollViewReader` reaches one with the identifier the caller already
 /// holds — no derived string. The form carries enough fields to run past any probe screen,
 /// so the last one starts off screen and the scroll is the only way it arrives.
+/// The property `FieldAnchorProbe`'s repeated field edits; `#fieldId` mints one identity
+/// per element of it.
+private struct FieldAnchorFields {
+    var anchors: [String]
+}
+
 struct FieldAnchorProbe: View {
     @FocusState private var focusedField: FormFieldIdentifier?
 
-    static let fieldIds = (0..<40).map { FormFieldIdentifier(id: "anchorField\($0)") }
+    static let fieldIds = (0..<40).map { #fieldId(\FieldAnchorFields.anchors, index: $0) }
 
-    @State private var models = FieldAnchorProbe.fieldIds.map { fieldId in
+    /// The accessibility identifier is the probe's own naming, deliberately NOT derived from
+    /// the field identity: a scrollTo(fieldId) must match on the identity alone.
+    static func probeIdentifier(_ position: Int) -> String {
+        "anchorField\(position)"
+    }
+
+    @State private var models = FieldAnchorProbe.fieldIds.indices.map { position in
         FormFieldModel<String>(
             FormField(
-                fieldId: fieldId,
-                title: .constant(fieldId.id),
+                fieldId: FieldAnchorProbe.fieldIds[position],
+                title: .constant(FieldAnchorProbe.probeIdentifier(position)),
                 type: .text(inputType: .text)
             ),
             default: ""
@@ -294,9 +313,9 @@ struct FieldAnchorProbe: View {
                     // work no matter what FormFieldView does internally. Keeping them
                     // different leaves FormFieldView's own identity the only thing a
                     // scrollTo(fieldId) can match.
-                    ForEach(Array(models.enumerated()), id: \.offset) { _, model in
+                    ForEach(Array(models.enumerated()), id: \.offset) { position, model in
                         FormFieldView(fieldModel: model, focusField: $focusedField)
-                            .uiTestingIdentifier(model.formField.fieldId.id)
+                            .uiTestingIdentifier(Self.probeIdentifier(position))
                     }
                 }
             }

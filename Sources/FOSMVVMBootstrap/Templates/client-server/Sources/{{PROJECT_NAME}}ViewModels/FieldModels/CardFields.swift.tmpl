@@ -6,17 +6,27 @@ import Foundation
 
 /// Form Specification for a Card — the user-editable contract, defined once.
 ///
-/// Adopted by `CardCreateBody` (the wire body) and `Card` (the record), so the
-/// form, the request, and storage all validate with one shared rule set, and the
-/// messages come localized from `CardFieldsMessages.yml` — never hardcoded.
+/// Adopted by `CardCreateBody` (the wire body) and `Card` (storage), so the form,
+/// the request, and storage all validate with one shared rule set, and the messages
+/// come localized from `CardFieldsMessages.yml` — never hardcoded.
 public protocol CardFields: ValidatableModel, Codable, Sendable {
     var title: String { get set }
-
-    var cardValidationMessages: CardFieldsMessages { get }
 }
 
 public extension CardFields {
-    var cardValidationMessages: CardFieldsMessages { .init() }
+    // MARK: Validation Messages
+
+    // Minted the way a FormField's title is: a @LocalizedString property binds its key only
+    // while its own model is being encoded, so a message pulled out of a CardFieldsMessages
+    // instance and carried in a ValidationResult would encode empty.
+
+    static var titleRequiredMessage: LocalizableString {
+        .localized(for: CardFieldsMessages.self, propertyName: "title", messageGroup: "validationMessages", messageKey: "required")
+    }
+
+    static var titleOutOfRangeMessage: LocalizableString {
+        .localized(for: CardFieldsMessages.self, propertyName: "title", messageGroup: "validationMessages", messageKey: "outOfRange")
+    }
 
     // MARK: Field Constraints
 
@@ -25,7 +35,7 @@ public extension CardFields {
     // MARK: FormField Definitions
 
     static var titleField: FormField<String?> { .init(
-        fieldId: .init(id: "title"),
+        fieldId: #fieldId(\Self.title),
         title: .localized(for: CardFieldsMessages.self, propertyName: "title", messageKey: "title"),
         placeholder: .localized(for: CardFieldsMessages.self, propertyName: "title", messageKey: "placeholder"),
         type: .text(inputType: .text),
@@ -47,13 +57,13 @@ public extension CardFields {
             result.append(.init(
                 status: .error,
                 field: Self.titleField,
-                message: cardValidationMessages.titleRequiredMessage
+                message: Self.titleRequiredMessage
             ))
         } else if !Self.titleRange.contains(NSString(string: title).length) {
             result.append(.init(
                 status: .error,
                 field: Self.titleField,
-                message: cardValidationMessages.titleOutOfRangeMessage
+                message: Self.titleOutOfRangeMessage
             ))
         }
 
@@ -77,7 +87,7 @@ public extension CardFields {
         let result = cardFieldsValidateModel(validations: validations, fields: fields) ?? []
 
         if !result.isEmpty {
-            validations.validations = result
+            validations.replace(with: result)
         }
 
         return .init(for: result)

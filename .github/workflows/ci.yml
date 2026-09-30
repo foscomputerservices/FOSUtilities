@@ -529,7 +529,9 @@ jobs:
 
   # One leg per (app shape × destination). Each leg builds the CLI and
   # scaffolds its own app: a few minutes of build per leg buys running the
-  # four legs side by side instead of one after another.
+  # four legs side by side instead of one after another. The scaffold
+  # resolves FOSUtilities from this checkout (--fos-utilities-path), so the
+  # generated app is proven against the branch under test, not the last tag.
   bootstrap_generated_app_tests:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -584,7 +586,8 @@ jobs:
             "platforms": { "macOS": "14.0", "iOS": "17.0" },
             "bundleIdRoot": "${{ matrix.bundle_id_root }}", "teamId": "ABCDE12345" }
           CONFIG
-          "$BIN" new --config "$RUNNER_TEMP/app.json" --output "$RUNNER_TEMP/matrix/${{ matrix.app }}"
+          "$BIN" new --config "$RUNNER_TEMP/app.json" --output "$RUNNER_TEMP/matrix/${{ matrix.app }}" \
+            --fos-utilities-path "$GITHUB_WORKSPACE"
 
       # CI simulators are ALWAYS the cold case: fresh boot, first install —
       # exactly the measured first-run tap-flake condition (2026-08-22).
@@ -616,8 +619,8 @@ jobs:
   #
   # Distinct from bootstrap_generated_app_tests above: that job proves the
   # scaffolder emits an app whose generated tests pass, exercising the core
-  # transport. This one proves the capabilities themselves, against the working
-  # tree (the probe consumes the package from ../.., not from a release).
+  # transport. This one proves the capabilities themselves (the probe consumes
+  # the package from ../..).
   probe_ui_tests:
     needs: changes
     if: needs.changes.outputs.code == 'true'

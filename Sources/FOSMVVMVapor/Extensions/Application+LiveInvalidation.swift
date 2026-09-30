@@ -43,6 +43,8 @@ public extension Vapor.Application {
         // Sweep registrations made BEFORE this call; register(_:migration:) covers the ones
         // made after (spec §3.1: either call order works).
         for descriptor in modelTypeRegistry.allRegistered {
+            // The lifecycle middleware is already wired: a descriptor reaches the registry only
+            // through register(_:migration:), which installs it there.
             registerInvalidationEmitMiddleware(for: descriptor, hub: hub)
         }
 

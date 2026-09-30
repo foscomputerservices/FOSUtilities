@@ -22,12 +22,20 @@ public enum TokenSet {
     /// `let tokens = try TokenSet.derive(from: config)`. Validates
     /// `config` first, so a bad config throws here rather than emitting
     /// a broken project.
-    public static func derive(from config: BootstrapConfig) throws -> [String: String] {
+    ///
+    /// `fosUtilities` chooses where the generated project resolves
+    /// FOSUtilities from — the release pin by default, or a local checkout
+    /// (see ``FOSUtilitiesSource``).
+    public static func derive(
+        from config: BootstrapConfig,
+        fosUtilities: FOSUtilitiesSource = .release
+    ) throws -> [String: String] {
         try config.validate()
 
         var tokens = [
             "PROJECT_NAME": config.projectName,
-            "FOS_VERSION": FOSPlatformFloor.pinnedFOSVersion,
+            "FOS_PACKAGE_DEPENDENCY": packageDependency(for: fosUtilities),
+            "FOS_PACKAGE_REFERENCE": packageReference(for: fosUtilities),
             "PLATFORMS": platformsLine(config.platforms),
             "LICENSE_HEADER": config.licenseHeader ?? ""
         ]
@@ -117,6 +125,32 @@ public enum TokenSet {
         }
 
         return tokens
+    }
+
+    private static let fosUtilitiesURL = "https://github.com/foscomputerservices/FOSUtilities.git"
+
+    /// The `.package(...)` entry a generated `Package.swift` lists under `dependencies:`.
+    private static func packageDependency(for source: FOSUtilitiesSource) -> String {
+        switch source {
+        case .release:
+            ".package(url: \"\(fosUtilitiesURL)\", from: \"\(FOSPlatformFloor.pinnedFOSVersion)\")"
+        case .localCheckout(let checkout):
+            // name: pins the package identity to FOSUtilities regardless of the
+            // checkout's directory name — a worktree named FOSUtilities-<topic>
+            // would otherwise fail every `package: "FOSUtilities"` product reference.
+            ".package(name: \"FOSUtilities\", path: \"\(checkout.path)\")"
+        }
+    }
+
+    /// The lines under `packages: FOSUtilities:` in a generated xcodegen
+    /// `project.yml`, continued at the template's four-space indent.
+    private static func packageReference(for source: FOSUtilitiesSource) -> String {
+        switch source {
+        case .release:
+            "url: \(fosUtilitiesURL)\n    from: \"\(FOSPlatformFloor.pinnedFOSVersion)\""
+        case .localCheckout(let checkout):
+            "path: \(checkout.path)"
+        }
     }
 
     /// `.iOS("17.0"),\n        .macOS("14.0")` — string-literal platform

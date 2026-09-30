@@ -289,7 +289,7 @@ package extension ServerRequestAction {
         case .create: "POST"
         case .update: "PATCH"
         case .replace: "PUT"
-        case .delete, .destroy: "DELETE"
+        case .archive, .destroy: "DELETE"
         }
     }
 }

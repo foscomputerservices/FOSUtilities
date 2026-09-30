@@ -34,7 +34,7 @@ import FOSMVVM
 // private extension TestUserModel {
 //    static var userNameField: FormField<String> {
 //        .init(
-//            fieldId: .init(id: "username"),
+//            fieldId: #fieldId(\Self.userName),
 //            title: .localized(for: Self.self, parentKeys: "username", propertyName: "title"),
 //            placeholder: .localized(for: Self.self, parentKeys: "username", propertyName: "placeholder"),
 //            type: .text(inputType: .text),

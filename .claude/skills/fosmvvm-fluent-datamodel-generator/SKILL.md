@@ -120,7 +120,7 @@ Tests/
     FieldModels/
       {Model}FieldsTests.swift       ← Unit tests
 
-database.swift                       ← Register migrations
+database.swift                       ← try app.register({Model}.self, migration:)
 ```
 
 ---
@@ -172,14 +172,14 @@ Based on data source:
 3. Schema migration
 4. Seed data migration
 5. Tests
-6. Migration registration
+6. Registration (`try app.register(_:migration:)`)
 
 **If system-only model (no Fields):**
 1. DataModel struct
 2. Schema migration
 3. Seed data migration (if needed)
 4. Tests
-5. Migration registration
+5. Registration (`try app.register(_:migration:)`)
 
 ### Design Validation
 
@@ -243,6 +243,79 @@ final class {Model}: DataModel, {Model}Fields, Hashable, @unchecked Sendable {
     }
 }
 ```
+
+### Lifecycle Hooks — Declare Only What You Need
+
+`DataModel` already conforms to `DataModelLifecycle`, and **every hook has a do-nothing default**, so the scaffold above is complete as it stands. A model with no derived fields, no cross-row rules and no side effects declares none of them. Add a hook only when this model has that job — one worked example of each follows.
+
+```swift
+final class {Model}: DataModel, {Model}Fields, Hashable, @unchecked Sendable {
+    // …fields, messages and inits exactly as above…
+
+    // Derive, trim and stamp. The one hook that may change the model.
+    func willWrite(in context: DataModelWriteContext) async throws {
+        fieldName = fieldName.trimmingCharacters(in: .whitespaces)
+    }
+
+    // Judge this model against other rows, after the Fields rules passed.
+    // Return EVERY failure, never just the first.
+    func validateModel(in context: DataModelWriteContext) async throws -> [ValidationResult] {
+        guard context.action == .create || context.action == .update else { return [] }
+        let taken = try await {Model}.query(on: context.database)
+            .filter(\.$fieldName == fieldName)
+            .filter(\.$id != id)
+            .first() != nil
+        return taken
+            ? [.init(
+                status: .error,
+                fieldId: #fieldId(\{Model}Fields.fieldName),
+                message: {model}ValidationMessages.fieldNameTaken
+            )]
+            : []
+    }
+
+    // Claim a driver constraint failure as a message the user can act on.
+    // Returning nil (the default) rethrows the original error unchanged.
+    func validationResult(for violation: ConstraintViolation) -> ValidationResult? {
+        guard violation.action == .create else { return nil }
+        return .init(status: .error, message: {model}ValidationMessages.fieldNameTaken)
+    }
+
+    // Still inside the write's transaction — a throw here rolls the write back.
+    func didWrite(in context: DataModelWriteContext) async throws {
+        guard context.action == .create else { return }
+        try await {Model}History(for: try requireID(), event: .created)
+            .save(on: context.database)
+    }
+
+    // After the commit: side effects only. Nothing here can be rolled back and
+    // nothing here can fail the request, so handle your own failures.
+    func didCommit(in context: DataModelCommitContext) async {
+        guard context.action == .create else { return }
+        await context.application.notifier.{model}Created(id: id)
+    }
+
+    // The default is .advisory — a warning lets the write proceed.
+    static var warningPolicy: ValidationWarningPolicy { .blocking }
+}
+```
+
+The full order, what each hook may and may not do, the after-commit rule and the batch-write limits are in [reference.md](reference.md) § DataModel Lifecycle.
+
+**SOLID.** `willWrite` is the only hook that changes the model; `validateModel` judges and reports and never mutates (**SRP** — mutation and judgement are separate responsibilities, and a model mutated while being judged writes a value no rule ever saw). Every hook is a real **protocol requirement** carrying a default, which is what makes your declaration dispatch (**OCP** — the framework extends through the protocol instead of you patching the write path). The failure mode to watch for is a near-miss signature: a hand-written `validateModel(on:)` or `willSave(in:)` witnesses no requirement, so it compiles, adds a method nobody calls, and the rules silently never run.
+
+### Registration — One Call Per DataModel
+
+```swift
+// in configure(_:)
+try app.register({Model}.self, migration: {Model}.Initial())
+```
+
+This is the call that installs the lifecycle middleware. Every `DataModel` goes through it, container or not, form-backed or not. `app.migrations.add({Model}.Initial())` on a `DataModel` creates the table and nothing else: `willWrite`, `validateModel`, `validationResult(for:)`, `didWrite` and `didCommit` never run, and the omission surfaces as data that skipped its own rules, far from the missing line.
+
+A plain `Migration` that is *not* a `DataModel` — a seed, a backfill — still goes through `app.migrations.add`.
+
+**SOLID.** `register(_:migration:)` is the single registration call (**DIP** + **ISP**): the model declares its rules, the framework wires them, and nothing in the model knows a middleware exists. A bare `migrations.add` on a `DataModel` leaves the type outside that wiring — not a shortcut, a hole in the wall the rules were supposed to be behind.
 
 ### Relationships (Associated Types Pattern)
 
@@ -374,7 +447,8 @@ This skill's patterns predate several FOSMVVMVapor releases. Before hand-writing
 
 - **`ContainerDataModel` + `ContainmentRelation`** — declare a container's authorization-bearing relations from its own Fluent `@Children`/`@Siblings`/`@Parent` KeyPaths; cardinality and joins come from Fluent, never restated.
 - **`SortableDataModel` + `SortMapping`**, **`FilterableDataModel`** — published sort meanings mapped to database ordering, and query-driven narrowing of container loads.
-- **`DataModelWriter` + `WriteTargetProviding`** — the guarded write path the CRUD request doors (`CreateRequest`/`UpdateRequest`/`DeleteRequest` registration) require.
+- **`DataModelWriter` + `WriteTargetProviding`** — the guarded write path that registering a `CreateRequest`, `UpdateRequest`, `ArchiveRequest` or `DestroyRequest` requires.
+- **`DataModelLifecycle`** — `willWrite`, `validateModel(in:)`, `validationResult(for:)`, `didWrite`, `didCommit` and `warningPolicy`, all defaulted, all run by `try app.register(_:migration:)`. Do not hand-write save-time validation or after-save side effects around a `save(on:)` call site; the hooks run for every write, whatever reaches the model.
 - **Live invalidation** — a Fluent-persisted model's committed saves already nudge `.live` clients with no model-side code; non-Fluent sources pair `registerDependency(on:)` / `invalidateProjections(of:)`.
 
 See [`../shared/api-catalog/FOSMVVMVapor.md`](../shared/api-catalog/FOSMVVMVapor.md) for each one's reach-for entry.
@@ -401,4 +475,6 @@ See [`../shared/api-catalog/FOSMVVMVapor.md`](../shared/api-catalog/FOSMVVMVapor
 | 1.3 | 2025-12-24 | Factored out Fields layer to fields-generator skill |
 | 2.0 | 2025-12-26 | Renamed to fosmvvm-fluent-datamodel-generator, added Scope Guard, generalized from Kairos-specific to FOSMVVM patterns, added architecture context |
 | 2.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.3 | 2026-09-29 | `DataModelLifecycle` hooks (all optional, all defaulted) in the scaffold with one worked example each; `try app.register(_:migration:)` replaces `app.migrations.add` for every `DataModel`; full lifecycle sequence, after-commit rule, batch-write limits and warning policy in reference.md. |
+| 2.4 | 2026-09-30 | A field identity is scoped by the type the key path names, so `validateModel` mints from the `Fields` protocol (`\{Model}Fields.property`), never from the model that adopts it. |
 | 2.2 | 2026-08-25 | Raw-identity rules aligned with the junction-table principle: `@OptionalParent` for same-database optional FKs, no `[UUID]` arrays, no same-database ids in JSONB, express-approval documentation for external references, honest enum decodes. Post-2.1 framework surface pointer (Container/Sortable/Filterable DataModel, DataModelWriter, live invalidation). |

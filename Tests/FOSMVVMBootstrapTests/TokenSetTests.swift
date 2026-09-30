@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import FOSMVVMBootstrap
+import Foundation
 import Testing
 
 struct TokenSetTests {
@@ -26,7 +27,6 @@ struct TokenSetTests {
         )
         let tokens = try TokenSet.derive(from: config)
         #expect(tokens["PROJECT_NAME"] == "PalettePress")
-        #expect(tokens["FOS_VERSION"] == FOSPlatformFloor.pinnedFOSVersion)
         // platforms render deterministically (alphabetical by platform name)
         #expect(tokens["PLATFORMS"] == ".iOS(\"17.0\"),\n        .macOS(\"14.0\")")
     }
@@ -159,6 +159,30 @@ struct TokenSetTests {
         )
         let tokens = try TokenSet.derive(from: config)
         #expect(tokens["BUNDLE_ID_ROOT"] == nil)
-        #expect(tokens.count == 4)
+        #expect(tokens.count == 5)
+    }
+
+    @Test func releaseSourcePinsTheStampedRelease() throws {
+        let config = BootstrapConfig(
+            projectName: "PalettePress",
+            shape: .sharedLibrary,
+            platforms: [.macOS: "14.0"]
+        )
+        let tokens = try TokenSet.derive(from: config)
+        let pin = "from: \"\(FOSPlatformFloor.pinnedFOSVersion)\""
+        #expect(tokens["FOS_PACKAGE_DEPENDENCY"] == ".package(url: \"https://github.com/foscomputerservices/FOSUtilities.git\", \(pin))")
+        #expect(tokens["FOS_PACKAGE_REFERENCE"] == "url: https://github.com/foscomputerservices/FOSUtilities.git\n    \(pin)")
+    }
+
+    @Test func localCheckoutSourceReferencesThePath() throws {
+        let config = BootstrapConfig(
+            projectName: "PalettePress",
+            shape: .sharedLibrary,
+            platforms: [.macOS: "14.0"]
+        )
+        let checkout = URL(fileURLWithPath: "/work/FOSUtilities-topic")
+        let tokens = try TokenSet.derive(from: config, fosUtilities: .localCheckout(checkout))
+        #expect(tokens["FOS_PACKAGE_DEPENDENCY"] == ".package(name: \"FOSUtilities\", path: \"/work/FOSUtilities-topic\")")
+        #expect(tokens["FOS_PACKAGE_REFERENCE"] == "path: /work/FOSUtilities-topic")
     }
 }

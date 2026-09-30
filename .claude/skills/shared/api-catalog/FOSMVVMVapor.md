@@ -17,8 +17,8 @@ FOSMVVM's wiring grafted onto Vapor's Application, Request, Response, and
 Environment: boot-time localization-store and MVVMEnvironment initialization,
 deployment selection, per-request typed query / CRUD-action / client-version /
 locale extraction plus the request-scoped localizing encoder, localized JSON
-response building with version headers, Fluent schema naming and
-save-time validation for Model types, body-size bridging into Vapor's types,
+response building with version headers, model registration (migration plus
+lifecycle hooks), Fluent schema naming, body-size bridging into Vapor's types,
 and Leaf rendering of Localizable values. (An internal string pluralizer
 backs the schema derivation.)
 
@@ -96,11 +96,22 @@ try app.register(Dock.self, migration: Dock.CreateDock())
 try app.useContainerAuthorizationProvider(GrantProvider())
 ```
 
+### Register any DataModel with its migration — `register()`
+Reach for this when: adding a `DataModel` to `configure(_:)` — one call per model, container or not. It adds the Fluent migration, enters the model in the type registry, and installs the lifecycle middleware, so the model's `DataModelLifecycle` hooks (see Lifecycle) and live invalidation run on every write. The container overload above is the same call for a `ContainerDataModel`; Swift picks by the type. It throws at boot if the model's namespace is already registered.
+Don't add a `DataModel`'s migration with `app.migrations.add` — the migration lands but the hooks never install, so the model's save-time validation silently never runs. Registering a model does not make it loadable by a factory: what a projection loads is declared by a container.
+
+```swift
+// in configure(_:)
+try app.register(Board.self, migration: Board.Initial())   // a container
+try app.register(Card.self, migration: Card.Initial())     // contained
+try app.register(ServiceStatus.self, migration: ServiceStatus.Create())  // no container
+```
+
 ### Map a Vapor request to its CRUD action — `requestAction()` / `ServerRequestActionError`
 Reach for this when: shared middleware or a multi-action controller must know
 *which* ServerRequestAction (FOSMVVM's Protocols) an incoming request is —
 the HTTP method and URI map onto `.show`/`.create`/`.update`/`.replace`/
-`.delete`/`.destroy`; unroutable methods throw `ServerRequestActionError`.
+`.archive`/`.destroy`; unroutable methods throw `ServerRequestActionError`.
 
 ```swift
 switch try req.requestAction() {
@@ -146,15 +157,14 @@ still-`localizationPending` values.
 return try responseBody.buildResponse(req)
 ```
 
-### Fluent table names and save-time validation — `schema` / `validateModel()`
-Reach for this when: a type carries both FOSMVVM's Model role and Fluent's —
-`schema` is derived automatically (pluralized snake_case: UserAccount →
-"user_accounts"; declare `static let schema` to override, as the
-`fosmvvm-fluent-datamodel-generator` skill does), and `validateModel(on:)`
-runs the ValidatableModel rules and throws *before* you persist.
+### Fluent table names — `schema`
+Reach for this when: a type carries both FOSMVVM's Model role and Fluent's — `schema` is derived automatically (pluralized snake_case: UserAccount → "user_accounts"), so declare `static let schema` only to override it, as the `fosmvvm-fluent-datamodel-generator` skill does.
+Don't call a save-time validator by hand: a registered `DataModel` validates itself on every write through its lifecycle hooks (`DataModelLifecycle`, see Lifecycle).
 
 ```swift
-try await user.validateModel(on: db).save(on: db)
+final class Card: DataModel, CardFields, @unchecked Sendable {
+    static let schema = "cards"   // only when the derived name is wrong
+}
 ```
 
 ### Render Localizable values in Leaf — `leafData`
@@ -350,6 +360,86 @@ try app.useApexContainerResolver { req in
 }
 ```
 
+## Lifecycle
+
+What a `DataModel` does around each of its own writes: the hooks FOSMVVM runs (change the model, validate it against other models, react in the transaction, react after the commit), the contexts they are handed, what the write is about to do, how a warning is treated, and the database constraint failure offered back for translation. Every hook has a do-nothing default, so a model declares only what it needs; the hooks run because the model was registered (`register(_:migration:)`, see Extensions).
+
+### Hooks around every write of a model — `DataModelLifecycle` / `willWrite()` / `validateModel()` / `validationResult()` / `didWrite()` / `didCommit()` / `warningPolicy`
+Reach for this when: a rule about a model can only be judged in the database — a title unique within its board, a parent that may not be archived while it still has children, an email to send once the write is durable. There is nothing to adopt: every `DataModel` already has all six, each with a do-nothing default, so declare only the hooks this model needs. A failed validation stops the write and reaches the client as the request's `ResponseError`; a throw from a hook is an error, never a validation.
+Don't scatter these rules across the call sites that write the model — a hook runs for every write of the type, including writes a route never sees.
+
+One write runs in this order:
+
+1. `willWrite(in:)` — may change the model (derive, trim, stamp).
+2. Field validation — the `Fields` protocol's `validate(fields:validations:)`, on create and update only (archive, destroy and restore write none of the model's own columns).
+3. Refusal — an error (or, under `.blocking`, a warning) stops here with a `ValidationError`; model validation never runs when field validation failed.
+4. `validateModel(in:)` — the model judged against other models, for every action. Every rule runs; nothing short-circuits.
+5. Refusal again, by the same rule.
+6. Fluent applies the action. A driver constraint failure is offered to `validationResult(for:)`.
+7. `didWrite(in:)` — same database, so the same transaction; a throw rolls it back.
+8. `didCommit(in:)` — `async`, non-throwing, side effects only.
+
+`didCommit` sees the commit only inside `liveTransaction` (see Live Invalidation); inside a bare `database.transaction` it does not run, and on an auto-commit save it runs immediately after step 7. Use `liveTransaction` for any write whose commit a hook must see.
+
+On a batch write (FluentKit's `[Card].create(on:)` / `[Card].delete(on:)`) the hooks run per model *before* the bulk statement: `didWrite` sees no model yet, a constraint failure is never offered to `validationResult(for:)`, and a batch delete always dispatches `.destroy`, never `.archive`.
+
+```swift
+final class Card: DataModel, CardFields, @unchecked Sendable {
+    // fields …
+
+    func willWrite(in context: DataModelWriteContext) async throws {
+        title = title.trimmingCharacters(in: .whitespaces)
+    }
+
+    func validateModel(in context: DataModelWriteContext) async throws -> [ValidationResult] {
+        let taken = try await Card.query(on: context.database)
+            .filter(\.$board.$id == $board.id).filter(\.$title == title).filter(\.$id != id)
+            .first() != nil
+        return taken
+            ? [.init(status: .error, fieldId: #fieldId(\CardFields.title), message: validationMessages.titleTaken)]
+            : []
+    }
+}
+```
+
+### What the write is about to do — `DataModelAction`
+Reach for this when: a hook applies to some writes and not others — read `context.action` and return early. It says what happens to the model (`create`, `update`, `archive`, `destroy`, `restore`), never which method was called: a model with a `@Timestamp(on: .delete)` archives on a plain `delete(on:)` and destroys on `delete(force: true, on:)`; a model without one destroys on either.
+
+```swift
+func willWrite(in context: DataModelWriteContext) async throws {
+    if context.action == .create { createdAt = Date() }
+}
+```
+
+### What a hook is handed — `DataModelWriteContext` / `DataModelCommitContext`
+Reach for this when: writing any hook. The write context (`willWrite`, `validateModel`, `didWrite`) carries the action, the `database` — the *same* transaction as the write, so what you read and what is about to be written are one state — and the `application` for configuration. The commit context (`didCommit`) carries the action and the application only: the transaction is over, so there is no database to hand you; reach for the application to do what the commit unlocked.
+
+```swift
+func didCommit(in context: DataModelCommitContext) async {
+    guard context.action == .create else { return }
+    await context.application.mailer.sendWelcome(to: email)
+}
+```
+
+### Whether a warning stops the write — `ValidationWarningPolicy`
+Reach for this when: a model's warnings must be seen before anything is saved — declare `.blocking` and a warning stops the write and reaches the client like an error. The default, `.advisory`, lets the write proceed; warnings collected alongside an error still reach the client with it.
+
+```swift
+final class Card: DataModel, CardFields, @unchecked Sendable {
+    static var warningPolicy: ValidationWarningPolicy { .blocking }
+}
+```
+
+### Turn a database constraint failure into a validation — `ConstraintViolation`
+Reach for this when: two writers race on a unique index and the loser should see a message instead of a database error. The violation carries the `action` that failed and the `underlyingError` (inspect it only when one model has several constraints to tell apart). Return a `ValidationResult` from `validationResult(for:)` and the client receives it as a validation failure; return `nil` — the default — and the original error is rethrown unchanged.
+
+```swift
+func validationResult(for violation: ConstraintViolation) -> ValidationResult? {
+    guard violation.action == .create else { return nil }
+    return .init(status: .error, message: validationMessages.alreadyClaimed)
+}
+```
+
 ## Live Invalidation
 
 Server-push refresh for `@ViewModel(options: [.live])` screens (FOSMVVM's
@@ -485,7 +575,7 @@ extension UserViewModelRequest: ResolvableViewModelRequest {
 ### Hand-rolled controllers with derived paths — `Controller` / `ControllerRouting`
 Reach for this when: a RouteCollection needs custom route layouts that
 `register()` and `ServerRequestController` don't cover — `ControllerRouting`
-derives each action's path from the controller's `baseURL` (create/delete/
+derives each action's path from the controller's `baseURL` (create/archive/
 destroy gain their own segment; an Encodable query can be appended), and
 `Controller.modelResponse()` serves a `ResolvableViewModelRequest`'s ViewModel
 as a localized response.
@@ -496,12 +586,7 @@ return try await Self.modelResponse(req, for: resolvableRequest)
 ```
 
 ### The Fluent persistence role — `DataModel`
-Reach for this when: declaring a database-backed entity — composes FOSMVVM's
-Model + ValidatableModel with Fluent's Model, so one class is the persistence
-type behind the ViewModel factories, with derived `schema` naming and
-`validateModel()` (see Extensions). Scaffolded — with migrations and tests —
-by the `fosmvvm-fluent-datamodel-generator` skill. Remember: ModelIdType
-belongs only at `@ID`; other references go through junction tables.
+Reach for this when: declaring a database-backed entity — composes FOSMVVM's Model + ValidatableModel with Fluent's Model and `DataModelLifecycle` (see Lifecycle), so one class is the persistence type behind the ViewModel factories, with derived `schema` naming (see Extensions) and save-time hooks that need no call site. Register it with its migration — `try app.register(Card.self, migration: Card.Initial())` (see Extensions) — or the hooks never run. Scaffolded — with migrations and tests — by the `fosmvvm-fluent-datamodel-generator` skill. Remember: ModelIdType belongs only at `@ID`; other references go through junction tables.
 
 ```swift
 final class User: DataModel, UserFields, Hashable, @unchecked Sendable {
@@ -513,12 +598,12 @@ final class User: DataModel, UserFields, Hashable, @unchecked Sendable {
 ```
 
 ### Declare a write's candidate set and field application — `WriteTargetProviding` / `DataModelWriter`
-Reach for this when: serving an update/create/delete — adopt these on the write
+Reach for this when: serving an update/create/archive — adopt these on the write
 request's `RequestBody` in the server target. `WriteTargetProviding.candidates`
 (a stored `static let LoadRequirement`) declares the auth-scoped set the submitted
 `TargetedQuery` target (FOSMVVM's Protocols) must resolve to — not-yours is
-indistinguishable from not-found. A `DeleteRequest` body conforms to
-`WriteTargetProviding` **alone** (deletion is framework-owned). An update or create
+indistinguishable from not-found. An `ArchiveRequest` body conforms to
+`WriteTargetProviding` **alone** (archiving is framework-owned). An update or create
 adds `DataModelWriter.apply(to:)` — a **synchronous** field application that
 **cannot touch the database**: the framework owns all I/O (load, save, the container
 foreign key, invalidation, and re-serving the refresh). Create reuses the same
@@ -577,7 +662,7 @@ extension DockPageViewModel: SupplementalRecordLoading {
 ## Vapor Support
 
 The routing layer that turns request types into live routes: the one
-`RoutesBuilder` registration door for every request (reads and the guarded CRUD
+`RoutesBuilder` registration call for every request (reads and the guarded CRUD
 writes), and the general dispatch controller for operations outside the guarded
 verbs (the request-binding host and middleware behind them are internal).
 
@@ -586,7 +671,7 @@ Reach for this when: exposing any `ServerRequest` over HTTP — one line per req
 in `routes(_:)`. Its `ResponseBody` must be a `VaporResponseBodyFactory` (see
 Protocols); the route's path derives from the request type, so client and server can
 never disagree on it. A read registers GET; write requests (CreateRequest /
-UpdateRequest / DeleteRequest, FOSMVVM's Protocols) have their own overloads Swift
+UpdateRequest / ArchiveRequest, FOSMVVM's Protocols) have their own overloads Swift
 picks by their Query/RequestBody constraints. It is a `RoutesBuilder` method taking
 the `Application` as a parameter: register on the route group whose middleware you want
 guarding the route — a credential group for privileged requests, the `Application`
@@ -596,15 +681,16 @@ decision; that its plan is derived is not. Register the app's containers
 body's load plan is derived and validated here, at boot. Mount only on
 middleware-only groups — a path-prefixing group (`app.grouped("admin")`) is rejected
 at boot, because the client derives the served URL from the request type.
+An `ArchiveRequest`'s model must declare a delete timestamp (`@Timestamp(key: "deleted_at", on: .delete)`) — archiving marks the model deleted through it, so a model without one throws `ServerRequestControllerError.archiveUnsupported(request:model:)` at boot; serve a `DestroyRequest` instead when the model is meant to be removed.
 Don't reach for a removed `register(viewModel:)` — there is one `register(request:app:)`
-door; a `ReplaceRequest`/`DestroyRequest`, or a write request that reaches the read
-door, fails fast at boot rather than registering GET-only.
+route-registration call; a `ReplaceRequest`, or a write request that
+reaches the read registration, fails fast at boot rather than registering GET-only.
 
 ```swift
 func routes(_ app: Application) throws {
     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
     try authed.register(request: DockPageRequest.self, app: app)   // guarded read (GET)
-    try authed.register(request: UpdateBerthRequest.self, app: app) // write door, picked by Swift
+    try authed.register(request: UpdateBerthRequest.self, app: app) // write route, overload picked by Swift
     try app.register(request: LandingPageRequest.self, app: app)   // public (Application is a RoutesBuilder)
 }
 ```
@@ -614,13 +700,14 @@ Reach for this when: an operation falls outside the guarded verbs
 `register(request:app:)` covers (e.g. a `ReplaceRequest`, multi-record operations) —
 conform, supply one processor per `ServerRequestAction`, and register the controller
 as a route collection. Grouping, HTTP-method mapping (`.show` GET · `.create` POST ·
-`.replace` PUT · `.update` PATCH · `.delete`/`.destroy` DELETE), body decoding
+`.replace` PUT · `.update` PATCH · `.archive`/`.destroy` DELETE), body decoding
 (honoring `maxBodySize`), and typed request binding are derived once. Each processor
 receives `(req, bound)` — the raw `Vapor.Request` (full power) plus the **bound**
-typed request (query and sort parsed; `requestBody` decoded on a body verb). `.delete`
+typed request (query and sort parsed; `requestBody` decoded on a body verb). `.archive`
 and `.destroy` both ride DELETE at one URL, so a controller registers only one —
-the other throws `ServerRequestControllerError.invalidAction`; a body verb whose body
-is absent throws `.missingRequestBody`.
+the other throws `ServerRequestControllerError.invalidAction`; registering an
+`ArchiveRequest` for a model that declares no delete timestamp throws
+`.archiveUnsupported(request:model:)` at boot.
 Prefer `register(request:app:)` — it instantiates this same mechanism pre-specialized
 with the framework's guarded pipelines (declared loads, write gates, refresh
 fall-through). Scaffolded by `fosmvvm-serverrequest-generator`.
@@ -630,10 +717,8 @@ final class ReplaceBerthController: ServerRequestController {
     typealias TRequest = ReplaceBerthRequest
     let actions: [ServerRequestAction: ActionProcessor] = [
         .replace: { req, bound in
-            guard let body = bound.requestBody else {
-                throw ServerRequestControllerError.missingRequestBody
-            }
-            return try await BerthPage(replacing: body, on: req.db)
+            let body = try req.content.decode(ReplaceBerthRequest.RequestBody.self)
+            return try await BerthListVM(replacing: body, on: req.db)
         }
     ]
 }

@@ -58,6 +58,11 @@ struct RegisteredModel: Sendable {
     /// The registered concrete type — the L2 emit-middleware sweep opens it back into a generic
     /// (a container with EMPTY containment has no relation to recover its type from).
     let modelType: any DataModel.Type
+    /// Whether this registration declares a container. A plain DataModel is registered for its
+    /// lifecycle hooks and its own identity, and must never answer the containment inversion's
+    /// `isRegisteredContainer` question — an empty `containment` cannot tell the two apart
+    /// (a container may legitimately declare none).
+    let isContainer: Bool
 
     private let findById: @Sendable (ModelIdType, any Database) async throws -> (any DataModel)?
 
@@ -67,6 +72,19 @@ struct RegisteredModel: Sendable {
         self.authorityFlow = type.authorityFlow
         self.typeName = String(describing: type)
         self.modelType = type
+        self.isContainer = true
+        self.findById = { id, db in try await type.find(id, on: db) }
+    }
+
+    /// A DataModel no registered container declares: it carries no containment, it needs no grant
+    /// of its own, and it is not a container.
+    init<M: DataModel>(for type: M.Type) where M.IDValue == ModelIdType {
+        self.namespace = type.modelIdentityNamespace
+        self.containment = []
+        self.authorityFlow = .inherits
+        self.typeName = String(describing: type)
+        self.modelType = type
+        self.isContainer = false
         self.findById = { id, db in try await type.find(id, on: db) }
     }
 

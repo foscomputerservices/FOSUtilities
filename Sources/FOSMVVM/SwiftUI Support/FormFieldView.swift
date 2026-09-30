@@ -151,7 +151,10 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
         ))
     }
 
-    @discardableResult private static func validateIt(
+    /// Runs the field's validator and answers whether submission may proceed
+    ///
+    /// Warnings and information do not stop a submission; only an error does.
+    @discardableResult static func validateIt(
         fieldModel: FormFieldModel<Value>,
         fieldValidator: (([FormFieldBase]?) -> [ValidationResult]?)?,
         validations: Validations?
@@ -162,7 +165,7 @@ public struct FormFieldView<Value: Codable & Hashable>: View {
             if let result = fieldValidator([fieldModel.formField]),
                !result.isEmpty {
                 validations.replace(with: result)
-                return validations.status == .error
+                return validations.status != .error
             }
         }
 

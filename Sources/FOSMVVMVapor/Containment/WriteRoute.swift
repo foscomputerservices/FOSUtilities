@@ -47,13 +47,24 @@ extension Vapor.Request {
         return try await serve(boundRequest)
     }
 
-    /// DELETE: load candidates → resolve target → framework delete → invalidate → refresh. No body
-    /// to validate, nothing to apply — deletion is framework-owned.
-    func serveDelete<SR: DeleteRequest>(_ boundRequest: SR) async throws -> SR.ResponseBody
+    /// DELETE: load candidates → resolve target → framework archive → invalidate → refresh. No body
+    /// to validate, nothing to apply — archiving is framework-owned.
+    func serveArchive<SR: ArchiveRequest>(_ boundRequest: SR) async throws -> SR.ResponseBody
         where SR.RequestBody: WriteTargetProviding,
         SR.Query: TargetedQuery,
         SR.ResponseBody: VaporResponseBodyFactory {
-        let context = try await commitDelete(boundRequest)
+        let context = try await commitArchive(boundRequest)
+        invalidateWrittenContainers(context)
+        return try await serve(boundRequest)
+    }
+
+    /// DELETE: load candidates → resolve target → framework destroy → invalidate → refresh. The
+    /// row is removed; ``serveArchive(_:)`` is the recoverable twin.
+    func serveDestroy<SR: DestroyRequest>(_ boundRequest: SR) async throws -> SR.ResponseBody
+        where SR.RequestBody: WriteTargetProviding,
+        SR.Query: TargetedQuery,
+        SR.ResponseBody: VaporResponseBodyFactory {
+        let context = try await commitDestroy(boundRequest)
         invalidateWrittenContainers(context)
         return try await serve(boundRequest)
     }
@@ -69,7 +80,7 @@ extension Vapor.Request {
         where SR.RequestBody: DataModelWriter, SR.Query: TargetedQuery {
         // 2. Structural gate: a failing validation never reaches apply.
         if let error = body.validate() {
-            throw error
+            throw SR.ResponseError(validations: error.validations)
         }
         // 3. Load the writer's candidate set (write-verb grants), candidates only.
         let context = try await loadCandidates(for: boundRequest)
@@ -79,8 +90,12 @@ extension Vapor.Request {
         }
         let target: SR.RequestBody.Target = try resolveWriteTarget(selector: selector, context: context)
         // 5. Authored apply. 6. Save (the caller invalidates).
-        try body.apply(to: target)
-        try await target.save(on: db)
+        try await answeringWithRequestError(SR.self) {
+            try await liveTransaction { db in
+                try body.apply(to: target)
+                try await target.save(on: db)
+            }
+        }
         return context
     }
 
@@ -88,7 +103,7 @@ extension Vapor.Request {
     func commitCreate<SR: CreateRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> WriteCandidateContext
         where SR.RequestBody: DataModelWriter {
         if let error = body.validate() {
-            throw error
+            throw SR.ResponseError(validations: error.validations)
         }
         let context = try await loadCandidates(for: boundRequest)
         guard let tuple = context.plan.tuples.first,
@@ -104,23 +119,63 @@ extension Vapor.Request {
         guard try await holdsAuthorization(tuple.operation, ofType: SR.RequestBody.Target.self, in: container) else {
             throw Abort(.notFound)
         }
-        let fresh = SR.RequestBody.Target()
-        try body.apply(to: fresh)
-        // The framework sets the container FK from the candidate scope — apply never names a parent.
-        try await createMember(fresh, in: container, on: db)
+        try await answeringWithRequestError(SR.self) {
+            try await liveTransaction { db in
+                let fresh = SR.RequestBody.Target()
+                try body.apply(to: fresh)
+                // The framework sets the container FK from the candidate scope — apply never names
+                // a parent.
+                try await self.createMember(fresh, in: container, on: db)
+            }
+        }
         return context
     }
 
     @discardableResult
-    func commitDelete<SR: DeleteRequest>(_ boundRequest: SR) async throws -> WriteCandidateContext
+    func commitArchive<SR: ArchiveRequest>(_ boundRequest: SR) async throws -> WriteCandidateContext
         where SR.RequestBody: WriteTargetProviding, SR.Query: TargetedQuery {
         let context = try await loadCandidates(for: boundRequest)
         guard let selector = boundRequest.query?.target else {
             throw Abort(.badRequest, reason: "\(String(describing: SR.self)) requires a target identity")
         }
         let target: SR.RequestBody.Target = try resolveWriteTarget(selector: selector, context: context)
-        try await target.delete(on: db)
+        // A plain delete: registration has proven the target declares a delete timestamp, so
+        // Fluent marks the row instead of removing it.
+        try await answeringWithRequestError(SR.self) {
+            try await liveTransaction { db in
+                try await target.delete(on: db)
+            }
+        }
         return context
+    }
+
+    @discardableResult
+    func commitDestroy<SR: DestroyRequest>(_ boundRequest: SR) async throws -> WriteCandidateContext
+        where SR.RequestBody: WriteTargetProviding, SR.Query: TargetedQuery {
+        let context = try await loadCandidates(for: boundRequest)
+        guard let selector = boundRequest.query?.target else {
+            throw Abort(.badRequest, reason: "\(String(describing: SR.self)) requires a target identity")
+        }
+        let target: SR.RequestBody.Target = try resolveWriteTarget(selector: selector, context: context)
+        try await answeringWithRequestError(SR.self) {
+            try await liveTransaction { db in
+                try await target.delete(force: true, on: db)
+            }
+        }
+        return context
+    }
+
+    /// Answers a `ValidationError` — thrown by the body's rules or by the model's own, from
+    /// anywhere inside `work` — as the request's own `ResponseError`, the type its client decodes.
+    private func answeringWithRequestError<SR: ServerRequest>(
+        _: SR.Type,
+        _ work: () async throws -> Void
+    ) async throws where SR.ResponseError: ValidatableViewModelRequestError {
+        do {
+            try await work()
+        } catch let error as ValidationError {
+            throw SR.ResponseError(validations: error.validations)
+        }
     }
 }
 
@@ -128,7 +183,7 @@ extension Vapor.Request {
 
 /// The resolved candidate plan for one write request, bound to its query root(s) and executed —
 /// its records live in the request's container-record cache, keyed by the tuple.
-struct WriteCandidateContext {
+struct WriteCandidateContext: Sendable {
     let plan: RecordLoadPlan
     let resolved: ResolvedRecordLoadPlan
 }

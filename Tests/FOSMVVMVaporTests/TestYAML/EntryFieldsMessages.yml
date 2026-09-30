@@ -1,0 +1,12 @@
+en:
+  EntryFieldsMessages:
+    label:
+      validationMessages:
+        required: "A label is required"
+        taken: "That label is already in use in this ledger"
+es:
+  EntryFieldsMessages:
+    label:
+      validationMessages:
+        required: "Se requiere una etiqueta"
+        taken: "Esa etiqueta ya está en uso en este libro"

@@ -25,15 +25,24 @@ import FOSFoundation
 /// refreshed records.
 ///
 /// ```swift
-/// final class UpdateBerthRequest: UpdateRequest {
-///     typealias RequestBody = UpdateBerthBody   // a DataModelWriter
-///     typealias ResponseBody = BerthListVM      // the container's children
+/// final class CardUpdateRequest: UpdateRequest {
+///     typealias RequestBody = CardUpdateBody   // a DataModelWriter
+///     typealias ResponseBody = CardListVM      // the container's children
 ///     // …query, init…
 /// }
 /// ```
+///
+/// Its `ResponseError` is a ``ValidatableViewModelRequestError``: a validation failure on the
+/// server, from the body's rules or from the model's own, reaches the client as that error
+/// with the results inside. ``ValidationError`` is the ready-made choice:
+///
+/// ```swift
+/// public typealias ResponseError = ValidationError
+/// ```
 public protocol UpdateRequest: ServerRequest, Stubbable
     where RequestBody: ValidatableModel,
-    ResponseBody: UpdateResponseBody {}
+    ResponseBody: UpdateResponseBody,
+    ResponseError: ValidatableViewModelRequestError {}
 
 public extension UpdateRequest {
     static var baseTypeName: String {

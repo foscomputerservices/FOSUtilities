@@ -151,8 +151,8 @@ The WebApp's `(JS → WebApp)` bridge is internal wiring - the browser-specific 
        ┌───────────┬───────────┬──┴──┬─────────────┬─────────────┐
        │           │           │     │             │             │
        ▼           ▼           ▼     ▼             ▼             ▼
-  ShowRequest  CreateRequest  UpdateRequest  DeleteRequest  DestroyRequest
-  (GET/show)   (POST/create) (PATCH/update) (DELETE/soft)  (DELETE/hard)
+  ShowRequest  CreateRequest  UpdateRequest  ArchiveRequest  DestroyRequest
+  (GET/show)   (POST/create) (PATCH/update) (DELETE/archive) (DELETE/destroy)
        │           │           │
        │           │           │
        ▼           ▼           ▼
@@ -187,41 +187,102 @@ Modify the Model layer with validated data:
 ```swift
 // Create new entity
 public protocol CreateRequest: ServerRequest
-    where RequestBody: ValidatableModel {}
+    where RequestBody: ValidatableModel,
+    ResponseError: ValidatableViewModelRequestError {}
 
 // Update existing entity
 public protocol UpdateRequest: ServerRequest
-    where RequestBody: ValidatableModel {}
+    where RequestBody: ValidatableModel,
+    ResponseError: ValidatableViewModelRequestError {}
 
-// Soft delete (mark as deleted)
-public protocol DeleteRequest: ServerRequest {}
+// Archive (the row stays, marked deleted through its delete timestamp)
+public protocol ArchiveRequest: ServerRequest {}
 
-// Hard delete (permanent removal)
+// Destroy (the row is removed)
 public protocol DestroyRequest: ServerRequest {}
 ```
 
-Flow: `CreateRequest` → validate `RequestBody` → persist to Model layer
+Flow: `CreateRequest` → validate `RequestBody` → persist to Model layer, where the model's own validation runs again before the row is written.
+
+A write request's `ResponseError` must be able to carry validation results, which is why `CreateRequest` and `UpdateRequest` constrain it; `ValidationError` is the ready-made choice. Registering an `ArchiveRequest` for a model that declares no `@Timestamp(key:, on: .delete)` fails at boot with `ServerRequestControllerError.archiveUnsupported(request:model:)` — give the model the timestamp, or serve a `DestroyRequest` instead.
 
 ### The Shared Validation Contract
 
-The same `ValidatableModel` (via Fields protocol) validates data at every layer:
+A Fields protocol states the user-editable contract once — the properties, the FormField definitions, the rules, the localized messages — and three types adopt it, so one rule set answers for a value wherever the value appears.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    UserFields Protocol                          │
-│            (defines email, firstName, lastName)                 │
-│                                                                 │
-│  Adopted by:                                                    │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ CreateUserReq   │  │ UserFormVM      │  │ User (Model)    │ │
-│  │ .RequestBody    │  │ (form display)  │  │ (persistence)   │ │
-│  │                 │  │                 │  │                 │ │
-│  │ API validation  │  │ UI validation   │  │ DB validation   │ │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+**`UserFields`, adopted by:**
+
+- **`UserCreateRequest.RequestBody`** — the wire body. Checked when the request arrives, before anything is loaded.
+- **`UserFormViewModel`** — the form. Checked as the user edits, and again at submit.
+- **`User`** — the `DataModel`. Checked once more immediately before the row is written.
 
 **Define once, validate everywhere.**
+
+#### Two validations, not one
+
+**Field validation** is the Fields protocol's own `validate(fields:validations:)`. It judges the model's values in isolation — an empty title, a number outside its range — and needs nothing but the model. It runs on create and update. Archive, destroy and restore write none of the model's own columns, so there is nothing in them to judge.
+
+**Model validation** is `DataModelLifecycle.validateModel(in:)`. It judges the model against the rest of the database — a title already taken within its board, a board that still has cards and so may not be destroyed. It receives a `DataModelWriteContext` carrying the action, the database, and the `Application`, and returns one `ValidationResult` per rule that failed. It runs for every action, the three that write no columns included.
+
+The two are layers of one answer, not alternatives. Field validation goes first and model validation never runs when it failed: a rule that queries the database against a value the form already refused would be asking a question that has no meaning.
+
+Both write into one accumulator. The framework creates one `Validations` per write; no level can assign the array, so no level can erase what another found. The Fields rules hand their results to `replace(with:)` — field-scoped, so running them again re-answers for their own fields rather than stacking a second copy of the same message, and leaves every other level's results standing. `validateModel(in:)` returns its results rather than holding the accumulator, which is what makes that guarantee structural rather than a convention.
+
+A `ValidationResult` that names no field is about the model as a whole. `ValidationResult(status:message:)` mints one, `Message.addressesModel` recognizes one, and `withFormValidations()` is the modifier that shows them — the field views only ever show messages naming their own field.
+
+#### The order, for one write
+
+1. **`willWrite(in:)`** — the model may change itself: derive, trim, stamp. This is the one hook that mutates. A throw here is an error, never a validation.
+2. **Field validation** — the Fields protocol's rules, with `fields: nil`, on create and update.
+3. **Refusal** — errors, or warnings under a blocking policy, stop here with a `ValidationError` carrying everything collected.
+4. **`validateModel(in:)`** — every action. Every rule runs; nothing short-circuits inside it.
+5. **Refusal** again, by the same rule.
+6. **The write** — Fluent applies the action. A driver constraint failure is offered to `validationResult(for:)`; a returned result becomes a `ValidationError`, and `nil` rethrows the original error unchanged.
+7. **`didWrite(in:)`** — the same database, so the same transaction. May write related rows. A throw rolls the transaction back.
+8. **`didCommit(in:)`** — `async`, non-throwing, side effects only.
+
+Every hook is a protocol requirement with a do-nothing default, so a model declares only the ones it needs and a model that declares none saves exactly as it did before. The defaults live on the protocol rather than in an extension alongside it, because an extension-only hook would let a model's override compile and never be called.
+
+`ValidationWarningPolicy` decides what a warning does at the two refusal points. The default, `.advisory`, lets the write proceed; `.blocking` stops it and sends the warnings to the client the way an error is sent. An advisory warning on a write that succeeds is logged and dropped — carrying it would be a wire change to every write's response.
+
+#### Registration is what installs it
+
+```swift
+// in configure(_:)
+try app.register(Board.self, migration: Board.Initial())                  // a container
+try app.register(Card.self, migration: Card.Initial())                    // a contained model
+try app.register(ServiceStatus.self, migration: ServiceStatus.Create())   // declared by no container
+```
+
+`register(_:migration:)` adds the Fluent migration, enters the model in the type registry, and installs the lifecycle for it — one call, so declaring the migration *is* registering the model and there is no second step to forget. Every `DataModel` goes through it, container or not. A bare `app.migrations.add(...)` on a `DataModel` creates the table and skips the hooks; the review reports it.
+
+The lifecycle is installed ahead of live invalidation's emit, so it is the outer of the two: both validations run before anything else touches the row, and the emit fires inside the write.
+
+#### After the commit
+
+`didCommit(in:)` receives a `DataModelCommitContext` — the action and the `Application`, and no database, because the transaction is over. It is where the email is sent and the other system is told.
+
+It runs when the transaction commits inside `liveTransaction { }`, with or without live invalidation enabled, and immediately after the write on an auto-commit `save(on:)`. Inside a bare `database.transaction { }` it does not run at all and the framework warns once per type: nothing there can observe the commit. Use `liveTransaction` for any write whose commit a hook must see.
+
+#### What a batch write cannot do
+
+FluentKit's `[Card].create(on:)` and `[Card].delete(on:)` call each model's middleware with a `next` that writes nothing, then issue one bulk statement after every middleware has returned. The consequences are the contract, not a defect to work around:
+
+- The hooks run per model, before any row exists — so `didWrite(in:)` sees no row.
+- A constraint failure is never offered to `validationResult(for:)`.
+- A batch delete always dispatches `.destroy`; `.archive` is unreachable through it.
+
+Write the models individually where any of that matters. The review warns on a batch write of a `DataModel`.
+
+#### The typed error path
+
+A write request's `ResponseError` conforms to `ValidatableViewModelRequestError`; `CreateRequest` and `UpdateRequest` require it. The write route catches the `ValidationError` raised by the body's own rules and by the save, and rethrows it as `SR.ResponseError(validations:)` — so the lifecycle stays request-agnostic and the client always decodes the error type its request declared, then reads `.validations` from it.
+
+```swift
+public typealias ResponseError = ValidationError   // the ready-made choice
+```
+
+Without the constraint a write request could declare an error type that cannot carry validations, and the user would get a decode failure where the messages should have been.
 
 ---
 
@@ -531,8 +592,8 @@ Specialized variants:
   - **ViewModelRequest** - ShowRequest where ResponseBody is a ViewModel
 - **CreateRequest** - POST, RequestBody must be ValidatableModel
 - **UpdateRequest** - PATCH, RequestBody must be ValidatableModel
-- **DeleteRequest** - DELETE (soft)
-- **DestroyRequest** - DELETE (hard)
+- **ArchiveRequest** - DELETE (the row stays, marked deleted)
+- **DestroyRequest** - DELETE (the row is removed)
 
 ### ServerRequestBody and Body Size Limits
 
@@ -842,17 +903,17 @@ static func performCreate(
 
     // Validate fields
     if requestBody.email.isEmpty {
-        validations.validations.append(.init(
+        validations.append(.init(
             status: .error,
-            fieldId: "email",
+            fieldId: #fieldId(\UserFields.email),
             message: .localized(for: CreateUserRequest.self, propertyName: "emailRequired")
         ))
     }
 
     if requestBody.password.count < 8 {
-        validations.validations.append(.init(
+        validations.append(.init(
             status: .error,
-            fieldId: "password",
+            fieldId: #fieldId(\UserFields.password),
             message: .localized(for: CreateUserRequest.self, propertyName: "passwordTooShort")
         ))
     }
@@ -1108,14 +1169,20 @@ A `{Name}Fields` protocol is a **Form Specification** - the single source of tru
 // The Form Specification
 public protocol IdeaFields: ValidatableModel, Codable, Sendable {
     var content: String { get set }
-    var ideaValidationMessages: IdeaFieldsMessages { get }
 }
 
 public extension IdeaFields {
     static var contentRange: ClosedRange<Int> { 1...10000 }
 
+    // A @LocalizedString property binds its key only while its own model is being encoded,
+    // so a message read out of an IdeaFieldsMessages instance and carried in a
+    // ValidationResult would encode empty. Mint the travelling message from the type.
+    static var contentRequiredMessage: LocalizableString {
+        .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageGroup: "validationMessages", messageKey: "required")
+    }
+
     static var contentField: FormField<String?> { .init(
-        fieldId: .init(id: "content"),
+        fieldId: #fieldId(\Self.content),
         title: .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageKey: "title"),
         placeholder: .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageKey: "placeholder"),
         type: .textArea(inputType: .text),
@@ -1143,11 +1210,13 @@ struct RequestBody: ServerRequestBody, IdeaFields { ... }
 // In ViewModel (for form rendering)
 @ViewModel struct IdeaFormViewModel: IdeaFields { ... }
 
-// In Model (for persistence validation)
-final class Idea: Model, IdeaFields { ... }
+// In the DataModel — the framework runs these rules again before the row is written
+final class Idea: DataModel, IdeaFields { ... }
 ```
 
 **Key insight:** Validation is shared - defined once, used everywhere.
+
+The `DataModel` adoption is not decoration. Once the model is registered with `try app.register(Idea.self, migration: Idea.Initial())`, the framework runs these same rules on every create and update, whatever wrote the row — see [The Shared Validation Contract](#the-shared-validation-contract), which also covers the model-level validation a Fields protocol cannot express.
 
 ### Generated Files
 
@@ -1176,7 +1245,8 @@ A complete form specification consists of:
 2. Client validates locally using Fields validation methods
 3. Client creates Request with RequestBody conforming to Fields
 4. Server receives, validates again (same Fields protocol)
-5. Server persists to Model
+5. Server loads the writer's candidate scope, resolves the target, applies the body, and saves — and the save runs the model's lifecycle: `willWrite`, the Fields rules once more, `validateModel` against the rest of the database, the write, `didWrite`, then `didCommit` on commit
+6. A refusal at either point reaches the client as the request's own `ResponseError`, carrying the results
 
 ---
 
@@ -1209,6 +1279,7 @@ Two cases fall outside that automatic path — a response reads state the record
 | `@ViewModel(options: [.clientHostedFactory])` | Additionally generates `ClientHostedViewModelFactory` support (AppState, Request, factory method) |
 | `@FieldValidationModel` | Generates `propertyNames()` for validation message types |
 | `@VersionedFactory` | Generates versioned `model(context:)` dispatcher for API versioning |
+| `#fieldId(\Model.property)` | The one mint for a `FormFieldIdentifier`, scoped by the type the key path names; `\Self` inside a `Fields` protocol's extension names the protocol, so every adopter shares the identity; `#fieldId(\Model.items, index:)` names one element of a repeated field |
 
 ### What @ViewModel Generates
 

@@ -25,7 +25,7 @@ Specifications serve as documentation and reference. When Claude reads specifica
 
 ## ServerRequest
 Type: {RequestTypeName}
-Protocol: ShowRequest | ViewModelRequest | CreateRequest | UpdateRequest | DeleteRequest
+Protocol: ShowRequest | ViewModelRequest | CreateRequest | UpdateRequest | ArchiveRequest
 
 ### Query Parameters
 - {param}: {type} - {description}
