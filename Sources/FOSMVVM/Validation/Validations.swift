@@ -17,8 +17,40 @@
 import Foundation
 import Observation
 
+/// The validation results a form shows, kept in the SwiftUI environment
+///
+/// Add results with `append`, swap a field's results with `replace(with:)`, clear with
+/// `removeAll`; read `validations` to inspect them:
+///
+/// ```swift
+/// validations.append(.init(status: .error, fieldId: #fieldId(\CardFields.title), message: messages.titleRequired))
+/// validations.replace(with: responseError.validations)
+/// validations.removeAll()
+/// ```
 @Observable public final class Validations {
-    public var validations: [ValidationResult] = []
+    /// Every result, in the order added. Change it through `append`, `replace(with:)` and `removeAll`.
+    public private(set) var validations: [ValidationResult] = []
+
+    /// Adds one result
+    public func append(_ result: ValidationResult) {
+        validations.append(result)
+    }
+
+    /// Adds results
+    public func append(contentsOf results: some Sequence<ValidationResult>) {
+        validations.append(contentsOf: results)
+    }
+
+    /// The messages that are about the model as a whole, across every result
+    ///
+    /// ```swift
+    /// ForEach(validations.modelMessages, id: \.self) { Text($0.message) }
+    /// ```
+    ///
+    /// Empty when every message names a field.
+    public var modelMessages: [ValidationResult.Message] {
+        validations.flatMap(\.messages).filter(\.addressesModel)
+    }
 
     public var status: ValidationResult.Status? {
         validations.aggregate
@@ -56,6 +88,14 @@ import Observation
         return .init(validations: validations)
     }
 
+    /// Swaps in a new answer for the fields it names
+    ///
+    /// ```swift
+    /// validations.replace(with: responseError.validations)
+    /// ```
+    ///
+    /// Field messages are replaced per field. Model-level messages are replaced whenever the
+    /// incoming results carry any; a field-only replacement leaves them.
     public func replace(with newValidations: [ValidationResult]) {
         let replacingFieldIds = Set(
             newValidations.flatMap { val in
@@ -64,10 +104,16 @@ import Observation
                 )
             }.flatMap(\.self)
         )
+        let replacesModelMessages = newValidations.contains { validation in
+            validation.messages.contains(where: \.addressesModel)
+        }
         let trimmedValidations = validations.compactMap { validation in
             var validation = validation
             for removeFieldId in replacingFieldIds {
                 validation.removeMessages(for: removeFieldId)
+            }
+            if replacesModelMessages {
+                validation.removeModelMessages()
             }
 
             return validation.messages.isEmpty ? nil : validation

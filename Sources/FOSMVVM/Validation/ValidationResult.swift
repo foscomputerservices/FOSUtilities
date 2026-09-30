@@ -57,6 +57,13 @@ public struct ValidationResult: Codable, Hashable, Sendable, CustomStringConvert
         /// with the data
         public let message: LocalizableString
 
+        /// Whether this message is about the model as a whole
+        ///
+        /// True when the message names no field.
+        public var addressesModel: Bool {
+            fieldIds.isEmpty
+        }
+
         public init(fieldIds: [FormFieldIdentifier], message: LocalizableString) {
             self.fieldIds = fieldIds
             self.message = message
@@ -78,6 +85,10 @@ public struct ValidationResult: Codable, Hashable, Sendable, CustomStringConvert
         messages = messages.filter { !$0.fieldIds.contains(fieldId) }
     }
 
+    mutating func removeModelMessages() {
+        messages = messages.filter { !$0.addressesModel }
+    }
+
     public var isValid: Bool {
         !status.hasError
     }
@@ -96,6 +107,17 @@ public struct ValidationResult: Codable, Hashable, Sendable, CustomStringConvert
 
     public var debugDescription: String {
         description
+    }
+
+    /// A result about the model as a whole, not about any one field
+    ///
+    /// ```swift
+    /// return [.init(status: .error, message: validationMessages.boardFull)]
+    /// ```
+    ///
+    /// Shown by the form's validations view; field views ignore it.
+    public init(status: Status, message: LocalizableString) {
+        self.init(status: status, fieldIds: [], message: message)
     }
 
     public init(status: Status, fieldId: FormFieldIdentifier, message: LocalizableString) {

@@ -163,6 +163,35 @@ enum MissingEnvironmentDiagnostic {
         """
     }
 
+    /// The message for a form that wanted to display its model-level validation messages
+    /// when no ``Validations`` is installed
+    static func missingFormValidations() -> String {
+        """
+        ================================================================================
+        FOSMVVM: Validations is not installed in the SwiftUI environment.
+
+        'withFormValidations()' displays the form's model-level validation messages
+        through a Validations instance shared via the SwiftUI environment, but none
+        was installed above it in the view hierarchy.
+
+        To fix, install the same instance the form's validation handlers write to,
+        around the form:
+
+            @State private var validations = Validations()
+
+            var body: some View {
+                Form {
+                    FormFieldView(fieldModel: viewModel.$email, focusField: $focusedField)
+                }
+                .withFormValidations()
+                .environment(validations)
+            }
+
+        See the documentation for Validations and withFormValidations().
+        ================================================================================
+        """
+    }
+
     /// The message for a client-side localization read that found ``MVVMEnvironment``
     /// installed but could not obtain its client localization store
     ///
