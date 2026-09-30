@@ -331,7 +331,7 @@ extension Application {
     ///
     /// ```swift
     /// try app.useApexContainerResolver { req in
-    ///     try await req.auth.require(User.self).harborIdentity
+    ///     try await req.auth.require(User.self).workspaceIdentity
     /// }
     /// ```
     ///

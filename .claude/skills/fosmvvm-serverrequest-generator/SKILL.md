@@ -524,9 +524,9 @@ or a destroy:
 ```swift
 func routes(_ app: Application) throws {
     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    try authed.register(request: DockPageRequest.self, app: app)   // guarded read (GET)
-    try authed.register(request: BerthUpdateRequest.self, app: app) // write (PATCH)
-    try authed.register(request: BerthArchiveRequest.self, app: app) // write (DELETE)
+    try authed.register(request: BoardPageRequest.self, app: app)   // guarded read (GET)
+    try authed.register(request: CardUpdateRequest.self, app: app) // write (PATCH)
+    try authed.register(request: CardArchiveRequest.self, app: app) // write (DELETE)
     try app.register(request: LandingPageRequest.self, app: app)   // public — Application is a RoutesBuilder
 }
 ```

@@ -30,7 +30,7 @@ import Vapor
 ///
 /// ```swift
 /// try await withServedFluentTestApp { app in
-///     try app.register(Dock.self, migration: CreateDock())
+///     try app.register(Board.self, migration: CreateBoard())
 ///     try app.useLiveInvalidation(on: app.routes)
 /// } _: { app, baseURL in
 ///     let url = baseURL.appending(path: "invalidations")

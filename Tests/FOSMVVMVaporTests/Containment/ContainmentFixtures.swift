@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Fluent // app.migrations (addHarborMigrations) lives in vapor/fluent
+import Fluent // app.migrations (addWorkspaceMigrations) lives in vapor/fluent
 import FluentKit
 import FOSFoundation
 import FOSMVVM
@@ -39,20 +39,20 @@ final class Pier: DataModel, @unchecked Sendable {
     }
 }
 
-/// The apex container — every Dock belongs to a Harbor; apex-rooted plans resolve here.
-final class Harbor: ContainerDataModel, @unchecked Sendable {
-    static let schema = "harbors"
+/// The apex container — every Board belongs to a Workspace; apex-rooted plans resolve here.
+final class Workspace: ContainerDataModel, @unchecked Sendable {
+    static let schema = "workspaces"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
-        [Dock.self]
+        [Board.self]
     }
 
     static var containment: [ContainmentRelation] {
-        [.children(\Harbor.$docks)]
+        [.children(\Workspace.$boards)]
     }
 
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
-    @Children(for: \.$harbor) var docks: [Dock]
+    @Children(for: \.$workspace) var boards: [Board]
     init() {}
     init(name: String) {
         self.name = name
@@ -63,33 +63,33 @@ final class Harbor: ContainerDataModel, @unchecked Sendable {
     }
 }
 
-final class Dock: ContainerDataModel, @unchecked Sendable {
-    static let schema = "docks"
+final class Board: ContainerDataModel, @unchecked Sendable {
+    static let schema = "boards"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
-        [Berth.self, CrewMember.self, Pier.self, PersonnelFolder.self]
+        [Card.self, Member.self, Pier.self, Checklist.self]
     }
 
     static var containment: [ContainmentRelation] {
         [
-            .children(\Dock.$berths),
-            .siblings(\Dock.$crew),
-            .parent(\Dock.$pier),
-            .children(\Dock.$personnelFolders)
+            .children(\Board.$cards),
+            .siblings(\Board.$members),
+            .parent(\Board.$pier),
+            .children(\Board.$checklists)
         ]
     }
 
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
-    @Parent(key: "harbor_id") var harbor: Harbor
+    @Parent(key: "workspace_id") var workspace: Workspace
     @Parent(key: "pier_id") var pier: Pier
-    @Children(for: \.$dock) var berths: [Berth]
-    @Children(for: \.$dock) var personnelFolders: [PersonnelFolder]
-    @Siblings(through: DockCrew.self, from: \.$dock, to: \.$crewMember) var crew: [CrewMember]
+    @Children(for: \.$board) var cards: [Card]
+    @Children(for: \.$board) var checklists: [Checklist]
+    @Siblings(through: BoardMember.self, from: \.$board, to: \.$member) var members: [Member]
     init() {}
-    init(name: String, pierId: ModelIdType, harborId: ModelIdType) {
+    init(name: String, pierId: ModelIdType, workspaceId: ModelIdType) {
         self.name = name
         $pier.id = pierId
-        $harbor.id = harborId
+        $workspace.id = workspaceId
     }
 
     func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
@@ -97,30 +97,30 @@ final class Dock: ContainerDataModel, @unchecked Sendable {
     }
 }
 
-/// A `.guards` container under Dock — authority granted above stops here; its records need
+/// A `.guards` container under Board — authority granted above stops here; its records need
 /// authority anchored at the folder itself. Registered only by the suites that exercise it.
-final class PersonnelFolder: ContainerDataModel, @unchecked Sendable {
-    static let schema = "personnel_folders"
+final class Checklist: ContainerDataModel, @unchecked Sendable {
+    static let schema = "checklists"
     static var authorityFlow: AuthorityFlow {
         .guards
     }
 
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
-        [PersonnelFile.self]
+        [ChecklistItem.self]
     }
 
     static var containment: [ContainmentRelation] {
-        [.children(\PersonnelFolder.$files)]
+        [.children(\Checklist.$files)]
     }
 
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
-    @Parent(key: "dock_id") var dock: Dock
-    @Children(for: \.$folder) var files: [PersonnelFile]
+    @Parent(key: "board_id") var board: Board
+    @Children(for: \.$folder) var files: [ChecklistItem]
     init() {}
-    init(name: String, dockId: ModelIdType) {
+    init(name: String, boardId: ModelIdType) {
         self.name = name
-        $dock.id = dockId
+        $board.id = boardId
     }
 
     func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
@@ -128,12 +128,12 @@ final class PersonnelFolder: ContainerDataModel, @unchecked Sendable {
     }
 }
 
-/// Child of PersonnelFolder — reachable only through the guard.
-final class PersonnelFile: DataModel, @unchecked Sendable {
-    static let schema = "personnel_files"
+/// Child of Checklist — reachable only through the guard.
+final class ChecklistItem: DataModel, @unchecked Sendable {
+    static let schema = "checklist_items"
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
-    @Parent(key: "folder_id") var folder: PersonnelFolder
+    @Parent(key: "folder_id") var folder: Checklist
     init() {}
     init(name: String, folderId: ModelIdType) {
         self.name = name
@@ -145,17 +145,17 @@ final class PersonnelFile: DataModel, @unchecked Sendable {
     }
 }
 
-final class Berth: DataModel, @unchecked Sendable {
-    static let schema = "berths"
+final class Card: DataModel, @unchecked Sendable {
+    static let schema = "cards"
     @ID(key: .id) var id: UUID?
     @Field(key: "number") var number: Int
-    @Field(key: "dock_name") var dockName: String // denormalized — the composite-sort fixture column
-    @Parent(key: "dock_id") var dock: Dock
+    @Field(key: "board_name") var boardName: String // denormalized — the composite-sort fixture column
+    @Parent(key: "board_id") var board: Board
     init() {}
-    init(number: Int, dockName: String, dockId: ModelIdType) {
+    init(number: Int, boardName: String, boardId: ModelIdType) {
         self.number = number
-        self.dockName = dockName
-        $dock.id = dockId
+        self.boardName = boardName
+        $board.id = boardId
     }
 
     func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
@@ -163,44 +163,44 @@ final class Berth: DataModel, @unchecked Sendable {
     }
 }
 
-/// Berth's ONE published sort vocabulary (test-side stand-in for a shared-module enum).
-enum BerthSortKey: String, SortKey {
+/// Card's ONE published sort vocabulary (test-side stand-in for a shared-module enum).
+enum CardSortKey: String, SortKey {
     case number
-    case dockName
+    case boardName
 }
 
-extension Berth: SortableDataModel {
-    static func sortMappings(for key: BerthSortKey) -> [SortMapping<Berth>] {
+extension Card: SortableDataModel {
+    static func sortMappings(for key: CardSortKey) -> [SortMapping<Card>] {
         switch key {
-        case .number: [.keyPath(\Berth.$number)]
-        case .dockName: [.keyPath(\Berth.$dockName), .keyPath(\Berth.$number)] // stable tiebreak
+        case .number: [.keyPath(\Card.$number)]
+        case .boardName: [.keyPath(\Card.$boardName), .keyPath(\Card.$number)] // stable tiebreak
         }
     }
 }
 
-/// The request query Berth reads as a filter (test-side stand-in for a shared-module type). A query
+/// The request query Card reads as a filter (test-side stand-in for a shared-module type). A query
 /// IS a filter — the model translates it to Fluent below.
-struct BerthSearchQuery: ServerRequestQuery {
-    var dockName: String?
+struct CardSearchQuery: ServerRequestQuery {
+    var boardName: String?
 }
 
-/// A query type Berth does NOT read — the wrong-query-type fixture (mirror of OtherSortKey).
+/// A query type Card does NOT read — the wrong-query-type fixture (mirror of OtherSortKey).
 struct OtherQuery: ServerRequestQuery {
     var value: Int
 }
 
-extension Berth: FilterableDataModel {
-    static func apply(filter: BerthSearchQuery, to query: QueryBuilder<Berth>) -> QueryBuilder<Berth> {
-        guard let dockName = filter.dockName else { return query }
-        return query.filter(\.$dockName == dockName)
+extension Card: FilterableDataModel {
+    static func apply(filter: CardSearchQuery, to query: QueryBuilder<Card>) -> QueryBuilder<Card> {
+        guard let boardName = filter.boardName else { return query }
+        return query.filter(\.$boardName == boardName)
     }
 }
 
-final class CrewMember: DataModel, @unchecked Sendable {
-    static let schema = "crew_members"
+final class Member: DataModel, @unchecked Sendable {
+    static let schema = "members"
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
-    @Siblings(through: DockCrew.self, from: \.$crewMember, to: \.$dock) var docks: [Dock]
+    @Siblings(through: BoardMember.self, from: \.$member, to: \.$board) var boards: [Board]
     init() {}
     init(name: String) {
         self.name = name
@@ -211,15 +211,15 @@ final class CrewMember: DataModel, @unchecked Sendable {
     }
 }
 
-final class DockCrew: DataModel, @unchecked Sendable {
-    static let schema = "dock_crew"
+final class BoardMember: DataModel, @unchecked Sendable {
+    static let schema = "board_member"
     @ID(key: .id) var id: UUID?
-    @Parent(key: "dock_id") var dock: Dock
-    @Parent(key: "crew_member_id") var crewMember: CrewMember
+    @Parent(key: "board_id") var board: Board
+    @Parent(key: "member_id") var member: Member
     init() {}
-    init(dockId: ModelIdType, crewMemberId: ModelIdType) {
-        $dock.id = dockId
-        $crewMember.id = crewMemberId
+    init(boardId: ModelIdType, memberId: ModelIdType) {
+        $board.id = boardId
+        $member.id = memberId
     }
 
     func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
@@ -264,11 +264,11 @@ struct TestGrantsProvider: ContainerAuthorizationProvider {
 
 // MARK: - Deliberately misconfigured containers (fail-fast tests)
 
-/// Same namespace as Dock (anchored to Dock) — duplicate-registration fixture.
-final class RogueDock: ContainerDataModel, @unchecked Sendable {
+/// Same namespace as Board (anchored to Board) — duplicate-registration fixture.
+final class RogueBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "rogue_docks"
     static var modelIdentityNamespace: ModelNamespace {
-        .init(for: Dock.self)
+        .init(for: Board.self)
     }
 
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
@@ -287,14 +287,14 @@ final class RogueDock: ContainerDataModel, @unchecked Sendable {
 }
 
 /// containment built from ANOTHER container's KeyPath — container-type-mismatch fixture.
-final class MismatchedDock: ContainerDataModel, @unchecked Sendable {
+final class MismatchedBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "mismatched_docks"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
-        [Berth.self]
+        [Card.self]
     }
 
     static var containment: [ContainmentRelation] {
-        [.children(\Dock.$berths)]
+        [.children(\Board.$cards)]
     }
 
     @ID(key: .id) var id: UUID?
@@ -304,11 +304,11 @@ final class MismatchedDock: ContainerDataModel, @unchecked Sendable {
     }
 }
 
-/// containment ≠ containedRecordTypes — drift fixture, MISSING direction (declared Berth, forgot containment).
-final class DriftingDock: ContainerDataModel, @unchecked Sendable {
+/// containment ≠ containedRecordTypes — drift fixture, MISSING direction (declared Card, forgot containment).
+final class DriftingBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "drifting_docks"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
-        [Berth.self]
+        [Card.self]
     }
 
     static var containment: [ContainmentRelation] {
@@ -324,29 +324,29 @@ final class DriftingDock: ContainerDataModel, @unchecked Sendable {
 
 /// containment ≠ containedRecordTypes — drift fixture, SURPLUS direction (containment declares a type
 /// containedRecordTypes omits). Needs its own child relationship so the KeyPath's From is itself.
-final class SurplusDock: ContainerDataModel, @unchecked Sendable {
+final class SpareBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "surplus_docks"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] {
         []
     }
 
     static var containment: [ContainmentRelation] {
-        [.children(\SurplusDock.$boats)]
+        [.children(\SpareBoard.$boats)]
     }
 
     @ID(key: .id) var id: UUID?
-    @Children(for: \.$surplusDock) var boats: [Boat]
+    @Children(for: \.$spareBoard) var boats: [Boat]
     init() {}
     func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
         nil
     }
 }
 
-/// Child of SurplusDock (exists only so SurplusDock has a relationship of its own).
+/// Child of SpareBoard (exists only so SpareBoard has a relationship of its own).
 final class Boat: DataModel, @unchecked Sendable {
     static let schema = "boats"
     @ID(key: .id) var id: UUID?
-    @Parent(key: "surplus_dock_id") var surplusDock: SurplusDock
+    @Parent(key: "surplus_dock_id") var spareBoard: SpareBoard
     init() {}
     func validate(fields: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
         nil
@@ -365,127 +365,127 @@ struct CreatePier: AsyncMigration {
     }
 }
 
-struct CreateHarbor: AsyncMigration {
+struct CreateWorkspace: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(Harbor.schema).id().field("name", .string, .required).create()
+        try await database.schema(Workspace.schema).id().field("name", .string, .required).create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(Harbor.schema).delete()
+        try await database.schema(Workspace.schema).delete()
     }
 }
 
-struct CreateDock: AsyncMigration {
+struct CreateBoard: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(Dock.schema).id()
+        try await database.schema(Board.schema).id()
             .field("name", .string, .required)
-            .field("harbor_id", .uuid, .required, .references(Harbor.schema, "id"))
+            .field("workspace_id", .uuid, .required, .references(Workspace.schema, "id"))
             .field("pier_id", .uuid, .required, .references(Pier.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(Dock.schema).delete()
+        try await database.schema(Board.schema).delete()
     }
 }
 
-struct CreatePersonnelFolder: AsyncMigration {
+struct CreateChecklist: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(PersonnelFolder.schema).id()
+        try await database.schema(Checklist.schema).id()
             .field("name", .string, .required)
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(PersonnelFolder.schema).delete()
+        try await database.schema(Checklist.schema).delete()
     }
 }
 
-struct CreatePersonnelFile: AsyncMigration {
+struct CreateChecklistItem: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(PersonnelFile.schema).id()
+        try await database.schema(ChecklistItem.schema).id()
             .field("name", .string, .required)
-            .field("folder_id", .uuid, .required, .references(PersonnelFolder.schema, "id"))
+            .field("folder_id", .uuid, .required, .references(Checklist.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(PersonnelFile.schema).delete()
+        try await database.schema(ChecklistItem.schema).delete()
     }
 }
 
-struct CreateBerth: AsyncMigration {
+struct CreateCard: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(Berth.schema).id()
+        try await database.schema(Card.schema).id()
             .field("number", .int, .required)
-            .field("dock_name", .string, .required)
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
+            .field("board_name", .string, .required)
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(Berth.schema).delete()
+        try await database.schema(Card.schema).delete()
     }
 }
 
-struct CreateCrewMember: AsyncMigration {
+struct CreateMember: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(CrewMember.schema).id().field("name", .string, .required).create()
+        try await database.schema(Member.schema).id().field("name", .string, .required).create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(CrewMember.schema).delete()
+        try await database.schema(Member.schema).delete()
     }
 }
 
-struct CreateDockCrew: AsyncMigration {
+struct CreateBoardMember: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(DockCrew.schema).id()
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
-            .field("crew_member_id", .uuid, .required, .references(CrewMember.schema, "id"))
+        try await database.schema(BoardMember.schema).id()
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
+            .field("member_id", .uuid, .required, .references(Member.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(DockCrew.schema).delete()
+        try await database.schema(BoardMember.schema).delete()
     }
 }
 
 // MARK: - Shared seed
 
-/// Seeds the standard graph and returns the two saved docks (ids populated, no relations eager-loaded):
-/// dock1 (3 berths, 2 crew) and dock2 (1 berth, 1 shared crew member).
-func seedHarbor(on db: any Database) async throws -> (dock1: Dock, dock2: Dock) {
-    let harbor = Harbor(name: "Grand Harbor")
-    try await harbor.save(on: db)
+/// Seeds the standard graph and returns the two saved boards (ids populated, no relations eager-loaded):
+/// dock1 (3 cards, 2 members) and dock2 (1 card, 1 shared members member).
+func seedWorkspace(on db: any Database) async throws -> (dock1: Board, dock2: Board) {
+    let workspace = Workspace(name: "Grand Workspace")
+    try await workspace.save(on: db)
     let pier = Pier(name: "North Pier")
     try await pier.save(on: db)
-    let dock1 = try Dock(name: "Dock 1", pierId: pier.requireId(), harborId: harbor.requireId())
-    let dock2 = try Dock(name: "Dock 2", pierId: pier.requireId(), harborId: harbor.requireId())
+    let dock1 = try Board(name: "Board 1", pierId: pier.requireId(), workspaceId: workspace.requireId())
+    let dock2 = try Board(name: "Board 2", pierId: pier.requireId(), workspaceId: workspace.requireId())
     try await dock1.save(on: db)
     try await dock2.save(on: db)
     for number in 1...3 {
-        try await Berth(number: number, dockName: dock1.name, dockId: dock1.requireId()).save(on: db)
+        try await Card(number: number, boardName: dock1.name, boardId: dock1.requireId()).save(on: db)
     }
-    try await Berth(number: 9, dockName: dock2.name, dockId: dock2.requireId()).save(on: db)
-    let alice = CrewMember(name: "Alice")
-    let bob = CrewMember(name: "Bob")
+    try await Card(number: 9, boardName: dock2.name, boardId: dock2.requireId()).save(on: db)
+    let alice = Member(name: "Alice")
+    let bob = Member(name: "Bob")
     try await alice.save(on: db)
     try await bob.save(on: db)
-    try await DockCrew(dockId: dock1.requireId(), crewMemberId: alice.requireId()).save(on: db)
-    try await DockCrew(dockId: dock1.requireId(), crewMemberId: bob.requireId()).save(on: db)
-    try await DockCrew(dockId: dock2.requireId(), crewMemberId: alice.requireId()).save(on: db)
+    try await BoardMember(boardId: dock1.requireId(), memberId: alice.requireId()).save(on: db)
+    try await BoardMember(boardId: dock1.requireId(), memberId: bob.requireId()).save(on: db)
+    try await BoardMember(boardId: dock2.requireId(), memberId: alice.requireId()).save(on: db)
     return (dock1, dock2)
 }
 
-/// Adds every fixture migration in FK order. (PersonnelFolder/PersonnelFile migrations are added
+/// Adds every fixture migration in FK order. (Checklist/ChecklistItem migrations are added
 /// only by the suites that register them.)
-func addHarborMigrations(_ app: Application) {
-    app.migrations.add(CreateHarbor())
+func addWorkspaceMigrations(_ app: Application) {
+    app.migrations.add(CreateWorkspace())
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
 }

@@ -23,8 +23,8 @@ import Foundation
 /// containment.
 ///
 /// ```swift
-/// final class Dock: ContainerDataModel {
-///     static var containment: [ContainmentRelation] { [.children(\Dock.$berths), .siblings(\Dock.$crew)] }
+/// final class Board: ContainerDataModel {
+///     static var containment: [ContainmentRelation] { [.children(\Board.$cards), .siblings(\Board.$members)] }
 ///     // ...Fluent + Container members...
 /// }
 /// ```

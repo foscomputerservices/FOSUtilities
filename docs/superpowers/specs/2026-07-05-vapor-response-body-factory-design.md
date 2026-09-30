@@ -276,7 +276,7 @@ func refreshRequest() -> RefreshRequest
 ```
 
 The authored bridge is a pure value mapping in the shared module (~2 lines:
-`DockPageRequest(query: .init(dock: query.dock))`). Pass #2 **executes the
+`BoardPageRequest(query: .init(board: query.board))`). Pass #2 **executes the
 refresh request for real** through the genuine GET pipeline — its own plan,
 its own refinement axes (which also settles *which* Sort/Pagination the
 refreshed body renders under: whatever the authored bridge puts there).

@@ -20,7 +20,7 @@
 //
 // Fixture provenance (regenerable):
 //   openssl req -x509 -newkey rsa:2048 -keyout k.pem -out c.pem -days 1 -nodes \
-//       -subj "/CN=harbor-test"
+//       -subj "/CN=workspace-test"
 //   openssl x509 -in c.pem -outform DER -out c.der
 //   base64 -i c.der                                            → certB64
 //   openssl x509 -in c.der -inform DER -pubkey -noout \
@@ -31,7 +31,7 @@ import FOSNetworkSecurity
 import Foundation
 import Testing
 
-/// A self-signed `CN=harbor-test` certificate (RSA-2048), DER, base64-encoded.
+/// A self-signed `CN=workspace-test` certificate (RSA-2048), DER, base64-encoded.
 private let certB64 = """
 MIIDDTCCAfWgAwIBAgIUVqX8ro252adaSXxeIvKKNkcAYFEwDQYJKoZIhvcNAQELBQAwFjEUMBIGA1UEAwwLaGFyYm9yLXRlc3QwHhcNMjYwNjE5MDc1ODMxWhcNMjYwNjIwMDc1ODMxWjAWMRQwEgYDVQQDDAtoYXJib3ItdGVzdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAOGPqeGOuLC/jxhj3/evHGKSvzdrq1E5m9O1wRWnHwdewFHtK9GuJi7JBXfS3vWPI+vlOe3v7oT0kmXyS2/ZLUM/GNYM+V2ySriWKdMchndPiECYgRP9v1flAI2eEo38d6mskr4TF3cHzySNl5vv0TC5yyWw+VQhr6E2KLi2Q8da0E34E2wUoVcXYW/2kfCewqKz+nLtXSN7rf+Yy30aDRFqbj6yL/+xyaYozJgjLGXpGiIeadFxXKQHT95gjvr9x1KTPTwLfjBTFKGGN2G63ulGmlJ2dD20sFPNTLn1pe2C9wVzm2lL261MYqwNqysU4nSjEp+GdNGIZ5GLwGbO/FkCAwEAAaNTMFEwHQYDVR0OBBYEFI5EsWMyAvDAKgvDfKxcJkv9XXhyMB8GA1UdIwQYMBaAFI5EsWMyAvDAKgvDfKxcJkv9XXhyMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAMRszQ+scO4p/PG1oq7gnlMo4spM/O+yRwBRJBqQJsu0c3Hn2JAFVeZWtHbWNqjvxiy/XToZR1eP7XHj0ojwc5/oXMPF3dF+GBpiigiYAfdXc+8H21b6N5UzMuUk95cIWhDHNwud83Eo1mybDws/Xyj41EmPH5y42O8lR3U3vjBEL8Ry14ggzcwmfr39bGAMTrhrWuwYiGUaq4bth5V1Qen+4ezwVtaFUBbBKOLi6j/1RwzTef0YGGISLouEHmzMDcclX37/F2VzDp4bH0zag5vLvb9zkJjJ/+u0UPxLS++s7dDhqIl6b4cH92qeAaSmZpJ4OgEoFDjJcYuIspDSzm0=
 """

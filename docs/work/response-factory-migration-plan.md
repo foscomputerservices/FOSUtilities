@@ -35,8 +35,8 @@ associatedtype Request: ServerRequest where Request.ResponseBody == Self
 ```
 
 Because `Request.ResponseBody == Self` holds for only one request type, it forces each
-body to name **exactly one** request. `BerthListVM.Request` can be `BerthListRequest`
-**or** `UpdateBerthRequest`, not both — so a write couldn't reuse the read body's factory
+body to name **exactly one** request. `CardListVM.Request` can be `CardListRequest`
+**or** `UpdateCardRequest`, not both — so a write couldn't reuse the read body's factory
 and had to name a `RefreshRequest`.
 
 **The fix — delete that `Request` associated type, keep the factory on the body.** Let a
@@ -47,13 +47,13 @@ static func body<R: ServerRequest>(context: ProjectionContext<R, AppState>) thro
     where R.ResponseBody == Self
 ```
 
-- The shared construction stays on the shared type (`BerthListVM`), authored **once**;
-  `BerthListRequest` (read) and `Update/Create/DeleteBerthRequest` (writes) all reuse
+- The shared construction stays on the shared type (`CardListVM`), authored **once**;
+  `CardListRequest` (read) and `Update/Create/DeleteCardRequest` (writes) all reuse
   it. This is the norm — container-perspective writes return the same view the read
   returns.
 - Forward edge is `SR.ResponseBody.body(…)` — works for read **and** write.
   `RefreshRequest` is removed.
-- `ComposableFactory` (`BerthListVM.berths`) **stays on the body**, shared;
+- `ComposableFactory` (`CardListVM.cards`) **stays on the body**, shared;
   `PlanRegistration.swift:39` already reads it off `SR.ResponseBody` — unchanged.
 
 **Two-phase write (unchanged from the model we settled).**
@@ -122,15 +122,15 @@ static func body<R: ServerRequest>(context: ProjectionContext<R, AppState>) thro
 > Construct this body on the server from a request that returns it.
 >
 > ```swift
-> extension BerthListVM: VaporResponseBodyFactory {
+> extension CardListVM: VaporResponseBodyFactory {
 >     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
 >         where R.ResponseBody == Self {
->         BerthListVM(berths: try context.records(Self.berths).map(BerthCell.init))
+>         CardListVM(cards: try context.records(Self.cards).map(CardCell.init))
 >     }
 > }
-> extension BerthListVM: ComposableFactory {
->     static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
->     static var dataRequirements: [any DataRequirement] { [berths] }
+> extension CardListVM: ComposableFactory {
+>     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
+>     static var dataRequirements: [any DataRequirement] { [cards] }
 > }
 > ```
 >
@@ -146,13 +146,13 @@ static func body<R: ServerRequest>(context: ProjectionContext<R, AppState>) thro
 > to build the response after the commit.
 >
 > ```swift
-> final class UpdateBerthRequest: UpdateRequest {
->     typealias RequestBody = UpdateBerthBody
->     typealias ResponseBody = BerthListVM        // same body the read returns — no RefreshRequest
+> final class UpdateCardRequest: UpdateRequest {
+>     typealias RequestBody = UpdateCardBody
+>     typealias ResponseBody = CardListVM        // same body the read returns — no RefreshRequest
 >     // …query/init…
 > }
-> extension UpdateBerthBody: DataModelWriter {
->     func apply(to berth: Berth) throws { berth.name = name; berth.capacity = capacity }
+> extension UpdateCardBody: DataModelWriter {
+>     func apply(to card: Card) throws { card.name = name; card.capacity = capacity }
 > }
 > ```
 
@@ -163,8 +163,8 @@ static func body<R: ServerRequest>(context: ProjectionContext<R, AppState>) thro
 
 ## 3. Contract tests (public contract only)
 
-- **One body, many requests.** The *same* `BerthListVM` served by `BerthListRequest`
-  (GET) and by `UpdateBerthRequest` (PATCH) — both decode to an equal-shaped value;
+- **One body, many requests.** The *same* `CardListVM` served by `CardListRequest`
+  (GET) and by `UpdateCardRequest` (PATCH) — both decode to an equal-shaped value;
   the write reflects the mutation. Via `app.test` / `fromJSON()`, never raw JSON.
 - **Fresh-after-write.** Post-write children reflect the change (invalidation honored).
 - **Zero-data write.** `Delete → EmptyBody` returns empty; phase-2 skipped.

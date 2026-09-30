@@ -87,10 +87,10 @@ public extension ProjectionContext {
 /// the JSON round trip):
 ///
 /// ```swift
-/// static func model(context: Context) throws -> BerthSearchViewModel {
+/// static func model(context: Context) throws -> CardSearchViewModel {
 ///     .init(
-///         berths: try context.records(Self.berths).map(BerthRowViewModel.init),
-///         totalMatches: try context.totalCount(for: Self.berths)
+///         cards: try context.records(Self.cards).map(CardRowViewModel.init),
+///         totalMatches: try context.totalCount(for: Self.cards)
 ///     )
 /// }
 /// ```

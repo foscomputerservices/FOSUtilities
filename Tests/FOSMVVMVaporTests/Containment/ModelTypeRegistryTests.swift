@@ -31,19 +31,19 @@ struct ModelTypeRegistryTests {
     /// Spec test group 1: registry round-trip; unregistered namespace → nil.
     @Test func registrationRoundTripsDescriptor() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, _ in
-            let descriptor = try #require(app.modelTypeRegistry.registered(for: Dock.modelIdentityNamespace))
+            let descriptor = try #require(app.modelTypeRegistry.registered(for: Board.modelIdentityNamespace))
             // Assertion basis per spec: count + per-element containedType identity (not Equatable).
-            #expect(descriptor.containment.count == Dock.containment.count)
+            #expect(descriptor.containment.count == Board.containment.count)
             #expect(
                 Set(descriptor.containment.map { ObjectIdentifier($0.containedType) })
-                    == Set(Dock.containment.map { ObjectIdentifier($0.containedType) })
+                    == Set(Board.containment.map { ObjectIdentifier($0.containedType) })
             )
             #expect(app.modelTypeRegistry.registered(for: Pier.modelIdentityNamespace) == nil)
         }
@@ -52,17 +52,17 @@ struct ModelTypeRegistryTests {
     /// Spec test group 2: find by id; missing id → nil.
     @Test func registeredModelFindsById() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor())
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Workspace.self, migration: CreateWorkspace())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let descriptor = try #require(app.modelTypeRegistry.registered(for: Dock.modelIdentityNamespace))
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let descriptor = try #require(app.modelTypeRegistry.registered(for: Board.modelIdentityNamespace))
             let found = try await descriptor.find(dock1.requireId(), on: db)
-            #expect(try #require(found as? Dock).id == dock1.id)
+            #expect(try #require(found as? Board).id == dock1.id)
             let missing = try await descriptor.find(ModelIdType(), on: db)
             #expect(missing == nil)
         }
@@ -72,16 +72,16 @@ struct ModelTypeRegistryTests {
     /// and a second TYPE sharing the namespace; first registration unchanged.
     @Test func duplicateRegistrationThrows() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor()) // CreateDock's DDL references harbors
+            try app.register(Workspace.self, migration: CreateWorkspace()) // CreateBoard's DDL references workspaces
             app.migrations.add(CreatePier()) // and piers — both must exist first
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Board.self, migration: CreateBoard())
             for attempt in 0..<2 {
                 do {
                     // attempt 0: same type twice; attempt 1: different type, colliding namespace.
                     if attempt == 0 {
-                        try app.register(Dock.self, migration: CreateDock())
+                        try app.register(Board.self, migration: CreateBoard())
                     } else {
-                        try app.register(RogueDock.self, migration: CreateDock())
+                        try app.register(RogueBoard.self, migration: CreateBoard())
                     }
                     Issue.record("expected ContainmentError.duplicateNamespace (attempt \(attempt))")
                 } catch let error as ContainmentError {
@@ -92,22 +92,22 @@ struct ModelTypeRegistryTests {
                 }
             }
             // First registration untouched:
-            let descriptor = try #require(app.modelTypeRegistry.registered(for: Dock.modelIdentityNamespace))
-            #expect(descriptor.containment.count == Dock.containment.count)
+            let descriptor = try #require(app.modelTypeRegistry.registered(for: Board.modelIdentityNamespace))
+            #expect(descriptor.containment.count == Board.containment.count)
             #expect(
                 Set(descriptor.containment.map { ObjectIdentifier($0.containedType) })
-                    == Set(Dock.containment.map { ObjectIdentifier($0.containedType) })
+                    == Set(Board.containment.map { ObjectIdentifier($0.containedType) })
             )
-            // Don't migrate the harbor graph here — this test never touches the DB body.
+            // Don't migrate the workspace graph here — this test never touches the DB body.
         } _: { _, _ in }
     }
 
     /// Spec test group 9: containment from another container's KeyPath fail-fasts.
     @Test func containerTypeMismatchThrows() async throws {
         try await withFluentTestApp { app in
-            app.migrations.add(CreatePier()) // CreateDock's DDL references piers — Pier must exist first
+            app.migrations.add(CreatePier()) // CreateBoard's DDL references piers — Pier must exist first
             do {
-                try app.register(MismatchedDock.self, migration: CreateDock())
+                try app.register(MismatchedBoard.self, migration: CreateBoard())
                 Issue.record("expected ContainmentError.containerTypeMismatch")
             } catch let error as ContainmentError {
                 guard case .containerTypeMismatch = error else {
@@ -115,19 +115,19 @@ struct ModelTypeRegistryTests {
                     return
                 }
             }
-            #expect(app.modelTypeRegistry.registered(for: MismatchedDock.modelIdentityNamespace) == nil)
+            #expect(app.modelTypeRegistry.registered(for: MismatchedBoard.modelIdentityNamespace) == nil)
         } _: { _, _ in }
     }
 
     // Spec test group 10: containment ≠ containedRecordTypes fail-fasts in BOTH directions
-    // (missing: DriftingDock; surplus: SurplusDock); a matching declaration registers cleanly.
+    // (missing: DriftingBoard; surplus: SpareBoard); a matching declaration registers cleanly.
     @Test func containmentDriftThrows() async throws {
         try await withFluentTestApp { app in
-            try app.register(Harbor.self, migration: CreateHarbor()) // CreateDock's DDL references harbors
+            try app.register(Workspace.self, migration: CreateWorkspace()) // CreateBoard's DDL references workspaces
             app.migrations.add(CreatePier()) // and piers — both must exist first
-            // Missing direction: declared Berth, containment empty.
+            // Missing direction: declared Card, containment empty.
             do {
-                try app.register(DriftingDock.self, migration: CreateDock())
+                try app.register(DriftingBoard.self, migration: CreateBoard())
                 Issue.record("expected .containmentDrift (missing direction)")
             } catch let error as ContainmentError {
                 guard case .containmentDrift = error else {
@@ -135,10 +135,10 @@ struct ModelTypeRegistryTests {
                     return
                 }
             }
-            #expect(app.modelTypeRegistry.registered(for: DriftingDock.modelIdentityNamespace) == nil)
+            #expect(app.modelTypeRegistry.registered(for: DriftingBoard.modelIdentityNamespace) == nil)
             // Surplus direction: containment declares Boat, containedRecordTypes empty.
             do {
-                try app.register(SurplusDock.self, migration: CreateDock())
+                try app.register(SpareBoard.self, migration: CreateBoard())
                 Issue.record("expected .containmentDrift (surplus direction)")
             } catch let error as ContainmentError {
                 guard case .containmentDrift = error else {
@@ -146,9 +146,9 @@ struct ModelTypeRegistryTests {
                     return
                 }
             }
-            #expect(app.modelTypeRegistry.registered(for: SurplusDock.modelIdentityNamespace) == nil)
-            // The matching declaration (Dock) registers cleanly:
-            try app.register(Dock.self, migration: CreateDock())
+            #expect(app.modelTypeRegistry.registered(for: SpareBoard.modelIdentityNamespace) == nil)
+            // The matching declaration (Board) registers cleanly:
+            try app.register(Board.self, migration: CreateBoard())
         } _: { _, _ in }
     }
 }

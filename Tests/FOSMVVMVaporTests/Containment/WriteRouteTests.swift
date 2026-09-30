@@ -50,16 +50,16 @@ private struct CountingGrantProvider: ContainerAuthorizationProvider {
 
 private func configureWriteContainers(
     _ app: Application,
-    uniqueBerthNumber: Bool = false,
-    uniqueDockCrew: Bool = false
+    uniqueCardNumber: Bool = false,
+    uniqueBoardMember: Bool = false
 ) throws {
     app.storage[GrantBoxKey.self] = GrantBox()
-    app.migrations.add(CreatePier()) // CreateDock's DDL references piers
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(uniqueBerthNumber ? UniqueNumberBerthMigration() : CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(uniqueDockCrew ? UniqueDockCrewMigration() : CreateDockCrew())
+    app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(uniqueCardNumber ? UniqueNumberCardMigration() : CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(uniqueBoardMember ? UniqueBoardMemberMigration() : CreateBoardMember())
     try app.register(Quay.self, migration: CreateQuay())
     app.migrations.add(CreateMooring())
     try app.useContainerAuthorizationProvider(CountingGrantProvider())
@@ -77,17 +77,17 @@ private func grantCount(_ app: Application) -> Int {
     app.storage[GrantBoxKey.self]?.callCount ?? 0
 }
 
-/// Grants `ops` on Berth in `dock`.
-private func berthGrant(_ dock: Dock, _ ops: [ContainerOperation]) throws -> TestGrant {
+/// Grants `ops` on Card in `board`.
+private func cardGrant(_ board: Board, _ ops: [ContainerOperation]) throws -> TestGrant {
     try TestGrant(
-        authorizedContainer: dock.modelIdentity,
+        authorizedContainer: board.modelIdentity,
         operations: ops,
-        recordTypes: [Berth.modelIdentityNamespace]
+        recordTypes: [Card.modelIdentityNamespace]
     )
 }
 
-private func berths(of dock: Dock, on db: any Database) async throws -> [Berth] {
-    try await Berth.query(on: db).filter(\.$dock.$id == dock.requireId()).all()
+private func cards(of board: Board, on db: any Database) async throws -> [Card] {
+    try await Card.query(on: db).filter(\.$board.$id == board.requireId()).all()
 }
 
 /// Grants `ops` on Mooring in `quay`.
@@ -125,21 +125,21 @@ struct WriteRouteUpdateTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let base = try #require(URL(string: "http://localhost"))
             let url = try #require(try base.appending(serverRequest: vmRequest))
 
             var buffer = ByteBufferAllocator().buffer(capacity: 0)
-            try buffer.writeBytes(JSONEncoder().encode(UpdateBerthBody(number: 88, dockName: "Wired")))
+            try buffer.writeBytes(JSONEncoder().encode(UpdateCardBody(number: 88, boardName: "Wired")))
             var headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
             headers.contentType = .json
             let httpReq = Request(
@@ -150,8 +150,8 @@ struct WriteRouteUpdateTests {
             let response = try await app.responder.respond(to: httpReq).get()
             #expect(response.status == .ok)
             let data = try #require(response.body.data)
-            let refreshed: BerthListVM = try data.fromJSON()
-            #expect(refreshed.berthNumbers.contains(88))
+            let refreshed: CardListVM = try data.fromJSON()
+            #expect(refreshed.cardNumbers.contains(88))
         }
     }
 
@@ -159,27 +159,27 @@ struct WriteRouteUpdateTests {
     @Test func updateReflectsPostWriteState() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 99, dockName: "Renamed"),
+                requestBody: UpdateCardBody(number: 99, boardName: "Renamed"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
             let body = try #require(vmRequest.requestBody)
             let result = try await req.serveUpdate(vmRequest, body: body)
 
-            #expect(result.berthNumbers.contains(99))
+            #expect(result.cardNumbers.contains(99))
             // Persisted, not echoed: a fresh DB read agrees.
-            let reloaded = try #require(try await Berth.find(berth.requireId(), on: db))
+            let reloaded = try #require(try await Card.find(card.requireId(), on: db))
             #expect(reloaded.number == 99)
-            #expect(reloaded.dockName == "Renamed")
+            #expect(reloaded.boardName == "Renamed")
         }
     }
 
@@ -188,16 +188,16 @@ struct WriteRouteUpdateTests {
     @Test func pageReadPlanNotLoadedPreApply() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 5, dockName: "X"),
+                requestBody: UpdateCardBody(number: 5, boardName: "X"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -214,27 +214,27 @@ struct WriteRouteUpdateTests {
     @Test func cacheInvalidatedNoStaleRead() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
-            // The pre-write prime reads through BerthListRequest, so register it as a read too —
+            try app.register(request: UpdateCardRequest.self, app: app)
+            // The pre-write prime reads through CardListRequest, so register it as a read too —
             // a write now derives only its OWN response plan, not a separate refresh request's.
-            try app.register(request: BerthListRequest.self, app: app)
+            try app.register(request: CardListRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
             let req = makeRequest(on: app)
-            // Prime the read-op cache with pre-write berths.
-            try await req.executeRecordLoadPlan(for: BerthListRequest(query: .init(rootIdentity: dock1.modelIdentity)))
+            // Prime the read-op cache with pre-write cards.
+            try await req.executeRecordLoadPlan(for: CardListRequest(query: .init(rootIdentity: dock1.modelIdentity)))
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 77, dockName: "Fresh"),
+                requestBody: UpdateCardBody(number: 77, boardName: "Fresh"),
                 responseBody: nil
             )
             let result = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
-            #expect(result.berthNumbers.contains(77)) // fresh, not the stale primed set
+            #expect(result.cardNumbers.contains(77)) // fresh, not the stale primed set
         }
     }
 
@@ -243,16 +243,16 @@ struct WriteRouteUpdateTests {
     @Test func grantMemoSurvivesTheWrite() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 3, dockName: "Y"),
+                requestBody: UpdateCardBody(number: 3, boardName: "Y"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -265,20 +265,20 @@ struct WriteRouteUpdateTests {
     /// A save-time DB constraint violation propagates as the request's error.
     @Test func saveConstraintViolationPropagates() async throws {
         try await withFluentTestApp { app in
-            try configureWriteContainers(app, uniqueBerthNumber: true)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try configureWriteContainers(app, uniqueCardNumber: true)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let all = try await berths(of: dock1, on: db).sorted { $0.number < $1.number }
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let all = try await cards(of: dock1, on: db).sorted { $0.number < $1.number }
             let first = try #require(all.first) // number 1
             let second = try #require(all.dropFirst().first) // number 2
 
-            // Update berth #1 → number 2, colliding with berth #2 on the unique index.
-            let vmRequest = try UpdateBerthRequest(
+            // Update card #1 → number 2, colliding with card #2 on the unique index.
+            let vmRequest = try UpdateCardRequest(
                 query: .init(rootIdentity: dock1.modelIdentity, target: first.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: second.number, dockName: "Collide"),
+                requestBody: UpdateCardBody(number: second.number, boardName: "Collide"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -298,23 +298,23 @@ struct WriteRouteCreateTests {
     @Test func createAddsRecordVisibleInRefresh() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .createRecords])])
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .createRecords])])
 
-            let vmRequest = try CreateBerthRequest(
+            let vmRequest = try CreateCardRequest(
                 query: .init(rootIdentity: dock1.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: CreateBerthBody(number: 42, dockName: "New Berth"),
+                requestBody: CreateCardBody(number: 42, boardName: "New Card"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
             let result = try await req.serveCreate(vmRequest, body: #require(vmRequest.requestBody))
 
-            #expect(result.berthNumbers.contains(42))
-            // The container FK was set from the candidate scope: the new berth belongs to dock1.
-            let created = try await berths(of: dock1, on: db).filter { $0.number == 42 }
+            #expect(result.cardNumbers.contains(42))
+            // The container FK was set from the candidate scope: the new card belongs to dock1.
+            let created = try await cards(of: dock1, on: db).filter { $0.number == 42 }
             #expect(created.count == 1)
         }
     }
@@ -323,7 +323,7 @@ struct WriteRouteCreateTests {
     /// containers; the create scope must be exactly one). This line only compiles because `.create`
     /// has no `via:` parameter.
     @Test func createTakesNoIntermediates() {
-        _ = LoadRequirement.create(Berth.self, in: .parentRoot)
+        _ = LoadRequirement.create(Card.self, in: .parentRoot)
     }
 }
 
@@ -386,11 +386,11 @@ struct WriteRouteArchiveTests {
         do {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: ArchiveBerthRequest.self, app: app)
+                try app.register(request: ArchiveCardRequest.self, app: app)
             } _: { _, _ in }
             Issue.record("expected a boot throw for an archive of a model with no delete timestamp")
         } catch let error as ServerRequestControllerError {
-            #expect(error == .archiveUnsupported(request: "ArchiveBerthRequest", model: "Berth"))
+            #expect(error == .archiveUnsupported(request: "ArchiveCardRequest", model: "Card"))
             #expect(error.debugDescription.contains("deleted_at"))
             #expect(error.debugDescription.contains("DestroyRequest"))
         }
@@ -456,25 +456,25 @@ struct WriteRouteValidationTests {
     @Test func failingValidationNeverReachesApply() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
-            let originalNumber = berth.number
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let originalNumber = card.number
 
-            // number == -1 fails UpdateBerthBody.validate.
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            // number == -1 fails UpdateCardBody.validate.
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: -1, dockName: "Nope"),
+                requestBody: UpdateCardBody(number: -1, boardName: "Nope"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
             await #expect(throws: ValidationError.self) {
                 _ = try await req.commitUpdate(vmRequest, body: #require(vmRequest.requestBody))
             }
-            let reloaded = try #require(try await Berth.find(berth.requireId(), on: db))
+            let reloaded = try #require(try await Card.find(card.requireId(), on: db))
             #expect(reloaded.number == originalNumber) // apply never ran
         }
     }
@@ -488,17 +488,17 @@ struct WriteRouteRetargetTests {
     @Test func targetOutsideCandidateSetIsNotFound() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            // A berth in dock2, but the request roots at dock1 — outside the candidate set.
-            let foreignBerth = try #require(try await berths(of: dock2, on: db).first)
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            // A card in dock2, but the request roots at dock1 — outside the candidate set.
+            let foreignCard = try #require(try await cards(of: dock2, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: foreignBerth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: foreignCard.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 1, dockName: "Z"),
+                requestBody: UpdateCardBody(number: 1, boardName: "Z"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -509,20 +509,20 @@ struct WriteRouteRetargetTests {
     }
 
     /// The candidate set honors the write verb's operation in grant checks: a read-only grant
-    /// authorizes no write candidate, so even the request's own berth is not-found.
+    /// authorizes no write candidate, so even the request's own card is not-found.
     @Test func candidateHonorsWriteVerbInGrantChecks() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords])]) // NO write grant
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords])]) // NO write grant
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 1, dockName: "Z"),
+                requestBody: UpdateCardBody(number: 1, boardName: "Z"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -537,16 +537,16 @@ struct WriteRouteRetargetTests {
     @Test func missingCandidatePlanFailsFast() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            // NOTE: UpdateBerthRequest is deliberately NOT registered — no candidate plan exists.
+            // NOTE: UpdateCardRequest is deliberately NOT registered — no candidate plan exists.
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 1, dockName: "Z"),
+                requestBody: UpdateCardBody(number: 1, boardName: "Z"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -558,8 +558,8 @@ struct WriteRouteRetargetTests {
 
     /// Body-borne identity is impossible by construction: no RequestBody stores a ModelIdType.
     @Test func requestBodiesCarryNoModelIdType() {
-        for mirror in [Mirror(reflecting: UpdateBerthBody(number: 0, dockName: "")),
-                       Mirror(reflecting: CreateBerthBody(number: 0, dockName: ""))] {
+        for mirror in [Mirror(reflecting: UpdateCardBody(number: 0, boardName: "")),
+                       Mirror(reflecting: CreateCardBody(number: 0, boardName: ""))] {
             for child in mirror.children {
                 #expect(!(child.value is ModelIdType))
                 #expect(!(child.value is ModelIdType?))
@@ -577,10 +577,10 @@ struct WriteRouteBootTests {
     @Test func fullyConstrainedWriteRequestBindsWriteDoor() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, _ in
-            #expect(app.candidatePlan(for: UpdateBerthRequest.self) != nil)
-            #expect(app.recordLoadPlan(for: UpdateBerthRequest.self) != nil) // its own response plan too
+            #expect(app.candidatePlan(for: UpdateCardRequest.self) != nil)
+            #expect(app.recordLoadPlan(for: UpdateCardRequest.self) != nil) // its own response plan too
         }
     }
 
@@ -651,21 +651,21 @@ struct WriteRouteBootTests {
 @Suite("Write route: response parity")
 struct WriteRouteResponseParityTests {
     /// The write re-serves ITSELF through the read pipeline, so its response equals a direct serve
-    /// of the same request: one `ResponseBody` factory (`BerthListVM`), reached by the write path or
+    /// of the same request: one `ResponseBody` factory (`CardListVM`), reached by the write path or
     /// as a read — the generalization that replaced the refresh bridge.
     @Test func writeResponseMatchesDirectServe() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: UpdateBerthRequest.self, app: app)
+            try app.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
-            let vmRequest = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 55, dockName: "Bridged"),
+                requestBody: UpdateCardBody(number: 55, boardName: "Bridged"),
                 responseBody: nil
             )
             let writeReq = makeRequest(on: app)
@@ -675,66 +675,66 @@ struct WriteRouteResponseParityTests {
             let readReq = makeRequest(on: app)
             let viaServe = try await readReq.serve(vmRequest)
 
-            #expect(viaWrite.berthNumbers == viaServe.berthNumbers)
-            #expect(viaWrite.berthNames.sorted() == viaServe.berthNames.sorted())
+            #expect(viaWrite.cardNumbers == viaServe.cardNumbers)
+            #expect(viaWrite.cardNames.sorted() == viaServe.cardNames.sorted())
         }
     }
 }
 
 // MARK: - Boot-fixture: unique-index migration (constraint-violation test)
 
-/// Berth schema with a UNIQUE(number) constraint baked in at creation — SQLite cannot add a unique
-/// index via ALTER TABLE, so the constraint must exist from the start. Same schema name as Berth.
-struct UniqueNumberBerthMigration: AsyncMigration {
+/// Card schema with a UNIQUE(number) constraint baked in at creation — SQLite cannot add a unique
+/// index via ALTER TABLE, so the constraint must exist from the start. Same schema name as Card.
+struct UniqueNumberCardMigration: AsyncMigration {
     var name: String {
-        "UniqueNumberBerthMigration"
+        "UniqueNumberCardMigration"
     }
 
     func prepare(on database: any Database) async throws {
-        try await database.schema(Berth.schema).id()
+        try await database.schema(Card.schema).id()
             .field("number", .int, .required)
-            .field("dock_name", .string, .required)
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
+            .field("board_name", .string, .required)
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
             .unique(on: "number")
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(Berth.schema).delete()
+        try await database.schema(Card.schema).delete()
     }
 }
 
-/// Dock-crew pivot schema with a UNIQUE(dock_id) constraint — a dock accepts at most ONE pivot
-/// row. Pre-seeding one occupying row makes a second attach (into the same dock) violate the
+/// Board-members pivot schema with a UNIQUE(board_id) constraint — a board accepts at most ONE pivot
+/// row. Pre-seeding one occupying row makes a second attach (into the same board) violate the
 /// index, so the create+attach transaction's attach step fails on demand. Same schema name as
-/// DockCrew; SQLite needs the unique index baked in at creation.
-struct UniqueDockCrewMigration: AsyncMigration {
+/// BoardMember; SQLite needs the unique index baked in at creation.
+struct UniqueBoardMemberMigration: AsyncMigration {
     var name: String {
-        "UniqueDockCrewMigration"
+        "UniqueBoardMemberMigration"
     }
 
     func prepare(on database: any Database) async throws {
-        try await database.schema(DockCrew.schema).id()
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
-            .field("crew_member_id", .uuid, .required, .references(CrewMember.schema, "id"))
-            .unique(on: "dock_id")
+        try await database.schema(BoardMember.schema).id()
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
+            .field("member_id", .uuid, .required, .references(Member.schema, "id"))
+            .unique(on: "board_id")
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(DockCrew.schema).delete()
+        try await database.schema(BoardMember.schema).delete()
     }
 }
 
 // MARK: - Create-gate helpers (C1)
 
-/// A fresh, empty dock in the seeded harbor — the create gate's probe container.
-private func makeEmptyDock(named name: String, on db: any Database) async throws -> Dock {
-    let harbor = try #require(try await Harbor.query(on: db).first())
+/// A fresh, empty board in the seeded workspace — the create gate's probe container.
+private func makeEmptyBoard(named name: String, on db: any Database) async throws -> Board {
+    let workspace = try #require(try await Workspace.query(on: db).first())
     let pier = try #require(try await Pier.query(on: db).first())
-    let dock = try Dock(name: name, pierId: pier.requireId(), harborId: harbor.requireId())
-    try await dock.save(on: db)
-    return dock
+    let board = try Board(name: name, pierId: pier.requireId(), workspaceId: workspace.requireId())
+    try await board.save(on: db)
+    return board
 }
 
 // MARK: - Group 6 additions: the create gate (C1)
@@ -746,52 +746,52 @@ struct WriteRouteCreateGateTests {
     @Test func unauthorizedCreateWithZeroGrantsIsNotFound() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
-            let dock = try await makeEmptyDock(named: "Zero Grant Dock", on: db)
+            _ = try await seedWorkspace(on: db)
+            let board = try await makeEmptyBoard(named: "Zero Grant Board", on: db)
             setGrants(app, []) // nothing granted at all
 
-            let rowsBefore = try await Berth.query(on: db).count()
-            let vmRequest = try CreateBerthRequest(
-                query: .init(rootIdentity: dock.modelIdentity),
+            let rowsBefore = try await Card.query(on: db).count()
+            let vmRequest = try CreateCardRequest(
+                query: .init(rootIdentity: board.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: CreateBerthBody(number: 7, dockName: "Nope"),
+                requestBody: CreateCardBody(number: 7, boardName: "Nope"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
             await #expect(throws: Abort.self) {
                 _ = try await req.serveCreate(vmRequest, body: #require(vmRequest.requestBody))
             }
-            let rowsAfter = try await Berth.query(on: db).count()
+            let rowsAfter = try await Card.query(on: db).count()
             #expect(rowsAfter == rowsBefore)
             #expect(grantCount(app) == 1)
         }
     }
 
-    /// READ-ONLY grant: reading the dock's berths is allowed, creating into it is not —
+    /// READ-ONLY grant: reading the board's cards is allowed, creating into it is not —
     /// the create is not-found and no row lands.
     @Test func unauthorizedCreateWithReadOnlyGrantIsNotFound() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
-            let dock = try await makeEmptyDock(named: "Read Only Dock", on: db)
-            try setGrants(app, [berthGrant(dock, [.readRecords])]) // read, never create
+            _ = try await seedWorkspace(on: db)
+            let board = try await makeEmptyBoard(named: "Read Only Board", on: db)
+            try setGrants(app, [cardGrant(board, [.readRecords])]) // read, never create
 
-            let rowsBefore = try await Berth.query(on: db).count()
-            let vmRequest = try CreateBerthRequest(
-                query: .init(rootIdentity: dock.modelIdentity),
+            let rowsBefore = try await Card.query(on: db).count()
+            let vmRequest = try CreateCardRequest(
+                query: .init(rootIdentity: board.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: CreateBerthBody(number: 8, dockName: "Nope"),
+                requestBody: CreateCardBody(number: 8, boardName: "Nope"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
             await #expect(throws: Abort.self) {
                 _ = try await req.serveCreate(vmRequest, body: #require(vmRequest.requestBody))
             }
-            let rowsAfter = try await Berth.query(on: db).count()
+            let rowsAfter = try await Card.query(on: db).count()
             #expect(rowsAfter == rowsBefore)
             #expect(grantCount(app) == 1)
         }
@@ -803,22 +803,22 @@ struct WriteRouteCreateGateTests {
     @Test func authorizedCreateIntoEmptyContainerSucceeds() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
-            let dock = try await makeEmptyDock(named: "Empty Granted Dock", on: db)
-            try setGrants(app, [berthGrant(dock, [.createRecords])])
+            _ = try await seedWorkspace(on: db)
+            let board = try await makeEmptyBoard(named: "Empty Granted Board", on: db)
+            try setGrants(app, [cardGrant(board, [.createRecords])])
 
-            let vmRequest = try CreateBerthRequest(
-                query: .init(rootIdentity: dock.modelIdentity),
+            let vmRequest = try CreateCardRequest(
+                query: .init(rootIdentity: board.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: CreateBerthBody(number: 21, dockName: "Landed"),
+                requestBody: CreateCardBody(number: 21, boardName: "Landed"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
             _ = try await req.commitCreate(vmRequest, body: #require(vmRequest.requestBody))
 
-            let created = try await berths(of: dock, on: db)
+            let created = try await cards(of: board, on: db)
             #expect(created.count == 1)
             #expect(created.first?.number == 21)
         }
@@ -829,25 +829,25 @@ struct WriteRouteCreateGateTests {
     @Test func deniedCreateMatchesMissingContainerShape() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
+            _ = try await seedWorkspace(on: db)
 
-            // DENIED: the dock exists; no grant covers it.
-            let deniedDock = try await makeEmptyDock(named: "Denied Dock", on: db)
-            let deniedIdentity = try deniedDock.modelIdentity
+            // DENIED: the board exists; no grant covers it.
+            let deniedBoard = try await makeEmptyBoard(named: "Denied Board", on: db)
+            let deniedIdentity = try deniedBoard.modelIdentity
 
             // MISSING: the grant covers it, but the row is gone.
-            let goneDock = try await makeEmptyDock(named: "Gone Dock", on: db)
-            let goneIdentity = try goneDock.modelIdentity
-            try setGrants(app, [berthGrant(goneDock, [.createRecords])])
-            try await goneDock.delete(on: db)
+            let goneBoard = try await makeEmptyBoard(named: "Gone Board", on: db)
+            let goneIdentity = try goneBoard.modelIdentity
+            try setGrants(app, [cardGrant(goneBoard, [.createRecords])])
+            try await goneBoard.delete(on: db)
 
             func createStatus(into root: ModelIdentity) async throws -> HTTPResponseStatus? {
-                let vmRequest = CreateBerthRequest(
+                let vmRequest = CreateCardRequest(
                     query: .init(rootIdentity: root),
                     sort: nil, fragment: nil,
-                    requestBody: CreateBerthBody(number: 1, dockName: "X"),
+                    requestBody: CreateCardBody(number: 1, boardName: "X"),
                     responseBody: nil
                 )
                 do {
@@ -868,11 +868,11 @@ struct WriteRouteCreateGateTests {
 
 // MARK: - I2: verb–door coherence boot fixtures (plan-level probe)
 
-/// A child declaring a `.create` scope, composed via Dock — the ONLY way a walked plan can carry
+/// A child declaring a `.create` scope, composed via Board — the ONLY way a walked plan can carry
 /// a `.createRecords` tuple with a non-empty path (deriveCandidatePlan's childless CandidateFactory
 /// can never produce one); exercises the defense-in-depth branch directly.
 private struct CreateLeafFactory: ComposableFactory {
-    static let scope = LoadRequirement.create(Berth.self, in: .parentRoot)
+    static let scope = LoadRequirement.create(Card.self, in: .parentRoot)
     static var dataRequirements: [any DataRequirement] {
         [scope]
     }
@@ -880,7 +880,7 @@ private struct CreateLeafFactory: ComposableFactory {
 
 private struct CreateViaParentFactory: ComposableFactory {
     static var children: [ComposedChild] {
-        [.child(CreateLeafFactory.self, via: Dock.self)]
+        [.child(CreateLeafFactory.self, via: Board.self)]
     }
 }
 
@@ -934,7 +934,7 @@ struct WriteRouteVerbDoorTests {
                 try app.requireVerbDoorCoherence(
                     of: plan,
                     request: "CreatePathProbe",
-                    writer: CreateBerthBody.self,
+                    writer: CreateCardBody.self,
                     expectedOperation: .createRecords
                 )
                 Issue.record("expected a throw for a .create tuple with intermediate hops")
@@ -975,46 +975,46 @@ struct CreateMemberCapabilityTests {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let newCrew = CrewMember(name: "Zed")
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let newMembers = Member(name: "Zed")
 
             let req = makeRequest(on: app)
-            try await req.createMember(newCrew, in: dock1.modelIdentity, on: db)
+            try await req.createMember(newMembers, in: dock1.modelIdentity, on: db)
 
-            let attached = try #require(try await Dock.find(dock1.requireId(), on: db))
-            let names = try await attached.$crew.query(on: db).all().map(\.name)
+            let attached = try #require(try await Board.find(dock1.requireId(), on: db))
+            let names = try await attached.$members.query(on: db).all().map(\.name)
             #expect(names.contains("Zed"))
         }
     }
 
-    /// The create+attach transaction is atomic: when the pivot attach fails (the dock's unique
+    /// The create+attach transaction is atomic: when the pivot attach fails (the board's unique
     /// pivot slot is already occupied by a pre-seeded row), the freshly-created sibling is rolled
-    /// back — NO orphan crew row is committed. The crew table's row count is unchanged.
+    /// back — NO orphan members row is committed. The members table's row count is unchanged.
     @Test func siblingsAttachFailureRollsBackCreate() async throws {
         try await withFluentTestApp { app in
-            try configureWriteContainers(app, uniqueDockCrew: true)
+            try configureWriteContainers(app, uniqueBoardMember: true)
         } _: { app, db in
-            // Minimal graph: one dock whose single unique pivot slot is already taken.
-            let harbor = Harbor(name: "H")
-            try await harbor.save(on: db)
+            // Minimal graph: one board whose single unique pivot slot is already taken.
+            let workspace = Workspace(name: "H")
+            try await workspace.save(on: db)
             let pier = Pier(name: "P")
             try await pier.save(on: db)
-            let dock = try Dock(name: "D", pierId: pier.requireId(), harborId: harbor.requireId())
-            try await dock.save(on: db)
-            let occupant = CrewMember(name: "Occupant")
+            let board = try Board(name: "D", pierId: pier.requireId(), workspaceId: workspace.requireId())
+            try await board.save(on: db)
+            let occupant = Member(name: "Occupant")
             try await occupant.save(on: db)
-            try await DockCrew(dockId: dock.requireId(), crewMemberId: occupant.requireId()).save(on: db)
+            try await BoardMember(boardId: board.requireId(), memberId: occupant.requireId()).save(on: db)
 
-            let crewBefore = try await CrewMember.query(on: db).count()
-            let newCrew = CrewMember(name: "Would-be Orphan")
+            let membersBefore = try await Member.query(on: db).count()
+            let newMembers = Member(name: "Would-be Orphan")
             let req = makeRequest(on: app)
             await #expect(throws: (any Error).self) {
-                try await req.createMember(newCrew, in: dock.modelIdentity, on: db)
+                try await req.createMember(newMembers, in: board.modelIdentity, on: db)
             }
 
-            // The attach violated UNIQUE(dock_id); the transaction rolled back the created crew row.
-            let crewAfter = try await CrewMember.query(on: db).count()
-            #expect(crewAfter == crewBefore)
+            // The attach violated UNIQUE(board_id); the transaction rolled back the created members row.
+            let membersAfter = try await Member.query(on: db).count()
+            #expect(membersAfter == membersBefore)
         }
     }
 
@@ -1023,7 +1023,7 @@ struct CreateMemberCapabilityTests {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let pier = Pier(name: "Orphan Pier")
 
             let req = makeRequest(on: app)
@@ -1044,14 +1044,14 @@ struct CreateMemberCapabilityTests {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
-            let dock = try await makeEmptyDock(named: "Ephemeral Dock", on: db)
-            let identity = try dock.modelIdentity
-            try await dock.delete(on: db)
+            _ = try await seedWorkspace(on: db)
+            let board = try await makeEmptyBoard(named: "Ephemeral Board", on: db)
+            let identity = try board.modelIdentity
+            try await board.delete(on: db)
 
-            let fresh = Berth()
+            let fresh = Card()
             fresh.number = 1
-            fresh.dockName = "X"
+            fresh.boardName = "X"
             let req = makeRequest(on: app)
             do {
                 try await req.createMember(fresh, in: identity, on: db)
@@ -1067,14 +1067,14 @@ struct CreateMemberCapabilityTests {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            // A Berth is a record, never a registered container — its identity has no descriptor.
-            let berth = try #require(try await berths(of: dock1, on: db).first)
-            let fresh = CrewMember(name: "Lost")
+            let (dock1, _) = try await seedWorkspace(on: db)
+            // A Card is a record, never a registered container — its identity has no descriptor.
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let fresh = Member(name: "Lost")
 
             let req = makeRequest(on: app)
             do {
-                try await req.createMember(fresh, in: berth.modelIdentity, on: db)
+                try await req.createMember(fresh, in: card.modelIdentity, on: db)
                 Issue.record("expected unregisteredNamespace for a non-container identity")
             } catch let error as ContainmentError {
                 guard case .unregisteredNamespace = error else {
@@ -1095,12 +1095,12 @@ struct WriteRouteHTTPPipelineTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureWriteContainers(app)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .createRecords])])
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .createRecords])])
 
-            let vmRequest = try CreateBerthRequest(
+            let vmRequest = try CreateCardRequest(
                 query: .init(rootIdentity: dock1.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
@@ -1108,7 +1108,7 @@ struct WriteRouteHTTPPipelineTests {
             let url = try #require(try base.appending(serverRequest: vmRequest))
 
             var buffer = ByteBufferAllocator().buffer(capacity: 0)
-            try buffer.writeBytes(JSONEncoder().encode(CreateBerthBody(number: 66, dockName: "Posted")))
+            try buffer.writeBytes(JSONEncoder().encode(CreateCardBody(number: 66, boardName: "Posted")))
             var headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
             headers.contentType = .json
             let httpReq = Request(
@@ -1119,8 +1119,8 @@ struct WriteRouteHTTPPipelineTests {
             let response = try await app.responder.respond(to: httpReq).get()
             #expect(response.status == .ok)
             let data = try #require(response.body.data)
-            let refreshed: BerthListVM = try data.fromJSON()
-            #expect(refreshed.berthNumbers.contains(66))
+            let refreshed: CardListVM = try data.fromJSON()
+            #expect(refreshed.cardNumbers.contains(66))
         }
     }
 
@@ -1162,14 +1162,14 @@ struct WriteRouteHTTPPipelineTests {
 
 /// Lets the update reach the database, then refuses it the way the model's own rules do — the
 /// route must answer with the *request's* error type, and the write must not survive.
-private struct RefusingBerthUpdate: ModelMiddleware {
-    func update(model: Berth, on db: any Database, next: any AnyModelResponder) -> EventLoopFuture<Void> {
+private struct RefusingCardUpdate: ModelMiddleware {
+    func update(model: Card, on db: any Database, next: any AnyModelResponder) -> EventLoopFuture<Void> {
         next.update(model, on: db).flatMapThrowing {
             throw ValidationError(
                 validation: .init(
                     status: .error,
-                    fieldId: #fieldId(\Berth.number),
-                    message: .constant("the model refused this berth")
+                    fieldId: #fieldId(\Card.number),
+                    message: .constant("the model refused this card")
                 )
             )
         }
@@ -1177,11 +1177,11 @@ private struct RefusingBerthUpdate: ModelMiddleware {
 }
 
 /// Inserts the new row, then throws for the one number the rollback test creates — so that row
-/// exists inside the transaction and nowhere after it, while the seed creates berths normally.
-private struct FailingBerthCreate: ModelMiddleware {
+/// exists inside the transaction and nowhere after it, while the seed creates cards normally.
+private struct FailingCardCreate: ModelMiddleware {
     static let refusedNumber = 77
 
-    func create(model: Berth, on db: any Database, next: any AnyModelResponder) -> EventLoopFuture<Void> {
+    func create(model: Card, on db: any Database, next: any AnyModelResponder) -> EventLoopFuture<Void> {
         next.create(model, on: db).flatMapThrowing {
             guard model.number == Self.refusedNumber else {
                 return
@@ -1193,24 +1193,24 @@ private struct FailingBerthCreate: ModelMiddleware {
 
 @Suite("Write route: typed refusals and the commit transaction")
 struct WriteRouteTypedErrorTests {
-    /// The body's own rules refuse: the client decodes `BerthWriteRefusal`, not `ValidationError`.
+    /// The body's own rules refuse: the client decodes `CardWriteRefusal`, not `ValidationError`.
     @Test func bodyValidationRethrowsRequestResponseError() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
             try app.register(request: TypedErrorUpdateRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
 
             let vmRequest = try TypedErrorUpdateRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: TypedErrorUpdateBody(number: -1, dockName: "Refused"),
+                requestBody: TypedErrorUpdateBody(number: -1, boardName: "Refused"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
-            let refusal = await #expect(throws: BerthWriteRefusal.self) {
+            let refusal = await #expect(throws: CardWriteRefusal.self) {
                 _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
             }
             #expect(refusal?.validations.count == 1)
@@ -1222,27 +1222,27 @@ struct WriteRouteTypedErrorTests {
     @Test func writeRouteRethrowsRequestResponseError() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            app.databases.middleware.use(RefusingBerthUpdate(), on: .sqlite)
+            app.databases.middleware.use(RefusingCardUpdate(), on: .sqlite)
             try app.register(request: TypedErrorUpdateRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
-            let originalNumber = berth.number
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let originalNumber = card.number
 
             let vmRequest = try TypedErrorUpdateRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: TypedErrorUpdateBody(number: 55, dockName: "Refused"),
+                requestBody: TypedErrorUpdateBody(number: 55, boardName: "Refused"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
-            let refusal = await #expect(throws: BerthWriteRefusal.self) {
+            let refusal = await #expect(throws: CardWriteRefusal.self) {
                 _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
             }
             #expect(refusal?.validations.count == 1)
 
-            let after = try await berths(of: dock1, on: db)
+            let after = try await cards(of: dock1, on: db)
             #expect(after.contains { $0.number == originalNumber })
             #expect(!after.contains { $0.number == 55 })
         }
@@ -1309,16 +1309,16 @@ struct WriteRouteTypedErrorTests {
     @Test func createRollsBackWhenTheWriteThrows() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            app.databases.middleware.use(FailingBerthCreate(), on: .sqlite)
-            try app.register(request: CreateBerthRequest.self, app: app)
+            app.databases.middleware.use(FailingCardCreate(), on: .sqlite)
+            try app.register(request: CreateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .createRecords])])
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .createRecords])])
 
-            let vmRequest = try CreateBerthRequest(
+            let vmRequest = try CreateCardRequest(
                 query: .init(rootIdentity: dock1.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: CreateBerthBody(number: 77, dockName: "Rolled Back"),
+                requestBody: CreateCardBody(number: 77, boardName: "Rolled Back"),
                 responseBody: nil
             )
             let req = makeRequest(on: app)
@@ -1326,7 +1326,7 @@ struct WriteRouteTypedErrorTests {
                 _ = try await req.serveCreate(vmRequest, body: #require(vmRequest.requestBody))
             }
 
-            let all = try await berths(of: dock1, on: db)
+            let all = try await cards(of: dock1, on: db)
             #expect(!all.contains { $0.number == 77 })
         }
     }

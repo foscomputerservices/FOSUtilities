@@ -48,9 +48,9 @@ public struct SortTerm<Key: SortKey>: Codable, Hashable, Sendable {
 /// A client's chosen ordering for a container's records: an ordered list of ``SortTerm``s.
 ///
 /// ```swift
-/// // Sort berths by dock name, then by number descending:
-/// let sort = SortCriteria<BerthSortKey>([
-///     .init(key: .dockName, direction: .ascending),
+/// // Sort cards by board name, then by number descending:
+/// let sort = SortCriteria<CardSortKey>([
+///     .init(key: .boardName, direction: .ascending),
 ///     .init(key: .number, direction: .descending),
 /// ])
 /// ```

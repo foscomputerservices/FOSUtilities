@@ -36,13 +36,13 @@ struct AfterCommitHookTests {
     @Test func hookRunsOnceAfterCommitWithoutLiveInvalidation() async throws {
         let log = HookLog()
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
 
             try await app.liveTransaction { tx in
-                let berth = try Berth(number: 100, dockName: dock1.name, dockId: dock1.requireId())
-                try await berth.save(on: tx)
+                let card = try Card(number: 100, boardName: dock1.name, boardId: dock1.requireId())
+                try await card.save(on: tx)
                 #expect(await LiveTransactionState.deferUntilCommit(on: tx) { log.append("hook") })
                 #expect(log.all.isEmpty)
             }
@@ -50,7 +50,7 @@ struct AfterCommitHookTests {
             #expect(log.all == ["hook"])
 
             // The write the hook rode with is durable.
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 4)
         }
     }
@@ -60,14 +60,14 @@ struct AfterCommitHookTests {
     @Test func hookNeverRunsWhenTheTransactionThrows() async throws {
         let log = HookLog()
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
 
             await #expect(throws: HookFailure.self) {
                 try await app.liveTransaction { tx in
-                    let berth = try Berth(number: 101, dockName: dock1.name, dockId: dock1.requireId())
-                    try await berth.save(on: tx)
+                    let card = try Card(number: 101, boardName: dock1.name, boardId: dock1.requireId())
+                    try await card.save(on: tx)
                     #expect(await LiveTransactionState.deferUntilCommit(on: tx) { log.append("hook") })
                     throw HookFailure()
                 }
@@ -75,7 +75,7 @@ struct AfterCommitHookTests {
 
             #expect(log.all.isEmpty)
 
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 3) // rolled back to the seeded three
         }
     }
@@ -90,17 +90,17 @@ struct AfterCommitHookTests {
     @Test func nestedLiveTransactionOnTheSameConnectionDrainsAtTheOutermostCommit() async throws {
         let log = HookLog()
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
 
             try await app.liveTransaction { outer in
                 #expect(outer.inTransaction)
                 #expect(await LiveTransactionState.deferUntilCommit(on: outer) { log.append("outer") })
 
                 try await runLiveTransaction(hub: app.invalidationHub, db: outer) { inner in
-                    let berth = try Berth(number: 102, dockName: dock1.name, dockId: dock1.requireId())
-                    try await berth.save(on: inner)
+                    let card = try Card(number: 102, boardName: dock1.name, boardId: dock1.requireId())
+                    try await card.save(on: inner)
                     #expect(await LiveTransactionState.deferUntilCommit(on: inner) { log.append("inner") })
                 }
 
@@ -110,7 +110,7 @@ struct AfterCommitHookTests {
 
             #expect(log.all == ["outer", "inner"])
 
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 4)
         }
     }
@@ -121,9 +121,9 @@ struct AfterCommitHookTests {
     @Test func independentNestedLiveTransactionDrainsOnItsOwnCommit() async throws {
         let log = HookLog()
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
 
             await #expect(throws: HookFailure.self) {
                 try await app.liveTransaction { outer in
@@ -132,8 +132,8 @@ struct AfterCommitHookTests {
                     let req = try #require(makeRequest(app, offTheLoopOf: outer))
                     try await req.liveTransaction { inner in
                         #expect(inner.inTransaction)
-                        let berth = try Berth(number: 104, dockName: dock1.name, dockId: dock1.requireId())
-                        try await berth.save(on: inner)
+                        let card = try Card(number: 104, boardName: dock1.name, boardId: dock1.requireId())
+                        try await card.save(on: inner)
                         #expect(await LiveTransactionState.deferUntilCommit(on: inner) { log.append("inner") })
                     }
 
@@ -149,7 +149,7 @@ struct AfterCommitHookTests {
             // The outer rolled back, so its hook never ran; the inner's row is durable regardless.
             #expect(log.all == ["inner"])
 
-            let count = try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).count()
+            let count = try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).count()
             #expect(count == 4)
         }
     }
@@ -163,18 +163,18 @@ struct AfterCommitHookTests {
     /// hooks have run.
     @Test func hooksRunBeforeTheEmit() async throws {
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
             try app.useLiveInvalidation(on: app.routes)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let harbor = try #require(await Harbor.query(on: db).first())
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let workspace = try #require(await Workspace.query(on: db).first())
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
             let (hookStarted, announceHookStarted) = AsyncStream<Void>.makeStream()
             let (hookMayFinish, releaseHook) = AsyncStream<Void>.makeStream()
 
-            let berth = try Berth(number: 103, dockName: dock1.name, dockId: dock1.requireId())
+            let card = try Card(number: 103, boardName: dock1.name, boardId: dock1.requireId())
             let write = Task {
                 try await app.liveTransaction { tx in
                     _ = await LiveTransactionState.deferUntilCommit(on: tx) {
@@ -183,7 +183,7 @@ struct AfterCommitHookTests {
                             break
                         }
                     }
-                    try await berth.save(on: tx)
+                    try await card.save(on: tx)
                 }
             }
 
@@ -191,13 +191,13 @@ struct AfterCommitHookTests {
             for await _ in hookStarted {
                 break
             }
-            let sentinel = try Set([harbor.modelIdentity])
+            let sentinel = try Set([workspace.modelIdentity])
             await hub.emit(sentinel)
             releaseHook.yield()
             try await write.value
 
             // … and the write's own set arrives only behind the sentinel.
-            let written = try Set([berth.modelIdentity, dock1.modelIdentity])
+            let written = try Set([card.modelIdentity, dock1.modelIdentity])
             #expect(await events.next() == sentinel)
             #expect(await events.next() == written)
         }
@@ -208,7 +208,7 @@ struct AfterCommitHookTests {
     /// including a write made on an auto-commit handle while a `liveTransaction` is open.
     @Test func deferUntilCommitCollectsOnlyInsideLiveTransaction() async throws {
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
         } _: { app, db in
             #expect(await LiveTransactionState.deferUntilCommit(on: db) {} == false)
 
@@ -228,25 +228,25 @@ struct AfterCommitHookTests {
     /// warns once.
     @Test func suppressionWarningIsOfferedOncePerModelType() async throws {
         try await withFluentTestApp { app in
-            try registerHarborGraph(app)
+            try registerWorkspaceGraph(app)
         } _: { app, _ in
-            #expect(app.shouldWarnSuppressedAfterCommit(for: Berth.self))
-            #expect(app.shouldWarnSuppressedAfterCommit(for: Berth.self) == false)
-            #expect(app.shouldWarnSuppressedAfterCommit(for: Dock.self))
+            #expect(app.shouldWarnSuppressedAfterCommit(for: Card.self))
+            #expect(app.shouldWarnSuppressedAfterCommit(for: Card.self) == false)
+            #expect(app.shouldWarnSuppressedAfterCommit(for: Board.self))
         }
     }
 }
 
 private struct HookFailure: Error {}
 
-/// Registers the harbor graph; live invalidation is left off unless the test enables it.
-private func registerHarborGraph(_ app: Application) throws {
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
+/// Registers the workspace graph; live invalidation is left off unless the test enables it.
+private func registerWorkspaceGraph(_ app: Application) throws {
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
 }
 
 /// Lock-guarded ordered log shared between the deferred hooks, the subscriber and the assertions.

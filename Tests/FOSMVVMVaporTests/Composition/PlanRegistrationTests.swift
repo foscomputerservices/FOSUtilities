@@ -30,12 +30,12 @@ import Testing
 import Vapor
 
 /// Registers the container graph the hop checks resolve against:
-/// Harbor (apex) → Dock → PersonnelFolder (.guards) → PersonnelFile.
+/// Workspace (apex) → Board → Checklist (.guards) → ChecklistItem.
 private func configureContainers(_ app: Application) throws {
-    try app.register(Harbor.self, migration: CreateHarbor())
-    app.migrations.add(CreatePier()) // CreateDock's DDL references piers
-    try app.register(Dock.self, migration: CreateDock())
-    try app.register(PersonnelFolder.self, migration: CreatePersonnelFolder())
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
+    try app.register(Board.self, migration: CreateBoard())
+    try app.register(Checklist.self, migration: CreateChecklist())
 }
 
 // MARK: - Warning capture (the warn IS the spec §6 contract — assert it fires)
@@ -99,9 +99,9 @@ private func captureWarnings(of app: Application) -> CapturedWarnings {
 
 /// A ModelIdentity for apex-resolver fixtures (id minted locally — no DB round-trip needed).
 private func mintApexIdentity() throws -> ModelIdentity {
-    let harbor = Harbor(name: "Apex Harbor")
-    harbor.id = ModelIdType()
-    return try harbor.modelIdentity
+    let workspace = Workspace(name: "Apex Workspace")
+    workspace.id = ModelIdType()
+    return try workspace.modelIdentity
 }
 
 // MARK: - Factory fixture plumbing (mirrors RecordLoadPlanTests' PlanFixture)
@@ -138,7 +138,7 @@ private extension RegistrationFixture {
 }
 
 /// The Query fixture that vends a root — `.query`-rooted plans boot-check for this conformance.
-private struct DockRootedQuery: RootedQuery {
+private struct BoardRootedQuery: RootedQuery {
     let rootIdentity: ModelIdentity
 }
 
@@ -154,8 +154,8 @@ private struct PassthroughMiddleware: AsyncMiddleware {
 
 /// Conforms to VaporResponseBodyFactory (not RegistrationFixture) so `register(request:)` —
 /// the shipped seam — accepts it and derives its plan.
-private struct DockPageVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
-    typealias Request = DockPageRequest
+private struct BoardPageVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = BoardPageRequest
 
     var vmId = ViewModelId()
 
@@ -174,20 +174,20 @@ private struct DockPageVM: RequestableViewModel, ComposableFactory, VaporRespons
     }
 
     static let dataRequirements: [any DataRequirement] = [
-        LoadRequirement.read(Berth.self, in: .parentRoot, via: Dock.self),
-        LoadRequirement.read(PersonnelFile.self, in: .parentRoot, via: Dock.self, PersonnelFolder.self)
+        LoadRequirement.read(Card.self, in: .parentRoot, via: Board.self),
+        LoadRequirement.read(ChecklistItem.self, in: .parentRoot, via: Board.self, Checklist.self)
     ]
 }
 
-private final class DockPageRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
+private final class BoardPageRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = BoardRootedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
-    var responseBody: DockPageVM?
+    let query: BoardRootedQuery?
+    var responseBody: BoardPageVM?
 
-    init(query: DockRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DockPageVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BoardPageVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -235,8 +235,8 @@ private struct DoubleMarkVM: RegistrationFixture, RequestableViewModel {
     typealias Request = DoubleMarkRequest
 
     static let dataRequirements: [any DataRequirement] = [
-        LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest,
-        LoadRequirement.read(CrewMember.self, in: .parentRoot).refinedByRequest
+        LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
+        LoadRequirement.read(Member.self, in: .parentRoot).refinedByRequest
     ]
 }
 
@@ -258,7 +258,7 @@ private final class DoubleMarkRequest: ViewModelRequest, @unchecked Sendable {
 private struct UnrootedQueryVM: RegistrationFixture, RequestableViewModel {
     typealias Request = UnrootedQueryRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot)]
 }
 
 private final class UnrootedQueryRequest: ViewModelRequest, @unchecked Sendable {
@@ -279,7 +279,7 @@ private final class UnrootedQueryRequest: ViewModelRequest, @unchecked Sendable 
 private struct ApexPageVM: RegistrationFixture, RequestableViewModel {
     typealias Request = ApexPageRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Dock.self, in: .newRoot(.apex))]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Board.self, in: .newRoot(.apex))]
 }
 
 private final class ApexPageRequest: ViewModelRequest, @unchecked Sendable {
@@ -316,22 +316,22 @@ private final class EmptyPageRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Unresolvable hops
 
-/// Dock is registered but declares no containment of PersonnelFile — the pair cannot resolve.
+/// Board is registered but declares no containment of ChecklistItem — the pair cannot resolve.
 private struct BadHopVM: RegistrationFixture, RequestableViewModel {
     typealias Request = BadHopRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(PersonnelFile.self, in: .parentRoot, via: Dock.self)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(ChecklistItem.self, in: .parentRoot, via: Board.self)]
 }
 
 private final class BadHopRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
+    typealias Query = BoardRootedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
+    let query: BoardRootedQuery?
     var responseBody: BadHopVM?
 
-    init(query: DockRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BadHopVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: BadHopVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -342,18 +342,18 @@ private final class BadHopRequest: ViewModelRequest, @unchecked Sendable {
 private struct PierHopVM: RegistrationFixture, RequestableViewModel {
     typealias Request = PierHopRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot, via: Pier.self)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot, via: Pier.self)]
 }
 
 private final class PierHopRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
+    typealias Query = BoardRootedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
+    let query: BoardRootedQuery?
     var responseBody: PierHopVM?
 
-    init(query: DockRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: PierHopVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: PierHopVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -367,41 +367,41 @@ private final class PierHopRequest: ViewModelRequest, @unchecked Sendable {
 private struct DeadMarkerVM: RegistrationFixture, RequestableViewModel {
     typealias Request = DeadMarkerRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
 }
 
 private final class DeadMarkerRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
+    typealias Query = BoardRootedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
+    let query: BoardRootedQuery?
     var responseBody: DeadMarkerVM?
 
-    init(query: DockRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DeadMarkerVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: DeadMarkerVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
     }
 }
 
-/// Loads PersonnelFile — a record type PersonnelFolder (.guards) contains — on a path that
+/// Loads ChecklistItem — a record type Checklist (.guards) contains — on a path that
 /// never traverses the folder: the guard cannot anchor this load. Warn, never throw.
 private struct GuardsOffPathVM: RegistrationFixture, RequestableViewModel {
     typealias Request = GuardsOffPathRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(PersonnelFile.self, in: .parentRoot)]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(ChecklistItem.self, in: .parentRoot)]
 }
 
 private final class GuardsOffPathRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
+    typealias Query = BoardRootedQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
+    let query: BoardRootedQuery?
     var responseBody: GuardsOffPathVM?
 
-    init(query: DockRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: GuardsOffPathVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: GuardsOffPathVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -421,20 +421,20 @@ private struct ForeignSort: ServerRequestSort {
 private struct ForeignSortVM: RegistrationFixture, RequestableViewModel {
     typealias Request = ForeignSortRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
 }
 
 private final class ForeignSortRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
+    typealias Query = BoardRootedQuery
     typealias Sort = ForeignSort
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
+    let query: BoardRootedQuery?
     let sort: ForeignSort?
     var responseBody: ForeignSortVM?
 
-    init(query: DockRootedQuery? = nil, sort: ForeignSort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ForeignSortVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: ForeignSort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: ForeignSortVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.sort = sort
@@ -446,20 +446,20 @@ private final class ForeignSortRequest: ViewModelRequest, @unchecked Sendable {
 private struct CriteriaSortVM: RegistrationFixture, RequestableViewModel {
     typealias Request = CriteriaSortRequest
 
-    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest]
+    static let dataRequirements: [any DataRequirement] = [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
 }
 
 private final class CriteriaSortRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = DockRootedQuery
-    typealias Sort = SortCriteria<BerthSortKey>
+    typealias Query = BoardRootedQuery
+    typealias Sort = SortCriteria<CardSortKey>
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: DockRootedQuery?
-    let sort: SortCriteria<BerthSortKey>?
+    let query: BoardRootedQuery?
+    let sort: SortCriteria<CardSortKey>?
     var responseBody: CriteriaSortVM?
 
-    init(query: DockRootedQuery? = nil, sort: SortCriteria<BerthSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: CriteriaSortVM? = nil) {
+    init(query: BoardRootedQuery? = nil, sort: SortCriteria<CardSortKey>? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: CriteriaSortVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.sort = sort
@@ -476,8 +476,8 @@ struct PlanRegistrationTests {
     @Test func conformingResponseBodyDerivesAndStoresPlan() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.registerRecordLoadPlan(for: DockPageRequest.self)
-            let plan = try #require(app.recordLoadPlan(for: DockPageRequest.self))
+            try app.registerRecordLoadPlan(for: BoardPageRequest.self)
+            let plan = try #require(app.recordLoadPlan(for: BoardPageRequest.self))
             #expect(plan.tuples.count == 2)
             #expect(plan.tuples.allSatisfy { $0.root == .query })
         } _: { _, _ in }
@@ -488,8 +488,8 @@ struct PlanRegistrationTests {
     @Test func routeRegistrationSeamDerivesThePlan() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.register(request: DockPageRequest.self, app: app)
-            #expect(app.recordLoadPlan(for: DockPageRequest.self) != nil)
+            try app.register(request: BoardPageRequest.self, app: app)
+            #expect(app.recordLoadPlan(for: BoardPageRequest.self) != nil)
         } _: { _, _ in }
     }
 
@@ -501,7 +501,7 @@ struct PlanRegistrationTests {
         try await withFluentTestApp { app in
             let grouped = app.grouped(PassthroughMiddleware())
             do {
-                try grouped.register(request: DockPageRequest.self, app: app) // no configureContainers
+                try grouped.register(request: BoardPageRequest.self, app: app) // no configureContainers
                 Issue.record("expected ContainmentError.invalidLoadPlan on a group mount without containers")
             } catch let error as ContainmentError {
                 guard case .invalidLoadPlan = error else {
@@ -509,7 +509,7 @@ struct PlanRegistrationTests {
                     return
                 }
             }
-            #expect(app.recordLoadPlan(for: DockPageRequest.self) == nil)
+            #expect(app.recordLoadPlan(for: BoardPageRequest.self) == nil)
         } _: { _, _ in }
     }
 
@@ -684,7 +684,7 @@ struct PlanRegistrationTests {
             let warnings = captureWarnings(of: app)
             try app.registerRecordLoadPlan(for: GuardsOffPathRequest.self)
             #expect(app.recordLoadPlan(for: GuardsOffPathRequest.self) != nil)
-            #expect(warnings.contains(allOf: "PersonnelFile", "PersonnelFolder", ".guards"))
+            #expect(warnings.contains(allOf: "ChecklistItem", "Checklist", ".guards"))
         } _: { _, _ in }
     }
 
@@ -720,7 +720,7 @@ struct PlanRegistrationTests {
     // contract: `register(request:app:)` is a `RoutesBuilder` method, so grouped mounting compiles —
     // it is how a request mounts behind its guarding middleware. Plan derivation runs inside the door
     // regardless of the builder, so no mount path can skip it. A path-prefixing group is caught at
-    // boot, not compile time: `try app.grouped("api").register(request: DockPageRequest.self, app: app)`
+    // boot, not compile time: `try app.grouped("api").register(request: BoardPageRequest.self, app: app)`
     // compiles and throws `ContainmentError.pathPrefixedMount`, because the client derives the served
     // URL from the request type.
 }

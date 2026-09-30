@@ -21,7 +21,7 @@ David's ruling (2026-07-17): the Application-sited `register(request:)` methods 
 
 ```swift
 func routes(_ app: Application) throws {
-    let authed = app.grouped(ClientCredentialMiddleware(verifier: harborVerifier))
+    let authed = app.grouped(ClientCredentialMiddleware(verifier: workspaceVerifier))
     try authed.register(request: DocksRequest.self, app: app)      // guarded
     try app.register(request: LandingPageRequest.self, app: app)   // public (Application IS a RoutesBuilder)
 }
@@ -140,7 +140,7 @@ in `ViewModelRequest.swift`. The registry helpers stay Application extensions
 /// ```swift
 /// func routes(_ app: Application) throws {
 ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-///     try authed.register(request: DockPageRequest.self, app: app)
+///     try authed.register(request: BoardPageRequest.self, app: app)
 ///     try app.register(request: LandingPageRequest.self, app: app)
 /// }
 /// ```
@@ -161,7 +161,7 @@ in `ViewModelRequest.swift`. The registry helpers stay Application extensions
 /// your decision; that its plan is derived is not.
 ///
 /// A write request (Create/Update/Delete) has its own overload; register it the same way
-/// (`try authed.register(request: BerthUpdateRequest.self, app: app)`), and Swift picks
+/// (`try authed.register(request: CardUpdateRequest.self, app: app)`), and Swift picks
 /// the write door. A write request that reaches *this* read door — because its
 /// Query/RequestBody miss the write overload's constraints, or because its protocol
 /// (Replace/Destroy) is not yet supported — fails fast at boot rather than registering
@@ -179,7 +179,7 @@ block. No rationale, no representation, contract only.
 
 ### Step-3 contract tests (public surface only)
 
-1. **A group's middleware guards the route** (the harbor case, end to end): register a
+1. **A group's middleware guards the route** (the workspace case, end to end): register a
    read request on `app.grouped(ClientCredentialMiddleware(verifier:
    BearerCredentialVerifier(...)))`; serve without a token → the typed credential
    rejection (assert via the shipped `TestingServerRequestResponse.credentialRejection`

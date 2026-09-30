@@ -713,7 +713,7 @@ let env = MVVMEnvironment(
 ```
 
 ### Own and authorize contained records — `Container` / `AuthorityFlow`
-Reach for this when: a model owns other records (a `Dock` owns its `Berth`s) and
+Reach for this when: a model owns other records (a `Board` owns its `Card`s) and
 those records need authorized loading and live-invalidation membership. List what it
 contains; declare `authorityFlow` only to anchor authority at a container rather than
 inherit it from an ancestor. A model that owns nothing needs no override.
@@ -721,8 +721,8 @@ The Fluent-backed conformance and per-relation joins live in
 `FOSMVVMVapor.md § Containment` (`ContainerDataModel` / `ContainmentRelation`).
 
 ```swift
-struct Dock: Container {
-    static var containedRecordTypes: [any Model.Type] { [Berth.self] }
+struct Board: Container {
+    static var containedRecordTypes: [any Model.Type] { [Card.self] }
     // .inherits by default; declare .guards to require a grant anchored here
     static var authorityFlow: AuthorityFlow { .guards }
 }
@@ -750,7 +750,7 @@ is enforced. Registered and invoked via `FOSMVVMVapor.md § Containment`
 (`ContainerAuthorizationProvider`).
 
 ```swift
-struct DockGrant: ContainerAuthorization {
+struct BoardGrant: ContainerAuthorization {
     let authorizedContainer: ModelIdentity
     let operations: [ContainerOperation]
     let recordTypes: [ModelNamespace]
@@ -772,9 +772,9 @@ defaults to `EmptySort` for requests that expose no ordering. The server maps ea
 meaning to database columns via `FOSMVVMVapor.md § Containment` (`SortableDataModel`).
 
 ```swift
-enum BerthSortKey: String, SortKey { case number, dockName }
-let sort = SortCriteria<BerthSortKey>([
-    .init(key: .dockName, direction: .ascending),
+enum CardSortKey: String, SortKey { case number, boardName }
+let sort = SortCriteria<CardSortKey>([
+    .init(key: .boardName, direction: .ascending),
     .init(key: .number, direction: .descending),
 ])
 ```
@@ -799,8 +799,8 @@ the root container — the trait-overlay idiom used by `PaginatedQuery`. A load 
 one `.query`-vended container.
 
 ```swift
-struct HarborBerthsQuery: RootedQuery {
-    let rootIdentity: ModelIdentity   // the Harbor this request is scoped to
+struct WorkspaceBerthsQuery: RootedQuery {
+    let rootIdentity: ModelIdentity   // the Workspace this request is scoped to
 }
 ```
 
@@ -812,8 +812,8 @@ declaring factory's scope (the common case); `.newRoot(.query)` roots at the req
 no query — registered via `FOSMVVMVapor.md § Containment`).
 
 ```swift
-.read(Berth.self, in: .parentRoot)               // shares the factory's scope
-.read(HarborBanner.self, in: .newRoot(.apex))     // a fresh tree at the apex
+.read(Card.self, in: .parentRoot)               // shares the factory's scope
+.read(WorkspaceBanner.self, in: .newRoot(.apex))     // a fresh tree at the apex
 ```
 
 ### Declare and compose a factory's data — `ComposableFactory` / `ComposedChild`
@@ -826,11 +826,11 @@ at boot. Executed by `FOSMVVMVapor.md § Protocols` (`VaporResponseBodyFactory`)
 
 ```swift
 extension BerthsViewModel: ComposableFactory {
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest
-    static var dataRequirements: [any DataRequirement] { [berths] }
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest
+    static var dataRequirements: [any DataRequirement] { [cards] }
     static var children: [ComposedChild] {
-        [.child(BerthCellViewModel.self),
-         .child(HarborBannerViewModel.self, rootedAt: .apex)]
+        [.child(CardCellViewModel.self),
+         .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
     }
 }
 ```
@@ -846,8 +846,8 @@ load a write request's candidate set; `via:` lists *intermediate* containment ho
 own sort/pagination axes apply to.
 
 ```swift
-static let berths = LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest
-static let slips  = LoadRequirement.read(SlipAssignment.self, in: .parentRoot, via: Berth.self)
+static let cards = LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest
+static let slips  = LoadRequirement.read(Assignment.self, in: .parentRoot, via: Card.self)
 ```
 
 ### Name which loaded record a write targets — `TargetedQuery`
@@ -860,9 +860,9 @@ The candidate set and field application live in `FOSMVVMVapor.md § Protocols`
 (`WriteTargetProviding` / `DataModelWriter`).
 
 ```swift
-struct UpdateBerthQuery: TargetedQuery, RootedQuery {
+struct UpdateCardQuery: TargetedQuery, RootedQuery {
     let rootIdentity: ModelIdentity   // the scope root
-    let target: ModelIdentity         // which berth
+    let target: ModelIdentity         // which card
 }
 ```
 

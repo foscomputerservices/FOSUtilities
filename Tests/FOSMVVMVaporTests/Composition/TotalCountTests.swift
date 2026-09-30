@@ -37,11 +37,11 @@ private struct GrantProvider: ContainerAuthorizationProvider {
 
 private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreatePier())
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useContainerAuthorizationProvider(GrantProvider())
 }
 
@@ -54,30 +54,30 @@ private func requestURL(for request: some ServerRequest) throws -> URL {
     return try #require(try base.appending(serverRequest: request))
 }
 
-private func grantDockReadsBerths(_ app: Application, dock: Dock) throws {
+private func grantBoardReadsCards(_ app: Application, board: Board) throws {
     app.storage[GrantsKey.self] = try [
         TestGrant(
-            authorizedContainer: dock.modelIdentity,
+            authorizedContainer: board.modelIdentity,
             operations: [.readRecords],
-            recordTypes: [Berth.modelIdentityNamespace]
+            recordTypes: [Card.modelIdentityNamespace]
         )
     ]
 }
 
 /// A rooted query that ALSO carries a window — the search-window shape.
-private struct PagedDockQuery: RootedQuery, PaginatedQuery {
+private struct PagedBoardQuery: RootedQuery, PaginatedQuery {
     let rootIdentity: ModelIdentity
     let pagination: Pagination
 }
 
-/// A windowed Berth page: its Berth requirement is `.refinedByRequest`, so the query's window
+/// A windowed Card page: its Card requirement is `.refinedByRequest`, so the query's window
 /// binds to it. `body` is a no-op; the tests read records + total off the context directly.
-private struct PagedDockVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
-    typealias Request = PagedDockRequest
+private struct PagedBoardVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = PagedBoardRequest
 
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest
     static var dataRequirements: [any DataRequirement] {
-        [berths]
+        [cards]
     }
 
     var vmId = ViewModelId()
@@ -95,15 +95,15 @@ private struct PagedDockVM: RequestableViewModel, ComposableFactory, VaporRespon
     }
 }
 
-private final class PagedDockRequest: ViewModelRequest, @unchecked Sendable {
-    typealias Query = PagedDockQuery
+private final class PagedBoardRequest: ViewModelRequest, @unchecked Sendable {
+    typealias Query = PagedBoardQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    let query: PagedDockQuery?
-    var responseBody: PagedDockVM?
+    let query: PagedBoardQuery?
+    var responseBody: PagedBoardVM?
 
-    init(query: PagedDockQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: PagedDockVM? = nil) {
+    init(query: PagedBoardQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: PagedBoardVM? = nil) {
         self.id = .random(length: 10)
         self.query = query
         self.responseBody = responseBody
@@ -111,8 +111,8 @@ private final class PagedDockRequest: ViewModelRequest, @unchecked Sendable {
 }
 
 /// Builds the context the way `serve` does — WITH the count snapshot.
-private func makeContext(for vmRequest: PagedDockRequest, on req: Vapor.Request) -> ProjectionContext<PagedDockRequest, Void> {
-    guard let plan = req.application.recordLoadPlan(for: PagedDockRequest.self) else {
+private func makeContext(for vmRequest: PagedBoardRequest, on req: Vapor.Request) -> ProjectionContext<PagedBoardRequest, Void> {
+    guard let plan = req.application.recordLoadPlan(for: PagedBoardRequest.self) else {
         return .init(vmRequest: vmRequest, appState: (), dependencySink: { _ in })
     }
     return .init(vmRequest: vmRequest, appState: (), plan: plan, recordsByTuple: req.recordsByTuple(), countsByTuple: req.countsByTuple(), dependencySink: { _ in })
@@ -124,18 +124,18 @@ struct TotalCountTests {
     @Test func totalCountIsFullSetWhileRecordsAreWindowed() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.registerRecordLoadPlan(for: PagedDockRequest.self)
+            try app.registerRecordLoadPlan(for: PagedBoardRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db) // dock1 has 3 berths
-            try grantDockReadsBerths(app, dock: dock1)
+            let (dock1, _) = try await seedWorkspace(on: db) // dock1 has 3 cards
+            try grantBoardReadsCards(app, board: dock1)
 
-            let vmRequest = try PagedDockRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
+            let vmRequest = try PagedBoardRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
 
-            #expect(try context.records(PagedDockVM.berths).count == 1) // windowed
-            #expect(try context.totalCount(for: PagedDockVM.berths) == 3) // full set
+            #expect(try context.records(PagedBoardVM.cards).count == 1) // windowed
+            #expect(try context.totalCount(for: PagedBoardVM.cards) == 3) // full set
         }
     }
 
@@ -143,18 +143,18 @@ struct TotalCountTests {
     @Test func totalCountRespectsAuthorization() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.registerRecordLoadPlan(for: PagedDockRequest.self)
+            try app.registerRecordLoadPlan(for: PagedBoardRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[GrantsKey.self] = [] // no grant
 
-            let vmRequest = try PagedDockRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
+            let vmRequest = try PagedBoardRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
 
-            #expect(try context.records(PagedDockVM.berths).isEmpty)
-            #expect(try context.totalCount(for: PagedDockVM.berths) == 0)
+            #expect(try context.records(PagedBoardVM.cards).isEmpty)
+            #expect(try context.totalCount(for: PagedBoardVM.cards) == 0)
         }
     }
 
@@ -162,12 +162,12 @@ struct TotalCountTests {
     @Test func unplannedHandleThrows() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            try app.registerRecordLoadPlan(for: PagedDockRequest.self)
+            try app.registerRecordLoadPlan(for: PagedBoardRequest.self)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try grantDockReadsBerths(app, dock: dock1)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try grantBoardReadsCards(app, board: dock1)
 
-            let vmRequest = try PagedDockRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
+            let vmRequest = try PagedBoardRequest(query: .init(rootIdentity: dock1.modelIdentity, pagination: .init(startIndex: 0, maxResults: 1)))
             let req = try makeRequest(on: app, url: requestURL(for: vmRequest))
             try await req.executeRecordLoadPlan(for: vmRequest)
             let context = makeContext(for: vmRequest, on: req)
@@ -187,11 +187,11 @@ struct TotalCountTests {
 
     /// A ViewModel storing a window total round-trips it intact — contract, not encoded shape.
     @Test func storedTotalRoundTrips() throws {
-        struct BerthSearchVM: Codable, Hashable {
+        struct CardSearchVM: Codable, Hashable {
             let totalMatches: Int
         }
-        let vm = BerthSearchVM(totalMatches: 1204882)
-        let restored = try vm.toJSON().fromJSON() as BerthSearchVM
+        let vm = CardSearchVM(totalMatches: 1204882)
+        let restored = try vm.toJSON().fromJSON() as CardSearchVM
         #expect(restored.totalMatches == vm.totalMatches)
     }
 }

@@ -23,12 +23,12 @@ import Foundation
 /// nothing to declare. Declare ``guards`` on a container whose records need authority anchored at *it*:
 ///
 /// ```swift
-/// extension PersonnelFolder {
+/// extension Checklist {
 ///     static var authorityFlow: AuthorityFlow { .guards }
 /// }
 /// ```
 ///
-/// Reads from the declaration site: *"PersonnelFolder guards; everything else inherits."*
+/// Reads from the declaration site: *"Checklist guards; everything else inherits."*
 public enum AuthorityFlow: Hashable, Sendable, CaseIterable {
     /// An ancestor's grant covers this container's records too — the default; nothing to declare.
     case inherits

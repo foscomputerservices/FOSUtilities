@@ -185,7 +185,7 @@ client module that drags server/host-only code onto iOS.
 1. **The ViewModel init takes simple types** (`String`, `Int`, a ViewModel-owned enum) —
    never a domain type.
 2. **For a value the View switches on, define a ViewModel-owned display enum** (raw-less,
-   per the Enum Localization Pattern) — e.g. a `BerthLiveness` in the ViewModel module,
+   per the Enum Localization Pattern) — e.g. a `CardLiveness` in the ViewModel module,
    *distinct from* any same-named domain type (see [Naming Dictionary](../shared/NAMES.md)).
 3. **The `ViewModelFactory` performs the projection.** It is the **one** component that
    imports *both* the domain module and the ViewModel module, and it maps
@@ -264,7 +264,7 @@ public struct DashboardViewModel: RequestableViewModel {
 ```
 
 > **One top-level VM per page/screen, composing children — never a mega-VM.** A
-> multi-section surface (dashboard, dock detail, settings) is a top-level
+> multi-section surface (dashboard, board detail, settings) is a top-level
 > `RequestableViewModel` that **composes child VMs** (`cards: [CardViewModel]`), one child
 > per section. Do **not** flatten a many-section screen into a single giant ViewModel:
 > that fuses independent concerns into one type (an **SRP** violation) and makes every
@@ -893,7 +893,7 @@ position, and focus with it. Reach for it only where identity genuinely cannot m
 expect to justify it.
 
 > **Using *an* init parameter is not the test — uniqueness is.** A display label is an init
-> parameter and identifies nothing: two Docks the operator named "Studio A" collide on one
+> parameter and identifies nothing: two Boards the operator named "Studio A" collide on one
 > `vmId`, and renaming one churns its row. If the init also carries a real id, that is the
 > one to use; if it does not, compose or hash the parameters that actually distinguish the
 > projection.
@@ -972,16 +972,16 @@ initializer takes `Int`/`Date`/`String`, and the init **body wraps it** and **ow
 formatting policy** — declared once, in the ViewModel:
 
 ```swift
-public let totalBerths: LocalizableInt          // stored — self-localizes on encode
+public let totalCards: LocalizableInt          // stored — self-localizes on encode
 public let lastSeen: LocalizableDate
 
-public init(totalBerths: Int, lastSeen: Date) {  // params are plain Swift types
-    self.totalBerths = .init(value: totalBerths, showGroupingSeparator: true)  // policy lives here
+public init(totalCards: Int, lastSeen: Date) {  // params are plain Swift types
+    self.totalCards = .init(value: totalCards, showGroupingSeparator: true)  // policy lives here
     self.lastSeen = .init(value: lastSeen)
 }
 ```
 
-Callers — the Factory, stubs, previews — pass **plain values** (`.stub(totalBerths: 12)`)
+Callers — the Factory, stubs, previews — pass **plain values** (`.stub(totalCards: 12)`)
 and **never construct a `Localizable*` themselves**. This is **Single Responsibility**:
 formatting policy is the ViewModel's job, stated in one place, not smeared across every
 call site.
@@ -1029,7 +1029,7 @@ en:
 **Constraint:** `LocalizableString` only works in ViewModels encoded with `localizingEncoder()`. Do not use in Fluent JSONB fields or other persisted types.
 
 > **ViewModel enums carry no `String`/`Int` raw backing when avoidable.** Write
-> `enum BerthLiveness: Codable, Sendable, CaseIterable`, **not** `: String`. `Codable`
+> `enum CardLiveness: Codable, Sendable, CaseIterable`, **not** `: String`. `Codable`
 > synthesizes for a raw-value-less enum (it encodes by case name), and the localization
 > key is the case name via `String(describing:)` — so a raw type buys nothing. A
 > `String`/`Int` raw backing actively invites mayhem: `init?(rawValue:)` from arbitrary

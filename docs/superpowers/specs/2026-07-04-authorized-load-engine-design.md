@@ -32,7 +32,7 @@ note on approval.
 
 ## The unit of load (resolves the review blocker)
 
-**One engine call loads one (container, contained-type) pair** — "the authorized `Berth`s of Dock #5,
+**One engine call loads one (container, contained-type) pair** — "the authorized `Card`s of Board #5,
 sorted, windowed." This is the unit a projection binds, the unit the sort vocabulary types against, the
 unit a pagination window is coherent over, and exactly the unit the cache key names. A whole-container
 sweep is just iteration over `containedRecordTypes` by the caller (C8) — it is **not** an engine entry
@@ -114,7 +114,7 @@ has two same-type containment relations.
      compatibility test — never in public DocC (representation stays unpublished).
    - **`Request.serverRequestSort(ofType:)`** (FOSMVVMVapor, public — mirrors `serverRequestQuery`): the
      named server-side parse surface C8 and test 9 call.
-9. Contract tests for all of the above (Fluent SQLite harness — `withFluentTestApp`, harbor fixtures).
+9. Contract tests for all of the above (Fluent SQLite harness — `withFluentTestApp`, workspace fixtures).
 
 ## Non-goals (explicitly deferred)
 
@@ -144,7 +144,7 @@ has two same-type containment relations.
 ///
 /// ```swift
 /// // A Sendable snapshot of one grant row (persisted Fluent classes aren't Sendable — project a value):
-/// struct DockGrant: ContainerAuthorization {
+/// struct BoardGrant: ContainerAuthorization {
 ///     let authorizedContainer: ModelIdentity   // decoded from the stored identity column
 ///     let operations: [ContainerOperation]
 ///     let recordTypes: [ModelNamespace]        // the stored, decodable form of "which record types"
@@ -199,11 +199,11 @@ publish exactly **one** sort vocabulary (see C6.2) — deliberate, stated there.
 /// applied everywhere the framework sorts this model.
 ///
 /// ```swift
-/// extension Berth: SortableDataModel {
-///     static func sortMappings(for key: BerthSortKey) -> [SortMapping<Berth>] {
+/// extension Card: SortableDataModel {
+///     static func sortMappings(for key: CardSortKey) -> [SortMapping<Card>] {
 ///         switch key {
-///         case .number:   [.keyPath(\Berth.$number)]
-///         case .dockName: [.keyPath(\Berth.$dockName), .keyPath(\Berth.$number)]  // stable tiebreak
+///         case .number:   [.keyPath(\Card.$number)]
+///         case .boardName: [.keyPath(\Card.$boardName), .keyPath(\Card.$number)]  // stable tiebreak
 ///         }
 ///     }
 /// }
@@ -340,26 +340,26 @@ return.
   `Request.serverRequestSort(ofType:)` (FOSMVVMVapor) mirrors `serverRequestQuery` — DocC with example;
   returns `nil` when the item is absent.
 
-## Testing (contract tests — obligations verified through the APIs that carry them, representation never asserted; `withFluentTestApp` + harbor fixtures)
+## Testing (contract tests — obligations verified through the APIs that carry them, representation never asserted; `withFluentTestApp` + workspace fixtures)
 
-Fixture additions: `BerthSortKey` (`number`, `dockName`) + `Berth: SortableDataModel`; `Berth` gains a
-denormalized `dockName` `@Field` (+ migration + seed update — FluentKit's `Field.Model == M` rules out
+Fixture additions: `CardSortKey` (`number`, `boardName`) + `Card: SortableDataModel`; `Card` gains a
+denormalized `boardName` `@Field` (+ migration + seed update — FluentKit's `Field.Model == M` rules out
 joined-parent sorts in v1); a `TestGrant: ContainerAuthorization` **value type** (container identity +
 operations + record types). Engine tests mint a real `Request` via Vapor's public
 `Request(application:method:url:on:)` (or a one-line harness helper — plan decides placement).
 
 1. **Auth instance-scoping** — grants for dock1 only ⇒ `authorizedRecords(of: dock1Identity, containing:
-   Berth.self, …)` returns dock1's berths; the same call against dock2's identity ⇒ empty; **empty
+   Card.self, …)` returns dock1's cards; the same call against dock2's identity ⇒ empty; **empty
    authorizations ⇒ empty** (brute-force projects empty — the data-scoping invariant).
-2. **Operation × type scoping** — a grant covering `.read` on `Berth` but not `CrewMember` ⇒ the Berth
-   call loads, the CrewMember call returns empty; the Berth call `for: .create` ⇒ empty.
-3. **C6a sort applied in-DB** — `sortedBy: SortCriteria<BerthSortKey>(…number desc…).erasedTerms` ⇒
+2. **Operation × type scoping** — a grant covering `.read` on `Card` but not `Member` ⇒ the Card
+   call loads, the Member call returns empty; the Card call `for: .create` ⇒ empty.
+3. **C6a sort applied in-DB** — `sortedBy: SortCriteria<CardSortKey>(…number desc…).erasedTerms` ⇒
    `[3,2,1]` (seed order differs from result order — push-down asserted via order); the multi-mapping
-   key (`dockName` → dockName then number) yields the composite order.
+   key (`boardName` → boardName then number) yields the composite order.
 4. **Pagination window** — over the sorted single-type call, `Pagination(startIndex: 1, maxResults: 1)`
    ⇒ exactly the middle record; `nil` ⇒ full set.
-5. **Unsortable fail-fast** — sort terms against `CrewMember` (no `SortableDataModel` conformance) ⇒
-   throws `.unsortableContainedType`; wrong key *type* against `Berth` ⇒ same throw. Never a silently
+5. **Unsortable fail-fast** — sort terms against `Member` (no `SortableDataModel` conformance) ⇒
+   throws `.unsortableContainedType`; wrong key *type* against `Card` ⇒ same throw. Never a silently
    unsorted array.
 6. **Compute-once cache** — two identical calls return the **same element instances** (assertion basis:
    `===`/`ObjectIdentifier` on elements, as C4's tests pinned equality bases); a call differing only in
@@ -368,7 +368,7 @@ operations + record types). Engine tests mint a real `Request` via Vapor's publi
    `invalidateContainerRecords` ⇒ recompute observes reality).
 7. **Missing vs unregistered** — a valid-namespace identity whose row is deleted ⇒ `[]` (not a throw);
    an unregistered namespace ⇒ throws `.unregisteredNamespace` (misconfiguration ≠ unauthorized).
-8. **Threshold** — threshold 2, load 3 berths ⇒ result intact (3 records) — the non-truncation
+8. **Threshold** — threshold 2, load 3 cards ⇒ result intact (3 records) — the non-truncation
    contract. (Warning emission is observability — covered by an internal logger-capture assertion if
    Vapor's test logger permits, else documented; not a public contract.)
 9. **`ServerRequest` sort round-trip (C2 pickup; lives in `Tests/FOSMVVMVaporTests`)** — a request with
@@ -479,7 +479,7 @@ identity-consistent, warning-free. The protocol requirement (`ofType recordType:
 unchanged (engines pass concrete metatypes, which are Sendable).
 
 - Minors: threshold logs the type name (`ModelNamespace` stays sealed) and is deliberately default-only;
-  `Berth` gains denormalized `dockName` (joined-parent sorts out of v1 — `Field.Model == M`); `.parent`
+  `Card` gains denormalized `boardName` (joined-parent sorts out of v1 — `Field.Model == M`); `.parent`
   ignores sort *and* window with the lossless rationale; test 6's assertion basis pinned to element
   identity; test-Request minting specified; line-level wording fixes (filter out of the OQ-L1-6 claim;
   C6a FluentKit constraints discharged against the checkout).

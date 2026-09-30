@@ -75,8 +75,8 @@ public protocol ServerRequest: AnyObject, Identifiable, Hashable, Codable, Senda
     ///
     /// ```swift
     /// let request = BerthsRequest(
-    ///     query: .init(dockId: 42),
-    ///     sort: SortCriteria([SortTerm(key: BerthSortKey.number, direction: .descending)]),
+    ///     query: .init(boardId: 42),
+    ///     sort: SortCriteria([SortTerm(key: CardSortKey.number, direction: .descending)]),
     ///     fragment: nil,
     ///     requestBody: nil,
     ///     responseBody: nil

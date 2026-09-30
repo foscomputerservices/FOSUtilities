@@ -31,24 +31,24 @@ private func same(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {
 
 // MARK: - Model fixtures
 
-private struct Harbor: Model {
+private struct Workspace: Model {
     var id: ModelIdType?
 }
 
 /// An `.inherits` container — traversing it never re-anchors.
-private struct Dock: Container {
+private struct Board: Container {
     var id: ModelIdType?
 }
 
-private struct Berth: Model {
+private struct Card: Model {
     var id: ModelIdType?
 }
 
-private struct SlipAssignment: Model {
+private struct Assignment: Model {
     var id: ModelIdType?
 }
 
-private struct CrewMember: Model {
+private struct Member: Model {
     var id: ModelIdType?
 }
 
@@ -56,12 +56,12 @@ private struct Paycheck: Model {
     var id: ModelIdType?
 }
 
-private struct HarborBanner: Model {
+private struct WorkspaceBanner: Model {
     var id: ModelIdType?
 }
 
 /// A `.guards` container — traversing it re-anchors its subtree.
-private struct PersonnelFolder: Container {
+private struct Checklist: Container {
     var id: ModelIdType?
     static var authorityFlow: AuthorityFlow {
         .guards
@@ -76,7 +76,7 @@ private struct RestrictedVault: Container {
     }
 }
 
-private struct PersonnelFile: Model {
+private struct ChecklistItem: Model {
     var id: ModelIdType?
 }
 
@@ -124,33 +124,33 @@ private extension PlanFixture {
 // MARK: - Factory fixtures: substitution graph (spec test 1)
 
 /// Root: own requirements (implicit terminal + `via:`) and all three child placements.
-private struct HarborPageVM: PlanFixture {
+private struct WorkspacePageVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.read(Berth.self, in: .parentRoot),
-            LoadRequirement.read(SlipAssignment.self, in: .parentRoot, via: Berth.self)
+            LoadRequirement.read(Card.self, in: .parentRoot),
+            LoadRequirement.read(Assignment.self, in: .parentRoot, via: Card.self)
         ]
     }
 
     static var children: [ComposedChild] {
         [
-            .child(CrewRosterVM.self),
-            .child(BerthBoardVM.self, via: Dock.self),
+            .child(MembersRosterVM.self),
+            .child(CardBoardVM.self, via: Board.self),
             .child(BannerVM.self, rootedAt: .apex)
         ]
     }
 }
 
-private struct CrewRosterVM: PlanFixture {
+private struct MembersRosterVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(CrewMember.self, in: .parentRoot)]
+        [LoadRequirement.read(Member.self, in: .parentRoot)]
     }
 }
 
-private struct BerthBoardVM: PlanFixture {
+private struct CardBoardVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.read(Berth.self, in: .parentRoot),
+            LoadRequirement.read(Card.self, in: .parentRoot),
             LoadRequirement.read(Paycheck.self, in: .newRoot(.query))
         ]
     }
@@ -158,7 +158,7 @@ private struct BerthBoardVM: PlanFixture {
 
 private struct BannerVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(HarborBanner.self, in: .parentRoot)]
+        [LoadRequirement.read(WorkspaceBanner.self, in: .parentRoot)]
     }
 }
 
@@ -166,7 +166,7 @@ private struct BannerVM: PlanFixture {
 
 private struct SharedLeafVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(CrewMember.self, in: .parentRoot)]
+        [LoadRequirement.read(Member.self, in: .parentRoot)]
     }
 }
 
@@ -194,7 +194,7 @@ private struct StarboardSideVM: PlanFixture {
 private struct AnchorConflictDiamondVM: PlanFixture {
     static var children: [ComposedChild] {
         [
-            .child(SharedLeafVM.self, via: PersonnelFolder.self),
+            .child(SharedLeafVM.self, via: Checklist.self),
             .child(SharedLeafVM.self)
         ]
     }
@@ -219,15 +219,15 @@ private struct CycleBVM: PlanFixture {
 /// Descends via an `.inherits` container, then a `.guards` container.
 private struct GuardedDescentVM: PlanFixture {
     static var children: [ComposedChild] {
-        [.child(PersonnelDeskVM.self, via: Dock.self, PersonnelFolder.self)]
+        [.child(PersonnelDeskVM.self, via: Board.self, Checklist.self)]
     }
 }
 
 private struct PersonnelDeskVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.read(PersonnelFile.self, in: .parentRoot),
-            LoadRequirement.read(PersonnelNote.self, in: .parentRoot, via: PersonnelFile.self)
+            LoadRequirement.read(ChecklistItem.self, in: .parentRoot),
+            LoadRequirement.read(PersonnelNote.self, in: .parentRoot, via: ChecklistItem.self)
         ]
     }
 }
@@ -235,7 +235,7 @@ private struct PersonnelDeskVM: PlanFixture {
 /// Two `.guards` containers on one path — the LAST one traversed anchors.
 private struct DoubleGuardVM: PlanFixture {
     static var children: [ComposedChild] {
-        [.child(VaultDeskVM.self, via: PersonnelFolder.self, RestrictedVault.self)]
+        [.child(VaultDeskVM.self, via: Checklist.self, RestrictedVault.self)]
     }
 }
 
@@ -250,15 +250,15 @@ private struct VaultDeskVM: PlanFixture {
 private struct SingleMarkVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest,
-            LoadRequirement.read(CrewMember.self, in: .parentRoot)
+            LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
+            LoadRequirement.read(Member.self, in: .parentRoot)
         ]
     }
 }
 
 private struct DoubleMarkVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest]
+        [LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest]
     }
 
     static var children: [ComposedChild] {
@@ -268,7 +268,7 @@ private struct DoubleMarkVM: PlanFixture {
 
 private struct MarkedLeafVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(CrewMember.self, in: .parentRoot).refinedByRequest]
+        [LoadRequirement.read(Member.self, in: .parentRoot).refinedByRequest]
     }
 }
 
@@ -299,20 +299,20 @@ private struct MarkedStarboardVM: PlanFixture {
 private struct CollapseVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.read(Berth.self, in: .parentRoot),
-            LoadRequirement.read(CrewMember.self, in: .parentRoot),
-            LoadRequirement.read(HarborBanner.self, in: .newRoot(.apex))
+            LoadRequirement.read(Card.self, in: .parentRoot),
+            LoadRequirement.read(Member.self, in: .parentRoot),
+            LoadRequirement.read(WorkspaceBanner.self, in: .newRoot(.apex))
         ]
     }
 
     static var children: [ComposedChild] {
-        [.child(PersonnelDeskLiteVM.self, via: PersonnelFolder.self)]
+        [.child(PersonnelDeskLiteVM.self, via: Checklist.self)]
     }
 }
 
 private struct PersonnelDeskLiteVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(PersonnelFile.self, in: .parentRoot)]
+        [LoadRequirement.read(ChecklistItem.self, in: .parentRoot)]
     }
 }
 
@@ -322,20 +322,20 @@ private struct PersonnelDeskLiteVM: PlanFixture {
 struct RecordLoadPlanSubstitutionTests {
     @Test("The walk substitutes all three placements — child-relative paths become absolute")
     func substitutionAcrossPlacements() throws {
-        let plan = try RecordLoadPlan.walk(from: HarborPageVM.self)
+        let plan = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
 
         let expected: [RecordLoadPlan.Tuple] = [
             // Root factory's own requirements — the request root, absolute path as declared
-            .init(root: .query, path: [], recordType: Berth.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
-            .init(root: .query, path: [Berth.self], recordType: SlipAssignment.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            .init(root: .query, path: [], recordType: Card.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            .init(root: .query, path: [Card.self], recordType: Assignment.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
             // Parent-scope child: inherits the parent's root and prefix
-            .init(root: .query, path: [], recordType: CrewMember.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            .init(root: .query, path: [], recordType: Member.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
             // via: child — the child's parent-relative declaration becomes absolute
-            .init(root: .query, path: [Dock.self], recordType: Berth.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
+            .init(root: .query, path: [Board.self], recordType: Card.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
             // .newRoot(.query) requirement under a via: child — a fresh root resets the prefix
             .init(root: .query, path: [], recordType: Paycheck.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false),
             // .newRoot(.apex) child — a fresh tree in the forest
-            .init(root: .apex, path: [], recordType: HarborBanner.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false)
+            .init(root: .apex, path: [], recordType: WorkspaceBanner.self, operation: .readRecords, anchor: nil, isRefinedByRequest: false)
         ]
 
         #expect(plan.tuples == expected)
@@ -343,7 +343,7 @@ struct RecordLoadPlanSubstitutionTests {
 
     @Test("The terminal hop stays implicit — the record type never appears in its own path")
     func terminalHopImplicit() throws {
-        let plan = try RecordLoadPlan.walk(from: HarborPageVM.self)
+        let plan = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
 
         for tuple in plan.tuples {
             #expect(!tuple.path.contains(where: { same($0, tuple.recordType) }))
@@ -359,7 +359,7 @@ struct RecordLoadPlanDiamondTests {
 
         #expect(plan.tuples.count == 1)
         let tuple = try #require(plan.tuples.first)
-        #expect(same(tuple.recordType, CrewMember.self))
+        #expect(same(tuple.recordType, Member.self))
         #expect(tuple.anchor == nil)
     }
 
@@ -372,9 +372,9 @@ struct RecordLoadPlanDiamondTests {
         let guarded = try #require(plan.tuples.first { $0.anchor != nil })
         let unguarded = try #require(plan.tuples.first { $0.anchor == nil })
 
-        #expect(same(guarded.recordType, CrewMember.self))
-        #expect(same(unguarded.recordType, CrewMember.self))
-        #expect(try same(#require(guarded.anchor), PersonnelFolder.self))
+        #expect(same(guarded.recordType, Member.self))
+        #expect(same(unguarded.recordType, Member.self))
+        #expect(try same(#require(guarded.anchor), Checklist.self))
         #expect(guarded.path.count == 1)
         #expect(unguarded.path.isEmpty)
     }
@@ -394,7 +394,7 @@ struct RecordLoadPlanFailFastTests {
     @Test("Two .refinedByRequest marks in one plan are rejected, naming both record types")
     func multipleRefinedByRequestRejected() {
         #expect(throws: RecordLoadPlan.WalkError.multipleRefinedByRequest(
-            recordTypes: ["Berth", "CrewMember"]
+            recordTypes: ["Card", "Member"]
         )) {
             try RecordLoadPlan.walk(from: DoubleMarkVM.self)
         }
@@ -417,14 +417,14 @@ struct RecordLoadPlanAnchorTests {
 
         #expect(plan.tuples.count == 2)
 
-        let file = try #require(plan.tuples.first { same($0.recordType, PersonnelFile.self) })
+        let file = try #require(plan.tuples.first { same($0.recordType, ChecklistItem.self) })
         #expect(file.path.count == 2)
-        #expect(try same(#require(file.anchor), PersonnelFolder.self))
+        #expect(try same(#require(file.anchor), Checklist.self))
 
         // Below the guard, deeper hops stay anchored at the guard
         let note = try #require(plan.tuples.first { same($0.recordType, PersonnelNote.self) })
         #expect(note.path.count == 3)
-        #expect(try same(#require(note.anchor), PersonnelFolder.self))
+        #expect(try same(#require(note.anchor), Checklist.self))
     }
 
     @Test("Two .guards containers on one path — the LAST one traversed anchors")
@@ -437,7 +437,7 @@ struct RecordLoadPlanAnchorTests {
 
     @Test("No .guards below the root — the anchor is nil: the tuple's own root anchors")
     func rootAnchorsWhenNoGuards() throws {
-        let plan = try RecordLoadPlan.walk(from: HarborPageVM.self)
+        let plan = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
 
         #expect(plan.tuples.allSatisfy { $0.anchor == nil })
     }
@@ -451,13 +451,13 @@ struct RecordLoadPlanDeterminismTests {
 
         let marked = plan.tuples.filter(\.isRefinedByRequest)
         #expect(marked.count == 1)
-        #expect(try same(#require(marked.first).recordType, Berth.self))
+        #expect(try same(#require(marked.first).recordType, Card.self))
     }
 
     @Test("The walk is deterministic — two walks of the same root produce equal plans")
     func determinism() throws {
-        let first = try RecordLoadPlan.walk(from: HarborPageVM.self)
-        let second = try RecordLoadPlan.walk(from: HarborPageVM.self)
+        let first = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
+        let second = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
 
         #expect(first == second)
 
@@ -483,7 +483,7 @@ struct RecordLoadPlanCollapseTests {
         let uniform = try RecordLoadPlan.walk(from: SingleMarkVM.self)
         #expect(uniform.collapseRuns == [0..<2])
 
-        let plan = try RecordLoadPlan.walk(from: HarborPageVM.self)
+        let plan = try RecordLoadPlan.walk(from: WorkspacePageVM.self)
         let covered = plan.collapseRuns.flatMap { Array($0) }
         #expect(covered == Array(plan.tuples.indices))
     }

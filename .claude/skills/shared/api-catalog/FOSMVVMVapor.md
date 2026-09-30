@@ -80,7 +80,7 @@ encoded it. Routes registered via `register()` (see Vapor Support) bind the sort
 you.
 
 ```swift
-let sort = try req.serverRequestSort(ofType: SortCriteria<BerthSortKey>.self)
+let sort = try req.serverRequestSort(ofType: SortCriteria<CardSortKey>.self)
 ```
 
 ### Register a container and the authorization provider — `useContainerAuthorizationProvider`
@@ -92,7 +92,7 @@ load is auth-scoped. Both throw at boot on misconfiguration (duplicate namespace
 containment drift, a second provider) rather than at first request.
 
 ```swift
-try app.register(Dock.self, migration: Dock.CreateDock())
+try app.register(Board.self, migration: Board.CreateBoard())
 try app.useContainerAuthorizationProvider(GrantProvider())
 ```
 
@@ -223,7 +223,7 @@ applications are rejected before any handler runs.
 
 ```swift
 let versionedGroup = app.grouped(RequireVersionedAppMiddleware())
-try versionedGroup.register(collection: ReplaceBerthController())
+try versionedGroup.register(collection: ReplaceCardController())
 ```
 
 ### Verify the caller's credential — `ClientCredentialMiddleware` / `ServerCredentialVerifier` / `BearerCredentialVerifier`
@@ -267,8 +267,8 @@ Don't let the context escape the projection (no capturing it in a spawned `Task`
 reads are contracted to the request's handler task.
 
 ```swift
-let berths = try context.records(Self.berths)              // own handle
-let crew   = try context.records(CrewListViewModel.crew)   // a child's
+let cards = try context.records(Self.cards)              // own handle
+let members   = try context.records(MembersListViewModel.members)   // a child's
 return .init(..., signedInAs: context.appState.userName)
 ```
 
@@ -283,9 +283,9 @@ Extensions) verifies both agree at boot.
 Don't list every Fluent relationship — not all of them are containment.
 
 ```swift
-extension Dock: ContainerDataModel {
+extension Board: ContainerDataModel {
     static var containment: [ContainmentRelation] {
-        [.children(\Dock.$berths), .siblings(\Dock.$crew)]   // Dock owns Berths (FK) and Crew (pivot)
+        [.children(\Board.$cards), .siblings(\Board.$members)]   // Board owns Cards (FK) and Members (pivot)
     }
 }
 ```
@@ -302,11 +302,11 @@ invisible to clients. `RequestSortKey` is the model's single published sort voca
 shared by every request that sorts it.
 
 ```swift
-extension Berth: SortableDataModel {
-    static func sortMappings(for key: BerthSortKey) -> [SortMapping<Berth>] {
+extension Card: SortableDataModel {
+    static func sortMappings(for key: CardSortKey) -> [SortMapping<Card>] {
         switch key {
-        case .number:   [.keyPath(\Berth.$number)]
-        case .dockName: [.keyPath(\Berth.$dockName), .keyPath(\Berth.$number)]  // tiebreak
+        case .number:   [.keyPath(\Card.$number)]
+        case .boardName: [.keyPath(\Card.$boardName), .keyPath(\Card.$number)]  // tiebreak
         }
     }
 }
@@ -325,10 +325,10 @@ Don't invent a filter vocabulary or leak column names to the wire — the reques
 query *is* the filter, and your Fluent columns stay server-side.
 
 ```swift
-extension Berth: FilterableDataModel {
-    static func apply(filter: BerthQuery, to query: QueryBuilder<Berth>) -> QueryBuilder<Berth> {
-        guard let name = filter.dockName else { return query }
-        return query.filter(\.$dockName == name)   // your Fluent, your columns
+extension Card: FilterableDataModel {
+    static func apply(filter: CardQuery, to query: QueryBuilder<Card>) -> QueryBuilder<Card> {
+        guard let name = filter.boardName else { return query }
+        return query.filter(\.$boardName == name)   // your Fluent, your columns
     }
 }
 ```
@@ -356,7 +356,7 @@ one resolver per application — a second registration throws.
 
 ```swift
 try app.useApexContainerResolver { req in
-    try await req.auth.require(User.self).harborIdentity
+    try await req.auth.require(User.self).workspaceIdentity
 }
 ```
 
@@ -482,8 +482,8 @@ notifies; `liveTransaction` is for the writes you drive by hand.
 
 ```swift
 try await req.liveTransaction { db in
-    dock.status = .closed
-    try await dock.save(on: db)
+    board.status = .closed
+    try await board.save(on: db)
 }
 ```
 
@@ -552,11 +552,11 @@ awaitable projection is the hole this type exists to close; declare the load
 instead.
 
 ```swift
-extension DockPageViewModel: VaporResponseBodyFactory {
+extension BoardPageViewModel: VaporResponseBodyFactory {
     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self
         where R.ResponseBody == Self {
-        .init(berthCells: try context.records(Self.berths)
-            .map { BerthCellViewModel(berth: $0) })
+        .init(cardCells: try context.records(Self.cards)
+            .map { CardCellViewModel(card: $0) })
     }
 }
 ```
@@ -613,11 +613,11 @@ reaching for the database there is the red flag that write I/O leaked out of the
 framework.
 
 ```swift
-extension UpdateBerthRequest.RequestBody: DataModelWriter {
-    static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
-    func apply(to berth: Berth) throws {
-        berth.name = name
-        berth.capacity = capacity
+extension UpdateCardRequest.RequestBody: DataModelWriter {
+    static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
+    func apply(to card: Card) throws {
+        card.name = name
+        card.capacity = capacity
     }
 }
 ```
@@ -633,9 +633,9 @@ they load empty sets. The value type you return conforms to FOSMVVM's
 
 ```swift
 struct GrantProvider: ContainerAuthorizationProvider {
-    func containerAuthorizations(for request: Request) async throws -> [DockGrant] {
+    func containerAuthorizations(for request: Request) async throws -> [BoardGrant] {
         let userId = try request.auth.require(SessionUser.self).id
-        return try await UserDockGrantRow.query(on: request.db)
+        return try await UserBoardGrantRow.query(on: request.db)
             .filter(\.$user.$id == userId).all()
             .map(\.snapshot)   // project Sendable value snapshots
     }
@@ -652,7 +652,7 @@ request-scoped means (e.g. `request.storage`). A thrown error fails the request;
 is never swallowed to an empty result.
 
 ```swift
-extension DockPageViewModel: SupplementalRecordLoading {
+extension BoardPageViewModel: SupplementalRecordLoading {
     static func loadSupplementalRecords(for request: Vapor.Request) async throws {
         // load what couldn't be declared; stash it in request.storage
     }
@@ -689,8 +689,8 @@ reaches the read registration, fails fast at boot rather than registering GET-on
 ```swift
 func routes(_ app: Application) throws {
     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    try authed.register(request: DockPageRequest.self, app: app)   // guarded read (GET)
-    try authed.register(request: UpdateBerthRequest.self, app: app) // write route, overload picked by Swift
+    try authed.register(request: BoardPageRequest.self, app: app)   // guarded read (GET)
+    try authed.register(request: UpdateCardRequest.self, app: app) // write route, overload picked by Swift
     try app.register(request: LandingPageRequest.self, app: app)   // public (Application is a RoutesBuilder)
 }
 ```
@@ -713,14 +713,14 @@ with the framework's guarded pipelines (declared loads, write gates, refresh
 fall-through). Scaffolded by `fosmvvm-serverrequest-generator`.
 
 ```swift
-final class ReplaceBerthController: ServerRequestController {
-    typealias TRequest = ReplaceBerthRequest
+final class ReplaceCardController: ServerRequestController {
+    typealias TRequest = ReplaceCardRequest
     let actions: [ServerRequestAction: ActionProcessor] = [
         .replace: { req, bound in
-            let body = try req.content.decode(ReplaceBerthRequest.RequestBody.self)
-            return try await BerthListVM(replacing: body, on: req.db)
+            let body = try req.content.decode(ReplaceCardRequest.RequestBody.self)
+            return try await CardListVM(replacing: body, on: req.db)
         }
     ]
 }
-// in routes(_:): try app.routes.register(collection: ReplaceBerthController())
+// in routes(_:): try app.routes.register(collection: ReplaceCardController())
 ```

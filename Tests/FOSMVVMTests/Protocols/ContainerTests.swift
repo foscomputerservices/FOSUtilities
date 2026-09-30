@@ -21,11 +21,11 @@ import Testing
 
 @Suite("Container")
 struct ContainerTests {
-    /// A container that owns Berths.
-    struct Dock: Container {
+    /// A container that owns Cards.
+    struct Board: Container {
         var id: ModelIdType?
         static var containedRecordTypes: [any Model.Type] {
-            [Berth.self]
+            [Card.self]
         }
 
         init(id: ModelIdType? = nil) {
@@ -34,7 +34,7 @@ struct ContainerTests {
     }
 
     /// A leaf model that owns nothing — inherits the empty default.
-    struct Berth: Container {
+    struct Card: Container {
         var id: ModelIdType?
         init(id: ModelIdType? = nil) {
             self.id = id
@@ -46,12 +46,12 @@ struct ContainerTests {
         func containedTypes(of type: (some Container).Type) -> [any Model.Type] {
             type.containedRecordTypes
         }
-        #expect(containedTypes(of: Dock.self).count == 1)
-        #expect(containedTypes(of: Dock.self).first is Berth.Type)
+        #expect(containedTypes(of: Board.self).count == 1)
+        #expect(containedTypes(of: Board.self).first is Card.Type)
     }
 
     @Test("A model that owns nothing inherits the empty default")
     func emptyDefault() {
-        #expect(Berth.containedRecordTypes.isEmpty)
+        #expect(Card.containedRecordTypes.isEmpty)
     }
 }

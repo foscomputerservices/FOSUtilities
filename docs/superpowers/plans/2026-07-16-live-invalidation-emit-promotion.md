@@ -117,9 +117,9 @@ or `Set` equality; the header is decoded whole-value with `fromJSON()` — never
 Emission-absence uses the existing sentinel discipline (see the header comment of
 `Tests/FOSMVVMVaporTests/LiveInvalidation/LiveTransactionTests.swift:17-20`).
 New fixtures use neutral vocabulary (`StatusSnapshot`, `StatusDashboardVM`) — existing
-harbor-named *harness* helpers may be reused as plumbing, but no new harbor vocabulary
-is introduced. Reuse caveat: `withFluentTestApp` (public) and `seedHarbor`
-(module-internal) are callable from a new file, but `configureLiveHarbor` is
+workspace-named *harness* helpers may be reused as plumbing, but no new workspace vocabulary
+is introduced. Reuse caveat: `withFluentTestApp` (public) and `seedWorkspace`
+(module-internal) are callable from a new file, but `configureLiveWorkspace` is
 **file-private and duplicated per test file with differing signatures** — COPY the
 single-arg version from `LiveTransactionTests.swift:189` into the new file; do not
 expect to call it across files.
@@ -178,7 +178,7 @@ git checkout -b feature/live-invalidation-emit-promotion
 Create `Tests/FOSMVVMVaporTests/LiveInvalidation/InvalidateProjectionsTests.swift`.
 Copy the license header from any sibling file. Mirror the harness idioms of
 `LiveTransactionTests.swift` in the same directory (`withFluentTestApp`,
-`configureLiveHarbor`, hub subscribe, sentinel discipline — read that file first).
+`configureLiveWorkspace`, hub subscribe, sentinel discipline — read that file first).
 
 ```swift
 import Fluent
@@ -206,7 +206,7 @@ struct InvalidateProjectionsTests {
     /// Outside any transaction, the call emits exactly the model's own identity.
     @Test func emitsOwnIdentityImmediately() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, _ in
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
@@ -223,31 +223,31 @@ struct InvalidateProjectionsTests {
     /// commit, containing the actor identity AND the SQL write's derived set.
     @Test func joinsLiveTransactionUnionOnCommit() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
             let status = StatusSnapshot(id: .init(), activeSessions: 1)
             try await app.liveTransaction { tx in
-                let berth = try Berth(number: 70, dockName: dock1.name, dockId: dock1.requireId())
-                try await berth.save(on: tx)
+                let card = try Card(number: 70, boardName: dock1.name, boardId: dock1.requireId())
+                try await card.save(on: tx)
                 try await app.invalidateProjections(of: status)
             }
 
             let union = try #require(await events.next())
             #expect(union.contains(try status.modelIdentity))
-            #expect(union.contains(try dock1.modelIdentity)) // berth's container, via middleware
+            #expect(union.contains(try dock1.modelIdentity)) // card's container, via middleware
         }
     }
 
     /// A thrown liveTransaction discards the collected nudge — sentinel-first.
     @Test func rolledBackTransactionEmitsNothing() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, db in
-            _ = try await seedHarbor(on: db)
+            _ = try await seedWorkspace(on: db)
             let hub = try #require(app.invalidationHub)
             var events = await hub.subscribe().makeAsyncIterator()
 
@@ -270,7 +270,7 @@ struct InvalidateProjectionsTests {
     /// With live invalidation not enabled, the call is a no-op — no throw, no trap.
     @Test func disabledIsNoOp() async throws {
         try await withFluentTestApp { _ in
-            // no configureLiveHarbor / useLiveInvalidation
+            // no configureLiveWorkspace / useLiveInvalidation
         } _: { app, _ in
             let status = StatusSnapshot(id: .init())
             try await app.invalidateProjections(of: status)
@@ -281,7 +281,7 @@ struct InvalidateProjectionsTests {
     /// An unpersisted model (nil id) throws ModelError.missingId — never a silent skip.
     @Test func nilIdThrowsMissingId() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
         } _: { app, _ in
             await #expect(throws: ModelError.self) {
                 try await app.invalidateProjections(of: StatusSnapshot(id: nil))
@@ -293,7 +293,7 @@ struct InvalidateProjectionsTests {
     /// identical observable behavior to the Application call).
     @Test func requestForwardingEmits() async throws {
         try await withFluentTestApp { app in
-            try configureLiveHarbor(app)
+            try configureLiveWorkspace(app)
             app.get("poke") { req async throws -> HTTPStatus in
                 try await req.invalidateProjections(of: StatusSnapshot(id: pokeId))
                 return .ok
@@ -317,7 +317,7 @@ private let pokeId = ModelIdType()
 ```
 
 Adjust harness/fixture call shapes to what `LiveTransactionTests.swift` actually uses
-(e.g. `Berth.init` signature) — the assertions above are the contract; the plumbing
+(e.g. `Card.init` signature) — the assertions above are the contract; the plumbing
 must match the existing suite. For `requestForwardingEmits`, prefer the
 `app.responder.respond(to:).get()` idiom the LiveInvalidation suite already uses
 (`RegistrationHeaderTests.swift`) over `app.test(...)`: `app.test` runs only the sync
@@ -529,7 +529,7 @@ request the header rides. Fixture VMs use neutral vocabulary. Cover these contra
    contract's path byte-identical to contract 3's with a strictly weaker assertion,
    so it is subsumed by contracts 2 (merge) + 3 (exact equality) and was dropped.*
 2. **Merges with the plan's set — no clobber.** A fixture WITH a `LoadRequirement`
-   (reuse the `HarborBerthsVM` shape from `RegistrationHeaderTests.swift` as plumbing)
+   (reuse the `WorkspaceBerthsVM` shape from `RegistrationHeaderTests.swift` as plumbing)
    whose factory ALSO registers a `StatusSnapshot`: the header contains the plan's
    container identities AND the snapshot's — assert both memberships.
 3. **Zero-data body registers too.** A fixture with no `dataRequirements` registering a
@@ -545,9 +545,9 @@ request the header rides. Fixture VMs use neutral vocabulary. Cover these contra
    subscribe to the hub; `try await app.invalidateProjections(of: StatusSnapshot(id: knownId))`;
    assert the emitted set equals the snapshot's identity **and** that identity is a
    member of the decoded header set — registration and emission name the same value.
-   Harness note: `RegistrationHeaderTests`' `configureHarbor` does NOT enable live
+   Harness note: `RegistrationHeaderTests`' `configureWorkspace` does NOT enable live
    invalidation — this test's setup must compose the serving registration with
-   `useLiveInvalidation(on:)` (or the copied `configureLiveHarbor`), else
+   `useLiveInvalidation(on:)` (or the copied `configureLiveWorkspace`), else
    `invalidationHub` is nil and the emit is a no-op.
 
 - [ ] **Step 2: Run to verify failure**

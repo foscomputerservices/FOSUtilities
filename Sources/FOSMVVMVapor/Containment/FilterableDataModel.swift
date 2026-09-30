@@ -25,10 +25,10 @@ import Foundation
 /// type — you translate the request's own ``ServerRequestQuery`` to Fluent, by hand:
 ///
 /// ```swift
-/// extension Berth: FilterableDataModel {
-///     static func apply(filter: BerthQuery, to query: QueryBuilder<Berth>) -> QueryBuilder<Berth> {
-///         guard let name = filter.dockName else { return query }
-///         return query.filter(\.$dockName == name)   // your Fluent, your columns
+/// extension Card: FilterableDataModel {
+///     static func apply(filter: CardQuery, to query: QueryBuilder<Card>) -> QueryBuilder<Card> {
+///         guard let name = filter.boardName else { return query }
+///         return query.filter(\.$boardName == name)   // your Fluent, your columns
 ///     }
 /// }
 /// ```

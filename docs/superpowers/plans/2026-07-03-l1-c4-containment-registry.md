@@ -21,7 +21,7 @@
 - **`members` precondition:** Fluent `fatalError`s if the container's relationship `idValue` is unpopulated. The engine always obtains containers via `RegisteredModel.find` (fetched). Tests must also use fetched instances (seed → `find`/query back → then `members`).
 - **Test group 7 (opacity) is a review invariant, not a runtime test** — access levels aren't observable at runtime. It's enforced by grep in the final task (matching how L0 handled it) plus the fact that no existing L0 test changes.
 - **Harness boot:** use `asyncBoot()`/`asyncShutdown()` (never sync `shutdown()`); async lifecycle handlers only run under async boot — see `VaporServerTestCase.swift`'s doc comment and the repo's known gotcha.
-- **Migration order matters** (FK dependencies): configure migrations parents-first (Pier → Dock → Berth/CrewMember → pivot).
+- **Migration order matters** (FK dependencies): configure migrations parents-first (Pier → Board → Card/Member → pivot).
 - **Rejected here** (already settled in the spec — do not relitigate): cardinality enum, public unauthorized load, `String`-keyed registry, defaulted `containment`, public registry surface, `precondition` instead of `throws` in `register`.
 
 ## File structure
@@ -36,7 +36,7 @@
 | `Sources/FOSMVVMVapor/Containment/ModelTypeRegistry.swift` (create) | `package` registry + `RegisteredModel` descriptor |
 | `Sources/FOSMVVMVapor/Extensions/Application+Containment.swift` (create) | `register(_:migration:)` + 3 checks; `package` Application/Request accessors; private StorageKey |
 | `Sources/FOSTestingVapor/FluentTestHarness.swift` (create) | `withFluentTestApp` — in-memory SQLite + lifecycle scoping |
-| `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift` (create) | Pier/Dock/Berth/CrewMember/DockCrew models + migrations |
+| `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift` (create) | Pier/Board/Card/Member/BoardMember models + migrations |
 | `Tests/FOSMVVMVaporTests/Containment/FluentTestHarnessTests.swift` (create) | Harness smoke test |
 | `Tests/FOSMVVMVaporTests/Containment/ContainmentRelationTests.swift` (create) | Spec test groups 3, 4, 5 + cast-mismatch throw |
 | `Tests/FOSMVVMVaporTests/Containment/ModelTypeRegistryTests.swift` (create) | Spec test groups 1, 2, 8, 9, 10 |
@@ -166,12 +166,12 @@ import Vapor
 /// shuts the application down:
 ///
 /// ```swift
-/// let berths = try await withFluentTestApp { app in
-///     try app.register(Dock.self, migration: CreateDock())
-///     app.migrations.add(CreateBerth())
+/// let cards = try await withFluentTestApp { app in
+///     try app.register(Board.self, migration: CreateBoard())
+///     app.migrations.add(CreateCard())
 /// } _: { app, db in
-///     try await Dock(name: "5").save(on: db)
-///     return try await Berth.query(on: db).all()
+///     try await Board(name: "5").save(on: db)
+///     return try await Card.query(on: db).all()
 /// }
 /// ```
 ///
@@ -219,14 +219,14 @@ git commit -m "feat(FOSTestingVapor): add withFluentTestApp in-memory SQLite tes
 **Files:**
 - Create: `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift`
 
-The fixture graph exercises all three factories: `Pier ←@Parent– Dock –@Children→ Berth` and `Dock –@Siblings(DockCrew)→ CrewMember`. Plain `DataModel` conformance now; `ContainerDataModel` conformance is added in Task 5 (the protocol doesn't exist yet).
+The fixture graph exercises all three factories: `Pier ←@Parent– Board –@Children→ Card` and `Board –@Siblings(BoardMember)→ Member`. Plain `DataModel` conformance now; `ContainerDataModel` conformance is added in Task 5 (the protocol doesn't exist yet).
 
 - [ ] **Step 1: Write the fixtures + a round-trip test**
 
 `Tests/FOSMVVMVaporTests/Containment/ContainmentFixtures.swift`:
 
 ```swift
-import Fluent // app.migrations (addHarborMigrations) lives in vapor/fluent
+import Fluent // app.migrations (addWorkspaceMigrations) lives in vapor/fluent
 import FluentKit
 import FOSFoundation
 import FOSMVVM
@@ -246,13 +246,13 @@ final class Pier: DataModel, @unchecked Sendable {
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
 
-final class Dock: DataModel, @unchecked Sendable {
-    static let schema = "docks"
+final class Board: DataModel, @unchecked Sendable {
+    static let schema = "boards"
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
     @Parent(key: "pier_id") var pier: Pier
-    @Children(for: \.$dock) var berths: [Berth]
-    @Siblings(through: DockCrew.self, from: \.$dock, to: \.$crewMember) var crew: [CrewMember]
+    @Children(for: \.$board) var cards: [Card]
+    @Siblings(through: BoardMember.self, from: \.$board, to: \.$member) var members: [Member]
     init() {}
     init(name: String, pierId: ModelIdType) {
         self.name = name
@@ -262,39 +262,39 @@ final class Dock: DataModel, @unchecked Sendable {
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
 
-final class Berth: DataModel, @unchecked Sendable {
-    static let schema = "berths"
+final class Card: DataModel, @unchecked Sendable {
+    static let schema = "cards"
     @ID(key: .id) var id: UUID?
     @Field(key: "number") var number: Int
-    @Parent(key: "dock_id") var dock: Dock
+    @Parent(key: "board_id") var board: Board
     init() {}
-    init(number: Int, dockId: ModelIdType) {
+    init(number: Int, boardId: ModelIdType) {
         self.number = number
-        self.$dock.id = dockId
+        self.$board.id = boardId
     }
 
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
 
-final class CrewMember: DataModel, @unchecked Sendable {
-    static let schema = "crew_members"
+final class Member: DataModel, @unchecked Sendable {
+    static let schema = "members"
     @ID(key: .id) var id: UUID?
     @Field(key: "name") var name: String
-    @Siblings(through: DockCrew.self, from: \.$crewMember, to: \.$dock) var docks: [Dock]
+    @Siblings(through: BoardMember.self, from: \.$member, to: \.$board) var boards: [Board]
     init() {}
     init(name: String) { self.name = name }
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
 
-final class DockCrew: DataModel, @unchecked Sendable {
-    static let schema = "dock_crew"
+final class BoardMember: DataModel, @unchecked Sendable {
+    static let schema = "board_member"
     @ID(key: .id) var id: UUID?
-    @Parent(key: "dock_id") var dock: Dock
-    @Parent(key: "crew_member_id") var crewMember: CrewMember
+    @Parent(key: "board_id") var board: Board
+    @Parent(key: "member_id") var member: Member
     init() {}
-    init(dockId: ModelIdType, crewMemberId: ModelIdType) {
-        self.$dock.id = dockId
-        self.$crewMember.id = crewMemberId
+    init(boardId: ModelIdType, memberId: ModelIdType) {
+        self.$board.id = boardId
+        self.$member.id = memberId
     }
 
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
@@ -312,100 +312,100 @@ struct CreatePier: AsyncMigration {
     }
 }
 
-struct CreateDock: AsyncMigration {
+struct CreateBoard: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(Dock.schema).id()
+        try await database.schema(Board.schema).id()
             .field("name", .string, .required)
             .field("pier_id", .uuid, .required, .references(Pier.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(Dock.schema).delete()
+        try await database.schema(Board.schema).delete()
     }
 }
 
-struct CreateBerth: AsyncMigration {
+struct CreateCard: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(Berth.schema).id()
+        try await database.schema(Card.schema).id()
             .field("number", .int, .required)
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(Berth.schema).delete()
+        try await database.schema(Card.schema).delete()
     }
 }
 
-struct CreateCrewMember: AsyncMigration {
+struct CreateMember: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(CrewMember.schema).id().field("name", .string, .required).create()
+        try await database.schema(Member.schema).id().field("name", .string, .required).create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(CrewMember.schema).delete()
+        try await database.schema(Member.schema).delete()
     }
 }
 
-struct CreateDockCrew: AsyncMigration {
+struct CreateBoardMember: AsyncMigration {
     func prepare(on database: any Database) async throws {
-        try await database.schema(DockCrew.schema).id()
-            .field("dock_id", .uuid, .required, .references(Dock.schema, "id"))
-            .field("crew_member_id", .uuid, .required, .references(CrewMember.schema, "id"))
+        try await database.schema(BoardMember.schema).id()
+            .field("board_id", .uuid, .required, .references(Board.schema, "id"))
+            .field("member_id", .uuid, .required, .references(Member.schema, "id"))
             .create()
     }
 
     func revert(on database: any Database) async throws {
-        try await database.schema(DockCrew.schema).delete()
+        try await database.schema(BoardMember.schema).delete()
     }
 }
 
 // MARK: - Shared seed
 
-/// Seeds the standard graph and returns the two fetched docks:
-/// dock1 (3 berths, 2 crew) and dock2 (1 berth, 1 shared crew member).
-func seedHarbor(on db: any Database) async throws -> (dock1: Dock, dock2: Dock) {
+/// Seeds the standard graph and returns the two fetched boards:
+/// dock1 (3 cards, 2 members) and dock2 (1 card, 1 shared members member).
+func seedWorkspace(on db: any Database) async throws -> (dock1: Board, dock2: Board) {
     let pier = Pier(name: "North Pier")
     try await pier.save(on: db)
-    let dock1 = try Dock(name: "Dock 1", pierId: pier.requireId())
-    let dock2 = try Dock(name: "Dock 2", pierId: pier.requireId())
+    let dock1 = try Board(name: "Board 1", pierId: pier.requireId())
+    let dock2 = try Board(name: "Board 2", pierId: pier.requireId())
     try await dock1.save(on: db)
     try await dock2.save(on: db)
     for number in 1...3 {
-        try await Berth(number: number, dockId: dock1.requireId()).save(on: db)
+        try await Card(number: number, boardId: dock1.requireId()).save(on: db)
     }
-    try await Berth(number: 9, dockId: dock2.requireId()).save(on: db)
-    let alice = CrewMember(name: "Alice")
-    let bob = CrewMember(name: "Bob")
+    try await Card(number: 9, boardId: dock2.requireId()).save(on: db)
+    let alice = Member(name: "Alice")
+    let bob = Member(name: "Bob")
     try await alice.save(on: db)
     try await bob.save(on: db)
-    try await DockCrew(dockId: dock1.requireId(), crewMemberId: alice.requireId()).save(on: db)
-    try await DockCrew(dockId: dock1.requireId(), crewMemberId: bob.requireId()).save(on: db)
-    try await DockCrew(dockId: dock2.requireId(), crewMemberId: alice.requireId()).save(on: db)
+    try await BoardMember(boardId: dock1.requireId(), memberId: alice.requireId()).save(on: db)
+    try await BoardMember(boardId: dock1.requireId(), memberId: bob.requireId()).save(on: db)
+    try await BoardMember(boardId: dock2.requireId(), memberId: alice.requireId()).save(on: db)
     return (dock1, dock2)
 }
 
 /// Adds every fixture migration in FK order.
-func addHarborMigrations(_ app: Application) {
+func addWorkspaceMigrations(_ app: Application) {
     app.migrations.add(CreatePier())
-    app.migrations.add(CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    app.migrations.add(CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
 }
 ```
 
 Append to `FluentTestHarnessTests.swift`:
 
 ```swift
-@Test func harborFixturesSeedAndRelate() async throws {
+@Test func workspaceFixturesSeedAndRelate() async throws {
     let names = try await withFluentTestApp { app in
-        addHarborMigrations(app)
+        addWorkspaceMigrations(app)
     } _: { _, db in
-        let (dock1, _) = try await seedHarbor(on: db)
-        let berths = try await dock1.$berths.query(on: db).all()
-        return berths.map(\.number).sorted()
+        let (dock1, _) = try await seedWorkspace(on: db)
+        let cards = try await dock1.$cards.query(on: db).all()
+        return cards.map(\.number).sorted()
     }
     #expect(names == [1, 2, 3])
 }
@@ -420,7 +420,7 @@ Expected: 3 tests PASS (fixture graph compiles, saves, and relates).
 
 ```bash
 git add Tests/FOSMVVMVaporTests/Containment/
-git commit -m "test(FOSMVVMVaporTests): add harbor containment fixtures + seed helper"
+git commit -m "test(FOSMVVMVaporTests): add workspace containment fixtures + seed helper"
 ```
 
 ---
@@ -478,14 +478,14 @@ import Testing
 
 @Suite("ContainmentRelation member loads")
 struct ContainmentRelationTests {
-    // Spec test group 3: children of THIS dock only.
+    // Spec test group 3: children of THIS board only.
     @Test func childrenLoadsOnlyThisContainersMembers() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.children(\Dock.$berths).members(of: dock1, on: db)
-            return try members.map { try #require($0 as? Berth).number }.sorted()
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.children(\Board.$cards).members(of: dock1, on: db)
+            return try members.map { try #require($0 as? Card).number }.sorted()
         }
         #expect(numbers == [1, 2, 3])
     }
@@ -493,11 +493,11 @@ struct ContainmentRelationTests {
     // Spec test group 4: siblings through the pivot, this container only.
     @Test func siblingsLoadsThroughPivotForThisContainerOnly() async throws {
         let names = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (_, dock2) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.siblings(\Dock.$crew).members(of: dock2, on: db)
-            return try members.map { try #require($0 as? CrewMember).name }.sorted()
+            let (_, dock2) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.siblings(\Board.$members).members(of: dock2, on: db)
+            return try members.map { try #require($0 as? Member).name }.sorted()
         }
         #expect(names == ["Alice"])
     }
@@ -505,10 +505,10 @@ struct ContainmentRelationTests {
     // Spec test group 5: parent (to-one) returns a single-element array.
     @Test func parentLoadsSingleElementArray() async throws {
         let parents = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.parent(\Dock.$pier).members(of: dock1, on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.parent(\Board.$pier).members(of: dock1, on: db)
             return members.map { ($0 as? Pier)?.name }
         }
         #expect(parents == ["North Pier"])
@@ -517,13 +517,13 @@ struct ContainmentRelationTests {
     // Cast backstop: wrong container type throws, never a silent [].
     @Test func mismatchedContainerThrowsTyped() async throws {
         try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let berth = try #require(try await dock1.$berths.query(on: db).first())
-            let relation = ContainmentRelation.children(\Dock.$berths)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let card = try #require(try await dock1.$cards.query(on: db).first())
+            let relation = ContainmentRelation.children(\Board.$cards)
             do {
-                _ = try await relation.members(of: berth, on: db) // a Berth is not a Dock
+                _ = try await relation.members(of: card, on: db) // a Card is not a Board
                 Issue.record("expected ContainmentError.containerTypeMismatch")
             } catch let error as ContainmentError {
                 guard case .containerTypeMismatch = error else {
@@ -581,9 +581,9 @@ import Foundation
 /// join off Fluent, so you never restate a foreign key or pivot table:
 ///
 /// ```swift
-/// extension Dock: ContainerDataModel {
+/// extension Board: ContainerDataModel {
 ///     static var containment: [ContainmentRelation] {
-///         [.children(\.$berths), .siblings(\.$crew)]   // Dock owns Berths (FK) and Crew (pivot)
+///         [.children(\.$cards), .siblings(\.$members)]   // Board owns Cards (FK) and Members (pivot)
 ///     }
 /// }
 /// ```
@@ -675,8 +675,8 @@ import Foundation
 /// containment.
 ///
 /// ```swift
-/// final class Dock: ContainerDataModel {
-///     static var containment: [ContainmentRelation] { [.children(\.$berths), .siblings(\.$crew)] }
+/// final class Board: ContainerDataModel {
+///     static var containment: [ContainmentRelation] { [.children(\.$cards), .siblings(\.$members)] }
 ///     // ...Fluent + Container members...
 /// }
 /// ```
@@ -713,18 +713,18 @@ git commit -m "feat(FOSMVVMVapor): add ContainmentRelation factories + Container
 
 - [ ] **Step 1: Conform the fixtures**
 
-In `ContainmentFixtures.swift`, change `Dock`'s conformance line to:
+In `ContainmentFixtures.swift`, change `Board`'s conformance line to:
 
 ```swift
-final class Dock: ContainerDataModel, @unchecked Sendable {
+final class Board: ContainerDataModel, @unchecked Sendable {
 ```
 
-and add inside `Dock`:
+and add inside `Board`:
 
 ```swift
-    static var containedRecordTypes: [any FOSMVVM.Model.Type] { [Berth.self, CrewMember.self, Pier.self] }
+    static var containedRecordTypes: [any FOSMVVM.Model.Type] { [Card.self, Member.self, Pier.self] }
     static var containment: [ContainmentRelation] {
-        [.children(\.$berths), .siblings(\.$crew), .parent(\.$pier)]
+        [.children(\.$cards), .siblings(\.$members), .parent(\.$pier)]
     }
 ```
 
@@ -733,10 +733,10 @@ Add misconfigured fixture types at the bottom of the file (for the fail-fast tes
 ```swift
 // MARK: - Deliberately misconfigured containers (fail-fast tests)
 
-/// Same namespace as Dock (anchored to Dock) — duplicate-registration fixture.
-final class RogueDock: ContainerDataModel, @unchecked Sendable {
+/// Same namespace as Board (anchored to Board) — duplicate-registration fixture.
+final class RogueBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "rogue_docks"
-    static var modelIdentityNamespace: ModelNamespace { .init(for: Dock.self) }
+    static var modelIdentityNamespace: ModelNamespace { .init(for: Board.self) }
     static var containedRecordTypes: [any FOSMVVM.Model.Type] { [] }
     static var containment: [ContainmentRelation] { [] }
     @ID(key: .id) var id: UUID?
@@ -745,19 +745,19 @@ final class RogueDock: ContainerDataModel, @unchecked Sendable {
 }
 
 /// containment built from ANOTHER container's KeyPath — container-type-mismatch fixture.
-final class MismatchedDock: ContainerDataModel, @unchecked Sendable {
+final class MismatchedBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "mismatched_docks"
-    static var containedRecordTypes: [any FOSMVVM.Model.Type] { [Berth.self] }
-    static var containment: [ContainmentRelation] { [.children(\Dock.$berths)] }
+    static var containedRecordTypes: [any FOSMVVM.Model.Type] { [Card.self] }
+    static var containment: [ContainmentRelation] { [.children(\Board.$cards)] }
     @ID(key: .id) var id: UUID?
     init() {}
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
 
-/// containment ≠ containedRecordTypes — drift fixture, MISSING direction (declared Berth, forgot containment).
-final class DriftingDock: ContainerDataModel, @unchecked Sendable {
+/// containment ≠ containedRecordTypes — drift fixture, MISSING direction (declared Card, forgot containment).
+final class DriftingBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "drifting_docks"
-    static var containedRecordTypes: [any FOSMVVM.Model.Type] { [Berth.self] }
+    static var containedRecordTypes: [any FOSMVVM.Model.Type] { [Card.self] }
     static var containment: [ContainmentRelation] { [] }
     @ID(key: .id) var id: UUID?
     init() {}
@@ -766,21 +766,21 @@ final class DriftingDock: ContainerDataModel, @unchecked Sendable {
 
 /// containment ≠ containedRecordTypes — drift fixture, SURPLUS direction (containment declares a type
 /// containedRecordTypes omits). Needs its own child relationship so the KeyPath's From is itself.
-final class SurplusDock: ContainerDataModel, @unchecked Sendable {
+final class SpareBoard: ContainerDataModel, @unchecked Sendable {
     static let schema = "surplus_docks"
     static var containedRecordTypes: [any FOSMVVM.Model.Type] { [] }
     static var containment: [ContainmentRelation] { [.children(\.$boats)] }
     @ID(key: .id) var id: UUID?
-    @Children(for: \.$surplusDock) var boats: [Boat]
+    @Children(for: \.$spareBoard) var boats: [Boat]
     init() {}
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
 
-/// Child of SurplusDock (exists only so SurplusDock has a relationship of its own).
+/// Child of SpareBoard (exists only so SpareBoard has a relationship of its own).
 final class Boat: DataModel, @unchecked Sendable {
     static let schema = "boats"
     @ID(key: .id) var id: UUID?
-    @Parent(key: "surplus_dock_id") var surplusDock: SurplusDock
+    @Parent(key: "surplus_dock_id") var spareBoard: SpareBoard
     init() {}
     func validate(fields: [any FormFieldBase]?, validations: Validations) -> ValidationResult.Status? { nil }
 }
@@ -806,18 +806,18 @@ struct ModelTypeRegistryTests {
     // Spec test group 1: registry round-trip; unregistered namespace → nil.
     @Test func registrationRoundTripsDescriptor() async throws {
         try await withFluentTestApp { app in
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, _ in
-            let descriptor = try #require(app.modelTypeRegistry.registered(for: Dock.modelIdentityNamespace))
+            let descriptor = try #require(app.modelTypeRegistry.registered(for: Board.modelIdentityNamespace))
             // Assertion basis per spec: count + per-element containedType identity (not Equatable).
-            #expect(descriptor.containment.count == Dock.containment.count)
+            #expect(descriptor.containment.count == Board.containment.count)
             #expect(
                 Set(descriptor.containment.map { ObjectIdentifier($0.containedType) })
-                    == Set(Dock.containment.map { ObjectIdentifier($0.containedType) })
+                    == Set(Board.containment.map { ObjectIdentifier($0.containedType) })
             )
             #expect(app.modelTypeRegistry.registered(for: Pier.modelIdentityNamespace) == nil)
         }
@@ -826,16 +826,16 @@ struct ModelTypeRegistryTests {
     // Spec test group 2: find by id; missing id → nil.
     @Test func registeredModelFindsById() async throws {
         try await withFluentTestApp { app in
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let descriptor = try #require(app.modelTypeRegistry.registered(for: Dock.modelIdentityNamespace))
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let descriptor = try #require(app.modelTypeRegistry.registered(for: Board.modelIdentityNamespace))
             let found = try await descriptor.find(dock1.requireId(), on: db)
-            #expect(try #require(found as? Dock).id == dock1.id)
+            #expect(try #require(found as? Board).id == dock1.id)
             let missing = try await descriptor.find(ModelIdType(), on: db)
             #expect(missing == nil)
         }
@@ -845,14 +845,14 @@ struct ModelTypeRegistryTests {
     // and a second TYPE sharing the namespace; first registration unchanged.
     @Test func duplicateRegistrationThrows() async throws {
         try await withFluentTestApp { app in
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Board.self, migration: CreateBoard())
             for attempt in 0..<2 {
                 do {
                     // attempt 0: same type twice; attempt 1: different type, colliding namespace.
                     if attempt == 0 {
-                        try app.register(Dock.self, migration: CreateDock())
+                        try app.register(Board.self, migration: CreateBoard())
                     } else {
-                        try app.register(RogueDock.self, migration: CreateDock())
+                        try app.register(RogueBoard.self, migration: CreateBoard())
                     }
                     Issue.record("expected ContainmentError.duplicateNamespace (attempt \(attempt))")
                 } catch let error as ContainmentError {
@@ -863,9 +863,9 @@ struct ModelTypeRegistryTests {
                 }
             }
             // First registration untouched:
-            let descriptor = app.modelTypeRegistry.registered(for: Dock.modelIdentityNamespace)
-            #expect(descriptor?.containment.count == Dock.containment.count)
-            // Don't migrate the harbor graph here — this test never touches the DB body.
+            let descriptor = app.modelTypeRegistry.registered(for: Board.modelIdentityNamespace)
+            #expect(descriptor?.containment.count == Board.containment.count)
+            // Don't migrate the workspace graph here — this test never touches the DB body.
         } _: { _, _ in }
     }
 
@@ -873,7 +873,7 @@ struct ModelTypeRegistryTests {
     @Test func containerTypeMismatchThrows() async throws {
         try await withFluentTestApp { app in
             do {
-                try app.register(MismatchedDock.self, migration: CreateDock())
+                try app.register(MismatchedBoard.self, migration: CreateBoard())
                 Issue.record("expected ContainmentError.containerTypeMismatch")
             } catch let error as ContainmentError {
                 guard case .containerTypeMismatch = error else {
@@ -881,17 +881,17 @@ struct ModelTypeRegistryTests {
                     return
                 }
             }
-            #expect(app.modelTypeRegistry.registered(for: MismatchedDock.modelIdentityNamespace) == nil)
+            #expect(app.modelTypeRegistry.registered(for: MismatchedBoard.modelIdentityNamespace) == nil)
         } _: { _, _ in }
     }
 
     // Spec test group 10: containment ≠ containedRecordTypes fail-fasts in BOTH directions
-    // (missing: DriftingDock; surplus: SurplusDock); a matching declaration registers cleanly.
+    // (missing: DriftingBoard; surplus: SpareBoard); a matching declaration registers cleanly.
     @Test func containmentDriftThrows() async throws {
         try await withFluentTestApp { app in
-            // Missing direction: declared Berth, containment empty.
+            // Missing direction: declared Card, containment empty.
             do {
-                try app.register(DriftingDock.self, migration: CreateDock())
+                try app.register(DriftingBoard.self, migration: CreateBoard())
                 Issue.record("expected .containmentDrift (missing direction)")
             } catch let error as ContainmentError {
                 guard case .containmentDrift = error else {
@@ -901,7 +901,7 @@ struct ModelTypeRegistryTests {
             }
             // Surplus direction: containment declares Boat, containedRecordTypes empty.
             do {
-                try app.register(SurplusDock.self, migration: CreateDock())
+                try app.register(SpareBoard.self, migration: CreateBoard())
                 Issue.record("expected .containmentDrift (surplus direction)")
             } catch let error as ContainmentError {
                 guard case .containmentDrift = error else {
@@ -909,8 +909,8 @@ struct ModelTypeRegistryTests {
                     return
                 }
             }
-            // The matching declaration (Dock) registers cleanly:
-            try app.register(Dock.self, migration: CreateDock())
+            // The matching declaration (Board) registers cleanly:
+            try app.register(Board.self, migration: CreateBoard())
         } _: { _, _ in }
     }
 }
@@ -993,7 +993,7 @@ public extension Application {
     ///
     /// ```swift
     /// // in configure(_:)
-    /// try app.register(Dock.self, migration: Dock.CreateDock())
+    /// try app.register(Board.self, migration: Board.CreateBoard())
     /// ```
     ///
     /// - Throws: if the model's namespace is already registered, or its `containment` doesn't match
@@ -1069,7 +1069,7 @@ git commit -m "feat(FOSMVVMVapor): add injected ModelTypeRegistry + throwing mig
 
 - [ ] **Step 1: Write the test**
 
-The whole point of C4: from a bare `ModelIdentity`, reach the contained records **without naming `Dock`/`Berth` at the loading call sites**. The generic helper takes only the identity + registry + db:
+The whole point of C4: from a bare `ModelIdentity`, reach the contained records **without naming `Board`/`Card` at the loading call sites**. The generic helper takes only the identity + registry + db:
 
 ```swift
 import Fluent // app.migrations lives in vapor/fluent
@@ -1084,18 +1084,18 @@ import Testing
 struct ErasedBridgeTests {
     @Test func identityReachesContainedRecordsWithoutConcreteTypes() async throws {
         let membersByRelation = try await withFluentTestApp { app in
-            try app.register(Dock.self, migration: CreateDock())
+            try app.register(Board.self, migration: CreateBoard())
             app.migrations.add(CreatePier())
-            app.migrations.add(CreateBerth())
-            app.migrations.add(CreateCrewMember())
-            app.migrations.add(CreateDockCrew())
+            app.migrations.add(CreateCard())
+            app.migrations.add(CreateMember())
+            app.migrations.add(CreateBoardMember())
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             let identity = try dock1.modelIdentity
             // From here down: NO concrete container/record type names — the erased path only.
             return try await loadAllMembers(of: identity, registry: app.modelTypeRegistry, on: db)
         }
-        // dock1: 3 berths (children), 2 crew (siblings), 1 pier (parent).
+        // dock1: 3 cards (children), 2 members (siblings), 1 pier (parent).
         #expect(membersByRelation.sorted() == [1, 2, 3])
     }
 }
@@ -1122,7 +1122,7 @@ private func loadAllMembers(
 - [ ] **Step 2: Run to verify it passes**
 
 Run: `swift test --filter ErasedBridgeTests 2>&1 | tail -5`
-Expected: 1 test PASS — counts `[1, 2, 3]` sorted = parent(1) + crew(2) + berths(3).
+Expected: 1 test PASS — counts `[1, 2, 3]` sorted = parent(1) + members(2) + cards(3).
 
 - [ ] **Step 3: Commit**
 

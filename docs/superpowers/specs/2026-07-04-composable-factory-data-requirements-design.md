@@ -169,14 +169,14 @@ the verb names the authority exercised (`ContainerOperation`), never the SQL**
 ///
 /// ```swift
 /// extension BerthsViewModel: ComposableViewModelFactory {
-///     static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+///     static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
 ///         .refinedByRequest
-///     static let crew   = LoadRequirement.read(CrewMember.self, in: .parentRoot)
+///     static let members   = LoadRequirement.read(Member.self, in: .parentRoot)
 ///
-///     static var dataRequirements: [any DataRequirement] { [berths, crew] }
+///     static var dataRequirements: [any DataRequirement] { [cards, members] }
 ///     static var children: [ComposedChild] {
-///         [.child(BerthCellViewModel.self),
-///          .child(HarborBannerViewModel.self, rootedAt: .apex)]
+///         [.child(CardCellViewModel.self),
+///          .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
 ///     }
 /// }
 /// ```
@@ -197,12 +197,12 @@ public protocol ComposableViewModelFactory: ViewModelFactory { … }
 /// whose records need authority anchored at *it*:
 ///
 /// ```swift
-/// extension PersonnelFolder {
+/// extension Checklist {
 ///     static var authorityFlow: AuthorityFlow { .guards }
 /// }
 /// ```
 ///
-/// Reads from the declaration site: *"PersonnelFolder guards; everything else inherits."*
+/// Reads from the declaration site: *"Checklist guards; everything else inherits."*
 public enum AuthorityFlow { case inherits, guards }
 ```
 
@@ -219,10 +219,10 @@ the executor, binds):
 5. `.refinedByRequest` uniqueness + dead-marker detection; plan determinism
 6. collapse-boundary computation (M2 legality map — data only)
 
-**Vapor — FOSMVVMVaporTests, SQLite harness** (fixtures gain the `Harbor` apex,
+**Vapor — FOSMVVMVaporTests, SQLite harness** (fixtures gain the `Workspace` apex,
 a three-level path, a `.guards` container):
 7. boot checks — each throws/warns per Scope §6
-8. end-to-end: request type → plan → resolved → engine → cache; dock-rooted +
+8. end-to-end: request type → plan → resolved → engine → cache; board-rooted +
    apex-rooted trees in one request (the forest)
 9. authority: apex grant descends three levels under `.inherits`; `.guards` mid-path
    denies without an anchored grant, loads with one; **anchor-conflicting diamond:
@@ -237,7 +237,7 @@ a three-level path, a `.guards` container):
 
 ## Constraint ledger
 
-- **Every scope is rooted** (David): "all docks" = docks *of the apex*; permissions to
+- **Every scope is rooted** (David): "all boards" = boards *of the apex*; permissions to
   landing-page-style data are ordinary grants on the apex. No second grant kind, ever.
 - **The no-DB-in-projection rule's true history** (David): a pre-async/await mechanism
   whose valuable offspring (rooted permission + caching) we keep and whose fragility
@@ -246,7 +246,7 @@ a three-level path, a `.guards` container):
   overrides (C8's hook), never projection-time ambient access.
 - **The cold-read test is the decisive naming instrument** (David): both surfaces were
   A/B-tested on context-free readers; surface B won (`.refinedByRequest` inferred
-  nearly exactly; `[berths, crew]` frictionless; `.child` default self-explanatory).
+  nearly exactly; `[cards, members]` frictionless; `.child` default self-explanatory).
   The test also caught a real grammar bug: `via` listing the terminal type read as
   self-referential to both readers → **via = intermediates only**. Accepted trade:
   the authority axis is invisible while `.read` is the only verb; it becomes
@@ -260,7 +260,7 @@ a three-level path, a `.guards` container):
   **`RecordRequirement` rejected** — signature stutter. **apex, not root/top** — "root"
   belongs to per-request roots. **`Action` rejected for the requirement** — it is the
   wire tier's word (`ServerRequestAction`); the requirement's verb is the authority tier's.
-- **`.via(\Dock.$crew)` (Fluent KeyPath) can never appear on a shared surface** —
+- **`.via(\Board.$members)` (Fluent KeyPath) can never appear on a shared surface** —
   the DoD grep now hunts `$`-projections in FOSMVVM sources *and comments*.
 
 ## Decisions (all with David, live, 2026-07-04)

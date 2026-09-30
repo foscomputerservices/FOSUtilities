@@ -24,19 +24,19 @@ import Vapor
 /// binding are derived for you, once.
 ///
 /// ```swift
-/// final class ReplaceBerthController: ServerRequestController {
-///     typealias TRequest = ReplaceBerthRequest
+/// final class ReplaceCardController: ServerRequestController {
+///     typealias TRequest = ReplaceCardRequest
 ///
 ///     let actions: [ServerRequestAction: ActionProcessor] = [
 ///         .replace: { req, bound in
-///             let body = try req.content.decode(ReplaceBerthRequest.RequestBody.self)
-///             return try await BerthPage(replacing: body, on: req.db)
+///             let body = try req.content.decode(ReplaceCardRequest.RequestBody.self)
+///             return try await CardPage(replacing: body, on: req.db)
 ///         }
 ///     ]
 /// }
 ///
 /// // boot:
-/// try app.routes.register(collection: ReplaceBerthController())
+/// try app.routes.register(collection: ReplaceCardController())
 /// ```
 ///
 /// Prefer ``Vapor/RoutesBuilder/register(request:app:)`` — it instantiates this mechanism

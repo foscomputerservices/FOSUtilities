@@ -32,19 +32,19 @@ private func same(_ lhs: Any.Type, _ rhs: Any.Type) -> Bool {
 
 // MARK: - Model fixtures
 
-private struct Berth: Model {
+private struct Card: Model {
     var id: ModelIdType?
 }
 
-private struct SlipAssignment: Model {
+private struct Assignment: Model {
     var id: ModelIdType?
 }
 
-private struct CrewMember: Model {
+private struct Member: Model {
     var id: ModelIdType?
 }
 
-private struct Dock: Model {
+private struct Board: Model {
     var id: ModelIdType?
 }
 
@@ -94,10 +94,10 @@ private struct ForeignReqVM: PlanFixture {
     }
 }
 
-/// One `via:` requirement — its C7 baseline tuple is `path: [Berth]`.
+/// One `via:` requirement — its C7 baseline tuple is `path: [Card]`.
 private struct PackViaVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(SlipAssignment.self, in: .parentRoot, via: Berth.self)]
+        [LoadRequirement.read(Assignment.self, in: .parentRoot, via: Card.self)]
     }
 }
 
@@ -105,9 +105,9 @@ private struct PackViaVM: PlanFixture {
 private struct WriteVerbsVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.write(Berth.self, in: .parentRoot),
-            LoadRequirement.create(CrewMember.self, in: .parentRoot),
-            LoadRequirement.archive(SlipAssignment.self, in: .parentRoot)
+            LoadRequirement.write(Card.self, in: .parentRoot),
+            LoadRequirement.create(Member.self, in: .parentRoot),
+            LoadRequirement.archive(Assignment.self, in: .parentRoot)
         ]
     }
 }
@@ -115,74 +115,74 @@ private struct WriteVerbsVM: PlanFixture {
 /// Minting shapes re-pointed from the sealed representation onto the walk.
 private struct ImplicitTerminalVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Berth.self, in: .parentRoot)]
+        [LoadRequirement.read(Card.self, in: .parentRoot)]
     }
 }
 
 private struct ApexRootVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Berth.self, in: .newRoot(.apex))]
+        [LoadRequirement.read(Card.self, in: .newRoot(.apex))]
     }
 }
 
 private struct MultiHopViaVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(SlipAssignment.self, in: .parentRoot, via: Dock.self, Berth.self)]
+        [LoadRequirement.read(Assignment.self, in: .parentRoot, via: Board.self, Card.self)]
     }
 }
 
 private struct MarkedVM: PlanFixture {
     static var dataRequirements: [any DataRequirement] {
         [
-            LoadRequirement.read(Berth.self, in: .parentRoot).refinedByRequest,
-            LoadRequirement.read(CrewMember.self, in: .parentRoot)
+            LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest,
+            LoadRequirement.read(Member.self, in: .parentRoot)
         ]
     }
 }
 
 // MARK: - Handle-resolution fixtures (tuples(matching:) — declaration-token exactness)
 
-/// A child that loads Berth at ITS OWN root — composed one hop deeper (via Dock), so the
-/// walk records its tuple path absolutely as `[Dock]`. Its own handle declares no `via:`.
-private struct DeepBerthVM: PlanFixture {
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+/// A child that loads Card at ITS OWN root — composed one hop deeper (via Board), so the
+/// walk records its tuple path absolutely as `[Board]`. Its own handle declares no `via:`.
+private struct DeepCardVM: PlanFixture {
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
     static var dataRequirements: [any DataRequirement] {
-        [berths]
+        [cards]
     }
 }
 
-/// Parent loads Berth at the query root (path `[]`) AND composes ``DeepBerthVM`` via Dock
-/// (child path `[Dock]`). Two same-typed Berth tuples in one plan — each declaration's
+/// Parent loads Card at the query root (path `[]`) AND composes ``DeepCardVM`` via Board
+/// (child path `[Board]`). Two same-typed Card tuples in one plan — each declaration's
 /// handle must resolve to exactly its OWN tuple.
-private struct TwoBerthPathsVM: PlanFixture {
-    static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+private struct TwoCardPathsVM: PlanFixture {
+    static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
     static var dataRequirements: [any DataRequirement] {
-        [berths]
+        [cards]
     }
 
     static var children: [ComposedChild] {
-        [.child(DeepBerthVM.self, via: Dock.self)]
+        [.child(DeepCardVM.self, via: Board.self)]
     }
 }
 
-/// Composes the SAME child on two distinct paths: its one Berth declaration walks to TWO
-/// tuples (path `[]` and path `[Dock]`) — genuine ambiguity.
+/// Composes the SAME child on two distinct paths: its one Card declaration walks to TWO
+/// tuples (path `[]` and path `[Board]`) — genuine ambiguity.
 private struct TwiceComposedParentVM: PlanFixture {
     static var children: [ComposedChild] {
         [
-            .child(DeepBerthVM.self),
-            .child(DeepBerthVM.self, via: Dock.self)
+            .child(DeepCardVM.self),
+            .child(DeepCardVM.self, via: Board.self)
         ]
     }
 }
 
-/// Declares Berth twice, textually identically — two declaration sites collapsing (by dedup)
+/// Declares Card twice, textually identically — two declaration sites collapsing (by dedup)
 /// onto ONE tuple. Each handle must still resolve, unambiguously, to that tuple.
 private struct TwinDeclarationsVM: PlanFixture {
-    static let portBerths = LoadRequirement.read(Berth.self, in: .parentRoot)
-    static let starboardBerths = LoadRequirement.read(Berth.self, in: .parentRoot)
+    static let portCards = LoadRequirement.read(Card.self, in: .parentRoot)
+    static let starboardCards = LoadRequirement.read(Card.self, in: .parentRoot)
     static var dataRequirements: [any DataRequirement] {
-        [portBerths, starboardBerths]
+        [portCards, starboardCards]
     }
 }
 
@@ -193,7 +193,7 @@ private struct TwinDeclarationsVM: PlanFixture {
 /// could not conform: the trait required `ViewModelFactory where Self: ViewModel`.
 private struct NonVMReportBody: ServerRequestBody, ComposableFactory {
     static var dataRequirements: [any DataRequirement] {
-        [LoadRequirement.read(Berth.self, in: .parentRoot)]
+        [LoadRequirement.read(Card.self, in: .parentRoot)]
     }
 }
 
@@ -230,8 +230,8 @@ struct SealedRequirementTests {
 
         let expected = RecordLoadPlan.Tuple(
             root: .query,
-            path: [Berth.self],
-            recordType: SlipAssignment.self,
+            path: [Card.self],
+            recordType: Assignment.self,
             operation: .readRecords,
             anchor: nil,
             isRefinedByRequest: false
@@ -244,9 +244,9 @@ struct SealedRequirementTests {
     func writeVerbsCarryTheirOperations() throws {
         let plan = try RecordLoadPlan.walk(from: WriteVerbsVM.self)
 
-        let write = try #require(plan.tuples.first { same($0.recordType, Berth.self) })
-        let create = try #require(plan.tuples.first { same($0.recordType, CrewMember.self) })
-        let delete = try #require(plan.tuples.first { same($0.recordType, SlipAssignment.self) })
+        let write = try #require(plan.tuples.first { same($0.recordType, Card.self) })
+        let create = try #require(plan.tuples.first { same($0.recordType, Member.self) })
+        let delete = try #require(plan.tuples.first { same($0.recordType, Assignment.self) })
 
         #expect(write.operation == .writeRecords)
         #expect(create.operation == .createRecords)
@@ -256,14 +256,14 @@ struct SealedRequirementTests {
     // compile-audit: `.create` accepts no `via:` intermediates — the root
     // container IS the create scope. Uncommenting the next line must fail to
     // compile (extra argument 'via' in call).
-    // _ = LoadRequirement.create(Berth.self, in: .parentRoot, via: Dock.self)
+    // _ = LoadRequirement.create(Card.self, in: .parentRoot, via: Board.self)
 
     @Test(".read with no via: is the implicit terminal hop — an empty path at the query root")
     func implicitTerminalReadWalksToEmptyPath() throws {
         let plan = try RecordLoadPlan.walk(from: ImplicitTerminalVM.self)
 
         let tuple = try #require(plan.tuples.first)
-        #expect(same(tuple.recordType, Berth.self))
+        #expect(same(tuple.recordType, Card.self))
         #expect(tuple.path.isEmpty)
         #expect(tuple.root == .query)
         #expect(tuple.operation == .readRecords)
@@ -283,10 +283,10 @@ struct SealedRequirementTests {
         let plan = try RecordLoadPlan.walk(from: MultiHopViaVM.self)
 
         let tuple = try #require(plan.tuples.first)
-        #expect(same(tuple.recordType, SlipAssignment.self))
+        #expect(same(tuple.recordType, Assignment.self))
         #expect(tuple.path.count == 2)
-        #expect(same(tuple.path[0], Dock.self))
-        #expect(same(tuple.path[1], Berth.self))
+        #expect(same(tuple.path[0], Board.self))
+        #expect(same(tuple.path[1], Card.self))
     }
 
     @Test(".refinedByRequest marks exactly its own requirement, leaving siblings unmarked")
@@ -295,7 +295,7 @@ struct SealedRequirementTests {
 
         let marked = plan.tuples.filter(\.isRefinedByRequest)
         #expect(marked.count == 1)
-        #expect(try same(#require(marked.first).recordType, Berth.self))
+        #expect(try same(#require(marked.first).recordType, Card.self))
     }
 
     @Test("A non-ViewModel ServerRequestBody adopts the un-pinned trait; the walk derives its plan")
@@ -304,35 +304,35 @@ struct SealedRequirementTests {
 
         let tuple = try #require(plan.tuples.first)
         #expect(plan.tuples.count == 1)
-        #expect(same(tuple.recordType, Berth.self))
+        #expect(same(tuple.recordType, Card.self))
         #expect(tuple.operation == .readRecords)
     }
 
     @Test("Each declaration's handle resolves to exactly its OWN tuple in a two-same-typed-tuple plan")
     func handlesResolveByDeclarationIdentity() throws {
-        let plan = try RecordLoadPlan.walk(from: TwoBerthPathsVM.self)
+        let plan = try RecordLoadPlan.walk(from: TwoCardPathsVM.self)
         #expect(plan.tuples.count == 2)
 
         // The parent's bare declaration → the path-[] tuple; the child's bare declaration →
-        // its prefix-substituted path-[Dock] tuple. Both textually identical bare handles —
+        // its prefix-substituted path-[Board] tuple. Both textually identical bare handles —
         // resolution is by declaration identity, never by shape.
-        let parentMatches = plan.tuples(matching: TwoBerthPathsVM.berths)
+        let parentMatches = plan.tuples(matching: TwoCardPathsVM.cards)
         #expect(parentMatches.count == 1)
         #expect(try #require(parentMatches.first).path.isEmpty)
 
-        let childMatches = plan.tuples(matching: DeepBerthVM.berths)
+        let childMatches = plan.tuples(matching: DeepCardVM.cards)
         #expect(childMatches.count == 1)
         #expect(try #require(childMatches.first).path.count == 1)
-        #expect(try same(#require(childMatches.first).path[0], Dock.self))
+        #expect(try same(#require(childMatches.first).path[0], Board.self))
     }
 
     @Test("A handle that was never declared in the plan matches nothing")
     func undeclaredHandleMatchesNothing() throws {
-        let plan = try RecordLoadPlan.walk(from: TwoBerthPathsVM.self)
+        let plan = try RecordLoadPlan.walk(from: TwoCardPathsVM.self)
 
         // A textually identical — but freshly minted — handle is a DIFFERENT declaration
         // site: it never reached this plan, so it matches nothing (the reader fails fast).
-        let freshTwin = LoadRequirement.read(Berth.self, in: .parentRoot)
+        let freshTwin = LoadRequirement.read(Card.self, in: .parentRoot)
         #expect(plan.tuples(matching: freshTwin).isEmpty)
     }
 
@@ -340,8 +340,8 @@ struct SealedRequirementTests {
     func twiceComposedDeclarationReturnsMultipleCandidates() throws {
         let plan = try RecordLoadPlan.walk(from: TwiceComposedParentVM.self)
 
-        // One declaration, two tuples ([] and [Dock]) — the caller must reject, never guess.
-        #expect(plan.tuples(matching: DeepBerthVM.berths).count == 2)
+        // One declaration, two tuples ([] and [Board]) — the caller must reject, never guess.
+        #expect(plan.tuples(matching: DeepCardVM.cards).count == 2)
     }
 
     @Test("Two identical declarations dedup to ONE tuple; each handle still resolves to it exactly")
@@ -349,8 +349,8 @@ struct SealedRequirementTests {
         let plan = try RecordLoadPlan.walk(from: TwinDeclarationsVM.self)
         #expect(plan.tuples.count == 1)
 
-        let port = plan.tuples(matching: TwinDeclarationsVM.portBerths)
-        let starboard = plan.tuples(matching: TwinDeclarationsVM.starboardBerths)
+        let port = plan.tuples(matching: TwinDeclarationsVM.portCards)
+        let starboard = plan.tuples(matching: TwinDeclarationsVM.starboardCards)
         #expect(port.count == 1)
         #expect(starboard.count == 1)
         #expect(port.first == starboard.first)

@@ -22,7 +22,7 @@ import Testing
 @Suite("AuthorityFlow")
 struct AuthorityFlowTests {
     /// A container with no ``Container/authorityFlow`` declaration — inherits the default.
-    struct Dock: Container {
+    struct Board: Container {
         var id: ModelIdType?
         init(id: ModelIdType? = nil) {
             self.id = id
@@ -30,7 +30,7 @@ struct AuthorityFlowTests {
     }
 
     /// A container that overrides ``Container/authorityFlow`` to ``AuthorityFlow/guards``.
-    struct PersonnelFolder: Container {
+    struct Checklist: Container {
         var id: ModelIdType?
         static var authorityFlow: AuthorityFlow {
             .guards
@@ -43,34 +43,34 @@ struct AuthorityFlowTests {
 
     @Test("A container with no declaration inherits the .inherits default")
     func defaultInherits() {
-        #expect(Dock.authorityFlow == .inherits)
+        #expect(Board.authorityFlow == .inherits)
     }
 
     @Test("An override to .guards reads back")
     func overrideGuardsReadsBack() {
-        #expect(PersonnelFolder.authorityFlow == .guards)
+        #expect(Checklist.authorityFlow == .guards)
     }
 }
 
 @Suite("RootedQuery")
 struct RootedQueryTests {
-    struct Harbor: Model {
+    struct Workspace: Model {
         var id: ModelIdType?
         init(id: ModelIdType? = nil) {
             self.id = id
         }
     }
 
-    struct HarborBerthsQuery: RootedQuery {
+    struct WorkspaceBerthsQuery: RootedQuery {
         let rootIdentity: ModelIdentity
     }
 
     @Test("A RootedQuery conformance vends the rootIdentity minted from a model")
     func vendsMintedRootIdentity() throws {
-        let harbor = Harbor(id: .init())
-        let identity = try harbor.modelIdentity
+        let workspace = Workspace(id: .init())
+        let identity = try workspace.modelIdentity
 
-        let query = HarborBerthsQuery(rootIdentity: identity)
+        let query = WorkspaceBerthsQuery(rootIdentity: identity)
 
         #expect(query.rootIdentity == identity)
     }

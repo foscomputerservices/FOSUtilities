@@ -25,14 +25,14 @@ import Testing
 
 @Suite("ContainmentRelation member loads")
 struct ContainmentRelationTests {
-    /// Spec test group 3: children of THIS dock only.
+    /// Spec test group 3: children of THIS board only.
     @Test func childrenLoadsOnlyThisContainersMembers() async throws {
         let numbers = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.children(\Dock.$berths).members(of: dock1, on: db)
-            return try members.map { try #require($0 as? Berth).number }.sorted()
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.children(\Board.$cards).members(of: dock1, on: db)
+            return try members.map { try #require($0 as? Card).number }.sorted()
         }
         #expect(numbers == [1, 2, 3])
     }
@@ -40,11 +40,11 @@ struct ContainmentRelationTests {
     /// Spec test group 4: siblings through the pivot, this container only.
     @Test func siblingsLoadsThroughPivotForThisContainerOnly() async throws {
         let names = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (_, dock2) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.siblings(\Dock.$crew).members(of: dock2, on: db)
-            return try members.map { try #require($0 as? CrewMember).name }.sorted()
+            let (_, dock2) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.siblings(\Board.$members).members(of: dock2, on: db)
+            return try members.map { try #require($0 as? Member).name }.sorted()
         }
         #expect(names == ["Alice"])
     }
@@ -52,10 +52,10 @@ struct ContainmentRelationTests {
     /// Spec test group 5: parent (to-one) returns a single-element array.
     @Test func parentLoadsSingleElementArray() async throws {
         let parents = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let members = try await ContainmentRelation.parent(\Dock.$pier).members(of: dock1, on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let members = try await ContainmentRelation.parent(\Board.$pier).members(of: dock1, on: db)
             return members.map { ($0 as? Pier)?.name }
         }
         #expect(parents == ["North Pier"])
@@ -64,13 +64,13 @@ struct ContainmentRelationTests {
     /// Cast backstop: wrong container type throws, never a silent [].
     @Test func mismatchedContainerThrowsTyped() async throws {
         try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let berth = try #require(try await dock1.$berths.query(on: db).first())
-            let relation = ContainmentRelation.children(\Dock.$berths)
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let card = try #require(try await dock1.$cards.query(on: db).first())
+            let relation = ContainmentRelation.children(\Board.$cards)
             do {
-                _ = try await relation.members(of: berth, on: db) // a Berth is not a Dock
+                _ = try await relation.members(of: card, on: db) // a Card is not a Board
                 Issue.record("expected ContainmentError.containerTypeMismatch")
             } catch let error as ContainmentError {
                 guard case .containerTypeMismatch = error else {

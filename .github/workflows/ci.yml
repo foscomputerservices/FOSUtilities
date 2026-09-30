@@ -174,6 +174,16 @@ jobs:
       - name: SwiftLint
         run: swiftlint --strict
 
+      # Examples speak the framework's own vocabulary (Workspace, Board, Card, Member,
+      # Checklist, Assignment). A customer's domain words never appear in a repo artifact;
+      # this step fails the run on the ones that crept in before (swept 2026-09-30).
+      - name: Example vocabulary
+        run: |
+          if git grep -niE '\b(harbou?r[a-z]*|docks?|berths?|crew ?members?|dockcrew|personnel ?(files?|folders?)|slip ?assignments?|harbormaster|longshoreman|dockmaster|port authority)\b' -- . ':!docker-env.sh' ':!.github/workflows/ci.yml'; then
+            echo "::error::customer example vocabulary found — use the framework's own (Workspace, Board, Card)"
+            exit 1
+          fi
+
   run_tests:
     needs: changes
     if: needs.changes.outputs.code == 'true'

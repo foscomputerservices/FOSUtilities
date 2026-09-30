@@ -22,8 +22,8 @@ import Foundation
 /// ``PaginatedQuery``:
 ///
 /// ```swift
-/// struct HarborBerthsQuery: RootedQuery {
-///     let rootIdentity: ModelIdentity   // the Harbor this request is scoped to
+/// struct WorkspaceBerthsQuery: RootedQuery {
+///     let rootIdentity: ModelIdentity   // the Workspace this request is scoped to
 /// }
 /// ```
 ///

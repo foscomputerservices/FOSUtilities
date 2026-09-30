@@ -52,15 +52,15 @@ WORKTREE: all work in `/Users/david/Repository/FOS/FOSUtilities-model-identity`.
 - **`.query` root boot check:** `Request.Query.self is any RootedQuery.Type`-style check at
   registration; executor decodes via shipped `serverRequestQuery(ofType:)` then reads
   `rootIdentity` through the opened existential.
-- **Fixtures ripple:** harbor gains `Harbor` (apex, Container, containedRecordTypes [Dock]),
-  `Dock` gains parent `harbor`? NO — keep FK graph as-is; apex containment resolves through a
-  NEW `Harbor` container with `@Children` to Dock: requires Dock gaining `@OptionalParent`?
-  Simplest: `Harbor` table + `harbor_id` on Dock (required, seeded). Update `CreateDock`,
-  `seedHarbor`, and expect ripple in ModelTypeRegistry/engine tests' configure blocks
-  (CreateHarbor before CreateDock). A `.guards` container: add `SlipAssignment`
-  (child of Berth, `authorityFlow = .guards` on Berth? NO — the GUARD is the container type
-  that guards: set `Berth.authorityFlow = .guards` in fixtures? Berth is used everywhere —
-  instead add `PersonnelFolder` guard-container under Dock with `PersonnelFile` children,
+- **Fixtures ripple:** workspace gains `Workspace` (apex, Container, containedRecordTypes [Board]),
+  `Board` gains parent `workspace`? NO — keep FK graph as-is; apex containment resolves through a
+  NEW `Workspace` container with `@Children` to Board: requires Board gaining `@OptionalParent`?
+  Simplest: `Workspace` table + `workspace_id` on Board (required, seeded). Update `CreateBoard`,
+  `seedWorkspace`, and expect ripple in ModelTypeRegistry/engine tests' configure blocks
+  (CreateWorkspace before CreateBoard). A `.guards` container: add `Assignment`
+  (child of Card, `authorityFlow = .guards` on Card? NO — the GUARD is the container type
+  that guards: set `Card.authorityFlow = .guards` in fixtures? Card is used everywhere —
+  instead add `Checklist` guard-container under Board with `ChecklistItem` children,
   isolated from existing suites).
 - **swiftformat/lint conventions:** as established (docComments ///, redundantSendable
   disabled, no trailing prose on directives).
@@ -84,7 +84,7 @@ WORKTREE: all work in `/Users/david/Repository/FOS/FOSUtilities-model-identity`.
 | `Sources/FOSMVVMVapor/Containment/PlanExecutor.swift` (create) | resolve + execute (internal; supplemental internal seam) |
 | `Tests/FOSMVVMTests/Composition/*` (create) | shared tests 1–6 (+ vocabulary contract tests) |
 | `Tests/FOSMVVMVaporTests/Composition/*` (create) | Vapor tests 7–13 |
-| fixtures (modify/extend) | Harbor apex, PersonnelFolder guard, three-level path |
+| fixtures (modify/extend) | Workspace apex, Checklist guard, three-level path |
 
 ---
 
@@ -135,13 +135,13 @@ the normalized anchor. Commit: `feat(FOSMVVMVapor): anchored authorization — a
 
 ### Task 5: Boot derivation + validation + apex + fixtures
 
-TDD — spec test 7. Fixtures first: `Harbor` (apex container; `harbor_id` on Dock — REQUIRED, so this ripples;
-migrations + seed updates), `PersonnelFolder` (`.guards`) + `PersonnelFile` under Dock (isolated).
+TDD — spec test 7. Fixtures first: `Workspace` (apex container; `workspace_id` on Board — REQUIRED, so this ripples;
+migrations + seed updates), `Checklist` (`.guards`) + `ChecklistItem` under Board (isolated).
 KNOWN EDIT SITES beyond the shared helpers (verified by the plan reviewer — fix all five, expect
-compile errors until done): private `configureHarbor` in `AuthorizationProviderTests.swift` AND
-`AuthorizedLoadEngineTests.swift` (each manually lists migrations — insert `CreateHarbor()` before
-`CreateDock`); direct `Dock(name:pierId:)` constructions at `AuthorizedLoadEngineTests.swift:374`,
-`:451`, and `RefinedMembersTests.swift:82` (gain the `harborId:` argument). ALL existing Vapor
+compile errors until done): private `configureWorkspace` in `AuthorizationProviderTests.swift` AND
+`AuthorizedLoadEngineTests.swift` (each manually lists migrations — insert `CreateWorkspace()` before
+`CreateBoard`); direct `Board(name:pierId:)` constructions at `AuthorizedLoadEngineTests.swift:374`,
+`:451`, and `RefinedMembersTests.swift:82` (gain the `workspaceId:` argument). ALL existing Vapor
 suites must end green.
 `PlanRegistration.swift`: derivation at `VaporServerRequestHost` registration (find the shipped
 registration seam; plans in Application storage; nil for non-trait ResponseBody), boot checks
@@ -163,9 +163,9 @@ package — NO public until an app-facing need; tests register directly). Commit
    typed error.
 
 TDD — spec tests 8–11 + 13 (`.../Composition/PlanExecutorTests.swift`): end-to-end forest
-(dock-rooted `.query` + apex-rooted in one request — mint Request with the RootedQuery-
+(board-rooted `.query` + apex-rooted in one request — mint Request with the RootedQuery-
 conforming query in its URL, per shipped serverRequestQuery mechanics); three-level `.inherits`
-descent under one apex grant; `.guards` denial/allow (anchored grant on a PersonnelFolder
+descent under one apex grant; `.guards` denial/allow (anchored grant on a Checklist
 instance — NOTE anchors below root bind level-by-level); `.refinedByRequest` sort/window on
 exactly that tuple; supplemental internal seam (internal protocol, executor runs it post-
 declarative; throwing hook fails the request); TaskGroup breadth + single-writer deposit (a

@@ -88,23 +88,23 @@ struct GroupMountedRegistrationTests {
             let authed = app.grouped(
                 ClientCredentialMiddleware(verifier: BearerCredentialVerifier { $0 == "current-token" })
             )
-            try authed.register(request: UpdateBerthRequest.self, app: app)
+            try authed.register(request: UpdateCardRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords, .writeRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
-            let berth = try #require(try await Berth.query(on: db).filter(\.$dock.$id == dock1.requireId()).first())
-            let originalNumber = berth.number
-            let originalName = berth.dockName
+            let card = try #require(try await Card.query(on: db).filter(\.$board.$id == dock1.requireId()).first())
+            let originalNumber = card.number
+            let originalName = card.boardName
 
             // No credential → the middleware rejects before the handler mutates anything.
-            let unauthed = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let unauthed = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: originalNumber + 100, dockName: "Hijacked"),
+                requestBody: UpdateCardBody(number: originalNumber + 100, boardName: "Hijacked"),
                 responseBody: nil
             )
             try await app.testing().test(unauthed) { response in
@@ -112,15 +112,15 @@ struct GroupMountedRegistrationTests {
                 #expect(response.credentialRejection?.reason == .missing) // typed, not status alone
             }
             // The record is untouched — the write never ran.
-            let afterReject = try #require(try await Berth.find(berth.requireId(), on: db))
+            let afterReject = try #require(try await Card.find(card.requireId(), on: db))
             #expect(afterReject.number == originalNumber)
-            #expect(afterReject.dockName == originalName)
+            #expect(afterReject.boardName == originalName)
 
             // Valid credential → the write commits and the response is the refreshed body.
-            let authedReq = try UpdateBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let authedReq = try UpdateCardRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: card.modelIdentity),
                 sort: nil, fragment: nil,
-                requestBody: UpdateBerthBody(number: 88, dockName: "Wired"),
+                requestBody: UpdateCardBody(number: 88, boardName: "Wired"),
                 responseBody: nil
             )
             try await app.testing().test(
@@ -130,11 +130,11 @@ struct GroupMountedRegistrationTests {
                 #expect(response.status == .ok)
                 #expect(response.credentialRejection == nil)
                 let body = try #require(response.body)
-                #expect(body.berthNumbers.contains(88))
+                #expect(body.cardNumbers.contains(88))
             }
-            let afterWrite = try #require(try await Berth.find(berth.requireId(), on: db))
+            let afterWrite = try #require(try await Card.find(card.requireId(), on: db))
             #expect(afterWrite.number == 88)
-            #expect(afterWrite.dockName == "Wired")
+            #expect(afterWrite.boardName == "Wired")
         }
     }
 
@@ -161,17 +161,17 @@ struct GroupMountedRegistrationTests {
             let authed = app.grouped(
                 ClientCredentialMiddleware(verifier: BearerCredentialVerifier { $0 == "current-token" })
             )
-            try authed.register(request: BerthListRequest.self, app: app)
+            try authed.register(request: CardListRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
+            let (dock1, _) = try await seedWorkspace(on: db)
             app.storage[TestGrantsKey.self] = try [TestGrant(
                 authorizedContainer: dock1.modelIdentity,
                 operations: [.readRecords],
-                recordTypes: [Berth.modelIdentityNamespace]
+                recordTypes: [Card.modelIdentityNamespace]
             )]
 
             try await app.testing().test(
-                BerthListRequest(query: .init(rootIdentity: dock1.modelIdentity)),
+                CardListRequest(query: .init(rootIdentity: dock1.modelIdentity)),
                 headers: ["Authorization": "Bearer current-token"]
             ) { response in
                 #expect(response.status == .ok)
@@ -209,7 +209,7 @@ private func withGuardApp(
 }
 
 /// The write-guard variant of `withGuardApp`: a fresh in-memory SQLite database (the write reads
-/// its record back), the Harbor→Dock→Berth container graph plus an authorization provider, YAML
+/// its record back), the Workspace→Board→Card container graph plus an authorization provider, YAML
 /// localization, and FOS `ErrorMiddleware.default` (so a credential rejection surfaces as the typed
 /// envelope `credentialRejection` decodes). Runs `configure` then `body`, always shutting down.
 private func withGuardWriteApp(
@@ -220,12 +220,12 @@ private func withGuardWriteApp(
         try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
         app.middleware = .init()
         app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
-        app.migrations.add(CreatePier()) // CreateDock's DDL references piers
-        try app.register(Harbor.self, migration: CreateHarbor())
-        try app.register(Dock.self, migration: CreateDock())
-        app.migrations.add(CreateBerth())
-        app.migrations.add(CreateCrewMember())
-        app.migrations.add(CreateDockCrew())
+        app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
+        try app.register(Workspace.self, migration: CreateWorkspace())
+        try app.register(Board.self, migration: CreateBoard())
+        app.migrations.add(CreateCard())
+        app.migrations.add(CreateMember())
+        app.migrations.add(CreateBoardMember())
         try app.useContainerAuthorizationProvider(TestGrantsProvider())
         try configure(app)
     } _: { app, db in

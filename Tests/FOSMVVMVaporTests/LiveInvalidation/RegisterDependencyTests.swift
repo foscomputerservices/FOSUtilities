@@ -88,22 +88,22 @@ private final class StatusDashboardRequest: ViewModelRequest, @unchecked Sendabl
     }
 }
 
-/// An apex-rooted read WITH a plan (the HarborBerthsVM shape) whose factory ALSO registers a
+/// An apex-rooted read WITH a plan (the WorkspaceBerthsVM shape) whose factory ALSO registers a
 /// StatusSnapshot — so the header must carry the plan's container identities AND the snapshot's.
-private struct HarborStatusVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
-    typealias Request = HarborStatusRequest
+private struct WorkspaceStatusVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFactory {
+    typealias Request = WorkspaceStatusRequest
 
-    static let berths = LoadRequirement.read(Berth.self, in: .newRoot(.apex), via: Dock.self)
+    static let cards = LoadRequirement.read(Card.self, in: .newRoot(.apex), via: Board.self)
     static var dataRequirements: [any DataRequirement] {
-        [berths]
+        [cards]
     }
 
     var vmId = ViewModelId()
-    var berthNumbers: [Int] = []
+    var cardNumbers: [Int] = []
 
     init() {}
-    init(berthNumbers: [Int]) {
-        self.berthNumbers = berthNumbers
+    init(cardNumbers: [Int]) {
+        self.cardNumbers = cardNumbers
     }
 
     func propertyNames() -> [LocalizableId: String] {
@@ -116,18 +116,18 @@ private struct HarborStatusVM: RequestableViewModel, ComposableFactory, VaporRes
 
     static func body<R: ServerRequest>(context: ProjectionContext<R, Void>) throws -> Self where R.ResponseBody == Self {
         try context.registerDependency(on: StatusSnapshot(id: mergeSnapshotId))
-        return try .init(berthNumbers: context.records(berths).map(\.number).sorted())
+        return try .init(cardNumbers: context.records(cards).map(\.number).sorted())
     }
 }
 
-private final class HarborStatusRequest: ViewModelRequest, @unchecked Sendable {
+private final class WorkspaceStatusRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias ResponseError = EmptyError
 
     let id: String
-    var responseBody: HarborStatusVM?
+    var responseBody: WorkspaceStatusVM?
 
-    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: HarborStatusVM? = nil) {
+    init(query: EmptyQuery? = nil, sort: EmptySort? = nil, fragment: EmptyFragment? = nil, requestBody: EmptyBody? = nil, responseBody: WorkspaceStatusVM? = nil) {
         self.id = .random(length: 10)
         self.responseBody = responseBody
     }
@@ -169,32 +169,32 @@ private final class NilSnapshotRequest: ViewModelRequest, @unchecked Sendable {
 
 // MARK: - Harness
 
-/// The serving side: localization, the Harbor → Dock → Berth graph, and the storage-backed grants
-/// provider (grants are set per test, after seeding). Mirrors RegistrationHeaderTests' configureHarbor.
+/// The serving side: localization, the Workspace → Board → Card graph, and the storage-backed grants
+/// provider (grants are set per test, after seeding). Mirrors RegistrationHeaderTests' configureWorkspace.
 private func configureServe(_ app: Application) throws {
     try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
     app.migrations.add(CreatePier())
-    try app.register(Harbor.self, migration: CreateHarbor())
-    try app.register(Dock.self, migration: CreateDock())
-    app.migrations.add(CreateBerth())
-    app.migrations.add(CreateCrewMember())
-    app.migrations.add(CreateDockCrew())
+    try app.register(Workspace.self, migration: CreateWorkspace())
+    try app.register(Board.self, migration: CreateBoard())
+    app.migrations.add(CreateCard())
+    app.migrations.add(CreateMember())
+    app.migrations.add(CreateBoardMember())
     try app.useContainerAuthorizationProvider(TestGrantsProvider())
 }
 
 /// The serving side PLUS live invalidation — the end-to-end test needs both the header (serving)
-/// and the hub (emission). configureHarbor does not enable live, so this composes the two.
+/// and the hub (emission). configureWorkspace does not enable live, so this composes the two.
 private func configureLiveServe(_ app: Application) throws {
     try configureServe(app)
     try app.useLiveInvalidation(on: app.routes)
 }
 
-private func registerApexHarborResolver(_ app: Application) throws {
+private func registerApexWorkspaceResolver(_ app: Application) throws {
     try app.useApexContainerResolver { req in
-        guard let harbor = try await Harbor.query(on: req.db).first() else {
-            throw Abort(.internalServerError, reason: "no harbor seeded")
+        guard let workspace = try await Workspace.query(on: req.db).first() else {
+            throw Abort(.internalServerError, reason: "no workspace seeded")
         }
-        return try harbor.modelIdentity
+        return try workspace.modelIdentity
     }
 }
 
@@ -202,7 +202,7 @@ private func setGrants(_ app: Application, _ grants: [TestGrant]) {
     app.storage[TestGrantsKey.self] = grants
 }
 
-private func berthReadGrant(container: ModelIdentity, _ ops: [ContainerOperation], types: [ModelNamespace]) -> TestGrant {
+private func cardReadGrant(container: ModelIdentity, _ ops: [ContainerOperation], types: [ModelNamespace]) -> TestGrant {
     TestGrant(authorizedContainer: container, operations: ops, recordTypes: types)
 }
 
@@ -222,31 +222,31 @@ private func getResponse(_ app: Application, for request: some ServerRequest) as
 @Suite("Live invalidation: registerDependency(on:)")
 struct RegisterDependencyTests {
     /// Contract 1: a factory register merges with the executed plan's set — no clobber. The header
-    /// carries the plan's container identities (Harbor root + every Dock) AND the snapshot's.
+    /// carries the plan's container identities (Workspace root + every Board) AND the snapshot's.
     @Test func factoryRegisterMergesWithPlanSet() async throws {
         try await withFluentTestApp { app in
             try configureServe(app)
-            try registerApexHarborResolver(app)
-            try app.register(request: HarborStatusRequest.self, app: app)
+            try registerApexWorkspaceResolver(app)
+            try app.register(request: WorkspaceStatusRequest.self, app: app)
         } _: { app, db in
-            let (dock1, dock2) = try await seedHarbor(on: db)
-            let harbor = try #require(try await Harbor.query(on: db).first())
+            let (dock1, dock2) = try await seedWorkspace(on: db)
+            let workspace = try #require(try await Workspace.query(on: db).first())
             try setGrants(app, [
-                berthReadGrant(
-                    container: harbor.modelIdentity,
+                cardReadGrant(
+                    container: workspace.modelIdentity,
                     [.readRecords],
-                    types: [Dock.modelIdentityNamespace, Berth.modelIdentityNamespace]
+                    types: [Board.modelIdentityNamespace, Card.modelIdentityNamespace]
                 )
             ])
 
-            let res = try await getResponse(app, for: HarborStatusRequest())
+            let res = try await getResponse(app, for: WorkspaceStatusRequest())
             #expect(res.status == .ok)
 
             let registered: [ModelIdentity] = try #require(res.headers.first(name: ModelIdentity.registrationsHeader)).fromJSON()
             let carried = Set(registered)
 
             // The plan's set survived …
-            #expect(try carried.contains(harbor.modelIdentity))
+            #expect(try carried.contains(workspace.modelIdentity))
             #expect(try carried.contains(dock1.modelIdentity))
             #expect(try carried.contains(dock2.modelIdentity))
             // … and the factory's register joined it.

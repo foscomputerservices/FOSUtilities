@@ -148,7 +148,7 @@ private final class ShowMarkerRequest: ServerRequest, @unchecked Sendable {
     }
 }
 
-/// `.create` fixture whose `ResponseBody == EmptyBody`: an ack-shaped write (mirrors Harbor's
+/// `.create` fixture whose `ResponseBody == EmptyBody`: an ack-shaped write (mirrors Workspace's
 /// `AgentTokenRevokeRequest` / `SecretReplaceRequest`), the case the content-negotiation gap breaks.
 private final class EmptyAckRequest: ServerRequest, @unchecked Sendable {
     typealias Query = EmptyQuery

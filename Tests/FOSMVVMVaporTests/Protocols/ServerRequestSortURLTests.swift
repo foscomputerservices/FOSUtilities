@@ -29,7 +29,7 @@ import Vapor
 /// item name and the raw-`&` split rule — the representation stays unpublished.
 @Suite("ServerRequestSortURL")
 struct ServerRequestSortURLTests {
-    enum TestSortKey: String, SortKey { case number, dockName }
+    enum TestSortKey: String, SortKey { case number, boardName }
 
     struct TestQuery: ServerRequestQuery {
         let modelId: Int
@@ -106,7 +106,7 @@ struct ServerRequestSortURLTests {
     func queryAndSortRoundTrip() async throws {
         let query = TestQuery(modelId: 42)
         let sort = SortCriteria<TestSortKey>([
-            .init(key: .dockName, direction: .ascending),
+            .init(key: .boardName, direction: .ascending),
             .init(key: .number, direction: .descending)
         ])
         let request = SortedRequest(query: query, sort: sort)

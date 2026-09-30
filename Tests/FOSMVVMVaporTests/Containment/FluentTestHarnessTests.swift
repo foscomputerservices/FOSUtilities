@@ -45,13 +45,13 @@ struct FluentTestHarnessTests {
         }
     }
 
-    @Test func harborFixturesSeedAndRelate() async throws {
+    @Test func workspaceFixturesSeedAndRelate() async throws {
         let names = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            let berths = try await dock1.$berths.query(on: db).all()
-            return berths.map(\.number).sorted()
+            let (dock1, _) = try await seedWorkspace(on: db)
+            let cards = try await dock1.$cards.query(on: db).all()
+            return cards.map(\.number).sorted()
         }
         #expect(names == [1, 2, 3])
     }

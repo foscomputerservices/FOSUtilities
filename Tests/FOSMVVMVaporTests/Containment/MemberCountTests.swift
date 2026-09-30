@@ -29,10 +29,10 @@ struct MemberCountTests {
     /// The full member count of a to-many relation — the whole set, independent of any window.
     @Test func childrenMemberCountIsTheFullSet() async throws {
         let count = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db) // dock1 has 3 berths
-            return try await ContainmentRelation.children(\Dock.$berths).memberCount(of: dock1, on: db)
+            let (dock1, _) = try await seedWorkspace(on: db) // dock1 has 3 cards
+            return try await ContainmentRelation.children(\Board.$cards).memberCount(of: dock1, on: db)
         }
         #expect(count == 3)
     }
@@ -40,10 +40,10 @@ struct MemberCountTests {
     /// Siblings (pivot) count the whole set the same way.
     @Test func siblingsMemberCountIsTheFullSet() async throws {
         let count = try await withFluentTestApp { app in
-            addHarborMigrations(app)
+            addWorkspaceMigrations(app)
         } _: { _, db in
-            let (dock1, _) = try await seedHarbor(on: db) // dock1 has 2 crew
-            return try await ContainmentRelation.siblings(\Dock.$crew).memberCount(of: dock1, on: db)
+            let (dock1, _) = try await seedWorkspace(on: db) // dock1 has 2 members
+            return try await ContainmentRelation.siblings(\Board.$members).memberCount(of: dock1, on: db)
         }
         #expect(count == 2)
     }
