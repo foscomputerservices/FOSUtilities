@@ -60,6 +60,8 @@ private func configureWriteContainers(
     app.migrations.add(uniqueBerthNumber ? UniqueNumberBerthMigration() : CreateBerth())
     app.migrations.add(CreateCrewMember())
     app.migrations.add(uniqueDockCrew ? UniqueDockCrewMigration() : CreateDockCrew())
+    try app.register(Quay.self, migration: CreateQuay())
+    app.migrations.add(CreateMooring())
     try app.useContainerAuthorizationProvider(CountingGrantProvider())
 }
 
@@ -86,6 +88,31 @@ private func berthGrant(_ dock: Dock, _ ops: [ContainerOperation]) throws -> Tes
 
 private func berths(of dock: Dock, on db: any Database) async throws -> [Berth] {
     try await Berth.query(on: db).filter(\.$dock.$id == dock.requireId()).all()
+}
+
+/// Grants `ops` on Mooring in `quay`.
+private func mooringGrant(_ quay: Quay, _ ops: [ContainerOperation]) throws -> TestGrant {
+    try TestGrant(
+        authorizedContainer: quay.modelIdentity,
+        operations: ops,
+        recordTypes: [Mooring.modelIdentityNamespace]
+    )
+}
+
+/// A quay with three moorings — the deletion fixtures' container.
+private func seedQuay(on db: any Database) async throws -> Quay {
+    let quay = Quay(name: "East Quay")
+    try await quay.save(on: db)
+    for tag in ["A", "B", "C"] {
+        try await Mooring(tag: tag, quayId: quay.requireId()).save(on: db)
+    }
+    return quay
+}
+
+/// Every mooring row of `quay`, deleted ones included.
+private func moorings(of quay: Quay, on db: any Database, includingDeleted: Bool = false) async throws -> [Mooring] {
+    let query = try Mooring.query(on: db).filter(\.$quay.$id == quay.requireId())
+    return try await (includingDeleted ? query.withDeleted() : query).all()
 }
 
 // MARK: - Group 5: update
@@ -302,29 +329,121 @@ struct WriteRouteCreateTests {
 
 // MARK: - Group 7: delete
 
-@Suite("Write route: delete")
-struct WriteRouteDeleteTests {
+@Suite("Write route: archive")
+struct WriteRouteArchiveTests {
     /// WriteTargetProviding alone (no apply): the target is gone from the refresh body.
     @Test func deleteRemovesRecordFromRefresh() async throws {
         try await withFluentTestApp { app in
             try configureWriteContainers(app)
-            try app.register(request: DeleteBerthRequest.self, app: app)
+            try app.register(request: ArchiveMooringRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .deleteRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
-            let goneNumber = berth.number
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .archiveRecords])])
+            let mooring = try #require(try await moorings(of: quay, on: db).first)
+            let goneTag = mooring.tag
 
-            let vmRequest = try DeleteBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try ArchiveMooringRequest(
+                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let req = makeRequest(on: app)
-            let result = try await req.serveDelete(vmRequest)
+            let result = try await req.serveArchive(vmRequest)
 
-            #expect(!result.berthNumbers.contains(goneNumber))
-            let remaining = try await berths(of: dock1, on: db)
-            #expect(!remaining.contains { $0.number == goneNumber })
+            #expect(!result.tags.contains(goneTag))
+            let remaining = try await moorings(of: quay, on: db)
+            #expect(!remaining.contains { $0.tag == goneTag })
+        }
+    }
+
+    /// Archive is recoverable: the row is still there, carrying the delete timestamp Fluent set.
+    @Test func archiveLeavesTheRowWithItsDeleteTimestamp() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: ArchiveMooringRequest.self, app: app)
+        } _: { app, db in
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .archiveRecords])])
+            let mooring = try #require(try await moorings(of: quay, on: db).first)
+            let archivedTag = mooring.tag
+
+            let vmRequest = try ArchiveMooringRequest(
+                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            _ = try await req.serveArchive(vmRequest)
+
+            let all = try await moorings(of: quay, on: db, includingDeleted: true)
+            let archived = try #require(all.first { $0.tag == archivedTag })
+            #expect(archived.deletedAt != nil)
+            #expect(all.count == 3)
+        }
+    }
+
+    /// The archive verb needs a delete timestamp to mark: a model without one is refused at boot,
+    /// naming both fixes.
+    @Test func archiveRouteWithoutDeleteTimestampFailsAtBoot() async throws {
+        do {
+            try await withFluentTestApp { app in
+                try configureWriteContainers(app)
+                try app.register(request: ArchiveBerthRequest.self, app: app)
+            } _: { _, _ in }
+            Issue.record("expected a boot throw for an archive of a model with no delete timestamp")
+        } catch let error as ServerRequestControllerError {
+            #expect(error == .archiveUnsupported(request: "ArchiveBerthRequest", model: "Berth"))
+            #expect(error.debugDescription.contains("deleted_at"))
+            #expect(error.debugDescription.contains("DestroyRequest"))
+        }
+    }
+
+    /// The same registration with a delete timestamp on the target boots and serves DELETE.
+    @Test func archiveRouteWithTimestampBoots() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: ArchiveMooringRequest.self, app: app)
+        } _: { app, _ in
+            #expect(app.routes.all.contains { $0.method == .DELETE })
+        }
+    }
+}
+
+// MARK: - Group 7 twin: destroy
+
+@Suite("Write route: destroy")
+struct WriteRouteDestroyTests {
+    /// A destroy request registers its own DELETE route — it no longer fails fast as unsupported.
+    @Test func destroyRouteRegisters() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: DestroyMooringRequest.self, app: app)
+        } _: { app, _ in
+            let expected = DestroyMooringRequest.path.pathComponents.map(\.description)
+            #expect(app.routes.all.contains { $0.method == .DELETE && $0.path.map(\.description) == expected })
+        }
+    }
+
+    /// Destroy is unrecoverable: the row is gone even from a query that includes deleted rows.
+    @Test func destroyRemovesTheRow() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: DestroyMooringRequest.self, app: app)
+        } _: { app, db in
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .destroyRecords])])
+            let mooring = try #require(try await moorings(of: quay, on: db).first)
+            let goneTag = mooring.tag
+
+            let vmRequest = try DestroyMooringRequest(
+                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            let result = try await req.serveDestroy(vmRequest)
+
+            #expect(!result.tags.contains(goneTag))
+            let all = try await moorings(of: quay, on: db, includingDeleted: true)
+            #expect(all.count == 2)
+            #expect(!all.contains { $0.tag == goneTag })
         }
     }
 }
@@ -775,16 +894,16 @@ struct WriteRouteVerbDoorTests {
         do {
             try await withFluentTestApp { app in
                 try configureWriteContainers(app)
-                try app.register(request: WrongVerbDeleteRequest.self, app: app)
+                try app.register(request: WrongVerbArchiveRequest.self, app: app)
             } _: { _, _ in }
-            Issue.record("expected a boot throw for a .write candidate at the delete door")
+            Issue.record("expected a boot throw for a .write candidate at the archive door")
         } catch let error as ContainmentError {
             guard case .invalidLoadPlan = error else {
                 Issue.record("wrong case: \(error)")
                 return
             }
             #expect(error.debugDescription.contains("writeRecords"))
-            #expect(error.debugDescription.contains("deleteRecords"))
+            #expect(error.debugDescription.contains("archiveRecords"))
         }
     }
 
@@ -829,15 +948,16 @@ struct WriteRouteVerbDoorTests {
         }
     }
 
-    /// A DestroyRequest reaches the read door (no write overload) and fails fast: not yet supported.
-    @Test func destroyRequestNotYetSupported() async throws {
+    /// A DestroyRequest whose Query/RequestBody miss the destroy overload's constraints reaches the
+    /// read registration and fails fast — registering it GET-only would silently drop the write.
+    @Test func destroyConformerAtReadRouteFailsFast() async throws {
         do {
             try await withFluentTestApp { app in
                 try app.register(request: EchoDestroyRequest.self, app: app)
             } _: { _, _ in }
             Issue.record("expected a boot throw for a DestroyRequest at the read door")
         } catch let error as ContainmentError {
-            guard case .unsupportedWriteProtocol = error else {
+            guard case .writeRequestAtReadDoor = error else {
                 Issue.record("wrong case: \(error)")
                 return
             }
@@ -1009,15 +1129,15 @@ struct WriteRouteHTTPPipelineTests {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
             try configureWriteContainers(app)
-            try app.register(request: DeleteBerthRequest.self, app: app)
+            try app.register(request: ArchiveMooringRequest.self, app: app)
         } _: { app, db in
-            let (dock1, _) = try await seedHarbor(on: db)
-            try setGrants(app, [berthGrant(dock1, [.readRecords, .deleteRecords])])
-            let berth = try #require(try await berths(of: dock1, on: db).first)
-            let goneNumber = berth.number
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .archiveRecords])])
+            let mooring = try #require(try await moorings(of: quay, on: db).first)
+            let goneTag = mooring.tag
 
-            let vmRequest = try DeleteBerthRequest(
-                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+            let vmRequest = try ArchiveMooringRequest(
+                query: .init(rootIdentity: quay.modelIdentity, target: mooring.modelIdentity),
                 sort: nil, fragment: nil, requestBody: nil, responseBody: nil
             )
             let base = try #require(URL(string: "http://localhost"))
@@ -1032,8 +1152,182 @@ struct WriteRouteHTTPPipelineTests {
             let response = try await app.responder.respond(to: httpReq).get()
             #expect(response.status == .ok)
             let data = try #require(response.body.data)
-            let refreshed: BerthListVM = try data.fromJSON()
-            #expect(!refreshed.berthNumbers.contains(goneNumber))
+            let refreshed: MooringListVM = try data.fromJSON()
+            #expect(!refreshed.tags.contains(goneTag))
+        }
+    }
+}
+
+// MARK: - The request's own error type, and the commit's transaction
+
+/// Lets the update reach the database, then refuses it the way the model's own rules do — the
+/// route must answer with the *request's* error type, and the write must not survive.
+private struct RefusingBerthUpdate: ModelMiddleware {
+    func update(model: Berth, on db: any Database, next: any AnyModelResponder) -> EventLoopFuture<Void> {
+        next.update(model, on: db).flatMapThrowing {
+            throw ValidationError(
+                validation: .init(
+                    status: .error,
+                    fieldId: #fieldId(\Berth.number),
+                    message: .constant("the model refused this berth")
+                )
+            )
+        }
+    }
+}
+
+/// Inserts the new row, then throws for the one number the rollback test creates — so that row
+/// exists inside the transaction and nowhere after it, while the seed creates berths normally.
+private struct FailingBerthCreate: ModelMiddleware {
+    static let refusedNumber = 77
+
+    func create(model: Berth, on db: any Database, next: any AnyModelResponder) -> EventLoopFuture<Void> {
+        next.create(model, on: db).flatMapThrowing {
+            guard model.number == Self.refusedNumber else {
+                return
+            }
+            throw Abort(.conflict)
+        }
+    }
+}
+
+@Suite("Write route: typed refusals and the commit transaction")
+struct WriteRouteTypedErrorTests {
+    /// The body's own rules refuse: the client decodes `BerthWriteRefusal`, not `ValidationError`.
+    @Test func bodyValidationRethrowsRequestResponseError() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: TypedErrorUpdateRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedHarbor(on: db)
+            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
+            let berth = try #require(try await berths(of: dock1, on: db).first)
+
+            let vmRequest = try TypedErrorUpdateRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+                sort: nil, fragment: nil,
+                requestBody: TypedErrorUpdateBody(number: -1, dockName: "Refused"),
+                responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            let refusal = await #expect(throws: BerthWriteRefusal.self) {
+                _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
+            }
+            #expect(refusal?.validations.count == 1)
+        }
+    }
+
+    /// A refusal raised during the save arrives as the request's error type too, and the write is
+    /// rolled back with it.
+    @Test func writeRouteRethrowsRequestResponseError() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            app.databases.middleware.use(RefusingBerthUpdate(), on: .sqlite)
+            try app.register(request: TypedErrorUpdateRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedHarbor(on: db)
+            try setGrants(app, [berthGrant(dock1, [.readRecords, .writeRecords])])
+            let berth = try #require(try await berths(of: dock1, on: db).first)
+            let originalNumber = berth.number
+
+            let vmRequest = try TypedErrorUpdateRequest(
+                query: .init(rootIdentity: dock1.modelIdentity, target: berth.modelIdentity),
+                sort: nil, fragment: nil,
+                requestBody: TypedErrorUpdateBody(number: 55, dockName: "Refused"),
+                responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            let refusal = await #expect(throws: BerthWriteRefusal.self) {
+                _ = try await req.serveUpdate(vmRequest, body: #require(vmRequest.requestBody))
+            }
+            #expect(refusal?.validations.count == 1)
+
+            let after = try await berths(of: dock1, on: db)
+            #expect(after.contains { $0.number == originalNumber })
+            #expect(!after.contains { $0.number == 55 })
+        }
+    }
+
+    /// The model's own rules refuse the archive: the client decodes `MooringWriteRefusal`, the
+    /// message inside is about the model, and the row is untouched.
+    @Test func archiveRefusedByTheModelArrivesAsTheRequestError() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: TypedErrorArchiveMooringRequest.self, app: app)
+        } _: { app, db in
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .archiveRecords])])
+            let refused = try Mooring(tag: Mooring.refusedTag, quayId: quay.requireId())
+            try await refused.save(on: db)
+
+            let vmRequest = try TypedErrorArchiveMooringRequest(
+                query: .init(rootIdentity: quay.modelIdentity, target: refused.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            let refusal = await #expect(throws: MooringWriteRefusal.self) {
+                _ = try await req.serveArchive(vmRequest)
+            }
+
+            #expect(refusal?.validations.count == 1)
+            #expect(refusal?.validations.first?.messages.first?.addressesModel == true)
+
+            let still = try #require(try await moorings(of: quay, on: db).first { $0.tag == Mooring.refusedTag })
+            #expect(still.deletedAt == nil)
+        }
+    }
+
+    /// The destroy twin: the same refusal, the same typed error, and the row is still there.
+    @Test func destroyRefusedByTheModelArrivesAsTheRequestError() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: TypedErrorDestroyMooringRequest.self, app: app)
+        } _: { app, db in
+            let quay = try await seedQuay(on: db)
+            try setGrants(app, [mooringGrant(quay, [.readRecords, .destroyRecords])])
+            let refused = try Mooring(tag: Mooring.refusedTag, quayId: quay.requireId())
+            try await refused.save(on: db)
+
+            let vmRequest = try TypedErrorDestroyMooringRequest(
+                query: .init(rootIdentity: quay.modelIdentity, target: refused.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            let refusal = await #expect(throws: MooringWriteRefusal.self) {
+                _ = try await req.serveDestroy(vmRequest)
+            }
+
+            #expect(refusal?.validations.count == 1)
+            #expect(refusal?.validations.first?.messages.first?.addressesModel == true)
+
+            let all = try await moorings(of: quay, on: db, includingDeleted: true)
+            #expect(all.contains { $0.tag == Mooring.refusedTag })
+        }
+    }
+
+    /// The create commit is one transaction: a throw after the row lands leaves no row behind.
+    @Test func createRollsBackWhenTheWriteThrows() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            app.databases.middleware.use(FailingBerthCreate(), on: .sqlite)
+            try app.register(request: CreateBerthRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedHarbor(on: db)
+            try setGrants(app, [berthGrant(dock1, [.readRecords, .createRecords])])
+
+            let vmRequest = try CreateBerthRequest(
+                query: .init(rootIdentity: dock1.modelIdentity),
+                sort: nil, fragment: nil,
+                requestBody: CreateBerthBody(number: 77, dockName: "Rolled Back"),
+                responseBody: nil
+            )
+            let req = makeRequest(on: app)
+            await #expect(throws: (any Error).self) {
+                _ = try await req.serveCreate(vmRequest, body: #require(vmRequest.requestBody))
+            }
+
+            let all = try await berths(of: dock1, on: db)
+            #expect(!all.contains { $0.number == 77 })
         }
     }
 }

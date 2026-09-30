@@ -7,7 +7,9 @@ import Foundation
 /// Localized validation messages for `CardFields`.
 ///
 /// Each property maps to a key path in `CardFieldsMessages.yml`; the
-/// `@FieldValidationModel` macro generates the localization binding.
+/// `@FieldValidationModel` macro generates the localization binding. The properties
+/// are the declaration of which keys the YAML must carry — `CardFields` mints the
+/// message it puts in a `ValidationResult` from this type and the same key path.
 @FieldValidationModel public struct CardFieldsMessages {
     @LocalizedString("title", messageGroup: "validationMessages", messageKey: "required")
     public var titleRequiredMessage

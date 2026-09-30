@@ -21,9 +21,9 @@ import Foundation
 /// Mint requirements with ``LoadRequirement``; never conform directly:
 ///
 /// ```swift
-/// static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+/// static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
 ///
-/// static var dataRequirements: [any DataRequirement] { [berths] }
+/// static var dataRequirements: [any DataRequirement] { [cards] }
 /// ```
 ///
 /// The protocol carries no members: the boot walk reads requirements through an
@@ -67,15 +67,15 @@ protocol DataRequirementWalkFace {
 /// A typed load: records of one type, in one rooted scope, under one authority.
 ///
 /// ```swift
-/// static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+/// static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
 ///     .refinedByRequest
 /// ```
 ///
 /// Every requirement *loads* — the verb names the authority exercised (the
 /// CRUD-family ``ContainerOperation``), never the SQL. `.read` requirements
 /// belong to factories; the write-family verbs (`.write` / `.create` /
-/// `.delete`) belong to write requests and load the candidate set a submitted
-/// target must belong to. A plain read never loads a candidate set.
+/// `.archive` / `.destroy`) belong to write requests and load the candidate set
+/// a submitted target must belong to. A plain read never loads a candidate set.
 public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWalkFace {
     var declarationToken: ObjectIdentifier {
         ObjectIdentifier(token)
@@ -98,9 +98,9 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
     /// Records this scope's grants authorize reading.
     ///
     /// ```swift
-    /// .read(Berth.self, in: .parentRoot)              // one hop: implicit
+    /// .read(Card.self, in: .parentRoot)              // one hop: implicit
     /// .read(SlipAssignment.self, in: .parentRoot,
-    ///       via: Berth.self)                          // via = INTERMEDIATE hops only
+    ///       via: Card.self)                          // via = INTERMEDIATE hops only
     /// ```
     ///
     /// `via:` lists the *intermediate* containment hops from the root — the terminal hop to
@@ -122,7 +122,7 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
     /// submitted target must resolve to a member.
     ///
     /// ```swift
-    /// static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+    /// static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
     /// ```
     ///
     /// `via:` lists the *intermediate* containment hops from the root; the terminal hop to `record`
@@ -143,7 +143,7 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
     /// The scope a caller may create records into — a create request's candidate scope.
     ///
     /// ```swift
-    /// static let candidates = LoadRequirement.create(Berth.self, in: .parentRoot)
+    /// static let candidates = LoadRequirement.create(Card.self, in: .parentRoot)
     /// ```
     ///
     /// Restricted to zero intermediates: the root container *is* the create scope. A `via:` path can
@@ -160,15 +160,15 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
         )
     }
 
-    /// Records this scope's grants authorize deleting — a delete request's candidate set.
+    /// Records this scope's grants authorize archiving — an archive request's candidate set.
     ///
     /// ```swift
-    /// static let candidates = LoadRequirement.delete(Berth.self, in: .parentRoot)
+    /// static let candidates = LoadRequirement.archive(Card.self, in: .parentRoot)
     /// ```
     ///
     /// `via:` lists the *intermediate* containment hops from the root; the terminal hop to `record`
     /// is always implicit.
-    public static func delete<each Hop: Model>(
+    public static func archive<each Hop: Model>(
         _ record: Record.Type,
         in root: RootScope,
         via intermediates: repeat (each Hop).Type
@@ -176,7 +176,29 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
         .init(
             rootScope: root,
             intermediates: hops(repeat each intermediates),
-            operation: .deleteRecords,
+            operation: .archiveRecords,
+            isRefinedByRequest: false
+        )
+    }
+
+    /// Records this scope's grants authorize destroying — a destroy request's candidate set.
+    ///
+    /// ```swift
+    /// static let candidates = LoadRequirement.destroy(Card.self, in: .parentRoot)
+    /// ```
+    ///
+    /// A destroy removes the row; ``ContainerOperation/destroyRecords`` is never covered by the
+    /// wildcard grant, so the container must grant it by name. `via:` lists the *intermediate*
+    /// containment hops from the root; the terminal hop to `record` is always implicit.
+    public static func destroy<each Hop: Model>(
+        _ record: Record.Type,
+        in root: RootScope,
+        via intermediates: repeat (each Hop).Type
+    ) -> LoadRequirement<Record> {
+        .init(
+            rootScope: root,
+            intermediates: hops(repeat each intermediates),
+            operation: .destroyRecords,
             isRefinedByRequest: false
         )
     }
@@ -184,7 +206,7 @@ public struct LoadRequirement<Record: Model>: DataRequirement, DataRequirementWa
     /// The one requirement the request's declared refinement axes land on:
     ///
     /// ```swift
-    /// static let berths = LoadRequirement.read(Berth.self, in: .parentRoot)
+    /// static let cards = LoadRequirement.read(Card.self, in: .parentRoot)
     ///     .refinedByRequest
     /// ```
     ///

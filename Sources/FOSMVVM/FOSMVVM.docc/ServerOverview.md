@@ -47,7 +47,7 @@ func routes(_ app: Application) throws {
 
 Registration derives and validates each composable request's data-load plan at boot, so a forgotten or
 unresolvable data need fails fast at startup rather than at request time. Write requests
-(`CreateRequest`/`UpdateRequest`/`DeleteRequest`) register the same way — Swift selects the write door.
+(`CreateRequest`/`UpdateRequest`/`ArchiveRequest`) register the same way — Swift selects the write route.
 Where a request mounts is your decision; that its plan is derived is not.
 
 Mount only on **middleware-only** groups (`app.grouped(middleware)`): a path-prefixing group

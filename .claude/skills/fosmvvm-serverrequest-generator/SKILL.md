@@ -115,7 +115,7 @@ try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 ## When to Use This Skill
 
 - Implementing any client-server communication
-- Adding CRUD operations (Create, Read, Update, Delete)
+- Adding CRUD operations (create, read, update, archive, destroy)
 - Building data collectors or sync tools
 - Any Swift code that needs to talk to the server
 
@@ -182,15 +182,17 @@ be mistaken for anything else — a permissive `ResponseError` (`EmptyError`
 decodes from anything) cannot swallow a rejection, and a request error with a
 field named `reason` cannot pun into one. So:
 
-- ✅ `EmptyError` is safe on a request behind a credential middleware. It cannot
-  swallow a rejection — the envelope carries the rejection in its own case, and
-  `EmptyError` is only ever asked to decode the `response` case.
+- ✅ `EmptyError` is safe on a **read** request behind a credential middleware.
+  It cannot swallow a rejection — the envelope carries the rejection in its own
+  case, and `EmptyError` is only ever asked to decode the `response` case. (A
+  `CreateRequest` or `UpdateRequest` cannot use it at all — see *A write
+  request's ResponseError carries validations* below.)
 - ❌ Do **not** add a permissive `String` field to a `ResponseError` "so a 401
   isn't swallowed." That was never a real risk, and the field buys nothing: a
   body that is not the envelope — Vapor's stock abort, a proxy's error page —
   never reaches your error type at all; it falls to the status path.
 
-If your operation has no well-defined throw, use `EmptyError`. A required
+If your *read* operation has no well-defined throw, use `EmptyError`. A required
 free-text `reason: String` is not a lighter-weight error — it is an error with
 no vocabulary a client can branch on, which defeats the point of the type.
 
@@ -199,7 +201,7 @@ publicly-mintable number — any failure can wear a 401, so routing result
 semantics on one is the stringly-typed encapsulation break (see SOLID /
 encapsulation in `CLAUDE.md`). The typed error IS the contract; the moment a
 client sniffs a status, the error vocabulary you declared stops being the
-only door.
+whole contract.
 
 **User-presentable errors conform to `LocalizableError`.** When the error will
 be shown to the user (the common case — the client's `alert(error:)` presents
@@ -230,6 +232,33 @@ public struct ResponseError: ServerRequestError {
 The YAML rides the request's existing localization file — keys derive from
 the error's type + property names, exactly as ViewModel properties do.
 
+### A write request's ResponseError carries validations
+
+`CreateRequest` and `UpdateRequest` constrain their error type: `ResponseError: ValidatableViewModelRequestError`. This is a **protocol constraint, not a convention** — a create or update request that declares `EmptyError`, or a bespoke error of its own, does not compile.
+
+`ValidationError` is the ready-made choice, and the right one unless the operation also throws something that is not a validation:
+
+```swift
+public final class CardCreateRequest: CreateRequest, @unchecked Sendable {
+    public typealias ResponseError = ValidationError
+    // …
+}
+```
+
+What it buys: a validation failure raised **anywhere on the server** — the request body's own `Fields` rules, or the target model's `validateModel(in:)`, or a constraint the model claimed through `validationResult(for:)` — reaches the client as that one typed error, with the results inside. The view reads `error.validations`; nothing has to know which layer refused.
+
+```swift
+do {
+    try await request.processRequest(mvvmEnv: mvvmEnv)
+} catch let error as CardCreateRequest.ResponseError {
+    validations.replace(with: error.validations)   // drives .withFormValidations()
+}
+```
+
+When the operation genuinely has non-validation failure modes too, declare your own error and conform it to `ValidatableViewModelRequestError` — it needs a `validations: [ValidationResult]` property and an `init(validations:)`, and the framework fills that initializer in when a validation refuses the write.
+
+**SOLID.** The constraint is **LSP** with **ISP** teeth: every write request is substitutable for every other at the framework's write path, which rethrows a server-side `ValidationError` as `SR.ResponseError(validations:)`. An error type that cannot carry validations breaks that substitution — and it breaks it *on the client*, at decode time, far from the request that declared it. The segregated protocol is what makes the requirement visible in the type, so the compiler catches it instead of a user seeing an unexplained failure.
+
 ---
 
 ## Request Protocol Selection
@@ -243,11 +272,34 @@ Choose based on the operation:
 | Create entity | `CreateRequest` | POST | Yes (ValidatableModel) |
 | Update entity | `UpdateRequest` | PATCH | Yes (ValidatableModel) |
 | Replace entity | (use `.replace` action) | PUT | Yes |
-| Soft delete | `DeleteRequest` | DELETE | No |
-| Hard delete | `DestroyRequest` | DELETE | No |
+| Archive (row stays, marked deleted) | `ArchiveRequest` | DELETE | No |
+| Destroy (row removed) | `DestroyRequest` | DELETE | No |
 
 > The left column is the **protocol** you conform to (`CreateRequest`, `UpdateRequest`, …).
 > That is NOT the name of your concrete type — see naming below.
+
+`CreateRequest` and `UpdateRequest` additionally constrain `ResponseError` to a `ValidatableViewModelRequestError` — use `public typealias ResponseError = ValidationError` unless you have a reason not to.
+
+## Archive or Destroy
+
+Both ride the DELETE method, and they are different operations:
+
+**Archive** leaves the model in place, marked deleted through its delete timestamp. Fluent's default queries stop returning it; the data is still there, still referable, still restorable.
+
+**Destroy** removes the row. Nothing comes back.
+
+**The delete-timestamp rule.** Registering an `ArchiveRequest` route for a model that declares no `@Timestamp(key: "deleted_at", on: .delete)` **fails at boot** with `ServerRequestControllerError.archiveUnsupported(request:model:)`. Without that column Fluent's `delete(on:)` would remove the row — a destroy wearing the archive verb — so the mismatch is refused where it is cheap to see:
+
+```swift
+// in the model
+@Timestamp(key: "deleted_at", on: .delete) var deletedAt: Date?
+```
+
+The fix is one of two things, and never a third: give the model the delete timestamp, or serve a `DestroyRequest` instead. There is no flag that makes an archive remove a row.
+
+The container must grant the operation. An archive needs `ContainerOperation.archiveRecords`, which a wildcard grant does cover; a destroy needs `destroyRecords`, which **no** wildcard covers — removal is always granted by name.
+
+**SOLID.** Two protocols rather than one protocol with a "force" parameter is **ISP**: the operation the client asked for is legible in the type, and the client cannot ask for one and get the other. The boot check is **LSP** — every registered `ArchiveRequest` really does archive, so no caller has to check whether *this* model's archive happens to destroy.
 
 ---
 
@@ -260,12 +312,12 @@ Choose based on the operation:
 | Create a User | `UserCreateRequest` | `CreateUserRequest` |
 | Update a User | `UserUpdateRequest` | `UpdateUserRequest` |
 | Replace a User (PUT) | `UserReplaceRequest` | `ReplaceUserRequest` |
-| Delete a User | `UserDeleteRequest` | `DeleteUserRequest` |
+| Archive a User | `UserArchiveRequest` | `ArchiveUserRequest` |
 | Semantic action | `IdeaMoveRequest` | `MoveIdeaRequest` |
 | Raw-data read | `UserShowRequest` | — |
 
 Noun-first keeps an entity's whole request family cohesive and sortable
-(`UserCreateRequest`/`UserDeleteRequest`/`UserShowRequest`/`UserUpdateRequest` group
+(`UserArchiveRequest`/`UserCreateRequest`/`UserShowRequest`/`UserUpdateRequest` group
 together) — an **SRP** win, and it matches the already-noun-first `ShowRequest` form.
 ViewModel *read* requests drop the verb entirely (`DocksRequest`, not `DocksShowRequest`).
 
@@ -311,9 +363,9 @@ This skill references conversation context to determine ServerRequest structure:
 ### Operation Type Detection
 
 From conversation context, the skill identifies:
-- **CRUD operation** (create, read, update, delete)
-- **HTTP semantics** (GET for read, POST for create, PATCH/PUT for update, DELETE for delete)
-- **Protocol choice** (ShowRequest, ViewModelRequest, CreateRequest, UpdateRequest, DeleteRequest)
+- **CRUD operation** (create, read, update, archive, destroy)
+- **HTTP semantics** (GET for read, POST for create, PATCH/PUT for update, DELETE for archive and destroy)
+- **Protocol choice** (ShowRequest, ViewModelRequest, CreateRequest, UpdateRequest, ArchiveRequest, DestroyRequest)
 
 ### Request Structure Design
 
@@ -329,7 +381,8 @@ From requirements already in context:
 - **ResponseBody type** (often a ViewModel, sometimes just an ID)
 - **ResponseError type** — ask "what would this operation `throw` if it were
   a local call?"; that error is the `ResponseError` (`EmptyError` if nothing
-  well-defined). Never derive it from HTTP statuses.
+  well-defined). Never derive it from HTTP statuses. A create or update must
+  name a `ValidatableViewModelRequestError` — normally `ValidationError`.
 - **Success scenarios** (what indicates successful operation)
 - **Error scenarios** (known failure modes the client must branch on —
   each becomes a typed case the client catches)
@@ -370,7 +423,9 @@ import FOSMVVM
 public final class {Action}Request: {Protocol}, @unchecked Sendable {
     public typealias Query = EmptyQuery       // or custom Query type
     public typealias Fragment = EmptyFragment
-    // ResponseError: use EmptyError OR define nested ResponseError struct (see below)
+    // ResponseError: a read may use EmptyError or a nested ResponseError struct
+    //   (see below); a CreateRequest/UpdateRequest must name a
+    //   ValidatableViewModelRequestError — `typealias ResponseError = ValidationError`
 
     public let requestBody: RequestBody?
     public var responseBody: ResponseBody?
@@ -423,7 +478,7 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
 | `ViewModelRequest` | `.show` | GET |
 | `CreateRequest` | `.create` | POST |
 | `UpdateRequest` | `.update` | PATCH |
-| `DeleteRequest` | `.delete` | DELETE |
+| `ArchiveRequest` | `.archive` | DELETE |
 | `DestroyRequest` | `.destroy` | DELETE |
 | Custom request | Whatever fits your semantics | Depends on action |
 
@@ -460,17 +515,19 @@ private extension {Action}Request {
 }
 ```
 
-### Registration — one door
+### Registration — one call
 
-`register(request:app:)` is the door. Swift picks the right overload from the
-request's protocol, so the same call registers a read or a write:
+`register(request:app:)` registers every request. Swift picks the overload from the
+request's protocol, so the same call serves a read, a create, an update, an archive
+or a destroy:
 
 ```swift
 func routes(_ app: Application) throws {
     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    try authed.register(request: DockPageRequest.self, app: app)    // guarded read (GET)
-    try authed.register(request: UpdateBerthRequest.self, app: app) // write door
-    try app.register(request: LandingPageRequest.self, app: app)    // public — Application is a RoutesBuilder
+    try authed.register(request: DockPageRequest.self, app: app)   // guarded read (GET)
+    try authed.register(request: BerthUpdateRequest.self, app: app) // write (PATCH)
+    try authed.register(request: BerthArchiveRequest.self, app: app) // write (DELETE)
+    try app.register(request: LandingPageRequest.self, app: app)   // public — Application is a RoutesBuilder
 }
 ```
 
@@ -480,7 +537,8 @@ type. Adding a prefix on the server would move the route out from under the clie
 own derivation.
 
 There is no `register(viewModel:)`; it was removed. A write request that reaches the
-read door fails fast at boot rather than silently registering GET-only.
+read overload fails fast at boot rather than silently registering GET-only, and an
+`ArchiveRequest` whose model declares no delete timestamp is refused there too.
 
 **Route collections are the exception, not the pattern.** Reach for
 `ServerRequestController` and `register(collection:)` only for operations
@@ -584,7 +642,7 @@ public struct ResponseBody: CreateResponseBody {
 
 ### Empty Response
 
-Delete operations often return nothing:
+An archive or destroy sometimes returns nothing — though the container's remaining children are usually the more useful answer:
 
 ```swift
 // Use EmptyBody as ResponseBody
@@ -619,6 +677,8 @@ When processing a response:
 - No structured error response expected
 - You only need success/failure, not why
 
+**Not available to a create or update.** Their `ResponseError` must be a `ValidatableViewModelRequestError`; `EmptyError` is not one, so the declaration does not compile. Reach for `public typealias ResponseError = ValidationError`.
+
 ### Nesting Pattern
 
 **ResponseError MUST be nested inside the request class**, just like RequestBody and ResponseBody:
@@ -651,21 +711,39 @@ public final class IdeaCreateRequest: CreateRequest, @unchecked Sendable {
 
 For errors that need dynamic data in their messages, use `LocalizableSubstitutions`:
 
+Most create and update requests want `public typealias ResponseError = ValidationError` and nothing else. Write a bespoke error only when the operation throws something that is **not** a validation — and then conform it to `ValidatableViewModelRequestError`, as below, so the framework can still hand it the results a refused write produced.
+
 ```swift
 public final class IdeaCreateRequest: CreateRequest, @unchecked Sendable {
     // ... other typealiases and properties ...
 
-    public struct ResponseError: ServerRequestError {
+    public struct ResponseError: ValidatableViewModelRequestError {
         public let code: ErrorCode
         public let message: LocalizableSubstitutions
 
+        // ValidatableViewModelRequestError: a create/update error carries the
+        // results of a refused write, whichever layer refused it.
+        public let validations: [ValidationResult]
+
+        public init(validations: [ValidationResult]) {
+            self.code = .validationFailed
+            self.message = ErrorCode.validationFailed.message
+            self.validations = validations
+        }
+
         public enum ErrorCode: Codable, Sendable {
+            case validationFailed
             case duplicateContent
             case quotaExceeded(requestedSize: Int, maximumSize: Int)
             case invalidCategory(category: String)
 
             var message: LocalizableSubstitutions {
                 switch self {
+                case .validationFailed:
+                    .init(
+                        baseString: .localized(for: Self.self, parentType: ResponseError.self, propertyName: "validationFailed"),
+                        substitutions: [:]
+                    )
                 case .duplicateContent:
                     .init(
                         baseString: .localized(for: Self.self, parentType: ResponseError.self, propertyName: "duplicateContent"),
@@ -693,6 +771,7 @@ public final class IdeaCreateRequest: CreateRequest, @unchecked Sendable {
         public init(code: ErrorCode) {
             self.code = code
             self.message = code.message  // Required to localize properly via Codable
+            self.validations = []
         }
     }
 }
@@ -703,6 +782,7 @@ en:
   IdeaCreateRequest:
     ResponseError:
       ErrorCode:
+        validationFailed: "Some of the values entered need correcting."
         duplicateContent: "The requested content is a duplicate of an existing idea."
         quotaExceeded: "The requested content size %{requestedSize} exceeds the maximum allowed size %{maximumSize}."
         invalidCategory: "The category %{category} is not valid."
@@ -716,11 +796,13 @@ For simpler errors without associated values, use a `String` raw value enum:
 public final class IdeaMoveRequest: UpdateRequest, @unchecked Sendable {
     // ... other typealiases and properties ...
 
-    public struct ResponseError: ServerRequestError {
+    public struct ResponseError: ValidatableViewModelRequestError {
         public let code: ErrorCode
         public let message: LocalizableString
+        public let validations: [ValidationResult]
 
-        public enum ErrorCode: Codable, Sendable {   // never `: String` — a raw value is a public string door and cannot localize
+        public enum ErrorCode: Codable, Sendable {   // never `: String` — a raw value is a publicly-mintable string and cannot localize
+            case validationFailed
             case ideaNotFound
             case invalidTransition
 
@@ -729,9 +811,16 @@ public final class IdeaMoveRequest: UpdateRequest, @unchecked Sendable {
             }
         }
 
+        public init(validations: [ValidationResult]) {
+            self.code = .validationFailed
+            self.message = ErrorCode.validationFailed.message
+            self.validations = validations
+        }
+
         public init(code: ErrorCode) {
             self.code = code
             self.message = code.message  // Required to localize properly via Codable
+            self.validations = []
         }
     }
 }
@@ -742,6 +831,7 @@ en:
   IdeaMoveRequest:
     ResponseError:
       ErrorCode:
+        validationFailed: "Some of the values entered need correcting."
         ideaNotFound: "The idea was not found"
         invalidTransition: "Cannot move to the requested status"
 ```
@@ -801,8 +891,10 @@ The primary pattern is try/catch at the call site:
 ```swift
 do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
-} catch let error as IdeaCreateError {
+} catch let error as IdeaCreateRequest.ResponseError {
     switch error.code {
+    case .validationFailed:
+        validations.replace(with: error.validations)
     case .duplicateContent:
         showDuplicateWarning(message: error.message)
     case .quotaExceeded(let requestedSize, let maximumSize):
@@ -817,38 +909,39 @@ do {
 
 ### Built-in ValidationError
 
-FOSMVVM provides `ValidationError` for field-level validation failures:
+`ValidationError` is FOSMVVM's field-level validation failure, and the `ResponseError` a create or update normally declares.
+
+**On a registered write route you rarely throw it yourself.** The framework already runs the request body's `Fields` rules and the target model's `validateModel(in:)` around the write, and rethrows whatever they refuse as the request's own `ResponseError`. Put the rule where it belongs — on the `Fields` protocol, or in the model's lifecycle hook — and the wire carries it for you.
+
+When you do build results by hand, `Validations` is append-only and field ids are minted from key paths:
 
 ```swift
-// In controller - use Validations to collect errors
+// In a controller — collect, then throw
 let validations = Validations()
 
 if requestBody.email.isEmpty {
-    validations.validations.append(.init(
+    validations.append(.init(
         status: .error,
-        fieldId: "email",
+        fieldId: #fieldId(\UserFields.email),
         message: .localized(for: UserCreateRequest.self, propertyName: "emailRequired")
     ))
 }
 
-// Throw if any errors
 if let error = validations.validationError {
     throw error
 }
 ```
 
+There is no public string initializer for `FormFieldIdentifier` — `#fieldId(\Model.property)` is the only mint, so a client and a server cannot drift on a hand-typed `"email"`. The identity is scoped to the type the key path names, so mint from the `Fields` protocol the form field was declared on, not from the request body or the model that adopts it.
+
 ```swift
-// Client catches ValidationError
-catch let error as ValidationError {
-    for validation in error.validations {
-        for message in validation.messages {
-            for fieldId in message.fieldIds {
-                formFields[fieldId]?.showError(message.message)
-            }
-        }
-    }
+// Client catches the request's own typed error and reads .validations
+catch let error as UserCreateRequest.ResponseError {
+    validations.replace(with: error.validations)
 }
 ```
+
+**SOLID.** Minting the identifier from a key path rather than a string is the encapsulation precondition SOLID assumes: a `String` has no wall — anyone can mint one, and a typo compiles into a message that will never find its field. The typed identifier makes the form contract checkable at the point it is written.
 
 > **Architecture context:** See [ServerRequestError - Typed Error Responses](../../docs/FOSMVVMArchitecture.md#serverrequesterror---typed-error-responses) for full details.
 
@@ -903,4 +996,6 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.7 | 2026-01-20 | ResponseError MUST be nested inside request class (like RequestBody/ResponseBody). Updated patterns to show nesting with correct YAML key paths. |
 | 2.8 | 2026-01-20 | Added "Type Safety Means You Already Know" section - explicit mental model that Swift's type system means you catch concrete error types, not protocols. Prevents JavaScript-brain panic about runtime type discovery. |
 | 2.9 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.11 | 2026-09-29 | `CreateRequest`/`UpdateRequest` constrain `ResponseError` to `ValidatableViewModelRequestError` (`typealias ResponseError = ValidationError` is the ready-made choice); archive-vs-destroy section with the delete-timestamp boot rule; `Validations` is append-only and `FormFieldIdentifier` is minted with `#fieldId(\Model.property)`; remaining verb-first and Delete-era examples flipped. |
+| 2.12 | 2026-09-30 | A field identity is scoped by the type the key path names, so a hand-built `ValidationResult` mints from the `Fields` protocol the form field was declared on, not from the request body. |
 | 2.10 | 2026-07-02 | Concrete request types are noun-first (`<Noun><Verb>Request`); added "Naming the Concrete Request Type" section + [Naming Dictionary](../shared/NAMES.md) cross-ref; flipped all verb-first examples (`CreateIdeaRequest`→`IdeaCreateRequest`, `MoveIdeaRequest`→`IdeaMoveRequest`, etc.). (backlog A1) |

@@ -37,10 +37,6 @@ public protocol {Name}Fields: ValidatableModel, Codable, Sendable {
     // MARK: - Field Declarations
 
     // var fieldName: FieldType { get set }
-
-    // MARK: - Validation Messages
-
-    var {name}ValidationMessages: {Name}FieldsMessages { get }
 }
 
 // MARK: - Enums (if needed for constrained fields)
@@ -60,7 +56,7 @@ public extension {Name}Fields {
     // MARK: FormField Definitions
 
     // static var fieldNameField: FormField<String?> { .init(
-    //     fieldId: .init(id: "field_name"),
+    //     fieldId: #fieldId(\Self.fieldName),
     //     title: .localized(for: {Name}FieldsMessages.self, propertyName: "fieldName", messageKey: "title"),
     //     placeholder: .localized(for: {Name}FieldsMessages.self, propertyName: "fieldName", messageKey: "placeholder"),
     //     type: .text(inputType: .text),
@@ -71,10 +67,24 @@ public extension {Name}Fields {
     //     ] + FormInputOption.rangeLength(fieldNameRange)
     // ) }
 
+    // MARK: Validation Message Mints
+    //
+    // Minted the way a FormField's title is: a @LocalizedString property binds its key only
+    // while its own model is being encoded, so a message read off a {Name}FieldsMessages
+    // instance and carried in a ValidationResult would encode empty.
+
+    // static var fieldNameRequiredMessage: LocalizableString {
+    //     .localized(for: {Name}FieldsMessages.self, propertyName: "fieldName", messageGroup: "validationMessages", messageKey: "required")
+    // }
+
+    // static var fieldNameOutOfRangeMessage: LocalizableString {
+    //     .localized(for: {Name}FieldsMessages.self, propertyName: "fieldName", messageGroup: "validationMessages", messageKey: "outOfRange")
+    // }
+
     // MARK: Field Validation Methods
 
     // internal func validateFieldName(_ fields: [FormFieldBase]?) -> [ValidationResult]? {
-    //     guard fields == nil || (fields?.contains(Self.fieldNameField) == true) else {
+    //     guard fields?.contains(Self.fieldNameField) ?? true else {
     //         return nil
     //     }
     //
@@ -84,13 +94,13 @@ public extension {Name}Fields {
     //         result.append(.init(
     //             status: .error,
     //             field: Self.fieldNameField,
-    //             message: {name}ValidationMessages.fieldNameRequiredMessage
+    //             message: Self.fieldNameRequiredMessage
     //         ))
     //     } else if !Self.fieldNameRange.contains(NSString(string: fieldName).length) {
     //         result.append(.init(
     //             status: .error,
     //             field: Self.fieldNameField,
-    //             message: {name}ValidationMessages.fieldNameOutOfRangeMessage
+    //             message: Self.fieldNameOutOfRangeMessage
     //         ))
     //     }
     //
@@ -114,14 +124,16 @@ public extension {Name}Fields {
     func validate(fields: [FormFieldBase]?, validations: Validations) -> ValidationResult.Status? {
         let result = {name}FieldsValidateModel(validations: validations, fields: fields) ?? []
 
-        if !result.isEmpty {
-            validations.validations = result
-        }
+        validations.replace(with: result)
 
-        return .init(for: result)
+        return validations.status
     }
 }
 ```
+
+**A Fields validate replaces its own fields; nothing assigns the array.** `Validations.validations` is `private(set)`; `append(_:)`, `append(contentsOf:)`, `replace(with:)` and `removeAll(fieldIds:)` are the whole of the API, and an assignment does not compile. One `Validations` is the single accumulator every level adds to — the Fields rules, then the `DataModel`'s own `validateModel(in:)` rules, then the server's answer on the way back. A Fields rule set owns exactly the fields it names, so it hands its answer to `replace(with:)`, which swaps those fields' results and leaves every other level's alone; re-validating a form as the user types then re-answers for those fields instead of stacking a second copy of the same message. **OCP:** each level extends the judgement without modifying what the level before it found; assign the array instead and a `DataModel` adding a rule after the Fields rules erases them, so the user is told about the second problem with their form only after fixing the first.
+
+**A rule about the model as a whole names no field.** `ValidationResult(status:message:)` — the initializer without a field — makes a model-level result, and `ValidationResult.Message.addressesModel` is how such a message says it names none. Field views ignore it; the form shows it by applying `.withFormValidations()`. When a conflict is genuinely *between* two fields, name both with `.init(status:fieldIds:message:)` instead.
 
 ---
 
@@ -196,8 +208,6 @@ public protocol IdeaFields: ValidatableModel, Codable, Sendable {
     var department: Department { get set }
     var status: IdeaStatus { get set }
     var metadata: [String: String]? { get set }
-
-    var ideaValidationMessages: IdeaFieldsMessages { get }
 }
 
 public enum Department: CaseIterable, Equatable, Codable, Sendable {
@@ -225,7 +235,7 @@ public extension IdeaFields {
     // MARK: FormField Definitions
 
     static var contentField: FormField<String?> { .init(
-        fieldId: .init(id: "content"),
+        fieldId: #fieldId(\Self.content),
         title: .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageKey: "title"),
         placeholder: .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageKey: "placeholder"),
         type: .textArea(inputType: .text),
@@ -235,23 +245,33 @@ public extension IdeaFields {
     ) }
 
     static var departmentField: FormField<String?> { .init(
-        fieldId: .init(id: "department"),
+        fieldId: #fieldId(\Self.department),
         title: .localized(for: IdeaFieldsMessages.self, propertyName: "department", messageKey: "title"),
         type: .select,
         options: [.required(value: true)]
     ) }
 
     static var statusField: FormField<String?> { .init(
-        fieldId: .init(id: "status"),
+        fieldId: #fieldId(\Self.status),
         title: .localized(for: IdeaFieldsMessages.self, propertyName: "status", messageKey: "title"),
         type: .select,
         options: [.required(value: true)]
     ) }
 
+    // MARK: Validation Message Mints
+
+    static var contentRequiredMessage: LocalizableString {
+        .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageGroup: "validationMessages", messageKey: "required")
+    }
+
+    static var contentOutOfRangeMessage: LocalizableString {
+        .localized(for: IdeaFieldsMessages.self, propertyName: "content", messageGroup: "validationMessages", messageKey: "outOfRange")
+    }
+
     // MARK: Validation Methods
 
     internal func validateContent(_ fields: [FormFieldBase]?) -> [ValidationResult]? {
-        guard fields == nil || (fields?.contains(Self.contentField) == true) else {
+        guard fields?.contains(Self.contentField) ?? true else {
             return nil
         }
 
@@ -261,13 +281,13 @@ public extension IdeaFields {
             result.append(.init(
                 status: .error,
                 field: Self.contentField,
-                message: ideaValidationMessages.contentRequiredMessage
+                message: Self.contentRequiredMessage
             ))
         } else if !Self.contentRange.contains(NSString(string: content).length) {
             result.append(.init(
                 status: .error,
                 field: Self.contentField,
-                message: ideaValidationMessages.contentOutOfRangeMessage
+                message: Self.contentOutOfRangeMessage
             ))
         }
 
@@ -287,10 +307,8 @@ public extension IdeaFields {
 
     func validate(fields: [FormFieldBase]?, validations: Validations) -> ValidationResult.Status? {
         let result = ideaFieldsValidateModel(validations: validations, fields: fields) ?? []
-        if !result.isEmpty {
-            validations.validations = result
-        }
-        return .init(for: result)
+        validations.replace(with: result)
+        return validations.status
     }
 }
 ```
@@ -344,13 +362,11 @@ final class Idea: DataModel, IdeaFields, Hashable, @unchecked Sendable {
     @Field(key: "status") var status: IdeaStatus
     @OptionalField(key: "metadata") var metadata: [String: String]?
 
-    let ideaValidationMessages: IdeaFieldsMessages
-
-    init() {
-        self.ideaValidationMessages = .init()
-    }
+    init() {}
 }
 ```
+
+An adopter declares the fields and nothing else: the `FormField` definitions, the message mints and the validation rules all live on the protocol's extension, so every adopter runs the same checks and reports them with the same words.
 
 ### In a RequestBody
 
@@ -363,12 +379,9 @@ public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
         public var status: IdeaStatus = .queued
         public var metadata: [String: String]?
 
-        public let ideaValidationMessages: IdeaFieldsMessages
-
         public init(content: String, department: Department) {
             self.content = content
             self.department = department
-            self.ideaValidationMessages = .init()
         }
 
         public static func stub() -> Self {
@@ -388,12 +401,6 @@ private struct TestIdea: IdeaFields {
     var status: IdeaStatus
     var metadata: [String: String]?
 
-    private(set) var ideaValidationMessages: IdeaFieldsMessages
-
-    mutating func localizeMessages(encoder: JSONEncoder) throws {
-        ideaValidationMessages = try IdeaFieldsMessages().toJSON(encoder: encoder).fromJSON()
-    }
-
     init(
         id: ModelIdType? = .init(),
         content: String = "Test content",
@@ -406,7 +413,6 @@ private struct TestIdea: IdeaFields {
         self.department = department
         self.status = status
         self.metadata = metadata
-        self.ideaValidationMessages = .init()
     }
 }
 ```
@@ -419,9 +425,8 @@ private struct TestIdea: IdeaFields {
 |---------|---------|---------|
 | Protocol | `{Name}Fields` | `IdeaFields` |
 | Messages struct | `{Name}FieldsMessages` | `IdeaFieldsMessages` |
-| Messages property | `{name}ValidationMessages` | `ideaValidationMessages` |
 | FormField definition | `{fieldName}Field` | `contentField` |
 | Range constant | `{fieldName}Range` | `contentRange` |
 | Validate method | `validate{FieldName}` | `validateContent` |
-| Required message | `{fieldName}RequiredMessage` | `contentRequiredMessage` |
-| OutOfRange message | `{fieldName}OutOfRangeMessage` | `contentOutOfRangeMessage` |
+| Required message (static mint) | `{fieldName}RequiredMessage` | `contentRequiredMessage` |
+| OutOfRange message (static mint) | `{fieldName}OutOfRangeMessage` | `contentOutOfRangeMessage` |

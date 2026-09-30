@@ -1,2 +1,6 @@
 --swiftversion 6.0
 --indent 4
+
+# redundantStaticSelf strips the root from a key path in a static member, which breaks
+# #fieldId(\Self.property) — the mint every FormField definition uses.
+--disable redundantStaticSelf

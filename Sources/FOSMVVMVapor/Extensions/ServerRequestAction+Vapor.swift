@@ -33,11 +33,11 @@ public extension ServerRequestAction {
         case .PUT: self = .replace
         case .PATCH: self = .update
         case .DELETE:
-            if uri.path.hasSuffix("/destroy") {
-                self = .destroy
-            } else {
-                self = .delete
-            }
+            // The destroy route names itself in a path component, and the request's identifying
+            // arguments follow it (ControllerRouting.path(for:args:)), so the component is not
+            // necessarily the last one.
+            let components = uri.path.split(separator: "/", omittingEmptySubsequences: true)
+            self = components.contains("destroy") ? .destroy : .archive
         default:
             throw ServerRequestActionError.unknownHTTPMethod(httpMethod)
         }

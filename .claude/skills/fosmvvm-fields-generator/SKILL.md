@@ -141,9 +141,10 @@ Skill references information from:
 ```swift
 public protocol {Name}Fields: ValidatableModel, Codable, Sendable {
     var fieldName: FieldType { get set }
-    var {name}ValidationMessages: {Name}FieldsMessages { get }
 }
 ```
+
+> **The protocol carries no messages instance.** The validation messages are minted statically on the extension (see *Validation Messages Are Minted, Not Read* below), so a `var {name}ValidationMessages: {Name}FieldsMessages { get }` requirement has no reader — and keeping one leaves the broken read a keystroke away.
 
 > **Overridable-with-a-default member? Declare it as a *requirement* AND provide the default.** If you want a Fields member to have a zero-config default that a conformer can still override (a validation policy, a message source), it must be a protocol **requirement** with a default in an extension. A member defined *only* in an extension is statically dispatched — a conformer's "override" merely **shadows** it and calls through the protocol/a generic `some {Name}Fields` still hit the default. That's a silent OCP failure. See [Architecture Patterns → Requirement + Default = a Real Override](../shared/architecture-patterns.md).
 
@@ -151,9 +152,28 @@ public protocol {Name}Fields: ValidatableModel, Codable, Sendable {
 
 ### FormField Definition
 
+> **`#fieldId` is the only way to mint a `FormFieldIdentifier`** — its initializer is internal.
+> This is **encapsulation**, the precondition SOLID assumes: a hand-written `"content"` is a
+> stringly-typed identity anyone can mint, parse, or mistype, and a renamed property leaves it
+> silently pointing at nothing. The macro reads the property from a **rooted** key path
+> (`\Self.content` inside the protocol's extension, `\IdeaFields.content` elsewhere), so the compiler
+> checks it and a rename breaks every site at build time. For one element of a repeated field,
+> pass the position: `#fieldId(\Self.tags, index: index)`. Never compose, parse, or
+> hand-construct the identity's string.
+
+> **The identity is scoped to the type the key path names**, so `\Card.title` and `\Board.title`
+> are different fields. `\Self` inside the Fields protocol's own extension resolves to the
+> **protocol**, which is what makes the contract shared: the one line mints the one identity for
+> the request body, the form ViewModel and the `DataModel` alike. Anywhere outside that extension —
+> a `validateModel` on the Fluent model, a controller building results by hand — name the Fields
+> protocol (`\IdeaFields.content`), never the adopting type, or the message lands on a field the
+> form does not show.
+
+> **SwiftFormat users:** disable `redundantStaticSelf` in the project's `.swiftformat`. Inside a static member it strips the root from `\Self.content`, leaving `\.content`, which the macro cannot resolve to a property name.
+
 ```swift
 static var contentField: FormField<String?> { .init(
-    fieldId: .init(id: "content"),
+    fieldId: #fieldId(\Self.content),
     title: .localized(for: {Name}FieldsMessages.self, propertyName: "content", messageKey: "title"),
     placeholder: .localized(for: {Name}FieldsMessages.self, propertyName: "content", messageKey: "placeholder"),
     type: .textArea(inputType: .text),
@@ -185,11 +205,31 @@ static var contentField: FormField<String?> { .init(
 | `.date`, `.datetimeLocal` | Date picker |
 | `.givenName`, `.familyName` | Name autofill |
 
+### Validation Messages Are Minted, Not Read
+
+A `ValidationResult` carries its message to the client, so the message must be a `LocalizableString` minted from the messages model's key path — exactly the way a `FormField`'s `title:` and `placeholder:` above are minted. Put one static mint on the extension per message:
+
+```swift
+static var contentRequiredMessage: LocalizableString {
+    .localized(for: {Name}FieldsMessages.self, propertyName: "content", messageGroup: "validationMessages", messageKey: "required")
+}
+
+static var contentOutOfRangeMessage: LocalizableString {
+    .localized(for: {Name}FieldsMessages.self, propertyName: "content", messageGroup: "validationMessages", messageKey: "outOfRange")
+}
+```
+
+The key path is identical to the `@LocalizedString` wrapper's, so the YAML below does not change. The `@FieldValidationModel` struct stays exactly as it is: its `@LocalizedString` declarations are what say which keys the YAML must carry.
+
+> **Never read the message off an instance of the messages struct.** A `@LocalizedString` property binds its key only while its own model is being encoded, so a message pulled out of one and carried in a `ValidationResult` encodes empty — the user gets a blank message, in the form and on the wire, with nothing failing loudly enough to notice.
+
 ### Validation Method Pattern
+
+A per-field method answers only for its own field. The guard is the shipped idiom — `fields?.contains(Self.contentField) ?? true` — so a `nil` `fields` (check everything) and a list naming this field both proceed, and a list naming other fields returns `nil`:
 
 ```swift
 internal func validateContent(_ fields: [FormFieldBase]?) -> [ValidationResult]? {
-    guard fields == nil || (fields?.contains(Self.contentField) == true) else {
+    guard fields?.contains(Self.contentField) ?? true else {
         return nil
     }
 
@@ -199,19 +239,49 @@ internal func validateContent(_ fields: [FormFieldBase]?) -> [ValidationResult]?
         result.append(.init(
             status: .error,
             field: Self.contentField,
-            message: {name}ValidationMessages.contentRequiredMessage
+            message: Self.contentRequiredMessage
         ))
     } else if !Self.contentRange.contains(NSString(string: content).length) {
         result.append(.init(
             status: .error,
             field: Self.contentField,
-            message: {name}ValidationMessages.contentOutOfRangeMessage
+            message: Self.contentOutOfRangeMessage
         ))
     }
 
     return result.isEmpty ? nil : result
 }
 ```
+
+### Validation Accumulates; A Fields Validate Replaces Its Own Fields
+
+`validate(fields:validations:)` composes the per-field methods and hands the results to `replace(with:)` on the `Validations` it was handed — the Fields rules own exactly the fields they name, so they re-answer for those fields and leave every other level's results standing. `Validations.validations` is `private(set)`; `append(_:)`, `append(contentsOf:)`, `replace(with:)` and `removeAll(fieldIds:)` are the whole of the API, and an assignment no longer compiles:
+
+```swift
+func validate(fields: [FormFieldBase]?, validations: Validations) -> ValidationResult.Status? {
+    let result = {name}FieldsValidateModel(validations: validations, fields: fields) ?? []
+    validations.replace(with: result)
+    return validations.status
+}
+```
+
+> **OCP.** One `Validations` is the single accumulator every level adds to — the Fields rules, then the `DataModel`'s own `validateModel(in:)` rules, then the server's answer on the way back. Each level extends the judgement without modifying what the level before it found. Assign the array instead and the extension point is gone: a `DataModel` that adds a rule after the Fields rules erases them, and the user is told about the second problem with their form only after fixing the first.
+
+> **Why `replace(with:)` and not `append(contentsOf:)` here.** A form calls its Fields validate on every edit and again at submit. Appending would stack a second copy of the same message each time; `replace(with:)` is field-scoped, so running it twice on one `Validations` leaves one answer per field. `validateModel(in:)` still returns its results for the framework to append — it judges the model as a whole and owns no field to replace.
+
+Read the accumulator through `validations.status`, `hasError`, `isValid`, `hasError(for:)` and `validationError` rather than its contents; `.init(for:)` over a local array answers only for the slice you just computed and misses what another level appended.
+
+### Model-Level Results
+
+A rule about the model as a whole — not about any one field — makes a result that names no field, with `ValidationResult(status:message:)`:
+
+```swift
+if activeCards.count >= Self.cardLimit {
+    validations.append(.init(status: .error, message: Self.boardFullMessage))
+}
+```
+
+`ValidationResult.Message.addressesModel` is how such a message says it names none. The field views ignore it; the form shows it by applying `.withFormValidations()`, so a Fields protocol that emits model-level results must say so in its documentation — a form that omits the modifier shows nothing at all for them. Cross-field conflicts are the other case: name **both** fields (`.init(status:fieldIds:message:)`) when the conflict is between them, and use the model-level form only when no field is at fault.
 
 ### Messages Struct Pattern
 
@@ -244,12 +314,11 @@ en:
 |---------|------------|---------|
 | Protocol | `{Name}Fields` | `IdeaFields`, `CreateIdeaFields` |
 | Messages struct | `{Name}FieldsMessages` | `IdeaFieldsMessages` |
-| Messages property | `{name}ValidationMessages` | `ideaValidationMessages` |
 | Field definition | `{fieldName}Field` | `contentField` |
 | Range constant | `{fieldName}Range` | `contentRange` |
 | Validate method | `validate{FieldName}` | `validateContent` |
-| Required message | `{fieldName}RequiredMessage` | `contentRequiredMessage` |
-| OutOfRange message | `{fieldName}OutOfRangeMessage` | `contentOutOfRangeMessage` |
+| Required message (static mint) | `{fieldName}RequiredMessage` | `contentRequiredMessage` |
+| OutOfRange message (static mint) | `{fieldName}OutOfRangeMessage` | `contentOutOfRangeMessage` |
 
 ## See Also
 
@@ -266,3 +335,5 @@ en:
 | 1.0 | 2024-12-24 | Initial skill |
 | 2.0 | 2024-12-26 | Rewritten with conceptual foundation; generalized from Kairos-specific |
 | 2.1 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.2 | 2026-09-29 | Validation corrected to the shipped API: `Validations` is append-only (`validations` is `private(set)`; the assignment the templates taught no longer compiles), with the OCP reason. Validation messages are minted statically from the messages model's key path — reading one off a `{Name}FieldsMessages` instance encodes empty — so the `{name}ValidationMessages` requirement and its adopter storage are gone. Model-level results via `ValidationResult(status:message:)`, shown by `withFormValidations()`. Guard idiom aligned to `fields?.contains(Self.someField) ?? true`; SwiftFormat `redundantStaticSelf` note for `#fieldId(\Self.property)`. |
+| 2.3 | 2026-09-30 | A field identity is scoped by the type the key path names: `\Self` inside the Fields protocol's own extension resolves to the protocol, so every adopter shares the one identity; outside that extension name the Fields protocol (`\IdeaFields.content`), never the adopting model. |

@@ -76,6 +76,43 @@ Two further shapes worth naming when you see them, because they are the same dri
 **Messages are part of the contract, not decoration.** Fields carries data, presentation, constraints, *and* messages. A title or placeholder re-declared outside the Fields messages struct is the same duplication as a re-declared range, and it goes wrong sooner: nobody notices two YAML files disagreeing until a user reads both spellings.
 **Detection:** For each validation rule on a Fields protocol, search the downstream projections — the Form ViewModel's View, the controller handling the RequestBody, the Model's migration — for the same constraint expressed again. Flag the duplicate, naming both sites.
 
-**Two shapes are not hits.** A Fluent migration's `.required` column is a storage-integrity constraint that exists whether or not a form does, and carries no length — reporting it pushes toward nullable columns, which is worse. And a bare HTML `required` attribute with no `minlength`/`maxlength` is close to native form semantics and is *the correct case*: it is the absence of the range restatement. Flag the hand-typed bounds, not the requiredness.
+**Two forms are not hits.** A Fluent migration's `.required` column is a storage-integrity constraint that exists whether or not a form does, and carries no length — reporting it pushes toward nullable columns, which is worse. And a bare HTML `required` attribute with no `minlength`/`maxlength` is close to native form semantics and is *the correct case*: it is the absence of the range restatement. Flag the hand-typed bounds, not the requiredness.
 
 Fields exists so one definition projects into three artifacts. A rule restated downstream is a second definition that will drift from the first, and the drift is invisible until the two disagree about a specific value. Note which one is authoritative in the finding: the Fields declaration is, and the downstream copy is what gets deleted.
+
+## Check: results-accumulate-never-assigned
+**Severity:** blocker
+**What:** A `Validations` changes through its own methods — `append(_:)`, `append(contentsOf:)`, `replace(with:)`, `removeAll(fieldIds:)`. Nothing assigns, appends to, or clears its `validations` array directly. One accumulator carries one write's whole answer, every level writes only its own part of it, and no level can erase what another found.
+**Anti-pattern:**
+```swift
+validations.validations = result              // erases everything an earlier level wrote
+validations.validations.append(.init(…))      // reaches around the accumulator to add
+validations.validations.removeAll()           // clears without saying which fields
+```
+**Detection:** Find expressions whose base resolves to a `Validations` and whose next component is `.validations`, followed by an assignment or a mutating call (`append`, `append(contentsOf:)`, `removeAll`, `insert`, subscript assignment, `+=`). Reading `.validations` — iterating it for display, counting it, passing it to `ValidationError(validations:)` — is not a hit.
+
+**Why it is a blocker and not a style note.** A Fields protocol's `validate(fields:validations:)` and a `DataModel`'s own validation both write into the same instance on a server-side save, and a form's per-field check writes into the same instance again on the client. An assignment is not "setting the results", it is deleting somebody else's: the model's refusal disappears because a field-level rule ran second, and nothing reports that it happened.
+
+**A Fields validate uses `replace(with:)`, not `append(contentsOf:)`.** Its rules own exactly the fields they name, and a form runs them again on every edit and once more at submit — appending stacks a second copy of the same message each time, `replace(with:)` re-answers for those fields and leaves every other level's results standing. Report `validations.append(contentsOf: result)` at the end of a `validate(fields:validations:)` as a **warning**: the messages duplicate on the second call, which a user sees as the same complaint listed twice. `validateModel(in:)` is the counter-case and not a hit — it returns its results for the framework to append, because a model-level judgement names no field to replace.
+
+**Version floor first, and expect the compiler to be ahead of you.** `Validations.validations` is `private(set)`, so outside FOSMVVM the assigning spellings no longer compile — in a project pinned to that floor or above, a hit means the code has not been migrated and is not building. Below the floor they compile and are the real defect. Either way the remedy is the same: `replace(with:)` for a Fields validate's own fields and for swapping in a server answer, `append(contentsOf:)` where a level adds to what came before, `removeAll(fieldIds:)` for clearing one field.
+
+## Check: field-identity-comes-from-the-macro
+**Severity:** blocker
+**What:** A `FormFieldIdentifier` is minted by `#fieldId(\Model.property)` — or `#fieldId(\Model.items, index: i)` for one element of a repeated field — and by nothing else. The identifier's string form is not composed, parsed, or hand-constructed.
+**Anti-pattern:**
+```swift
+fieldId: FormFieldIdentifier(id: "title")                    // a string where a property was meant
+fieldId: .init(id: "tags[\(index)]")                     // the representation, hand-forged
+fieldId: FormFieldIdentifier._property(in: "Card", named: "title") // the macro's expansion, written out
+if messageFieldIds.contains(where: { $0.id == "title" }) { } // the same break, reading
+```
+**Detection:** Find every construction of a `FormFieldIdentifier` outside FOSMVVM itself: `FormFieldIdentifier(id:)`, `.init(id:)` in a `fieldId:` position, and `FormFieldIdentifier._property(in:named:)`. The leading underscore on that last one is the declaration saying it is the macro's expansion and not a call site — a project writing it by hand has reached past the wall on purpose. Also flag comparisons and lookups against a literal `.id` string, which is the same break from the reading side.
+
+**This is the repo's stringly-typed-identity principle in its named instance for form fields** — report it here, not under `cross-cutting`'s general check. The string has no wall: anyone can mint one, compose one, or route on one, and a renamed property leaves every hand-written site compiling and silently pointing at a field that no longer exists. The macro takes a key path, so the compiler checks it and the rename breaks at every site the moment it happens.
+
+**A second, quieter hit: a mint scoped to the wrong type.** The identity is the key path's root plus the property, so a `validateModel` or controller that writes `#fieldId(\Card.title)` while the form field was declared on `CardFields` names a different field and the message never reaches the form. Outside the Fields protocol's own extension — where `\Self` resolves to the protocol — the root must be the Fields protocol (`#fieldId(\CardFields.title)`). Flag a mint whose root is a type that adopts a Fields protocol carrying that property.
+
+**Version floor first.** `#fieldId` and the sealed initializer arrived together; below that pin the string initializer is public and the hand-written mint is the only spelling available — an adoption candidate, not a violation. Above it, the initializer is internal and a hit is code that has not migrated.
+
+**Two shapes are not hits.** `Codable` decoding of a `FormFieldIdentifier` off the wire is the framework's own path. And a `\Self.property` key path inside a static member is correct — note for the reader that a project running SwiftFormat must disable `redundantStaticSelf`, which strips the root the macro requires.

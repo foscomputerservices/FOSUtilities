@@ -28,8 +28,10 @@ struct ServerRequestActionTests: LocalizableTestCase {
         (httpMethod: .POST, uri: nil as String?, expectedAction: .create),
         (httpMethod: .PUT, uri: nil as String?, expectedAction: .replace),
         (httpMethod: .PATCH, uri: nil as String?, expectedAction: .update),
-        (httpMethod: .DELETE, uri: nil as String?, expectedAction: .delete),
-        (httpMethod: .DELETE, uri: "http://example.com/destroy", expectedAction: .destroy)
+        (httpMethod: .DELETE, uri: nil as String?, expectedAction: .archive),
+        (httpMethod: .DELETE, uri: "http://example.com/destroy", expectedAction: .destroy),
+        (httpMethod: .DELETE, uri: "http://example.com/cards/destroy/42", expectedAction: .destroy),
+        (httpMethod: .DELETE, uri: "http://example.com/cards/self-destroyer", expectedAction: .archive)
     ]) func initHTTPMethod(tuple: (httpMethod: HTTPMethod, uri: String?, expectedAction: ServerRequestAction)) throws {
         let httpMethod = tuple.httpMethod
         let uri: URI = try tuple.uri == nil

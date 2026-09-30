@@ -41,11 +41,29 @@ views — declare them once here and every platform renders them consistently.
 
 ```swift
 static var emailField: FormField<String?> { .init(
-    fieldId: .init(id: "email"),
+    fieldId: #fieldId(\Self.email),
     title: .localized(for: Self.self, parentKeys: "email", propertyName: "title"),
     type: .text(inputType: .emailAddress),
     options: [.required(value: true), .maxLength(value: 254)]
 )}
+```
+
+### Mint a field's identity from its property — `#fieldId`
+Reach for this when: a `FormField`, a `ValidationResult`, or a storage-only
+property needs a `FormFieldIdentifier`. The macro is the only mint —
+`FormFieldIdentifier`'s initializer is internal — so a renamed property breaks
+every site at compile time. Name the key path's root (`\CardFields.title`, or
+`\Self.title` inside the type); pass `index:` for one element of a repeated
+field. The identity is scoped to the type the key path names, so
+`\CardFields.title` and `\BoardFields.title` are different fields, and `\Self`
+inside a Fields protocol's extension names the protocol — every adopter shares
+that one identity. Mint a field a form shows on the Fields protocol that
+declares it; a storage-only property is minted on the model.
+Encapsulation: never compose, parse, or hand-construct the identity.
+
+```swift
+fieldId: #fieldId(\CardFields.title)
+fieldId: #fieldId(\CardFields.tags, index: index)
 ```
 
 ### Choose the control and keyboard — `FormFieldType` / `FormInputType`
@@ -355,7 +373,7 @@ returns the response body (or a stub before processing). Scaffolded by
 Reach for this when: defining any client↔server interaction — every client
 (SwiftUI, CLI, web) goes through a `ServerRequest`; nothing talks to endpoints
 by URL string. The pieces map onto HTTP: `action` (`.show`/`.create`/`.update`/
-`.replace`/`.delete`/`.destroy` → GET/POST/PATCH/PUT/DELETE), `Query`,
+`.replace`/`.archive`/`.destroy` → GET/POST/PATCH/PUT/DELETE), `Query`,
 `Fragment`, `RequestBody`, `ResponseBody`; a unique path is derived from the
 type names automatically. `ResponseError` carries the operation's *thrown*
 error across the wire — the error the operation would throw as a local call;
@@ -459,18 +477,13 @@ try await request.processRequest(mvvmEnv: mvvmEnv)
 let viewModel = request.viewModel
 ```
 
-### CRUD write requests — `CreateRequest` / `UpdateRequest` / `ReplaceRequest` / `DeleteRequest` / `DestroyRequest` / `CreateResponseBody` / `UpdateResponseBody` / `ReplaceResponseBody` / `DeleteResponseBody` / `DestroyResponseBody`
-Reach for this when: an entity supports writes — adopt only the verbs it
-supports (that's why they're separate protocols). Each sets `action` and path
-naming for you; create/update/replace require the `RequestBody` to be a
-`ValidatableModel` so the Fields contract validates at every layer. `delete`
-is a soft delete; `destroy` is permanent removal. Scaffolded by
-`fosmvvm-serverrequest-generator`; tests by
-`fosmvvm-serverrequest-test-generator`.
+### CRUD write requests — `CreateRequest` / `UpdateRequest` / `ReplaceRequest` / `ArchiveRequest` / `DestroyRequest` / `CreateResponseBody` / `UpdateResponseBody` / `ReplaceResponseBody` / `ArchiveResponseBody` / `DestroyResponseBody`
+Reach for this when: an entity supports writes — adopt only the verbs it supports (that's why they're separate protocols). Each sets `action` and path naming for you; create/update/replace require the `RequestBody` to be a `ValidatableModel` so the Fields contract validates at every layer. `ArchiveRequest` leaves the model in place, marked deleted through its delete timestamp; `DestroyRequest` removes it — which is why the archived model must declare that timestamp (see `FOSMVVMVapor.md § Vapor Support`). Scaffolded by `fosmvvm-serverrequest-generator`; tests by `fosmvvm-serverrequest-test-generator`.
+`CreateRequest` and `UpdateRequest` also constrain their `ResponseError` to a `ValidatableViewModelRequestError` (below), so a rejected write always decodes back into the form's `[ValidationResult]` instead of a status code. `ValidationError` (see Validation) is the ready-made choice.
 
 ```swift
 final class UserCreateRequest: CreateRequest, @unchecked Sendable {
-    typealias ResponseError = ValidationError
+    typealias ResponseError = ValidationError   // carries [ValidationResult] to the form
     let requestBody: UserFormFields? // a ValidatableModel
     var responseBody: NewUserBody? // a CreateResponseBody
     // ...
@@ -715,7 +728,7 @@ struct Dock: Container {
 }
 ```
 
-### Authorization verbs and grant checks — `ContainerOperation` / `authorizes()` / `authorizesReadRecords` / `authorizesWriteRecords` / `authorizesCreateRecords` / `authorizesDeleteRecords` / `authorizesDestroyRecords`
+### Authorization verbs and grant checks — `ContainerOperation` / `authorizes()` / `authorizesReadRecords` / `authorizesWriteRecords` / `authorizesCreateRecords` / `authorizesArchiveRecords` / `authorizesDestroyRecords`
 Reach for this when: checking what a granted operation set permits. Check by
 **intent**, never by comparing cases — the intent accessors (and `authorizes(_:)`
 on a set) honor the `.anyOperation` wildcard, which grants everything *except*
@@ -838,7 +851,7 @@ static let slips  = LoadRequirement.read(SlipAssignment.self, in: .parentRoot, v
 ```
 
 ### Name which loaded record a write targets — `TargetedQuery`
-Reach for this when: an update/delete request must say which loaded record it acts on.
+Reach for this when: an update/archive request must say which loaded record it acts on.
 The selector is the record's opaque `ModelIdentity` — the identity the client received
 inside the ViewModel it displayed, echoed back verbatim; the form body never carries a
 raw id. The server resolves it against the auth-scoped candidate set it loaded itself, so
@@ -1042,6 +1055,18 @@ Form {
 }
 ```
 
+### Show the form's model-level messages — `withFormValidations()` <!-- apple-only -->
+Reach for this when: a validation result is about the whole form, not one control ("this board is full", a create the server refused) — those messages have no field view to appear next to, so apply this where the summary belongs. It adds nothing when there are none. Requires `Validations` in the environment, like the field views do.
+Don't hand-roll a summary that filters the results yourself — build model-level results with `ValidationResult(status:message:)` (see Validation) and this shows them.
+
+```swift
+Form {
+    FormFieldView(fieldModel: viewModel.$title, focusField: $focusField)
+}
+.withFormValidations()
+.environment(validations)
+```
+
 ### Coordinate multi-view form actions — `SyncOperationBus` / `AsyncOperationBus`
 Reach for this when: a parent view collects data or triggers work across many
 child `ViewModelView`s (one Save button, several sections). Children register
@@ -1144,10 +1169,9 @@ observable form state, and the wire-format error. The rules themselves live on
 `ValidatableModel` (Protocols) with messages from `@FieldValidationModel`
 (Macros).
 
-### Report a validation outcome — `ValidationResult`
-Reach for this when: a validator finds something to say — `.info`, `.warning`,
-or `.error` with localized, field-correlated messages the UI displays next to
-the offending control(s).
+### Report a validation outcome — `ValidationResult` / `addressesModel`
+Reach for this when: a validator finds something to say — `.info`, `.warning`, or `.error` with localized, field-correlated messages the UI displays next to the offending control(s).
+A result built without a field — `.init(status:message:)` — is about the model as a whole: its message answers `addressesModel`, field views ignore it, and the form's summary shows it (`withFormValidations()`, see SwiftUI Support). Reach for it when the problem belongs to no single control ("this board is full").
 
 ```swift
 results.append(.init(
@@ -1155,6 +1179,7 @@ results.append(.init(
     field: Self.emailField,
     message: messages.emailRequired
 ))
+results.append(.init(status: .error, message: messages.boardFull))   // names no field
 ```
 
 ### Aggregate outcomes across fields — `isValid` / `hasError` / `aggregate`
@@ -1166,15 +1191,14 @@ issues"); `isValid` only checks for errors, so warnings still pass.
 guard validationResults.isValid else { return validationResults.aggregate }
 ```
 
-### Observable form validation state — `Validations`
-Reach for this when: driving SwiftUI from live validation — an `@Observable`
-box of results that `FormFieldView` updates per-field. `replace(with:)` swaps
-results for just the re-validated fields; `validationError` converts an error
-state into a throwable.
+### Observable form validation state — `Validations` / `append()` / `replace()` / `removeAll()` / `modelMessages`
+Reach for this when: driving SwiftUI from live validation — an `@Observable` box of results that `FormFieldView` updates per-field. Its `validations` is read-only (`private(set)`): change it through `append(_:)`, `append(contentsOf:)`, `replace(with:)` and `removeAll(fieldIds:)`. `replace(with:)` swaps results for just the fields the incoming results name (and the model-level messages whenever the incoming ones carry any); `modelMessages` are the messages naming no field, shown by `withFormValidations()` (see SwiftUI Support); `validationError` converts an error state into a throwable.
+Don't reach for the array to change it — it no longer accepts assignment, and the methods are what keep a replacement from wiping a field the incoming results never spoke about.
 
 ```swift
 let validations = Validations()
 _ = userFields.validate(validations: validations)
+validations.replace(with: responseError.validations)   // the server's answer, per field
 if validations.hasError { /* disable Save */ }
 ```
 

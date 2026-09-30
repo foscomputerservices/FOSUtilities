@@ -1,6 +1,6 @@
 ---
 name: fosmvvm-serverrequest-test-generator
-description: Generate ServerRequest tests using VaporTesting. Covers typed request/response validation for Show, Create, Update, and Delete operations.
+description: Generate ServerRequest tests using VaporTesting. Covers typed request/response validation for Show, Create, Update, and Archive operations.
 homepage: https://github.com/foscomputerservices/FOSUtilities
 metadata: {"clawdbot": {"emoji": "🧪", "os": ["darwin", "linux"]}}
 ---
@@ -250,7 +250,7 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
 | `ViewModelRequest` | GET | ViewModel population, all localized fields |
 | `CreateRequest` | POST | RequestBody validation, created entity, ID response |
 | `UpdateRequest` | PATCH | RequestBody validation, updated entity, response |
-| `DeleteRequest` | DELETE | Entity removal, status code |
+| `ArchiveRequest` | DELETE | Entity archived, status code |
 
 ---
 
@@ -395,19 +395,19 @@ Skill references information from:
 }
 ```
 
-### Testing DeleteRequest
+### Testing ArchiveRequest
 
 ```swift
-@Test func deleteRequest_success() async throws {
+@Test func archiveRequest_success() async throws {
     try await withTestApp { app in
-        // Create, then delete
-        let deleteRequest = DeleteIdeaRequest(requestBody: .init(ideaId: existingId))
+        // Create, then archive
+        let archiveRequest = IdeaArchiveRequest(requestBody: .init(ideaId: existingId))
 
-        try await app.testing().test(deleteRequest, locale: en) { response in
+        try await app.testing().test(archiveRequest, locale: en) { response in
             #expect(response.status == .ok)
         }
 
-        // Verify deleted (should return not found)
+        // Verify archived (should return not found)
         let showRequest = ShowIdeaRequest(query: .init(ideaId: existingId))
         try await app.testing().test(showRequest, locale: en) { response in
             #expect(response.status == .notFound)

@@ -239,12 +239,13 @@ public enum ServerRequestAction: Codable, CaseIterable, Hashable, Sendable {
     /// - Note: Creates a **POST** HTTP Request
     case create
 
-    /// The server should "soft" delete an existing model
+    /// The server should archive an existing model: the row stays, marked deleted
     ///
-    /// - Note: Creates a **DELETE** HTTP Request
-    case delete
+    /// - Note: Creates a **DELETE** HTTP Request. The model must declare a delete timestamp;
+    ///   registering the route for one that does not fails at boot.
+    case archive
 
-    /// The server should destroy an existing model
+    /// The server should destroy an existing model: the row is removed
     ///
     /// - Note: Creates a **DELETE** HTTP Request
     case destroy
@@ -258,30 +259,6 @@ public enum ServerRequestAction: Codable, CaseIterable, Hashable, Sendable {
     ///
     /// - Note: Creates a **PUT** HTTP Request
     case replace
-
-    public static var GET: Self {
-        .show
-    }
-
-    public static var POST: Self {
-        .create
-    }
-
-    public static var PUT: Self {
-        .replace
-    }
-
-    public static var PATCH: Self {
-        .update
-    }
-
-    public static var DELETE: Self {
-        .delete
-    }
-
-    public static var DESTROY: Self {
-        .destroy
-    }
 }
 
 /// Data that will be encoded into the HTTP Query

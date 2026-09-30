@@ -7,6 +7,219 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hooks around every write of a model** (FOSMVVMVapor) — a `DataModel` can now take part in its own
+  save. `DataModelLifecycle` declares six members, every one with a default that does nothing, so a
+  model declares only what it needs and a model that declares none saves exactly as before:
+
+  - `willWrite(in:)` — change the model before it is validated. The one hook that mutates.
+  - `validateModel(in:)` — judge the model against the rest of the database and return every
+    problem found. Runs for every action, after the `Fields` rules passed.
+  - `validationResult(for:)` — turn a database constraint failure into a validation the user can
+    act on; return `nil` and the original error is thrown unchanged.
+  - `didWrite(in:)` — more work in the same transaction. A throw rolls the row back with it.
+  - `didCommit(in:)` — a side effect once the write is durable. `async`, non-throwing.
+  - `static warningPolicy` — whether a validation warning stops the write. `.advisory` by default.
+
+  Each hook is handed a `DataModelWriteContext` carrying the `DataModelAction` (create, update,
+  archive, destroy, restore), the database the write is running on, and the `Application`;
+  `didCommit(in:)` is handed a `DataModelCommitContext`, which has no database because the
+  transaction is over. A claimed constraint failure arrives as a `ConstraintViolation`.
+
+  The order for one write is: `willWrite`, the `Fields` rules (create and update only),
+  `validateModel`, the write, `didWrite`, `didCommit` on commit — with a refusal after each
+  validation that stops the write with a `ValidationError` carrying everything collected so far.
+
+  > `didCommit(in:)` runs when the transaction commits inside `liveTransaction { }`, with or
+  > without live invalidation enabled, and immediately after the write on an auto-commit `save`.
+  > Inside a bare `database.transaction { }` it does not run and the framework warns once per
+  > type — nothing there can observe the commit.
+
+  > On a batch write (`[Card].create(on:)`, `[Card].delete(on:)`) FluentKit runs one bulk
+  > statement only after every model's middleware has returned, so the batch runs `willWrite`, the
+  > `Fields` rules and `validateModel` — a refusal from any of them still stops the whole batch —
+  > and runs neither `didWrite(in:)` nor `didCommit(in:)`, there being no row yet to hand them. A
+  > constraint failure is for the same reason never offered to `validationResult(for:)`, and a
+  > batch delete is always `.destroy`.
+
+- **Register any `DataModel` with its migration** (FOSMVVMVapor) — `register(_:migration:)` gains
+  an overload for a `DataModel` no container declares, so one call registers every model, contained
+  or not: it adds the migration, enters the model in the type registry, and installs the lifecycle.
+
+  ```swift
+  try app.register(Board.self, migration: Board.Initial())                  // a container
+  try app.register(Card.self, migration: Card.Initial())                    // a contained model
+  try app.register(ServiceStatus.self, migration: ServiceStatus.Create())   // declared by no container
+  ```
+
+  > Migration: a `DataModel` whose schema reaches the app through a bare
+  > `app.migrations.add(Card.Initial())` gets its table and none of the above — the `Fields` rules
+  > never run at the save, the hooks never fire, and live clients are never nudged. Move every
+  > such model's own schema migration to `register(_:migration:)`; seeds, backfills and later
+  > alters stay `migrations.add`.
+
+- **A validation message can be about the model, not a field** (FOSMVVM) — a `ValidationResult`
+  that names no field addresses the model as a whole: `ValidationResult(status:message:)` mints one,
+  `ValidationResult.Message.addressesModel` recognizes one, and `Validations.modelMessages` collects
+  them. The new `withFormValidations()` `View` modifier shows them where the form author applies it;
+  the field views go on showing only the messages that name their own field.
+
+  ```swift
+  Form {
+      FormFieldView(fieldModel: title, focusField: $focus)
+  }
+  .withFormValidations()
+  .environment(validations)
+  ```
+
+- **A route that destroys, and an archive that is checked at boot** (FOSMVVMVapor) —
+  `register(request:app:)` now accepts a `DestroyRequest`, which was rejected at boot before.
+  Registering an `ArchiveRequest` for a model that declares no delete timestamp fails at boot with
+  the new `ServerRequestControllerError.archiveUnsupported(request:model:)` rather than hard-deleting
+  a row at the first request; `ServerRequestControllerError` is now `Equatable`.
+
+  > Give the model `@Timestamp(key: "deleted_at", on: .delete)`, or serve a `DestroyRequest`.
+
+- **A candidate set for a destroy** (FOSMVVM) — `LoadRequirement.destroy(_:in:via:)` declares the
+  records a scope's grants authorize destroying, beside the archive requirement:
+
+  ```swift
+  static let candidates = LoadRequirement.destroy(Card.self, in: .parentRoot)
+  ```
+
+  It builds `ContainerOperation.destroyRecords`, which the wildcard grant never covers — the
+  container grants it by name.
+
+- **Scaffold against a local FOSUtilities checkout** (FOSMVVMBootstrap) — `fosmvvm-bootstrap new
+  --fos-utilities-path <directory>` emits a project that resolves FOSUtilities by path instead of
+  the released pin, for developing FOSUtilities itself. Programmatically, `Emitter.emit(config:into:fosUtilities:)`
+  and `TokenSet.derive(from:fosUtilities:)` take a `FOSUtilitiesSource` (`.release`, the default, or
+  `.localCheckout(url)`); a checkout without a `Package.swift` throws
+  `EmitterError.fosUtilitiesCheckoutNotFound`. CI's walking skeletons and generated UI tests now
+  scaffold against the checkout under test, so a template may use an API introduced in the same
+  branch — which the `#fieldId` template change in this release needs.
+
+### Changed
+
+- **`LoadRequirement.delete` is now `LoadRequirement.archive`** (FOSMVVM) — the candidate-set verb
+  names the operation it builds (`ContainerOperation.archiveRecords`) and the request that submits
+  to it (`ArchiveRequest`):
+
+  ```swift
+  static let candidates = LoadRequirement.archive(Card.self, in: .parentRoot)
+  ```
+
+  > Migration: rename the call. There is no alias.
+
+- **A field identity is minted from its property** (FOSMVVM) — `#fieldId` takes the key path of
+  the property a field edits and answers that field's `FormFieldIdentifier`:
+  `fieldId: #fieldId(\CardFields.title)`, or `#fieldId(\CardFields.tags, index: index)` for one
+  element of a repeated field. Name the key path's root (`\CardFields.title`, or `\Self.title`
+  inside the type). The compiler checks it, so renaming the property breaks every site that names it,
+  and a model has one set of field identities whether or not the property is on a form.
+
+  The identity is scoped to the type the key path names, so `\CardFields.title` and
+  `\BoardFields.title` are different fields. Inside a `Fields` protocol's own extension `\Self` names the protocol, which is
+  what makes the contract shared: one line mints one identity for the request body, the form
+  ViewModel and the `DataModel` alike. Outside that extension, name the `Fields` protocol —
+  `#fieldId(\CardFields.title)` — so a `validateModel` message reaches the field the form shows.
+
+  `FormFieldIdentifier`'s string initializer is no longer public — the macro is the only mint,
+  so an identity cannot be mistyped or hand-forged. `[FormFieldIdentifier].contains(_:)` taking
+  a `String` is removed; the overload taking a `FormField` stays.
+
+  `\Self` outside a type is a compile-time diagnostic naming the fix, as are a key path with no
+  root, a subscript component, and a projected (`$`) component.
+
+  > Migration: replace `FormFieldIdentifier(id: "title")` and `fieldId: .init(id: "title")` with
+  > `#fieldId(\CardFields.title)` at every site, and `ids.contains("title")` with
+  > `ids.contains(CardFields.titleField)`. If your project runs SwiftFormat, disable
+  > `redundantStaticSelf` — it strips the root from `\Self.property` inside a static member.
+
+  > A `FormFieldIdentifier` minted by the macro rides the wire inside a `ValidationResult`, and a
+  > hand-written identifier does not answer the same value, so deploy client and server together.
+
+- **A delete is an archive** (FOSMVVM, FOSMVVMVapor) — the request-side vocabulary now says what
+  happens to the row rather than which SQL runs. `ServerRequestAction.delete` is `.archive`,
+  `DeleteRequest` is `ArchiveRequest`, `DeleteResponseBody` is `ArchiveResponseBody`,
+  `ContainerOperation.deleteRecords` is `.archiveRecords`, and `authorizesDeleteRecords` (on the
+  case and on a granted set) is `authorizesArchiveRecords`. An archive leaves the row in place,
+  marked deleted through its delete timestamp; `.destroy` removes it. `ControllerRouting` derives
+  `"/archive"` where it derived `"/delete"`. The six HTTP-method statics on `ServerRequestAction`
+  (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `DESTROY`) are removed; name the case instead.
+
+  > Migration: rename `DeleteRequest` → `ArchiveRequest`, `DeleteResponseBody` →
+  > `ArchiveResponseBody`, `.delete` → `.archive` and `deleteRecords` → `archiveRecords` at every
+  > call site, and deploy client and server together — the action rides the wire and a
+  > `ControllerRouting`-derived archive URL moves.
+
+- **Validation results accumulate; nothing overwrites them** (FOSMVVM) — one `Validations` carries
+  one write's whole answer and every level appends to it. `Validations.validations` is now
+  `public private(set)`, with `append(_:)` and `append(contentsOf:)` beside the existing
+  `replace(with:)` and `removeAll(fieldIds:)`. A `Fields` protocol's rules and a `DataModel`'s own
+  validation write into the same instance, so an assignment was never "setting the results" — it
+  was deleting another level's, silently.
+
+  `replace(with:)` gains a stated rule for model-level messages: field messages are replaced per
+  field, and model-level messages are replaced whenever the incoming results carry any. A
+  field-only replacement leaves them standing, so a per-field check on the client cannot clear a
+  refusal the server made about the model.
+
+  > Migration: `validations.validations = results` becomes `validations.append(contentsOf: results)`
+  > or `validations.replace(with: results)`; `validations.validations.append(result)` becomes
+  > `validations.append(result)`. Reading `validations.validations` is unchanged.
+
+- **A write request's error carries its validations** (FOSMVVM, FOSMVVMVapor) — `CreateRequest` and
+  `UpdateRequest` now constrain `ResponseError: ValidatableViewModelRequestError`, and the write
+  route answers a `ValidationError` raised anywhere on the server — by the body's own rules or by
+  the model's — as the request's own `ResponseError`. Before this, a write request whose
+  `ResponseError` could not carry validations gave the user a decode failure where the messages
+  should have been.
+
+  > Migration: a write request declaring `EmptyError`, or an error type of its own, must declare
+  > one that conforms — `public typealias ResponseError = ValidationError` is the ready-made
+  > choice — and the view reads the results from `error.validations`.
+
+- **Every write commits inside a live transaction** (FOSMVVMVapor) — the create, update, archive and
+  destroy routes apply and save inside `liveTransaction`, so a model's `didWrite(in:)` joins the
+  write's own transaction, `didCommit(in:)` runs on its commit, and the live-invalidation emit
+  flushes there too. The candidate load and the target resolution run before it, on the request's
+  database. `commitDelete` is now `commitArchive` and `commitDestroy`.
+
+- **`validateModel(on:)` is gone** (FOSMVVMVapor) — the save-time validator on `Model` had no
+  callers and never used the database it was handed. The name now belongs to the
+  `DataModelLifecycle` hook, which does the job it promised.
+
+  > Migration: move the body of a `validateModel(on:)` override into
+  > `validateModel(in context: DataModelWriteContext)`, returning `[ValidationResult]` instead of
+  > the model, and register the model with `register(_:migration:)` so it runs.
+
+- **swift-syntax is pinned at 604.0.0** — `#fieldId` is the package's first freestanding macro and
+  the pin is exact, as it was before, so every consumer compiles the macro against one parser.
+
+- **JavaScriptKit is held at 0.26.2** — SwiftPM 6.4 refuses the newer releases for this manifest
+  ("Disabled default traits…"), so the resolved version steps back. Moving forward again is
+  tracked as its own item.
+
+### Fixed
+
+- **A form field submits unless its validator reported an error** (FOSMVVM) — `FormFieldView`'s
+  submit guard was inverted: a field carrying an error submitted, and a field carrying only a
+  warning did not. A warning or an informational result no longer blocks submission; an error does.
+
+- **A scaffolded validation message is no longer blank** (FOSMVVMBootstrap) — the generated
+  `{Name}Fields` read its messages off a `{Name}FieldsMessages` instance. A `@LocalizedString`
+  property binds its key only while its own model is being encoded, so a message pulled out of one
+  and carried in a `ValidationResult` reached the user empty. The scaffold now mints the travelling
+  message from the type, the way it already minted a `FormField`'s title and placeholder. The
+  `@FieldValidationModel` struct and the YAML are unchanged.
+
+  > The same correction landed in the `fosmvvm-fields-generator` skill and the architecture doc;
+  > a project whose Fields protocol reads `someValidationMessages.titleRequiredMessage` should
+  > replace that read with a `static var` minting
+  > `.localized(for: {Name}FieldsMessages.self, propertyName:, messageGroup:, messageKey:)`.
+
 ## [0.17.3] - 2026-09-24
 
 ### Fixed

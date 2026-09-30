@@ -183,7 +183,8 @@ struct {Model}FieldsTests: LocalizableTestCase {
     //         let validations = Validations()
     //         let status = try #require(item.validate(validations: validations))
     //         #expect(status.hasError)
-    //         let messages = validations.validations
+    //         let error = try #require(validations.validationError)
+    //         let messages = error.validations
     //             .compactMap { $0.messages(for: {Model}.fieldNameField.fieldId) }
     //             .flatMap(\.self)
     //         #expect(messages.count == 1)
@@ -224,6 +225,8 @@ private struct Test{Model}: {Model}Fields {
 }
 ```
 
+`Validations` is append-only: results go in through `append(_:)` / `append(contentsOf:)` (or `replace(with:)`), and `validations` is read-only from outside. Read a run's outcome through `status`, `hasError(for:)`, `modelMessages` or `validationError`.
+
 ---
 
 ## File 5: Update database.swift
@@ -234,11 +237,71 @@ Add to the existing file:
 
 ```swift
 // Under MARK: Migrations
-app.migrations.add({Model}.Initial())
+try app.register({Model}.self, migration: {Model}.Initial())
 
 // Under MARK: Seed (inside the if !app.environment.isRelease block)
+// A Seed is a plain Migration, not a DataModel — it still goes through migrations.add
 app.migrations.add({Model}.Seed(), to: dbId)
 ```
+
+`register(_:migration:)` adds the migration **and** installs the model's lifecycle middleware. `app.migrations.add({Model}.Initial())` on a `DataModel` creates the table and nothing else — `willWrite`, `validateModel(in:)`, `validationResult(for:)`, `didWrite` and `didCommit` never run, so the model's own rules are quietly absent from every write.
+
+---
+
+## DataModel Lifecycle
+
+`DataModel` conforms to `DataModelLifecycle`. Every requirement has a do-nothing default, so a model declares only the hooks it actually needs — and the hooks run for **every** write of that model, whatever called `save`/`delete`/`restore`, because `try app.register({Model}.self, migration:)` installed the middleware.
+
+### The order, per Fluent event
+
+1. **`willWrite(in:)`** — may change the model: derive, trim, stamp. A throw here is an error, never a validation.
+2. **Field validation** — your `Fields` protocol's `validate(fields: nil, validations:)`. **Create and update only**; archive, destroy and restore write none of the model's own columns.
+3. **Refusal** — an error (or a warning under `.blocking`) stops here with a `ValidationError`. Model validation does not run when field validation failed.
+4. **`validateModel(in:)`** — the model judged against other rows. **Every action.** Returns its results; the framework appends them. Every rule runs; nothing short-circuits.
+5. **Refusal again**, same rule.
+6. **Fluent applies the action.** A driver constraint failure is offered to `validationResult(for:)`.
+7. **`didWrite(in:)`** — same database, so the same transaction. May write rows. A throw rolls the transaction back, the triggering row included.
+8. **`didCommit(in:)`** — `async`, non-throwing, side effects only.
+
+### What each hook may and may not do
+
+**`willWrite(in: DataModelWriteContext) async throws`** — the one place that changes the model. Throw only for a failure the user cannot fix; a value the user must correct belongs in `validateModel(in:)`.
+
+**`validateModel(in: DataModelWriteContext) async throws -> [ValidationResult]`** — judges, never mutates. Query through `context.database` so you read the same transaction the write is in. Return one result per rule that fails, all of them, not the first; a result built with `.init(status:message:)` (no field) is about the model as a whole, and one built with `.init(status:fieldId:message:)` addresses a form field — mint the id with `#fieldId(\{Model}Fields.property)` — the Fields protocol the form field was minted from, so the message reaches that field — never a string. Throw only when the query itself fails.
+
+**`validationResult(for: ConstraintViolation) -> ValidationResult?`** — turns a database constraint failure into a message the user can act on. Read `violation.action` to know which write hit it, and `violation.underlyingError` only when the model has more than one constraint to tell apart. Returning a result makes the failure a `ValidationError` carrying it; **returning `nil` — the default — rethrows the original error unchanged**, which is what you want for a constraint the user has no way to satisfy. This is the hook for the loser of a race on a unique index.
+
+**`didWrite(in: DataModelWriteContext) async throws`** — more work in the same transaction. This is where a history/audit row belongs. A throw rolls everything back.
+
+**`didCommit(in: DataModelCommitContext) async`** — the side effect the durable write unlocks: send the mail, call the other system, notify. There is no database on this context; the transaction is over. It cannot fail the request and nothing it does can be rolled back, so handle your own failures.
+
+**`static var warningPolicy: ValidationWarningPolicy`** — `.advisory` (the default) lets a write proceed with warnings, which are logged and go no further. `.blocking` makes a warning stop the write and reach the client exactly like an error. Warnings collected alongside an error always travel with it, under either policy.
+
+### The after-commit rule
+
+`didCommit(in:)` sees the commit only inside `liveTransaction { }`.
+
+Inside a bare `database.transaction { }` it does **not** run — the framework cannot see whether that transaction commits, so the after-commit work is suppressed (and logged once per model type). On an auto-commit write — a plain `save(on: db)` outside any transaction — it runs immediately after `didWrite`.
+
+**Use `liveTransaction` for any write whose commit a hook must see.**
+
+### Batch-write limits
+
+FluentKit's `[{Model}].create(on:)` and `[{Model}].delete(on:)` call each model's middleware with a `next` that writes nothing, then run one bulk statement. The hooks therefore run per model *before* any row exists:
+
+- `didWrite(in:)` sees no row — `requireID()` may hold, but nothing is queryable yet.
+- A constraint failure is **not** offered to `validationResult(for:)`; it surfaces as the driver's error.
+- A batch delete always dispatches **`.destroy`**, never `.archive`, even for a model that declares a delete timestamp.
+
+Write one model at a time when a hook's correctness depends on the row being there.
+
+### SOLID
+
+**SRP** — `willWrite` mutates, `validateModel` judges, `didWrite` writes companions, `didCommit` reaches outside. Collapsing two of those into one hook is how a model ends up writing a value no rule ever saw, or rolling back an email that was already sent.
+
+**OCP** — every hook is a protocol requirement with a default, so the framework extends through the protocol and you never patch the write path. A near-miss signature (`validateModel(on:)`, `willSave(in:)`) witnesses no requirement: it compiles, and it silently never runs.
+
+**DIP / ISP** — `try app.register({Model}.self, migration:)` is the single registration call; the model declares rules and knows nothing about middleware. A bare `app.migrations.add` on a `DataModel` leaves the type outside that wiring, and the rules are simply absent.
 
 ---
 

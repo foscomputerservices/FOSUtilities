@@ -45,8 +45,11 @@ line via the `fosutilities-api-catalog-update` skill.
 - Localizing properties from YAML (`@LocalizedString`), substituting values into localized text → `FOSMVVM.md § Localization`
 - Encoding a ViewModel with its localizations resolved → `FOSMVVM.md § Extensions`
 - Describing form fields — control type, keyboard, input constraints, value binding → `FOSMVVM.md § Forms`
+- Minting a field identity from the property it names (`#fieldId`) → `FOSMVVM.md § Forms`
 - Validating user input, reporting and aggregating validation outcomes → `FOSMVVM.md § Validation`
+- A validation message about the whole form rather than one control — reporting it, and showing it above the form → `FOSMVVM.md § Validation`, `§ SwiftUI Support`
 - Binding a screen to server data — ViewModel requests, CRUD writes, factories → `FOSMVVM.md § Protocols`
+- Deleting an entity — archiving it (marked deleted, still there) versus destroying it (removed) → `FOSMVVM.md § Protocols`, `FOSMVVMVapor.md § Vapor Support`
 - Identifying *which* entity a model is (opaque `ModelIdentity`) — keying refresh or authorization by it → `FOSMVVM.md § Protocols`
 - Container-scoped authorization — declaring containers, grant verbs, who may touch which records → `FOSMVVM.md § Protocols`
 - Client-chosen sort or pagination on a request → `FOSMVVM.md § Protocols`
@@ -62,7 +65,9 @@ line via the `fosutilities-api-catalog-update` skill.
 - Registering request routes (reads and CRUD writes) — including mounting one behind a credential/middleware group — or serving a request outside the guarded verbs → `FOSMVVMVapor.md § Vapor Support`
 - Projecting loaded records into a response body, or reading them through the projection context → `FOSMVVMVapor.md § Containment`, `§ Protocols`
 - Declaring Fluent containers and their relations, or mapping sort meanings to database columns → `FOSMVVMVapor.md § Containment`
-- Registering the container authorization provider, apex resolver, per-request app state, or a container migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`
+- Registering the container authorization provider, apex resolver, per-request app state, or a model's migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`
+- Rules that run whenever a model is saved — uniqueness against other models, deriving fields before the write, work in the same transaction, a side effect once it commits → `FOSMVVMVapor.md § Lifecycle`
+- Turning a database constraint failure into a message the user can act on, or making a warning stop a save → `FOSMVVMVapor.md § Lifecycle`
 - Filtering (narrowing) a large container load by the request's query → `FOSMVVMVapor.md § Containment`
 - Enabling server-pushed refresh at boot, or transactional writes that notify live clients → `FOSMVVMVapor.md § Live Invalidation`
 - Refreshing live screens whose data isn't Fluent-persisted — nudging from an `Application`-hosted actor or computed aggregate, or registering a dependency the load plan can't see → `FOSMVVMVapor.md § Live Invalidation`

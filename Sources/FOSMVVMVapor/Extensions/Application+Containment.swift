@@ -16,6 +16,7 @@
 
 import Fluent
 import FluentKit
+import FOSFoundation
 import FOSMVVM
 import Foundation
 import Vapor
@@ -62,8 +63,44 @@ public extension Application {
 
         migrations.add(migration)
 
+        // Lifecycle BEFORE emit: FluentKit chains in installation order, so the first installed is
+        // the outermost — both validations run before anything else touches the row.
+        registerLifecycleMiddleware(for: descriptor)
+
         // L2 live invalidation honors registrations made AFTER useLiveInvalidation(on:) — the
         // boot switch sweeps the earlier ones (either call order works, spec §3.1).
+        if let hub = invalidationHub {
+            registerInvalidationEmitMiddleware(for: descriptor, hub: hub)
+        }
+    }
+
+    /// Register a `DataModel` with its migration, so its lifecycle hooks and live invalidation run
+    ///
+    /// Same call as for a container; every `DataModel` goes through it, contained or not:
+    ///
+    /// ```swift
+    /// // in configure(_:)
+    /// try app.register(Board.self, migration: Board.Initial())   // a container
+    /// try app.register(Card.self, migration: Card.Initial())     // a contained type
+    /// try app.register(ServiceStatus.self, migration: ServiceStatus.Create())  // no container
+    /// ```
+    ///
+    /// Adding the migration directly with `app.migrations.add` skips the hooks; the review reports it.
+    /// Registering a model does not make it loadable by a factory: a `DataModel` a `ViewModel`
+    /// projects must be declared by a container.
+    ///
+    /// - Throws: if the model's namespace is already registered.
+    func register<M: DataModel>(_ type: M.Type, migration: any Migration) throws
+        where M.IDValue == ModelIdType {
+        var registry = modelTypeRegistry
+        let descriptor = RegisteredModel(for: type)
+        try registry.insert(descriptor)
+        storage[ModelTypeRegistryStore.self] = registry
+
+        migrations.add(migration)
+
+        registerLifecycleMiddleware(for: descriptor)
+
         if let hub = invalidationHub {
             registerInvalidationEmitMiddleware(for: descriptor, hub: hub)
         }

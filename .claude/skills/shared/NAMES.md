@@ -38,15 +38,16 @@ then `Request`. This holds for the standard REST verbs **and** for semantic acti
 | Create a User (POST) | `UserCreateRequest` | `CreateUserRequest` |
 | Update a User (PATCH) | `UserUpdateRequest` | `UpdateUserRequest` |
 | Replace a User (PUT) | `UserReplaceRequest` | `ReplaceUserRequest` |
-| Delete a User (DELETE) | `UserDeleteRequest` | `DeleteUserRequest` |
+| Archive a User (DELETE) | `UserArchiveRequest` | `ArchiveUserRequest` |
+| Destroy a User (DELETE) | `UserDestroyRequest` | `DestroyUserRequest` |
 | Semantic action ("move an idea") | `IdeaMoveRequest` | `MoveIdeaRequest` |
 | Semantic action ("mint a token") | `AgentTokenMintRequest` | `MintAgentTokenRequest` |
 
 **Why noun-first (SRP — cohesion on the primary axis).** The entity is the primary
 axis a request belongs to. Noun-first keeps a whole entity's request family together —
-`UserCreateRequest`, `UserDeleteRequest`, `UserShowRequest`, `UserUpdateRequest` sort
+`UserArchiveRequest`, `UserCreateRequest`, `UserShowRequest`, `UserUpdateRequest` sort
 and read as one group. Verb-first *scatters* the same family across the alphabet
-(`Create…` under C, `Delete…` under D) and buries the thing that actually matters
+(`Create…` under C, `Destroy…` under D) and buries the thing that actually matters
 (which entity). It also matches the read-request forms below, so **every** request for
 an entity shares one prefix.
 
@@ -133,7 +134,7 @@ near-miss stem (`LocalDocView`) hides the pairing from every reader and every se
 
 | You are naming… | Form | Example |
 |-----------------|------|---------|
-| Create/Update/Replace/Delete request | `<Noun><Verb>Request` | `UserCreateRequest` |
+| Create/Update/Replace/Archive/Destroy request | `<Noun><Verb>Request` | `UserCreateRequest` |
 | Semantic-action request | `<Noun><Action>Request` | `IdeaMoveRequest` |
 | Screen/page ViewModel read request | `<Noun>Request` | `DocksRequest` |
 | Raw-entity read request | `<Entity>ShowRequest` | `UserShowRequest` |

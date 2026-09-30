@@ -16,12 +16,29 @@
 
 import FOSFoundation
 
-/// A ``ServerRequest`` that requests that the server **destroy** a resource
+/// A request that destroys one model: the row is removed
 ///
-/// > **destroy** indicates **permanent destruction** of the resource as
-/// > opposed to *delete* that performs a "soft deletion" of the resource
+/// ```swift
+/// final class CardDestroyRequest: DestroyRequest {
+///     typealias RequestBody = CardDestroyBody   // a WriteTargetProviding
+///     typealias ResponseBody = CardListVM       // remaining children (or EmptyBody)
+///     // …query, init…
+/// }
+/// ```
+///
+/// Destroying removes the row permanently, whether or not the model declares a delete
+/// timestamp. Use ``ArchiveRequest`` to keep the row and mark it deleted.
+///
+/// Its `ResponseError` is a ``ValidatableViewModelRequestError``: a validation failure on the
+/// server, from the body's rules or from the model's own, reaches the client as that error
+/// with the results inside. ``ValidationError`` is the ready-made choice:
+///
+/// ```swift
+/// public typealias ResponseError = ValidationError
+/// ```
 public protocol DestroyRequest: ServerRequest, Stubbable where
-    ResponseBody: DestroyResponseBody {}
+    ResponseBody: DestroyResponseBody,
+    ResponseError: ValidatableViewModelRequestError {}
 
 public extension DestroyRequest {
     static var baseTypeName: String {

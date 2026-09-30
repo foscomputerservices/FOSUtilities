@@ -67,10 +67,10 @@ public extension ServerRequestController {
     }
 
     func boot(routes: RoutesBuilder) throws {
-        // One URL carries one handler per HTTP method: .delete and .destroy both ride
+        // One URL carries one handler per HTTP method: .archive and .destroy both ride
         // DELETE, so one controller may register only one of them (two deletion
         // semantics are two request types — two URLs).
-        if actions.keys.contains(.delete), actions.keys.contains(.destroy) {
+        if actions.keys.contains(.archive), actions.keys.contains(.destroy) {
             throw ServerRequestControllerError.invalidAction(.destroy)
         }
 
@@ -95,13 +95,27 @@ public extension ServerRequestController {
     }
 }
 
-public enum ServerRequestControllerError: Error, CustomDebugStringConvertible {
+public enum ServerRequestControllerError: Error, Equatable, CustomDebugStringConvertible {
     case invalidAction(ServerRequestAction)
+
+    /// An `ArchiveRequest` was registered for a model that cannot be archived
+    ///
+    /// Archiving marks a row deleted through its delete timestamp. Give the model one:
+    ///
+    /// ```swift
+    /// @Timestamp(key: "deleted_at", on: .delete) public var deletedAt: Date?
+    /// ```
+    ///
+    /// or serve a ``DestroyRequest`` instead, which removes the row. Raised at boot, from
+    /// `register(request:app:)`.
+    case archiveUnsupported(request: String, model: String)
 
     public var debugDescription: String {
         switch self {
         case .invalidAction(let action):
-            "Invalid ServerRequestAction combination involving \(action): .delete and .destroy both map to HTTP DELETE at one URL — two deletion semantics need two request types. Register one of them on this controller."
+            "Invalid ServerRequestAction combination involving \(action): .archive and .destroy both map to HTTP DELETE at one URL — two deletion semantics need two request types. Register one of them on this controller."
+        case .archiveUnsupported(let request, let model):
+            "\(request) archives \(model), which declares no delete timestamp — archiving marks a row deleted and \(model) has no column to mark. Give it @Timestamp(key: \"deleted_at\", on: .delete), or serve a DestroyRequest instead, which removes the row."
         }
     }
 }

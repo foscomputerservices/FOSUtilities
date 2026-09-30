@@ -33,8 +33,8 @@ public enum ContainerOperation: Hashable, CaseIterable, Sendable {
     case writeRecords
     /// Create new records in the container.
     case createRecords
-    /// Mark the container's records deleted (recoverable).
-    case deleteRecords
+    /// Archive the container's records: they stay, marked deleted (recoverable).
+    case archiveRecords
     /// Permanently destroy the container's records (unrecoverable).
     case destroyRecords
     /// Wildcard: authorizes every operation **except** ``destroyRecords``, which must be granted explicitly.
@@ -57,9 +57,9 @@ public extension ContainerOperation {
         self == .anyOperation || self == .createRecords
     }
 
-    /// `true` if this operation authorizes (recoverably) deleting the container's records.
-    var authorizesDeleteRecords: Bool {
-        self == .anyOperation || self == .deleteRecords
+    /// `true` if this operation authorizes archiving the container's records.
+    var authorizesArchiveRecords: Bool {
+        self == .anyOperation || self == .archiveRecords
     }
 
     /// `true` only for ``destroyRecords`` — the wildcard deliberately does **not** grant destroy.
@@ -84,9 +84,9 @@ public extension Sequence<ContainerOperation> {
         contains(where: \.authorizesCreateRecords)
     }
 
-    /// `true` if **any** operation in the set authorizes (recoverably) deleting the container's records.
-    var authorizesDeleteRecords: Bool {
-        contains(where: \.authorizesDeleteRecords)
+    /// `true` if **any** operation in the set authorizes archiving the container's records.
+    var authorizesArchiveRecords: Bool {
+        contains(where: \.authorizesArchiveRecords)
     }
 
     /// `true` if **any** operation in the set authorizes destroying the container's records.
@@ -105,7 +105,7 @@ public extension Sequence<ContainerOperation> {
         case .readRecords: authorizesReadRecords
         case .writeRecords: authorizesWriteRecords
         case .createRecords: authorizesCreateRecords
-        case .deleteRecords: authorizesDeleteRecords
+        case .archiveRecords: authorizesArchiveRecords
         case .destroyRecords: authorizesDestroyRecords
         case .anyOperation: contains(.anyOperation)
         }

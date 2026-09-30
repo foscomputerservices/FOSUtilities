@@ -29,9 +29,9 @@ public func configure(_ app: Application) async throws {
 }
 
 /// Everything that isn't database/lifecycle — registered once, and reusable from a
-/// test (the FOSTestingVapor harness owns the DB + autoMigrate + boot). Containers
-/// register via register(_:migration:) (migration + identity descriptor in one call);
-/// plain records add their migration directly. The apex resolver answers "which
+/// test (the FOSTestingVapor harness owns the DB + autoMigrate + boot). Every DataModel
+/// registers via register(_:migration:) (migration + identity descriptor + lifecycle
+/// hooks in one call), container or not. The apex resolver answers "which
 /// container roots an apex read/create?" so a client can fetch the board without
 /// knowing its id. Register containers BEFORE the requests — the requests' load plans
 /// are derived and validated against the registry here.
@@ -44,7 +44,7 @@ func registerServices(_ app: Application) throws {
     app.middleware.use(FOSMVVMVapor.ErrorMiddleware.default(environment: app.environment))
 
     try app.register(Board.self, migration: Board.Initial())
-    app.migrations.add(Card.Initial())
+    try app.register(Card.self, migration: Card.Initial())
 
     try app.useContainerAuthorizationProvider(SkeletonAuthProvider())
 

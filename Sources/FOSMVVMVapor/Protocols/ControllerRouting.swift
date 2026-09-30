@@ -57,8 +57,8 @@ public extension ControllerRouting {
         case .create:
             return baseURL + "/create" + path
 
-        case .delete:
-            return baseURL + "/delete" + path
+        case .archive:
+            return baseURL + "/archive" + path
 
         case .destroy:
             return baseURL + "/destroy" + path

@@ -29,7 +29,7 @@ struct ContainerOperationTests {
         #expect(ContainerOperation.anyOperation.authorizesReadRecords)
         #expect(ContainerOperation.anyOperation.authorizesWriteRecords)
         #expect(ContainerOperation.anyOperation.authorizesCreateRecords)
-        #expect(ContainerOperation.anyOperation.authorizesDeleteRecords)
+        #expect(ContainerOperation.anyOperation.authorizesArchiveRecords)
         #expect(!ContainerOperation.anyOperation.authorizesDestroyRecords)
 
         // destroy is explicit-only
@@ -46,7 +46,7 @@ struct ContainerOperationTests {
         #expect(![ContainerOperation]().authorizesReadRecords) // empty grants nothing
 
         let anyOps: [ContainerOperation] = [.anyOperation]
-        #expect(anyOps.authorizesDeleteRecords)
+        #expect(anyOps.authorizesArchiveRecords)
         #expect(!anyOps.authorizesDestroyRecords)
     }
 
@@ -61,7 +61,7 @@ struct ContainerOperationTests {
     func operationSetAuthorizesByIntent() {
         let wildcard: [ContainerOperation] = [.anyOperation]
         #expect(wildcard.authorizes(.readRecords))
-        #expect(wildcard.authorizes(.deleteRecords))
+        #expect(wildcard.authorizes(.archiveRecords))
         #expect(!wildcard.authorizes(.destroyRecords)) // wildcard never grants destroy
         #expect([ContainerOperation]().authorizes(.readRecords) == false)
         #expect([.destroyRecords].authorizes(.destroyRecords))
