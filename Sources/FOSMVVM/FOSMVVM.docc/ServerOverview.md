@@ -55,7 +55,7 @@ Mount only on **middleware-only** groups (`app.grouped(middleware)`): a path-pre
 registration rejects that at boot.
 
 **Data-scoping still applies:** the framework loads only the records the current subject is
-authorized for, through the app's registered `ContainerAuthorizationProvider` — the projection is handed
+authorized for, through the app's registered `ModelAuthorizationProvider` — the projection is handed
 an already-auth-scoped, read-only cache and cannot load anything else. Register the provider (and the
 app's containers) before registering requests.
 

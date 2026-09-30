@@ -740,26 +740,47 @@ if grantedOperations.authorizesReadRecords { /* load */ }
 grantedOperations.authorizes(.createRecords)     // wildcard-aware
 ```
 
-### Answer whether a subject may touch records — `ContainerAuthorization`
-Reach for this when: modeling one persisted grant your app resolves per subject —
-conform a `Sendable` value type (project it from a Fluent grant row) that answers
-"may this operation, on this record type, in this container, proceed?". The framework
-never sees your role or user types; it only asks each authorization. A subject with no
-covering authorization simply loads an empty set — routes are never where data access
-is enforced. Registered and invoked via `FOSMVVMVapor.md § Containment`
-(`ContainerAuthorizationProvider`).
+### What a grant lets its holder do to a model itself — `ModelOperation` / `authorizesRead` / `authorizesWrite` / `authorizesArchive` / `authorizesDestroy`
+Reach for this when: a grant names a model (a Workspace, a Board, a Card) and you need
+to say what its holder may do to that model's own row — read, write, archive, destroy —
+or a plan needs to name the operation the subject must hold over every model it returns.
+This is the model-level axis; `ContainerOperation` (above) is what a container extends to
+the models it contains. There is no `create`: a model is created into a container.
+Check a granted set by intent, never by comparing cases — the accessors and
+`authorizes(_:)` honor the `.anyOperation` wildcard (everything except `.destroy`).
 
 ```swift
-struct BoardGrant: ContainerAuthorization {
-    let authorizedContainer: ModelIdentity
-    let operations: [ContainerOperation]
-    let recordTypes: [ModelNamespace]
-    func authorizes(_ operation: ContainerOperation,
-                    ofType recordType: any Model.Type,
-                    in container: ModelIdentity) -> Bool {
-        container == authorizedContainer
-            && operations.authorizes(operation)
-            && recordTypes.contains(recordType.modelIdentityNamespace)
+if granted.authorizesArchive { /* the holder may archive this model */ }
+granted.authorizes(.write)                                        // wildcard-aware
+static let archivable = Board.loadingPlan(.archive, within: .subject)   // a plan names it too
+```
+
+### Answer whether a subject may touch a model, and what it contains — `ModelAuthorization`
+Reach for this when: modeling one persisted grant your app resolves per subject —
+conform a `Sendable` value type (project it from a Fluent grant row) that names a model
+and answers two questions: "may this operation proceed on the model itself?" and "may
+this operation, on this contained type, proceed inside it?". A grant on a container
+answers both; a grant on a leaf answers the first. Either authority suffices: a subject
+may archive a Board because a grant names the Board, or because a grant on its
+Workspace extends `archiveRecords` of type Board. The framework never sees your role or
+user types; a subject with no covering grant loads an empty set — routes are never
+where data access is enforced. Registered and invoked via `FOSMVVMVapor.md § Protocols`
+(`ModelAuthorizationProvider`).
+Don't implement only the container question and expect a container's own row to load
+on its authority — the model-level answer defaults to `false`.
+
+```swift
+struct Grant: ModelAuthorization {
+    let authorizedModel: ModelIdentity
+    let modelOperations: [ModelOperation]
+    let memberOperations: [ContainerOperation]
+    let memberTypes: [ModelNamespace]
+    func authorizes(_ operation: ModelOperation, on model: ModelIdentity) -> Bool {
+        model == authorizedModel && modelOperations.authorizes(operation)
+    }
+    func authorizes(_ operation: ContainerOperation, ofType recordType: any Model.Type, in container: ModelIdentity) -> Bool {
+        container == authorizedModel && memberOperations.authorizes(operation)
+            && memberTypes.contains(recordType.modelIdentityNamespace)
     }
 }
 ```
@@ -786,68 +807,81 @@ non-paginated queries stay as they are. The load engine applies the window only 
 the query conforms.
 
 ```swift
-struct BerthsQuery: PaginatedQuery {
+struct BoardsQuery: PaginatedQuery {
     var pagination: Pagination { .init(startIndex: 0, maxResults: 25) }
     // ...ServerRequestQuery requirements...
 }
 ```
 
-### Root a request's containment scope — `RootedQuery`
-Reach for this when: a request opens a fresh containment scope and the client names
-the root container — the trait-overlay idiom used by `PaginatedQuery`. A load declared
-`.newRoot(.query)` reads `rootIdentity` to resolve its scope. A request roots at most
-one `.query`-vended container.
+### Name the container a request is scoped within — `ScopedQuery`
+Reach for this when: a plan of the request is declared `within: .request` and the client
+names the container — the trait-overlay idiom used by `PaginatedQuery`. One request names
+one container. A plan within `.subject` or `.application` needs no such query.
 
 ```swift
-struct WorkspaceBerthsQuery: RootedQuery {
-    let rootIdentity: ModelIdentity   // the Workspace this request is scoped to
+struct BoardPageQuery: ScopedQuery {
+    let scopeIdentity: ModelIdentity   // the Board this page is about
 }
 ```
 
-### Where a load roots — `RootScope` / `RootSource`
-Reach for this when: declaring a `LoadRequirement` or `ComposedChild` and stating where
-its scope roots. Read it as the preposition at the call site: `.parentRoot` shares the
-declaring factory's scope (the common case); `.newRoot(.query)` roots at the request's
-`RootedQuery` value; `.newRoot(.apex)` roots at the app's apex container (server-resolved,
-no query — registered via `FOSMVVMVapor.md § Containment`).
+### Where a plan's data is confined — `ContainmentScope`
+Reach for this when: declaring a `loadingPlan` or a `ComposedChild` and saying whose
+region of data it loads within. Choose by owner: `.parent` shares the enclosing factory's
+scope (every child, unless it deliberately opens its own); `.request` is the container the
+client named in a `ScopedQuery`; `.application` is the container the app resolves for this
+caller (registered via `FOSMVVMVapor.md § Containment`, `useApplicationScope`, or a lone
+`SystemContainer` by itself); `.subject`
+is what the subject's grants reach — every model of the plan's type a grant names with the
+plan's operation, plus every such model inside a granted container that directly contains
+the type — with nothing to name and nothing to resolve. A scope never widens authority;
+`via:` descends from any scope through declared containment. `.subject` is never a create
+scope (a create names the container it creates into), and every model it binds registers
+for live refresh, the subject too when the provider vends it.
 
 ```swift
-.read(Card.self, in: .parentRoot)               // shares the factory's scope
-.read(WorkspaceBanner.self, in: .newRoot(.apex))     // a fresh tree at the apex
+static let cards      = Card.loadingPlan(.read, within: .request)                 // the container the client named
+static let status     = SystemStatus.loadingPlan(.read, within: .application)     // the container the app resolves
+static let workspaces = Workspace.loadingPlan(.read, within: .subject)            // what the subject's grants reach
+static let boards     = Board.loadingPlan(.read, within: .subject, via: Workspace.self)
 ```
 
 ### Declare and compose a factory's data — `ComposableFactory` / `ComposedChild`
 Reach for this when: a server-rendered `ServerRequestBody` (ViewModel or not) needs data
-loaded before it is built, and/or composes child factories. `dataRequirements` lists this
-factory's own loads; `children` lists child factories — only `ComposableFactory`-conforming
-types can appear, so an undeclared child cannot be composed (it won't compile). Declarations
-are aggregated at boot and loaded once. Adopting the trait and declaring nothing fails fast
-at boot. Executed by `FOSMVVMVapor.md § Protocols` (`VaporResponseBodyFactory`).
+loaded before it is built, and/or composes child factories. `loadingPlans` lists this
+factory's own plans in a builder block; `children` lists child factories — only
+`ComposableFactory`-conforming types can appear, so an undeclared child cannot be composed
+(it won't compile). Declarations are aggregated at boot and loaded once. Adopting the trait
+and declaring nothing fails fast at boot. Executed by `FOSMVVMVapor.md § Protocols`
+(`VaporResponseBodyFactory`).
 
 ```swift
-extension BerthsViewModel: ComposableFactory {
-    static let cards = LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest
-    static var dataRequirements: [any DataRequirement] { [cards] }
+extension BoardsViewModel: ComposableFactory {
+    static let cards = Card.loadingPlan(.read, within: .parent).refinedByRequest
+    static var loadingPlans: LoadingPlans { cards }
     static var children: [ComposedChild] {
         [.child(CardCellViewModel.self),
-         .child(WorkspaceBannerViewModel.self, rootedAt: .apex)]
+         .child(WorkspaceBannerViewModel.self, within: .application)]
     }
 }
 ```
 
-### Declare a typed, authorized load — `DataRequirement` / `LoadRequirement`
-Reach for this when: naming one data need of a `ComposableFactory`. Mint requirements
-with the `LoadRequirement` verbs — never conform to `DataRequirement` directly (it is a
-sealed marker; a foreign conformance is rejected at boot). Declare each as a stored
-`static let` (a computed property mints a fresh identity per access and breaks the
-projection read-back). `read()` is a factory load; `write()` / `create()` / `delete()`
-load a write request's candidate set; `via:` lists *intermediate* containment hops only
-(the terminal hop is implicit); `refinedByRequest` marks the one requirement the request's
-own sort/pagination axes apply to.
+### Declare a typed, authorized load — `LoadingPlan` / `LoadingPlans` / `LoadingPlansBuilder`
+Reach for this when: naming one data need of a `ComposableFactory`. Mint a plan on the
+model type — `loadingPlan(_:within:via:)` names the `ModelOperation` the subject must
+hold over every model returned, `creationPlan(within:)` names the container a create
+request creates into — and list them in the `loadingPlans` builder block. Declare each
+as a stored `static let` (a computed property mints a fresh identity per access and
+breaks the projection read-back). A `.read` plan is a factory load; `.write`,
+`.archive`, and `.destroy` plans and a creation plan are a write request's candidate set;
+`via:` lists *intermediate* containment hops only (the terminal hop is implicit);
+`refinedByRequest` marks the one plan the request's own sort/pagination/filter axes apply to.
+`loadingPlan(.anyOperation, …)` and `creationPlan(within: .subject)` each fail at boot.
 
 ```swift
-static let cards = LoadRequirement.read(Card.self, in: .parentRoot).refinedByRequest
-static let slips  = LoadRequirement.read(Assignment.self, in: .parentRoot, via: Card.self)
+static let cards       = Card.loadingPlan(.read, within: .parent).refinedByRequest
+static let assignments = Assignment.loadingPlan(.read, within: .parent, via: Card.self)
+static let candidates  = Card.loadingPlan(.write, within: .subject)      // an update's targets
+static let newCard     = Card.creationPlan(within: .request)             // a create's destination
 ```
 
 ### Name which loaded record a write targets — `TargetedQuery`
@@ -860,9 +894,12 @@ The candidate set and field application live in `FOSMVVMVapor.md § Protocols`
 (`WriteTargetProviding` / `DataModelWriter`).
 
 ```swift
-struct UpdateCardQuery: TargetedQuery, RootedQuery {
-    let rootIdentity: ModelIdentity   // the scope root
+struct UpdateCardQuery: TargetedQuery, ScopedQuery {
+    let scopeIdentity: ModelIdentity  // the container the candidates are within (.request)
     let target: ModelIdentity         // which card
+}
+struct ArchiveBoardQuery: TargetedQuery {
+    let target: ModelIdentity         // candidates within .subject name no container
 }
 ```
 

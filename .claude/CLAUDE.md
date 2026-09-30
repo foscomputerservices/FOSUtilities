@@ -117,6 +117,8 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 - Typed model identifiers (never a raw `UUID`/`String` field) → `FOSFoundation.md § Data`
 - Declaring/localizing/encoding ViewModels, factories, requests → `FOSMVVM.md § Macros`, `§ Localization`, `§ Protocols`
 - Credential rejection / typed 401 recovery → `FOSMVVM.md § Protocols`
+- Grants that name a model, loading what a subject's grants reach with no container named, containment scopes → `FOSMVVM.md § Protocols`, `FOSMVVMVapor.md § Protocols`
+- A model no other model owns (top-level lists, system-wide rows, create at the top) → `FOSMVVMVapor.md § Containment`
 - Form fields and input validation → `FOSMVVM.md § Forms`, `§ Validation`
 - SwiftUI binding/app setup, property versioning, deployment URLs → `FOSMVVM.md § SwiftUI Support`, `§ Versioning`
 - Async Button actions (error routing, re-entry, cancel), view-lifetime `.task` error routing, localized error alerts → `FOSMVVM.md § SwiftUI Support`, `§ Protocols`

@@ -51,11 +51,12 @@ line via the `fosutilities-api-catalog-update` skill.
 - Binding a screen to server data — ViewModel requests, CRUD writes, factories → `FOSMVVM.md § Protocols`
 - Deleting an entity — archiving it (marked deleted, still there) versus destroying it (removed) → `FOSMVVM.md § Protocols`, `FOSMVVMVapor.md § Vapor Support`
 - Identifying *which* entity a model is (opaque `ModelIdentity`) — keying refresh or authorization by it → `FOSMVVM.md § Protocols`
-- Container-scoped authorization — declaring containers, grant verbs, who may touch which records → `FOSMVVM.md § Protocols`
+- Authorization — declaring containers, the grant that names a model and what it extends to its members, the model-level and container-level verbs → `FOSMVVM.md § Protocols`
+- Loading what a subject's grants reach with no container to name (a top-level list, a write whose target may be granted directly or through its container) → `FOSMVVM.md § Protocols`
 - Client-chosen sort or pagination on a request → `FOSMVVM.md § Protocols`
 - Live-updating screens that refresh when server data changes (`@ViewModel(options: [.live])`), or replacing the invalidation transport → `FOSMVVM.md § Protocols`, `FOSMVVMVapor.md § Live Invalidation`
 - Attaching auth headers (bearer token, API key) to every client request, rotation-safe — or recovering when the server refuses one (refresh the credential and retry the request once) → `FOSMVVM.md § Protocols`
-- Declaring the data a server-rendered body needs — composable factory, load requirements, rooted scopes → `FOSMVVM.md § Protocols`
+- Declaring the data a server-rendered body needs — composable factory, loading plans, containment scopes → `FOSMVVM.md § Protocols`
 - Rendering a ViewModel in SwiftUI — app setup, view binding, previews, form views → `FOSMVVM.md § SwiftUI Support`
 - A Button whose action is `async throws` — error routing, re-entry refusal, running state, tap-to-cancel → `FOSMVVM.md § SwiftUI Support`
 - A view-lifetime (or value-keyed) load that can throw — `.task`-style error routing into the screen binding → `FOSMVVM.md § SwiftUI Support`
@@ -65,13 +66,14 @@ line via the `fosutilities-api-catalog-update` skill.
 - Registering request routes (reads and CRUD writes) — including mounting one behind a credential/middleware group — or serving a request outside the guarded verbs → `FOSMVVMVapor.md § Vapor Support`
 - Projecting loaded records into a response body, or reading them through the projection context → `FOSMVVMVapor.md § Containment`, `§ Protocols`
 - Declaring Fluent containers and their relations, or mapping sort meanings to database columns → `FOSMVVMVapor.md § Containment`
-- Registering the container authorization provider, apex resolver, per-request app state, or a model's migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`
+- Registering the model authorization provider, the application scope, per-request app state, or a model's migration → `FOSMVVMVapor.md § Containment`, `§ Extensions`
+- A model no other model owns — a top-level list, a system-wide row, creating a top-level container — without a synthetic parent → `FOSMVVMVapor.md § Containment`
 - Rules that run whenever a model is saved — uniqueness against other models, deriving fields before the write, work in the same transaction, a side effect once it commits → `FOSMVVMVapor.md § Lifecycle`
 - Turning a database constraint failure into a message the user can act on, or making a warning stop a save → `FOSMVVMVapor.md § Lifecycle`
 - Filtering (narrowing) a large container load by the request's query → `FOSMVVMVapor.md § Containment`
 - Enabling server-pushed refresh at boot, or transactional writes that notify live clients → `FOSMVVMVapor.md § Live Invalidation`
 - Refreshing live screens whose data isn't Fluent-persisted — nudging from an `Application`-hosted actor or computed aggregate, or registering a dependency the load plan can't see → `FOSMVVMVapor.md § Live Invalidation`
-- The server-side write path — candidate set, field application, authorization provider → `FOSMVVMVapor.md § Protocols`
+- The server-side write path — candidate set, field application, authorization provider, the subject's identity for live grant refresh → `FOSMVVMVapor.md § Protocols`
 - Projecting the database into ViewModels — resolvable requests, Fluent `DataModel` → `FOSMVVMVapor.md § Protocols`
 - Serving typed/localized errors, gating routes on client app version → `FOSMVVMVapor.md § Middleware`
 - Verifying a caller's bearer token / protecting route groups with app-owned credential rules → `FOSMVVMVapor.md § Middleware`

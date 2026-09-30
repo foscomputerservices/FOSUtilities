@@ -208,3 +208,13 @@ The first two are one symptom: the keyboard-dismissal control `testHost()` plant
 **Why it was deferred:** diagnosis is a fixture round of its own — the own-window rehosting of the dismissal control and the Return-key commit path each need re-measuring on the new runtime before anything is changed, and changing either to suit 27.1 risks the 26.6 behaviour the matrix still certifies. It is not work to fold into an unrelated defect fix.
 
 **What reopens it:** the CI toolchain pin moving to 27.x, which turns this from an invisible local annoyance into a red matrix; or a consumer reporting either symptom on iOS 27. The existing SDK-27 preview leg is the place the warning would arrive first.
+
+## Two system containers may own the same type
+
+**Recorded:** 2026-09-30, at David's direction, during the specification review of the containerless-loads work.
+
+**What it is:** `SystemContainer` allows more than one registration (OQ49), and nothing refuses two of them declaring `.all` of the same type. Both then union into the subject scope for that type and both are marked stale on a write to it. Whether that is a legitimate shape (two views of one type under two authorities) or a misconfiguration to refuse at boot is unruled.
+
+**Why it matters:** a boot refusal added later would break an app that leaned on the overlap; a ruling before any app does is cheap.
+
+**What reopens it:** a consuming project declaring two system containers over one type, or David ruling either way.
