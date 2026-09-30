@@ -61,8 +61,10 @@ struct LiveTransactionTests {
             await hub.emit(sentinel)
             #expect(await events.next() == sentinel)
 
-            // Warned once for Berth (two suppressed saves, one warning), naming type + remedy.
-            #expect(captured.all.count(where: { $0.contains("Berth") }) == 1)
+            // Warned once for Berth (two suppressed saves, one warning), naming type + remedy. The
+            // lifecycle middleware warns about the same transaction for its own reason, so the
+            // count is taken over the emit warning's own wording.
+            #expect(captured.all.count(where: { $0.contains("Berth") && $0.contains("invalidation was suppressed") }) == 1)
             #expect(captured.contains(allOf: "Berth", "liveTransaction"))
         }
     }
