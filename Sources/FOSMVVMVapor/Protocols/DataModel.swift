@@ -19,4 +19,4 @@ import FOSFoundation
 import FOSMVVM
 import Foundation
 
-public protocol DataModel: FOSMVVM.Model, ValidatableModel, FluentKit.Model {}
+public protocol DataModel: FOSMVVM.Model, ValidatableModel, DataModelLifecycle, FluentKit.Model {}

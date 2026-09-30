@@ -103,7 +103,7 @@ enum InvalidationIdentitySet {
         }
 
         let isRegisteredContainer: @Sendable (any DataModel.Type) -> Bool = { type in
-            registry.registered(for: type.modelIdentityNamespace) != nil
+            registry.registered(for: type.modelIdentityNamespace)?.isContainer ?? false
         }
 
         for descriptor in registry.allRegistered {

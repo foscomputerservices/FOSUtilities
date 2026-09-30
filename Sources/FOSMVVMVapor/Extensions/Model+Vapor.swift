@@ -44,13 +44,3 @@ public extension FOSMVVM.Model where Self: AnyModel & Fields {
         }
     }
 }
-
-public extension FOSMVVM.Model where Self: ValidatableModel {
-    func validateModel(on database: Database) async throws -> Self {
-        if let error = validate() {
-            throw error
-        }
-
-        return self
-    }
-}
