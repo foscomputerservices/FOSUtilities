@@ -83,7 +83,7 @@ let package = Package(
             // 🍎 frameworks
             .package(url: "https://github.com/apple/swift-docc-plugin", .upToNextMajor(from: "1.4.3")),
             .package(url: "https://github.com/apple/swift-crypto.git", .upToNextMajor(from: "4.1.0")),
-            .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "601.0.1"),
+            .package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "604.0.0"),
             .package(url: "https://github.com/apple/swift-certificates.git", .upToNextMajor(from: "1.0.0")),
             .package(url: "https://github.com/apple/swift-asn1.git", .upToNextMajor(from: "1.0.0")),
 
