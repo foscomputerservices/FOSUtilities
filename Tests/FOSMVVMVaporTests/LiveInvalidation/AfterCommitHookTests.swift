@@ -124,11 +124,13 @@ struct AfterCommitHookTests {
             try registerHarborGraph(app)
         } _: { app, db in
             let (dock1, _) = try await seedHarbor(on: db)
-            let req = Vapor.Request(application: app, on: app.eventLoopGroup.next())
 
             await #expect(throws: HookFailure.self) {
-                try await req.liveTransaction { outer in
-                    try await app.liveTransaction { inner in
+                try await app.liveTransaction { outer in
+                    // The inner handle must not share the outer's connection — see
+                    // makeRequest(_:offTheLoopOf:).
+                    let req = try #require(makeRequest(app, offTheLoopOf: outer))
+                    try await req.liveTransaction { inner in
                         #expect(inner.inTransaction)
                         let berth = try Berth(number: 104, dockName: dock1.name, dockId: dock1.requireId())
                         try await berth.save(on: inner)

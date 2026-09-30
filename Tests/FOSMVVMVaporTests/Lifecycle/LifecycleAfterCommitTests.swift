@@ -69,11 +69,14 @@ struct LifecycleAfterCommitTests {
             try registerLifecycleGraph(app)
         } _: { app, db in
             let (ledger, vault) = try await seedLedger(on: db)
-            let req = Vapor.Request(application: app, on: app.eventLoopGroup.next())
+            // The auto-commit handle, taken once so the transaction below can be kept off its
+            // event loop — see makeRequest(_:offTheLoopOf:).
+            let autoCommit = app.db
+            let req = try #require(makeRequest(app, offTheLoopOf: autoCommit))
 
             try await req.liveTransaction { tx in
                 try await Entry(label: "auto-commit", ledgerId: ledger.requireId(), vaultId: vault.requireId())
-                    .save(on: app.db)
+                    .save(on: autoCommit)
                 #expect(app.lifecycleEvents.count(of: "Entry.didCommit:create") == 1)
 
                 try await Entry(label: "deferred", ledgerId: ledger.requireId(), vaultId: vault.requireId())
