@@ -1,0 +1,30 @@
+en:
+  BehavioralProbeMessages:
+    title:
+      validationMessages:
+        required: "A title is required"
+        invalid: "That title is not allowed"
+        unusual: "That title is unusual"
+    model:
+      validationMessages:
+        full: "The box is full"
+        odd: "This model looks odd"
+        second: "The second failure"
+        third: "The third failure"
+        claimed: "That title is already claimed"
+        taken: "That title is already used in this box"
+es:
+  BehavioralProbeMessages:
+    title:
+      validationMessages:
+        required: "Se requiere un título"
+        invalid: "Ese título no está permitido"
+        unusual: "Ese título es inusual"
+    model:
+      validationMessages:
+        full: "La caja está llena"
+        odd: "Este modelo parece extraño"
+        second: "El segundo fallo"
+        third: "El tercer fallo"
+        claimed: "Ese título ya está reclamado"
+        taken: "Ese título ya se usa en esta caja"
