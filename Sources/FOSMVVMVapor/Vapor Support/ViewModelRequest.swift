@@ -27,8 +27,8 @@ public extension RoutesBuilder {
     /// ```swift
     /// func routes(_ app: Application) throws {
     ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    ///     try authed.register(request: DockPageRequest.self, app: app)
-    ///     try app.register(request: LandingPageRequest.self, app: app)
+    ///     try authed.register(request: BoardShowRequest.self, app: app)
+    ///     try app.register(request: HomeShowRequest.self, app: app)
     /// }
     /// ```
     ///
@@ -47,11 +47,11 @@ public extension RoutesBuilder {
     /// `app`'s registered containers. Every door derives the plan: where a request mounts is
     /// your decision; that its plan is derived is not.
     ///
-    /// A write request (Create/Update/Delete) has its own overload; register it the same way
-    /// (`try authed.register(request: BerthUpdateRequest.self, app: app)`), and Swift picks
+    /// A write request (Create/Update/Archive/Destroy) has its own overload; register it the same
+    /// way (`try authed.register(request: CardUpdateRequest.self, app: app)`), and Swift picks
     /// the write door. A write request that reaches *this* read door — because its
     /// Query/RequestBody miss the write overload's constraints, or because its protocol
-    /// (Replace/Destroy) is not yet supported — fails fast at boot rather than registering
+    /// (Replace) is not yet supported — fails fast at boot rather than registering
     /// GET-only (which would silently drop the write).
     ///
     /// - Parameters:
@@ -62,7 +62,7 @@ public extension RoutesBuilder {
         where SR.ResponseBody: VaporResponseBodyFactory {
         // Boot-time fail-fast: overload resolution can send a write request to this read door.
         // Catch it here — a GET-only registration of a write request would be the silent mode.
-        try rejectWriteProtocolAtReadDoor(SR.self)
+        try rejectWriteProtocolAtReadRoute(SR.self)
         // Boot-time fail-fast: a non-Void projection AppState needs a useAppState(_:) builder, and it
         // must already be registered — misconfiguration is a boot error, not a first-request surprise.
         try app.requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
@@ -84,7 +84,7 @@ public extension RoutesBuilder {
     /// ```swift
     /// func routes(_ app: Application) throws {
     ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    ///     try authed.register(request: CreateBerthRequest.self, app: app)
+    ///     try authed.register(request: CardCreateRequest.self, app: app)
     /// }
     /// ```
     ///
@@ -122,7 +122,7 @@ public extension RoutesBuilder {
     /// ```swift
     /// func routes(_ app: Application) throws {
     ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    ///     try authed.register(request: UpdateBerthRequest.self, app: app)
+    ///     try authed.register(request: CardUpdateRequest.self, app: app)
     /// }
     /// ```
     ///
@@ -155,37 +155,88 @@ public extension RoutesBuilder {
         }
     }
 
-    /// Registers a delete request's route (DELETE) on this route group, plus the request's own read
-    /// plan for the response. A delete body declares its candidate set only
-    /// (``WriteTargetProviding``); deletion is framework-owned.
+    /// Registers an archive request's route (DELETE) on this route group, plus the request's own
+    /// read plan for the response. An archive body declares its candidate set only
+    /// (``WriteTargetProviding``); archiving is framework-owned.
     ///
     /// ```swift
     /// func routes(_ app: Application) throws {
     ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
-    ///     try authed.register(request: DeleteBerthRequest.self, app: app)
+    ///     try authed.register(request: CardArchiveRequest.self, app: app)
     /// }
     /// ```
     ///
     /// Mount on **middleware-only** groups: a path-prefixing group is rejected at boot, because clients
     /// derive the served URL from the request type.
     ///
-    /// After the delete commits, the server re-serves the request itself to build its `ResponseBody`
+    /// After the archive commits, the server re-serves the request itself to build its `ResponseBody`
     /// from the refreshed records (or `EmptyBody` when there is nothing to return).
     ///
+    /// The archived model must declare `@Timestamp(key: "deleted_at", on: .delete)`; registering an
+    /// archive for one that does not fails at boot with
+    /// ``ServerRequestControllerError/archiveUnsupported(request:model:)``.
+    ///
     /// - Parameters:
-    ///   - request: A *DeleteRequest* whose *ResponseBody* is a ``VaporResponseBodyFactory``
+    ///   - request: An *ArchiveRequest* whose *ResponseBody* is a ``VaporResponseBodyFactory``
     ///   - app: The application this route serves — the request's candidate and response load plans
     ///     are derived into and validated against it
-    func register<SR: DeleteRequest>(request _: SR.Type, app: Vapor.Application) throws
+    func register<SR: ArchiveRequest>(request _: SR.Type, app: Vapor.Application) throws
         where SR.RequestBody: WriteTargetProviding,
         SR.Query: TargetedQuery,
         SR.ResponseBody: VaporResponseBodyFactory {
         try app.requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
         try app.registerRecordLoadPlan(for: SR.self)
-        try app.deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .deleteRecords)
+        try app.deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .archiveRecords)
+        // Archiving marks the row through its delete timestamp. Without one, `delete(on:)` would
+        // remove the row — a destroy wearing the archive verb — so the mismatch is a boot error.
+        guard SR.RequestBody.Target.declaresDeleteTimestamp else {
+            throw ServerRequestControllerError.archiveUnsupported(
+                request: String(describing: SR.self),
+                model: String(describing: SR.RequestBody.Target.self)
+            )
+        }
         try mountVerifyingPath(SR.self, app: app) {
             try register(collection: GuardedRequestController<SR>(actions: [
-                .delete: { req, bound in try await req.serveDelete(bound) }
+                .archive: { req, bound in try await req.serveArchive(bound) }
+            ]))
+        }
+    }
+
+    /// Registers a destroy request's route (DELETE) on this route group, plus the request's own read
+    /// plan for the response. A destroy body declares its candidate set only
+    /// (``WriteTargetProviding``); removing the row is framework-owned.
+    ///
+    /// ```swift
+    /// func routes(_ app: Application) throws {
+    ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
+    ///     try authed.register(request: CardDestroyRequest.self, app: app)
+    /// }
+    /// ```
+    ///
+    /// Mount on **middleware-only** groups: a path-prefixing group is rejected at boot, because clients
+    /// derive the served URL from the request type.
+    ///
+    /// The row is gone once the destroy commits, and the server re-serves the request itself to build
+    /// its `ResponseBody` from the refreshed records. Declare the candidate set with
+    /// `LoadRequirement.destroy(_:in:)`: the container must grant
+    /// ``ContainerOperation/destroyRecords`` by name — the wildcard grant never covers it. Reach for
+    /// ``Vapor/RoutesBuilder/register(request:app:)-(SR.Type,_)`` on an `ArchiveRequest` when the row
+    /// should stay, marked deleted.
+    ///
+    /// - Parameters:
+    ///   - request: A *DestroyRequest* whose *ResponseBody* is a ``VaporResponseBodyFactory``
+    ///   - app: The application this route serves — the request's candidate and response load plans
+    ///     are derived into and validated against it
+    func register<SR: DestroyRequest>(request _: SR.Type, app: Vapor.Application) throws
+        where SR.RequestBody: WriteTargetProviding,
+        SR.Query: TargetedQuery,
+        SR.ResponseBody: VaporResponseBodyFactory {
+        try app.requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
+        try app.registerRecordLoadPlan(for: SR.self)
+        try app.deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .destroyRecords)
+        try mountVerifyingPath(SR.self, app: app) {
+            try register(collection: GuardedRequestController<SR>(actions: [
+                .destroy: { req, bound in try await req.serveDestroy(bound) }
             ]))
         }
     }
@@ -193,17 +244,18 @@ public extension RoutesBuilder {
 
 // swiftformat:disable docComments
 // Overload resolution sends a write-protocol conformer that misses the write doors' constraints
-// to the base read door. Reject it there: Create/Update/Delete conformers name unmet write
-// constraints; Replace/Destroy name the not-yet-supported protocol.
+// to the base read door. Reject it there: Create/Update/Archive/Destroy conformers name unmet
+// write constraints; Replace names the not-yet-supported protocol.
 // swiftformat:enable docComments
-private func rejectWriteProtocolAtReadDoor<SR: ServerRequest>(_: SR.Type) throws {
+private func rejectWriteProtocolAtReadRoute<SR: ServerRequest>(_: SR.Type) throws {
     let name = String(describing: SR.self)
-    if SR.self is any ReplaceRequest.Type || SR.self is any DestroyRequest.Type {
+    if SR.self is any ReplaceRequest.Type {
         throw ContainmentError.unsupportedWriteProtocol(request: name)
     }
     if SR.self is any UpdateRequest.Type
         || SR.self is any CreateRequest.Type
-        || SR.self is any DeleteRequest.Type {
+        || SR.self is any ArchiveRequest.Type
+        || SR.self is any DestroyRequest.Type {
         throw ContainmentError.writeRequestAtReadDoor(request: name)
     }
 }

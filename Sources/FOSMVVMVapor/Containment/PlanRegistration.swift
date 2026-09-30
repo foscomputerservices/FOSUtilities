@@ -290,7 +290,7 @@ extension Application {
             guard tuple.operation == expectedOperation else {
                 throw ContainmentError.invalidLoadPlan(
                     request: request,
-                    reason: "\(writerName).candidates declares a .\(tuple.operation) load but this door registers .\(expectedOperation) — the candidate verb must match the write door (LoadRequirement.write for update, .create for create, .delete for delete)"
+                    reason: "\(writerName).candidates declares a .\(tuple.operation) load but this route registers .\(expectedOperation) — the candidate verb must match the write route (LoadRequirement.write for update, .create for create, .archive for archive, .destroy for destroy)"
                 )
             }
             if expectedOperation == .createRecords, !tuple.path.isEmpty {

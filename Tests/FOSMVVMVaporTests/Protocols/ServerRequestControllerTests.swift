@@ -46,21 +46,21 @@ struct ServerRequestControllerTests {
         }
     }
 
-    /// `.delete` maps to HTTP DELETE and reaches its processor: a bare DELETE returns the marker
-    /// (the pre-C8a layer threw `invalidAction` at boot for `.delete`).
+    /// `.archive` maps to HTTP DELETE and reaches its processor: a bare DELETE returns the marker
+    /// (the pre-C8a layer threw `invalidAction` at boot for the archive action).
     @Test func deleteActionRegistersDELETE() async throws {
         try await withFluentTestApp { app in
             try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
-            let controller = EchoController<EchoDeleteRequest>(actions: [
-                .delete: { _, _ in EchoMarker(marker: "deleted") }
+            let controller = EchoController<EchoArchiveRequest>(actions: [
+                .archive: { _, _ in EchoMarker(marker: "archived") }
             ])
             try app.routes.register(collection: controller)
         } _: { app, _ in
-            let url = try requestURL(EchoDeleteRequest())
+            let url = try requestURL(EchoArchiveRequest())
             let response = try await dispatch(app: app, method: .DELETE, url: url)
 
             #expect(response.status == .ok)
-            #expect(try marker(response) == "deleted")
+            #expect(try marker(response) == "archived")
         }
     }
 
@@ -87,13 +87,13 @@ struct ServerRequestControllerTests {
         }
     }
 
-    /// One URL carries one handler per method: a controller registering BOTH `.delete` and
+    /// One URL carries one handler per method: a controller registering BOTH `.archive` and
     /// `.destroy` (both HTTP DELETE) fails fast at boot.
     @Test func deletePlusDestroyFailsFastAtBoot() async throws {
         await #expect(throws: ServerRequestControllerError.self) {
             try await withFluentTestApp { app in
-                let controller = EchoController<EchoDeleteRequest>(actions: [
-                    .delete: { _, _ in EchoMarker(marker: "deleted") },
+                let controller = EchoController<EchoArchiveRequest>(actions: [
+                    .archive: { _, _ in EchoMarker(marker: "archived") },
                     .destroy: { _, _ in EchoMarker(marker: "destroyed") }
                 ])
                 try app.routes.register(collection: controller)
@@ -207,8 +207,8 @@ private final class EchoShowRequest: ServerRequest, @unchecked Sendable {
     }
 }
 
-/// `.delete` fixture: no query, no body, an `EchoMarker` response.
-private final class EchoDeleteRequest: ServerRequest, @unchecked Sendable {
+/// `.archive` fixture: no query, no body, an `EchoMarker` response.
+private final class EchoArchiveRequest: ServerRequest, @unchecked Sendable {
     typealias Query = EmptyQuery
     typealias Fragment = EmptyFragment
     typealias RequestBody = EmptyBody
@@ -216,7 +216,7 @@ private final class EchoDeleteRequest: ServerRequest, @unchecked Sendable {
     typealias ResponseError = EmptyError
 
     var action: ServerRequestAction {
-        .delete
+        .archive
     }
 
     var responseBody: EchoMarker?

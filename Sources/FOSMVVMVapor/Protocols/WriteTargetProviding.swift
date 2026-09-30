@@ -22,8 +22,8 @@ import Foundation
 /// `RequestBody` in the server target:
 ///
 /// ```swift
-/// extension DeleteBerthRequest.RequestBody: WriteTargetProviding {
-///     static let candidates = LoadRequirement.delete(Berth.self, in: .parentRoot)
+/// extension CardArchiveRequest.RequestBody: WriteTargetProviding {
+///     static let candidates = LoadRequirement.archive(Card.self, in: .parentRoot)
 /// }
 /// ```
 ///
@@ -33,7 +33,7 @@ import Foundation
 /// ``TargetedQuery`` target must resolve to a member of this set, or the request fails with
 /// not-found semantics (not-yours is indistinguishable from not-found).
 ///
-/// A `DeleteRequest` body conforms to this protocol **alone** — deletion is framework-owned,
+/// An `ArchiveRequest` body conforms to this protocol **alone** — archiving is framework-owned,
 /// so there is nothing to apply. An update or create body adds ``DataModelWriter``.
 public protocol WriteTargetProviding: Sendable {
     /// The persisted model this request writes.
@@ -48,12 +48,12 @@ public protocol WriteTargetProviding: Sendable {
 /// the target model. Adopt it on the write request's `RequestBody` in the server target:
 ///
 /// ```swift
-/// extension UpdateBerthRequest.RequestBody: DataModelWriter {
-///     static let candidates = LoadRequirement.write(Berth.self, in: .parentRoot)
+/// extension CardUpdateRequest.RequestBody: DataModelWriter {
+///     static let candidates = LoadRequirement.write(Card.self, in: .parentRoot)
 ///
-///     func apply(to berth: Berth) throws {
-///         berth.name = name
-///         berth.capacity = capacity
+///     func apply(to card: Card) throws {
+///         card.title = title
+///         card.summary = summary
 ///     }
 /// }
 /// ```

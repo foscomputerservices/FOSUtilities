@@ -1,6 +1,6 @@
-// CreateRequest.swift
+// ArchiveRequest.swift
 //
-// Copyright 2024 FOS Computer Services, LLC
+// Copyright 2026 FOS Computer Services, LLC
 //
 // Licensed under the Apache License, Version 2.0 (the  License);
 // you may not use this file except in compliance with the License.
@@ -16,20 +16,22 @@
 
 import FOSFoundation
 
-/// A ``ServerRequest`` that requests that the server **create** a resource.
-///
-/// A create returns a ``ServerRequest/ResponseBody`` like any request — normally the
-/// container's updated children, the same type a read of that container returns. Give
-/// the request that `ResponseBody`; the framework loads the writer's candidate scope,
-/// creates into it, commits, then builds the response from the refreshed records.
+/// A request that archives one model: the row stays, marked deleted
 ///
 /// ```swift
-/// final class CardCreateRequest: CreateRequest {
-///     typealias RequestBody = CardCreateBody   // a DataModelWriter
-///     typealias ResponseBody = CardListVM      // the container's children
+/// final class CardArchiveRequest: ArchiveRequest {
+///     typealias RequestBody = CardArchiveBody   // a WriteTargetProviding
+///     typealias ResponseBody = CardListVM       // remaining children (or EmptyBody)
 ///     // …query, init…
 /// }
 /// ```
+///
+/// An archive returns a ``ServerRequest/ResponseBody`` like any request — normally the
+/// container's remaining children, the same type a read of that container returns (or
+/// ``EmptyBody`` when there is nothing to return). The archive body declares its
+/// candidate set only (``WriteTargetProviding``); archiving is framework-owned.
+///
+/// The target model must declare a delete timestamp; use ``DestroyRequest`` to remove a row.
 ///
 /// Its `ResponseError` is a ``ValidatableViewModelRequestError``: a validation failure on the
 /// server, from the body's rules or from the model's own, reaches the client as that error
@@ -38,21 +40,20 @@ import FOSFoundation
 /// ```swift
 /// public typealias ResponseError = ValidationError
 /// ```
-public protocol CreateRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel,
-    ResponseBody: CreateResponseBody,
+public protocol ArchiveRequest: ServerRequest, Stubbable where
+    ResponseBody: ArchiveResponseBody,
     ResponseError: ValidatableViewModelRequestError {}
 
-public extension CreateRequest {
+public extension ArchiveRequest {
     static var baseTypeName: String {
-        "CreateRequest"
+        "ArchiveRequest"
     }
 
     var action: ServerRequestAction {
-        .create
+        .archive
     }
 }
 
-public protocol CreateResponseBody: ServerRequestBody {}
+public protocol ArchiveResponseBody: ServerRequestBody {}
 
-extension EmptyBody: CreateResponseBody {}
+extension EmptyBody: ArchiveResponseBody {}

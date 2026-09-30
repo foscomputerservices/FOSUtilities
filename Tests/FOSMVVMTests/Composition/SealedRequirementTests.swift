@@ -107,7 +107,7 @@ private struct WriteVerbsVM: PlanFixture {
         [
             LoadRequirement.write(Berth.self, in: .parentRoot),
             LoadRequirement.create(CrewMember.self, in: .parentRoot),
-            LoadRequirement.delete(SlipAssignment.self, in: .parentRoot)
+            LoadRequirement.archive(SlipAssignment.self, in: .parentRoot)
         ]
     }
 }
@@ -250,7 +250,7 @@ struct SealedRequirementTests {
 
         #expect(write.operation == .writeRecords)
         #expect(create.operation == .createRecords)
-        #expect(delete.operation == .deleteRecords)
+        #expect(delete.operation == .archiveRecords)
     }
 
     // compile-audit: `.create` accepts no `via:` intermediates — the root
