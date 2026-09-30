@@ -78,7 +78,7 @@ public extension Collection<FormFieldBase> {
 ///     static var emailRange: ClosedRange<Int> { 4...254 }
 ///
 ///     static var emailField: FormField<String?> { .init(
-///         fieldId: .init(id: "email"),
+///         fieldId: #fieldId(\Self.email),
 ///         title: .localized(for: Self.self, parentKeys: "email", propertyName: "title"),
 ///         placeholder: .localized(for: Self.self, parentKeys: "email", propertyName: "placeholder"),
 ///         type: .text(inputType: .emailAddress),
@@ -96,7 +96,7 @@ public extension Collection<FormFieldBase> {
 ///     static var firstNameMaxLength: Int { 191 }
 ///
 ///     static var firstNameField: FormField<String?> { .init(
-///         fieldId: .init(id: "firstName"),
+///         fieldId: #fieldId(\Self.firstName),
 ///         title: .localized(for: Self.self, parentKeys: "firstName", propertyName: "title"),
 ///         placeholder: .localized(for: Self.self, parentKeys: "firstName", propertyName: "placeholder"),
 ///         type: .text(inputType: .givenName),
@@ -113,7 +113,7 @@ public extension Collection<FormFieldBase> {
 ///     static var lastNameMaxLength: Int { 191 }
 ///
 ///     static var lastNameField: FormField<String?> { .init(
-///         fieldId: .init(id: "lastName"),
+///         fieldId: #fieldId(\Self.lastName),
 ///         title: .localized(for: Self.self, parentKeys: "lastName", propertyName: "title"),
 ///         placeholder: .localized(for: Self.self, parentKeys: "lastName", propertyName: "placeholder"),
 ///         type: .text(inputType: .givenName),
@@ -158,7 +158,8 @@ public struct FormField<Value: Codable & Hashable>: FormFieldBase, Sendable {
     /// Initializes the `FormField`
     ///
     /// - Parameters:
-    ///     - fieldId: A ``FormFieldIdentifier`` used to key any data sent back to the server for this field
+    ///     - fieldId: A ``FormFieldIdentifier``, minted with ``fieldId(_:)`` over the property this
+    ///       field edits, used to key any data sent back to the server for this field
     ///     - title: A title to display to the user for this field
     ///     - placeholder: Displayed as placeholder text when the control supports placeholder text
     ///     - type: The `FormFieldType` to use to display the field's data in the form
