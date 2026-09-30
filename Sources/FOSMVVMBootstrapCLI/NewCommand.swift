@@ -36,6 +36,12 @@ struct New: ParsableCommand {
     @Flag(help: "Extra output, including the interview's equivalent --config JSON.")
     var verbose = false
 
+    @Option(name: .customLong("fos-utilities-path"), help: ArgumentHelp(
+        "Resolve FOSUtilities from this local checkout instead of the released pin.",
+        discussion: "For developing FOSUtilities itself: the generated project builds against the framework in that checkout, unreleased changes included. Omit it for a shippable project, which pins the release this scaffolder shipped with."
+    ))
+    var fosUtilitiesPath: String?
+
     func run() throws {
         let outputURL = URL(fileURLWithPath: output)
 
@@ -57,8 +63,14 @@ struct New: ParsableCommand {
             }
         }
 
+        let fosUtilities: FOSUtilitiesSource = if let fosUtilitiesPath {
+            .localCheckout(URL(fileURLWithPath: fosUtilitiesPath))
+        } else {
+            .release
+        }
+
         print("Scaffolding \(bootstrapConfig.projectName) (\(bootstrapConfig.shape.rawValue)) …")
-        let emitted = try Emitter.emit(config: bootstrapConfig, into: outputURL)
+        let emitted = try Emitter.emit(config: bootstrapConfig, into: outputURL, fosUtilities: fosUtilities)
         print("Emitted \(emitted.count) files.")
 
         // Project generation (the .xcodeproj from project.yml) is part of the

@@ -21,6 +21,7 @@ public enum EmitterError: Error, Equatable {
     case outputDirectoryNotEmpty(String)
     case templatesNotFound(String)
     case shapeNotImplemented(String)
+    case fosUtilitiesCheckoutNotFound(String)
 }
 
 extension EmitterError: CustomStringConvertible {
@@ -32,6 +33,8 @@ extension EmitterError: CustomStringConvertible {
             "templates not found: \(detail)"
         case .shapeNotImplemented(let shape):
             "project shape not implemented by this version: \(shape)"
+        case .fosUtilitiesCheckoutNotFound(let path):
+            "no FOSUtilities Package.swift at: \(path)"
         }
     }
 }
@@ -49,12 +52,22 @@ public enum Emitter {
     /// returns the emitted relative paths (sorted, for stable assertions):
     /// `let paths = try Emitter.emit(config: config, into: url)`.
     ///
+    /// The generated project pins the FOSUtilities release this scaffolder
+    /// ships with. Pass `fosUtilities: .localCheckout(url)` to resolve
+    /// FOSUtilities from a checkout on this machine instead — see
+    /// ``FOSUtilitiesSource``.
+    ///
     /// Throws `EmitterError.shapeNotImplemented` when `config.shape` has no
     /// template tree in this version, `EmitterError.outputDirectoryNotEmpty`
-    /// when `outputDir` already holds files, and `TemplateError.unrenderedToken`
+    /// when `outputDir` already holds files, `EmitterError.fosUtilitiesCheckoutNotFound`
+    /// when a local checkout has no `Package.swift`, and `TemplateError.unrenderedToken`
     /// if any emitted file or path would still contain a `{{TOKEN}}`.
     @discardableResult
-    public static func emit(config: BootstrapConfig, into outputDir: URL) throws -> [String] {
+    public static func emit(
+        config: BootstrapConfig,
+        into outputDir: URL,
+        fosUtilities: FOSUtilitiesSource = .release
+    ) throws -> [String] {
         let fm = FileManager.default
 
         // Shape guard — the VERY FIRST thing emit() does, before TokenSet.derive
@@ -73,7 +86,12 @@ public enum Emitter {
             throw EmitterError.shapeNotImplemented(shapeDirName)
         }
 
-        let tokens = try TokenSet.derive(from: config)
+        if case .localCheckout(let checkout) = fosUtilities,
+           !fm.fileExists(atPath: checkout.appendingPathComponent("Package.swift").path) {
+            throw EmitterError.fosUtilitiesCheckoutNotFound(checkout.path)
+        }
+
+        let tokens = try TokenSet.derive(from: config, fosUtilities: fosUtilities)
 
         if fm.fileExists(atPath: outputDir.path),
            let existing = try? fm.contentsOfDirectory(atPath: outputDir.path),

@@ -91,6 +91,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It builds `ContainerOperation.destroyRecords`, which the wildcard grant never covers — the
   container grants it by name.
 
+- **Scaffold against a local FOSUtilities checkout** (FOSMVVMBootstrap) — `fosmvvm-bootstrap new
+  --fos-utilities-path <directory>` emits a project that resolves FOSUtilities by path instead of
+  the released pin, for developing FOSUtilities itself. Programmatically, `Emitter.emit(config:into:fosUtilities:)`
+  and `TokenSet.derive(from:fosUtilities:)` take a `FOSUtilitiesSource` (`.release`, the default, or
+  `.localCheckout(url)`); a checkout without a `Package.swift` throws
+  `EmitterError.fosUtilitiesCheckoutNotFound`. CI's walking skeletons and generated UI tests now
+  scaffold against the checkout under test, so a template may use an API introduced in the same
+  branch — which the `#fieldId` template change in this release needs.
+
 ### Changed
 
 - **`LoadRequirement.delete` is now `LoadRequirement.archive`** (FOSMVVM) — the candidate-set verb

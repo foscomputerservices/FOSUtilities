@@ -55,7 +55,7 @@ Every release of the scaffolder is verified by CI: the generated projects are bu
 
 Either way, generation finishes with a short checklist of the few steps tooling cannot do for you, such as committing the new repository and confirming code signing.
 
-> Note: The generated project depends on the FOSUtilities release the scaffolder shipped with, using `from:`, so later releases arrive with a normal package update. Running the scaffolder from a checkout between releases pins the most recently stamped release.
+> Note: The generated project depends on the FOSUtilities release the scaffolder shipped with, using `from:`, so later releases arrive with a normal package update. Running the scaffolder from a checkout between releases pins the most recently stamped release. To build the generated project against a FOSUtilities checkout on your machine instead, pass `--fos-utilities-path <directory>`; the project then resolves FOSUtilities by path, which is how FOSUtilities' own CI proves each scaffold against the branch under test.
 
 ## Diagnosing an existing project
 

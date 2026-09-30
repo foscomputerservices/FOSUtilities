@@ -12,10 +12,7 @@ let package = Package(
         .executable(name: "{{PROJECT_NAME}}Server", targets: ["{{PROJECT_NAME}}Server"])
     ],
     dependencies: [
-        .package(
-            url: "https://github.com/foscomputerservices/FOSUtilities.git",
-            from: "{{FOS_VERSION}}"
-        ),
+        {{FOS_PACKAGE_DEPENDENCY}},
         .package(url: "https://github.com/vapor/vapor.git", from: "4.102.0"),
         .package(url: "https://github.com/vapor/fluent.git", from: "4.9.0"),
         .package(url: "https://github.com/vapor/fluent-sqlite-driver.git", from: "4.6.0")
