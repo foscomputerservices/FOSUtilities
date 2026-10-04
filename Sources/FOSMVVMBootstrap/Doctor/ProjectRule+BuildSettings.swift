@@ -146,7 +146,8 @@ extension ProjectRule {
                             target: target.name,
                             summary: release.map { "ENABLE_HARDENED_RUNTIME is \($0) in the Release configuration." }
                                 ?? "ENABLE_HARDENED_RUNTIME is not set in the Release configuration.",
-                            remedy: "Set ENABLE_HARDENED_RUNTIME to YES for Release. Notarization requires it, so an app that ships without it is rejected."
+                            remedy: "Set ENABLE_HARDENED_RUNTIME to YES for Release. Notarization requires it, so an app that ships without it is rejected.",
+                            rule: .hardenedRuntimeRelease
                         )
                     )
                 }

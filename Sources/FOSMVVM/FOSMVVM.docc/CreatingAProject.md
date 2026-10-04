@@ -87,7 +87,7 @@ The first run builds the scaffolder, so it takes a few minutes; later runs are i
 
 > Note: A standalone binary you could install once, without the checkout, is planned. Until it ships, the checkout is the supported route for Xcode-only projects.
 
-A finding is a defect until you say otherwise, and for most there is no otherwise. The exception is a rule the generated shape always satisfies but an app can break on purpose, such as the sandbox on a tool that must reach local Docker. Doctor still reports it, and prints the rule identifier under the finding. Disable that rule for that target in `.fosmvvm-review.yml` at the repo root, the way you would in `.swiftlint.yml`, and `fosmvvm-review` reports it as a warning with your reason instead of halting:
+A finding is a defect until you say otherwise, and for most there is no otherwise. The exception is a rule the generated shape always satisfies but an app can break on purpose, such as the sandbox on a tool that must reach local Docker, or the Release hardened runtime on an app distributed only through the Mac App Store. Doctor still reports it, and prints the rule identifier under the finding. Disable that rule for that target in `.fosmvvm-review.yml` at the repo root, the way you would in `.swiftlint.yml`, and `fosmvvm-review` reports it as a warning with your reason instead of halting:
 
 ```yaml
 doctor:
