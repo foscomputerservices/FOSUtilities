@@ -52,7 +52,7 @@ Look for `.fosmvvm-review.yml` at the repo root. If present, parse:
 - `disabled_checks:` — list of check names to skip globally.
 - `severity_overrides:` — map of `check-name: severity` (blocker | warning | nit).
 - `excluded_paths:` — list of glob patterns; matching files are removed from scope.
-- `doctor:` → `disabled_rules:` — list of `{rule, target, reason}` entries disabling one doctor rule for one target, the way SwiftLint's `disabled_rules` names rules (Step 2). `rule` is the identifier doctor prints on the finding (`app_sandbox`), `target` the Xcode target it names, `reason` one sentence. An entry without a reason is malformed. Nested under `doctor:` so it never reads as a sibling of `disabled_checks`, which governs tier 2.
+- `doctor:` → `disabled_rules:` — list of `{rule, target, reason}` entries disabling one doctor rule for one target, the way SwiftLint's `disabled_rules` names rules (Step 2). `rule` is the identifier doctor prints on the finding (`app_sandbox`, `hardened_runtime_release`), `target` the Xcode target it names, `reason` one sentence. An entry without a reason is malformed. Nested under `doctor:` so it never reads as a sibling of `disabled_checks`, which governs tier 2.
 
 If the file is missing or any key is absent, use defaults. If the file is malformed (invalid YAML, unknown top-level keys), print a warning and continue with defaults.
 
