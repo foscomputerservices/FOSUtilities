@@ -27,7 +27,7 @@ struct New: ParsableCommand {
     @Option(name: .shortAndLong, help: "Path to a BootstrapConfig JSON file. Omit to answer a short interview instead.")
     var config: String?
 
-    @Option(name: .shortAndLong, help: "Output directory for the new project (must be empty or absent).")
+    @Option(name: .shortAndLong, help: "Output directory for the new project: absent, empty, or an existing repository with no project in it yet. Nothing already there is overwritten.")
     var output: String
 
     @Flag(help: "After generating, build the project and run its tests (swift build / swift test / xcodebuild). CI verifies every release the same way; use this to prove the skeleton on THIS machine.")
