@@ -139,11 +139,17 @@ extension AuditedTarget {
     }
 
     /// True when the target builds for macOS, which is the only platform the
-    /// hardened runtime applies to.
+    /// hardened runtime and the App Sandbox entitlements apply to.
     var buildsForMacOS: Bool {
-        if setting("MACOSX_DEPLOYMENT_TARGET") != nil {
-            return true
+        if let platforms = setting("SUPPORTED_PLATFORMS") {
+            return platforms.split(separator: " ").contains("macosx")
         }
-        return setting("SUPPORTED_PLATFORMS")?.contains("macosx") ?? false
+        if let sdk = setting("SDKROOT"), sdk != "auto" {
+            return sdk.hasPrefix("macosx")
+        }
+        // Last, because XcodeGen writes every suite platform's deployment
+        // target at the project level, and settings merge down into targets:
+        // a watchOS target inherits MACOSX_DEPLOYMENT_TARGET.
+        return setting("MACOSX_DEPLOYMENT_TARGET") != nil
     }
 }

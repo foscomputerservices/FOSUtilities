@@ -63,6 +63,11 @@ public enum Severity: String, Sendable, Equatable, CaseIterable, Codable {
 public enum DisableableRule: String, Sendable, Equatable, CaseIterable, Codable {
     /// The app carries `com.apple.security.app-sandbox`.
     case appSandbox = "app_sandbox"
+
+    /// The app enables `ENABLE_HARDENED_RUNTIME` in Release. Notarization
+    /// requires it; an app distributed only through the Mac App Store is not
+    /// notarized.
+    case hardenedRuntimeRelease = "hardened_runtime_release"
 }
 
 /// One thing `Doctor` found wrong, and what to do about it.

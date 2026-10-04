@@ -75,6 +75,13 @@ enum Fixture {
         try materialize("ClientServer")
     }
 
+    /// A client-server suite emitted for macOS, iOS, tvOS and watchOS: one
+    /// multiplatform app target plus a separate watchOS app target, with every
+    /// platform's deployment target written at the project level.
+    static func multiPlatform() throws -> URL {
+        try materialize("MultiPlatform")
+    }
+
     /// The shared-library shape: an SPM package with no `.xcodeproj` at all.
     /// Every Xcode-reading rule has to stay silent here rather than report a
     /// project-wide failure.

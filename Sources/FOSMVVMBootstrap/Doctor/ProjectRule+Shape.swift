@@ -27,6 +27,9 @@ extension ProjectRule {
     /// A client-server app that cannot open an outbound connection fails at
     /// runtime, when it first tries to reach its own server — which is what
     /// puts this at error rather than warning.
+    ///
+    /// macOS app targets only. iOS, tvOS and watchOS apps are sandboxed by the
+    /// OS, and `app-sandbox` and `network.client` are macOS keys.
     static var entitlementsPosture: ProjectRule {
         ProjectRule(
             summary: "entitlements match the project shape",
@@ -35,7 +38,7 @@ extension ProjectRule {
             guard let shape else { return [] }
 
             var findings: [Finding] = []
-            for target in project.targets where target.kind == .application {
+            for target in project.targets where target.kind == .application && target.buildsForMacOS {
                 guard let entitlements = target.entitlements else {
                     findings.append(
                         Finding(

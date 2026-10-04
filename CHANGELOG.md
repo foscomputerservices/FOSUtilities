@@ -7,12 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`hardened_runtime_release` can be disabled in `.fosmvvm-review.yml`** — a macOS app
+  distributed only through the Mac App Store is not notarized, so it may record that choice under
+  `doctor.disabled_rules`. A hardened runtime enabled in Debug, and a macOS app with no
+  entitlements file, remain errors that cannot be disabled.
+
 ### Changed
 
 - **`fosmvvm-bootstrap new` scaffolds into an existing repository** — the output directory may
   already hold a `.git`, docs or plans. Nothing is overwritten: when any path the project would
   write already exists (including `<Name>.xcodeproj`), it writes nothing and names every such
   path. `EmitterError.outputDirectoryNotEmpty` is replaced by `EmitterError.pathsAlreadyExist`.
+
+### Fixed
+
+- **`fosmvvm-doctor` no longer applies macOS signing rules to iOS, tvOS and watchOS app targets.**
+  The entitlements rule and the hardened-runtime rule now judge only app targets that build for
+  macOS. A project the scaffolder emitted for macOS plus watchOS used to fail its own doctor run:
+  the watchOS app target inherits the project-level `MACOSX_DEPLOYMENT_TARGET`, and was asked for
+  an App Sandbox entitlement and a Release hardened runtime, neither of which exists on watchOS.
 
 ## [0.19.0] - 2026-10-01
 

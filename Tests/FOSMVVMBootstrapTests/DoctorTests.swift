@@ -47,6 +47,16 @@ struct DoctorTests {
         #expect(report.findings.isEmpty, "unexpected: \(report.text)")
     }
 
+    @Test("a generated four-platform client-server suite has no findings")
+    func multiPlatformIsClean() throws {
+        // The watchOS app target inherits MACOSX_DEPLOYMENT_TARGET from the
+        // project level, and carries no entitlements file or hardened runtime
+        // because neither exists on watchOS.
+        let project = try Fixture.multiPlatform()
+        let report = try Doctor.examine(projectAt: project, shape: .clientServer)
+        #expect(report.findings.isEmpty, "unexpected: \(report.text)")
+    }
+
     @Test("a generated shared-library package has no findings")
     func sharedLibraryIsClean() throws {
         let project = try Fixture.sharedLibrary()
@@ -203,6 +213,17 @@ struct DoctorTests {
         let finding = try #require(report.findings.first { $0.summary.contains("Release configuration") })
         #expect(finding.severity == .error)
         #expect(finding.remedy.contains("Notarization"))
+        #expect(finding.rule == .hardenedRuntimeRelease)
+    }
+
+    @Test("R12 — a hardened runtime in Debug is not disableable")
+    func hardenedRuntimeInDebugIsNotDisableable() throws {
+        let report = try Fixture.localOnly(
+            mutatingProject: { $0.replacingOccurrences(of: "ENABLE_HARDENED_RUNTIME = NO;", with: "ENABLE_HARDENED_RUNTIME = YES;") },
+            shape: .localOnly
+        )
+        let finding = try #require(report.findings.first { $0.summary.contains("YES in the Debug configuration") })
+        #expect(finding.rule == nil)
     }
 
     @Test("R7 — an app with no entitlements file at all is an error")
@@ -214,6 +235,7 @@ struct DoctorTests {
         }
         let finding = try #require(report.findings.first { $0.summary.contains("declares no entitlements file") })
         #expect(finding.severity == .error)
+        #expect(finding.rule == nil)
     }
 }
 

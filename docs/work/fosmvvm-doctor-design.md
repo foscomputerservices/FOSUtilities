@@ -166,10 +166,11 @@ public struct Finding {
 
 public enum DisableableRule: String, CaseIterable, Codable {
     case appSandbox = "app_sandbox"
+    case hardenedRuntimeRelease = "hardened_runtime_release"
 }
 ```
 
-`DisableableRule` is the closed set of rules the generated shape always satisfies but an app may break on purpose. It has one case. `network.client` is not one (without it a client-server app cannot reach its own server); `disable-library-validation` is not (it is a symptom); hardened runtime in Debug is not (it kills UI testing); linkage and embedding are never choices. New cases are ruled onto the enum one at a time, on field evidence, the way rules are ruled onto the table.
+`DisableableRule` is the closed set of rules the generated shape always satisfies but an app may break on purpose. It has two cases. The second, hardened runtime in Release, was ruled on 2026-10-04: notarization is the only reason for it, and an app distributed only through the Mac App Store is not notarized. `network.client` is not one (without it a client-server app cannot reach its own server); `disable-library-validation` is not (it is a symptom); hardened runtime in Debug is not (it kills UI testing); linkage and embedding are never choices. New cases are ruled onto the enum one at a time, on field evidence, the way rules are ruled onto the table.
 
 The config nests under `doctor:` — `doctor.disabled_rules`, entries of `rule`, `target`, `reason` — so it never sits beside tier 2's `disabled_checks` as a near-twin key. The JSON carries the identifier verbatim on the findings that have one, and omits the key elsewhere, so parsers written against the earlier shape are unaffected. `Report.text` appends one line under such a finding naming the identifier, so the person reading the terminal knows what to write. Doctor's own verdict does not change: `hasErrors` stays true, the exit code stays non-zero, because doctor reports facts. The review skill applies the config — a matched finding reports at warning with the reason beside it, and the skill recomputes its gate from what remains — and an entry naming a rule doctor did not print is reported as unmatched, never honored.
 
