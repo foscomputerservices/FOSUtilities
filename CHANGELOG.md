@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`fosmvvm-bootstrap new` scaffolds into an existing repository** — the output directory may
+  already hold a `.git`, docs or plans. Nothing is overwritten: when any path the project would
+  write already exists (including `<Name>.xcodeproj`), it writes nothing and names every such
+  path. `EmitterError.outputDirectoryNotEmpty` is replaced by `EmitterError.pathsAlreadyExist`.
+
 ## [0.19.0] - 2026-10-01
 
 ### Added

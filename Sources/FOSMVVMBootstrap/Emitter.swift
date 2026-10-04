@@ -18,7 +18,9 @@
 import Foundation
 
 public enum EmitterError: Error, Equatable {
-    case outputDirectoryNotEmpty(String)
+    /// Paths the project would write that already exist, relative to the
+    /// output directory. Nothing was written.
+    case pathsAlreadyExist([String])
     case templatesNotFound(String)
     case shapeNotImplemented(String)
     case fosUtilitiesCheckoutNotFound(String)
@@ -27,8 +29,8 @@ public enum EmitterError: Error, Equatable {
 extension EmitterError: CustomStringConvertible {
     public var description: String {
         switch self {
-        case .outputDirectoryNotEmpty(let path):
-            "output directory not empty: \(path)"
+        case .pathsAlreadyExist(let paths):
+            "already exist, nothing written: \(paths.joined(separator: ", "))"
         case .templatesNotFound(let detail):
             "templates not found: \(detail)"
         case .shapeNotImplemented(let shape):
@@ -39,14 +41,15 @@ extension EmitterError: CustomStringConvertible {
     }
 }
 
-/// Composes a greenfield FOSMVVM project on disk:
+/// Composes a new FOSMVVM project on disk:
 /// `try Emitter.emit(config: config, into: outputDir)` renders
 /// `Templates/shared` (doctrine common to every shape) plus
 /// `Templates/<shape>` — and, for app shapes, `Templates/platforms/<platform>`
 /// for each platform the config declares — into `outputDir`, returning the
-/// emitted relative paths. Never overwrites — an existing non-empty `outputDir` throws
-/// `EmitterError.outputDirectoryNotEmpty`, because bootstrap is
-/// greenfield-only by design.
+/// emitted relative paths. `outputDir` may be absent, empty, or an existing
+/// repository with no project in it yet (`docs/`, `plans/`, a `.git`).
+/// Never overwrites — when any path it would write already exists, it throws
+/// `EmitterError.pathsAlreadyExist` naming them all, and writes nothing.
 public enum Emitter {
     /// Renders the shared + shape template trees into `outputDir` and
     /// returns the emitted relative paths (sorted, for stable assertions):
@@ -58,8 +61,8 @@ public enum Emitter {
     /// ``FOSUtilitiesSource``.
     ///
     /// Throws `EmitterError.shapeNotImplemented` when `config.shape` has no
-    /// template tree in this version, `EmitterError.outputDirectoryNotEmpty`
-    /// when `outputDir` already holds files, `EmitterError.fosUtilitiesCheckoutNotFound`
+    /// template tree in this version, `EmitterError.pathsAlreadyExist`
+    /// when a path it would write already exists, `EmitterError.fosUtilitiesCheckoutNotFound`
     /// when a local checkout has no `Package.swift`, and `TemplateError.unrenderedToken`
     /// if any emitted file or path would still contain a `{{TOKEN}}`.
     @discardableResult
@@ -93,18 +96,7 @@ public enum Emitter {
 
         let tokens = try TokenSet.derive(from: config, fosUtilities: fosUtilities)
 
-        if fm.fileExists(atPath: outputDir.path),
-           let existing = try? fm.contentsOfDirectory(atPath: outputDir.path),
-           !existing.isEmpty {
-            throw EmitterError.outputDirectoryNotEmpty(outputDir.path)
-        }
-        try fm.createDirectory(at: outputDir, withIntermediateDirectories: true)
-
-        var emitted: [String] = []
-        for sourceDir in ["shared", shapeDirName] {
-            let root = templatesRoot.appendingPathComponent(sourceDir)
-            emitted += try emitTree(from: root, into: outputDir, tokens: tokens)
-        }
+        var roots = ["shared", shapeDirName].map { templatesRoot.appendingPathComponent($0) }
 
         // Platform trees — `Templates/platforms/<platform>` — ride along when the
         // config declares that platform. Only app shapes receive them: what they
@@ -116,10 +108,30 @@ public enum Emitter {
                     .appendingPathComponent("platforms")
                     .appendingPathComponent(platform.rawValue)
                 guard fm.fileExists(atPath: root.path, isDirectory: &isDir), isDir.boolValue else { continue }
-                emitted += try emitTree(from: root, into: outputDir, tokens: tokens)
+                roots.append(root)
             }
         }
-        return emitted.sorted()
+
+        var planned: [PlannedFile] = []
+        for root in roots {
+            planned += try plan(tree: root, tokens: tokens)
+        }
+
+        var claimed = planned.map(\.relativePath)
+        // xcodegen writes the project next to project.yml once emitting is done.
+        if claimed.contains("project.yml") {
+            claimed.append("\(config.projectName).xcodeproj")
+        }
+        let collisions = existingPaths(claimed, in: outputDir)
+        guard collisions.isEmpty else {
+            throw EmitterError.pathsAlreadyExist(collisions)
+        }
+
+        try fm.createDirectory(at: outputDir, withIntermediateDirectories: true)
+        for file in planned {
+            try write(file, into: outputDir)
+        }
+        return planned.map(\.relativePath).sorted()
     }
 
     private static func hasAppTarget(_ shape: ProjectShape) -> Bool {
@@ -138,7 +150,15 @@ public enum Emitter {
         }
     }
 
-    private static func emitTree(from root: URL, into outputDir: URL, tokens: [String: String]) throws -> [String] {
+    private struct PlannedFile {
+        let relativePath: String
+        let content: String
+        let isSymbolicLink: Bool
+    }
+
+    /// Renders a template tree in memory. Writing waits until every path is
+    /// known to be free.
+    private static func plan(tree root: URL, tokens: [String: String]) throws -> [PlannedFile] {
         let fm = FileManager.default
         // Standardize so /var vs /private/var symlink differences don't
         // corrupt the prefix arithmetic that derives the relative path.
@@ -151,7 +171,7 @@ public enum Emitter {
             throw EmitterError.templatesNotFound(root.path)
         }
 
-        var emitted: [String] = []
+        var planned: [PlannedFile] = []
         for case let fileURL as URL in enumerator {
             guard try fileURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile == true else { continue }
             let relative = String(fileURL.standardizedFileURL.path.dropFirst(root.path.count + 1))
@@ -159,40 +179,79 @@ public enum Emitter {
                 continue
             }
 
+            let renderedRelative = try TemplateRenderer.render(relativePath: relative, tokens: tokens)
+            let renderedContent = try TemplateRenderer.render(
+                content: String(contentsOf: fileURL, encoding: .utf8),
+                tokens: tokens
+            )
+
             // A `.symlink` template emits a symbolic link, not a file: the destination
             // is the path minus `.symlink`, and the template's (tokenized) contents are
             // the link's target. Keeps a shared, continually-modifiable file in sync
             // between two locations (e.g. TestConfiguration in the app + the UITests).
-            if relative.hasSuffix(".symlink") {
-                let rendered = try TemplateRenderer.render(relativePath: relative, tokens: tokens)
-                let linkRelative = String(rendered.dropLast(".symlink".count))
-                let target = try TemplateRenderer.render(
-                    content: String(contentsOf: fileURL, encoding: .utf8),
-                    tokens: tokens
-                ).trimmingCharacters(in: .whitespacesAndNewlines)
-                let destination = outputDir.appendingPathComponent(linkRelative)
-                try fm.createDirectory(
-                    at: destination.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try? fm.removeItem(at: destination)
-                try fm.createSymbolicLink(atPath: destination.path, withDestinationPath: target)
-                emitted.append(linkRelative)
+            if renderedRelative.hasSuffix(".symlink") {
+                planned.append(PlannedFile(
+                    relativePath: String(renderedRelative.dropLast(".symlink".count)),
+                    content: renderedContent.trimmingCharacters(in: .whitespacesAndNewlines),
+                    isSymbolicLink: true
+                ))
+            } else {
+                planned.append(PlannedFile(
+                    relativePath: renderedRelative,
+                    content: renderedContent,
+                    isSymbolicLink: false
+                ))
+            }
+        }
+        return planned
+    }
+
+    /// The claimed paths something already occupies — the path itself (a file,
+    /// a directory, or a link, even a dangling one), or a file where one of its
+    /// parent directories would go.
+    private static func existingPaths(_ claimed: [String], in outputDir: URL) -> [String] {
+        let fm = FileManager.default
+        func occupied(_ relative: String) -> Bool {
+            (try? fm.attributesOfItem(atPath: outputDir.appendingPathComponent(relative).path)) != nil
+        }
+        func isDirectory(_ relative: String) -> Bool {
+            var isDir: ObjCBool = false
+            return fm.fileExists(atPath: outputDir.appendingPathComponent(relative).path, isDirectory: &isDir)
+                && isDir.boolValue
+        }
+
+        var collisions: Set<String> = []
+        for path in claimed {
+            if occupied(path) {
+                collisions.insert(path)
                 continue
             }
-
-            let renderedRelative = try TemplateRenderer.render(relativePath: relative, tokens: tokens)
-            let content = try String(contentsOf: fileURL, encoding: .utf8)
-            let renderedContent = try TemplateRenderer.render(content: content, tokens: tokens)
-
-            let destination = outputDir.appendingPathComponent(renderedRelative)
-            try fm.createDirectory(
-                at: destination.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try renderedContent.write(to: destination, atomically: true, encoding: .utf8)
-            emitted.append(renderedRelative)
+            var parent = (path as NSString).deletingLastPathComponent
+            while !parent.isEmpty {
+                if occupied(parent), !isDirectory(parent) {
+                    collisions.insert(parent)
+                    break
+                }
+                parent = (parent as NSString).deletingLastPathComponent
+            }
         }
-        return emitted
+        return collisions.sorted()
+    }
+
+    private static func write(_ file: PlannedFile, into outputDir: URL) throws {
+        let fm = FileManager.default
+        let destination = outputDir.appendingPathComponent(file.relativePath)
+        try fm.createDirectory(
+            at: destination.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        if file.isSymbolicLink {
+            // Only an earlier tree of this same run can be here; existing
+            // paths were refused before anything was written.
+            try? fm.removeItem(at: destination)
+            try fm.createSymbolicLink(atPath: destination.path, withDestinationPath: file.content)
+        } else {
+            try file.content.write(to: destination, atomically: true, encoding: .utf8)
+        }
     }
 }

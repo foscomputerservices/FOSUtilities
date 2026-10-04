@@ -82,17 +82,58 @@ struct EmitterTests {
         }
     }
 
-    @Test func refusesNonEmptyOutputDirectory() throws {
-        let out = FileManager.default.temporaryDirectory
-            .appendingPathComponent("emit-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
-        FileManager.default.createFile(
-            atPath: out.appendingPathComponent("existing.txt").path,
-            contents: Data("x".utf8)
-        )
-        defer { try? FileManager.default.removeItem(at: out) }
+    @Test func scaffoldsIntoAnExistingRepository() throws {
+        let fm = FileManager.default
+        let out = fm.temporaryDirectory.appendingPathComponent("emit-\(UUID().uuidString)")
+        let notes = out.appendingPathComponent("plans/notes.md")
+        try fm.createDirectory(at: notes.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("keep me".utf8).write(to: notes)
+        try fm.createDirectory(at: out.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: out) }
 
-        #expect(throws: EmitterError.outputDirectoryNotEmpty(out.path)) {
+        let emitted = try Emitter.emit(config: makeConfig(), into: out)
+
+        #expect(emitted.contains("Package.swift"))
+        #expect(fm.fileExists(atPath: out.appendingPathComponent("Package.swift").path))
+        #expect(try String(contentsOf: notes, encoding: .utf8) == "keep me")
+    }
+
+    @Test func refusesAnExistingPathAndWritesNothing() throws {
+        let fm = FileManager.default
+        let out = fm.temporaryDirectory.appendingPathComponent("emit-\(UUID().uuidString)")
+        try fm.createDirectory(at: out, withIntermediateDirectories: true)
+        let readme = out.appendingPathComponent("README.md")
+        try Data("mine".utf8).write(to: readme)
+        defer { try? fm.removeItem(at: out) }
+
+        #expect(throws: EmitterError.pathsAlreadyExist(["README.md"])) {
+            _ = try Emitter.emit(config: makeConfig(), into: out)
+        }
+        #expect(try fm.contentsOfDirectory(atPath: out.path) == ["README.md"])
+        #expect(try String(contentsOf: readme, encoding: .utf8) == "mine")
+    }
+
+    @Test func refusesAnExistingXcodeProject() throws {
+        // xcodegen would overwrite it after emitting, so it counts as a path
+        // the scaffold writes.
+        let fm = FileManager.default
+        let out = fm.temporaryDirectory.appendingPathComponent("emit-\(UUID().uuidString)")
+        try fm.createDirectory(at: out.appendingPathComponent("PalettePress.xcodeproj"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: out) }
+
+        #expect(throws: EmitterError.pathsAlreadyExist(["PalettePress.xcodeproj"])) {
+            _ = try Emitter.emit(config: makeLocalOnlyConfig(), into: out)
+        }
+    }
+
+    @Test func refusesAFileWhereADirectoryGoes() throws {
+        let fm = FileManager.default
+        let out = fm.temporaryDirectory.appendingPathComponent("emit-\(UUID().uuidString)")
+        try fm.createDirectory(at: out, withIntermediateDirectories: true)
+        try Data("not a directory".utf8).write(to: out.appendingPathComponent("Sources"))
+        defer { try? fm.removeItem(at: out) }
+
+        #expect(throws: EmitterError.pathsAlreadyExist(["Sources"])) {
             _ = try Emitter.emit(config: makeConfig(), into: out)
         }
     }
