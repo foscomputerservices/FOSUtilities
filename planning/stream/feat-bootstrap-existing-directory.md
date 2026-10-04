@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 last_updated: 2026-10-04
 origin: fosline (cross-session message, at David's word)
 ---
@@ -29,3 +29,4 @@ A project whose repository already exists can be scaffolded in place, with no ha
 
 - 2026-10-04 minted at David's direction from fosline's report; nothing built
 - 2026-10-04 OQ12 ruled; BUILT on feat/bootstrap-existing-directory: the emitter renders every tree in memory, refuses with `EmitterError.pathsAlreadyExist` (name ruled by David, OQ13) listing each existing path, including `<Name>.xcodeproj` and a file where a directory goes, then writes; four emitter tests; end-to-end run into a repo with `.git`, `docs/`, `plans/` left them untouched
+- 2026-10-04 CLOSED: merged via PR #162, released in 0.19.1

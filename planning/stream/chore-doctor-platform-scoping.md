@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 last_updated: 2026-10-04
 origin: fosline (cross-session message, at David's word)
 ---
@@ -36,3 +36,4 @@ Doctor's hardened-runtime and app-sandbox rules fire only on targets that build 
 - 2026-10-04 minted at David's direction from fosline's report; root cause of the R12 misfire traced to the project-level `MACOSX_DEPLOYMENT_TARGET` merge; nothing built
 - 2026-10-04 OQ7 and OQ8 ruled as recommended; nothing built
 - 2026-10-04 BUILT on fix/doctor-platform-scoping: `buildsForMacOS` decides by SUPPORTED_PLATFORMS, then SDKROOT, then the inherited deployment target; R7 scoped to macOS app targets; `hardened_runtime_release` added (name ruled by David, OQ10); MultiPlatform fixture (macOS+iOS+tvOS+watchOS clientServer) whose clean test fails before the fix; 106 bootstrap tests green; fixed doctor reports fosline clean
+- 2026-10-04 CLOSED: merged via PR #161, released in 0.19.1
