@@ -65,13 +65,14 @@ public struct {Name}ViewModel: RequestableViewModel {
     public init(/* parameters */) {
         // Initialize all properties
     }
-}
 
-// MARK: - Stubbable
+    // MARK: - Stubbable
 
-public extension {Name}ViewModel {
-    static func stub() -> Self {
-        .init(/* default values for previews */)
+    // Every parameter defaulted, IN THE BODY: `@ViewModel` synthesizes
+    // the zero-arg `stub()` witness from it. Forward top-level values into the
+    // children's `stub(...)` calls so the whole hierarchy is valid.
+    public static func stub(/* defaulted parameters; a child-valued one may be the value that chains down */) -> Self {
+        .init(/* parameters */)
     }
 }
 ```
@@ -94,11 +95,11 @@ import Foundation
 /// This is a child ViewModel - built by its parent's Factory.
 /// Each instance represents a different data entity.
 @ViewModel
-public struct {Name}ViewModel {
+public struct {Name}ViewModel: ModelIdentifiedViewModel {
     // MARK: - Data Identity
 
-    /// The database entity ID - enables round-trip to server
-    public let id: ModelIdType
+    /// Opaque: transported to the Operations that act on this entity; roots `vmId`.
+    public let modelIdentity: ModelIdentity
 
     // MARK: - Content
 
@@ -115,15 +116,16 @@ public struct {Name}ViewModel {
 
     // MARK: - Initialization
 
+    // Takes the identity, never the Model — the Factory reads `model.modelIdentity`.
     public init(
-        id: ModelIdType,
+        modelIdentity: ModelIdentity,
         title: String,
         createdAt: Date
     ) {
-        self.id = id
+        self.modelIdentity = modelIdentity
         self.title = title
         self.createdAt = LocalizableDate(value: createdAt)
-        self.vmId = .init(id: id)  // Instance identity from data ID
+        self.vmId = modelIdentity.viewModelId
     }
 
     // MARK: - Stubbable
@@ -132,18 +134,20 @@ public struct {Name}ViewModel {
     // synthesizes the zero-arg `stub()` witness from it. A member macro cannot
     // see a stub declared in an `extension`.
     public static func stub(
-        id: ModelIdType = .init(),
+        modelIdentity: ModelIdentity = .stub(),
         title: String = "Sample Title",
         createdAt: Date = .now
     ) -> Self {
         .init(
-            id: id,
+            modelIdentity: modelIdentity,
             title: title,
             createdAt: createdAt
         )
     }
 }
 ```
+
+**Why the identity, and why opaque:** the identity is how *data model → ViewModel → View → action → Operation → ServerRequest → server → database change* names the entity, so the ViewModel transports it unchanged and roots `vmId` in it — nothing more. **SOLID protected: DIP** (the ViewModel module never imports the domain; the Factory adapts) **and encapsulation** (no one can mint, parse, or route on the identity). A `Model` in the init, or a raw `ModelIdType`/`UUID`/`String` id, is the red flag. See SKILL.md → *An Entity's Identity Passes Through the ViewModel Opaquely*.
 
 ---
 
@@ -193,8 +197,6 @@ public extension {Name}ViewModel {
 
 For ViewModels that contain child types used only by this parent. Shows proper placement, conformances, and the Stubbable pattern: the `@ViewModel` parent's zero-arg `stub()` is macro-synthesized from its parameterized stub, while nested non-`@ViewModel` types hand-write both stub tiers.
 
-**Reference:** `Sources/KairosModels/Governance/GovernancePrincipleCardViewModel.swift`
-
 **File:** `Sources/{Module}/{Feature}/{Name}ViewModel.swift`
 
 ```swift
@@ -208,14 +210,14 @@ import FOSMVVM
 import Foundation
 
 @ViewModel
-public struct {Name}ViewModel: Codable, Sendable, Identifiable {
+public struct {Name}ViewModel: ModelIdentifiedViewModel {
     // MARK: - Localized Strings
 
     @LocalizedString public var {field}Label
 
     // MARK: - Data Identity
 
-    public let id: ModelIdType
+    public let modelIdentity: ModelIdentity
 
     // MARK: - Content
 
@@ -234,12 +236,14 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
 
     /// Summary of a child item for display in lists.
     public struct ChildSummary: Codable, Sendable, Identifiable, Stubbable {
-        public let id: ModelIdType
+        public let modelIdentity: ModelIdentity
         public let name: String
         public let createdAt: Date
 
-        public init(id: ModelIdType, name: String, createdAt: Date) {
-            self.id = id
+        public var id: ViewModelId { modelIdentity.viewModelId }
+
+        public init(modelIdentity: ModelIdentity, name: String, createdAt: Date) {
+            self.modelIdentity = modelIdentity
             self.name = name
             self.createdAt = createdAt
         }
@@ -247,12 +251,14 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
 
     /// Reference to a related item.
     public struct RelatedItemReference: Codable, Sendable, Identifiable, Stubbable {
-        public let id: ModelIdType
+        public let modelIdentity: ModelIdentity
         public let title: String
         public let status: String
 
-        public init(id: ModelIdType, title: String, status: String) {
-            self.id = id
+        public var id: ViewModelId { modelIdentity.viewModelId }
+
+        public init(modelIdentity: ModelIdentity, title: String, status: String) {
+            self.modelIdentity = modelIdentity
             self.title = title
             self.status = status
         }
@@ -263,14 +269,14 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
     public let vmId: ViewModelId
 
     public init(
-        id: ModelIdType,
+        modelIdentity: ModelIdentity,
         title: String,
         description: String,
         childSummaries: [ChildSummary]? = nil,
         relatedItems: [RelatedItemReference]? = nil
     ) {
-        self.vmId = .init(id: id)
-        self.id = id
+        self.vmId = modelIdentity.viewModelId
+        self.modelIdentity = modelIdentity
         self.title = title
         self.description = description
         self.childSummaries = childSummaries
@@ -282,14 +288,14 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
     // BODY so the macro synthesizes the zero-arg `stub()` witness from it (a member
     // macro cannot see a stub declared in an extension).
     public static func stub(
-        id: ModelIdType = .init(),
+        modelIdentity: ModelIdentity = .stub(),
         title: String = "A Title",
         description: String = "A Description",
-        childSummaries: [ChildSummary]? = [.stub()],
+        childSummaries: [ChildSummary]? = [.stub(), .stub()],
         relatedItems: [RelatedItemReference]? = [.stub()]
     ) -> Self {
         .init(
-            id: id,
+            modelIdentity: modelIdentity,
             title: title,
             description: description,
             childSummaries: childSummaries,
@@ -300,37 +306,35 @@ public struct {Name}ViewModel: Codable, Sendable, Identifiable {
 
 // MARK: - Nested Type Stubbable Extensions (fully qualified names)
 // Nested types are plain `Stubbable` (no `@ViewModel`), so nothing synthesizes
-// their witness — hand-write both tiers: zero-arg delegates to parameterized.
+// their witness — hand-write both tiers.
 
 public extension {Name}ViewModel.ChildSummary {
-    // Tier 1: Zero-arg witness (delegates to tier 2)
+    // Tier 1: the witness forwards ONE argument explicitly — `.stub()` alone recurses
     static func stub() -> Self {
-        .stub(id: .init())
+        .stub(modelIdentity: .stub())
     }
 
-    // Tier 2: Parameterized with defaults
+    // Tier 2: every parameter defaulted
     static func stub(
-        id: ModelIdType = .init(),
+        modelIdentity: ModelIdentity = .stub(),
         name: String = "A Name",
         createdAt: Date = .now
     ) -> Self {
-        .init(id: id, name: name, createdAt: createdAt)
+        .init(modelIdentity: modelIdentity, name: name, createdAt: createdAt)
     }
 }
 
 public extension {Name}ViewModel.RelatedItemReference {
-    // Tier 1: Zero-arg (delegates to tier 2)
     static func stub() -> Self {
-        .stub(id: .init())
+        .stub(modelIdentity: .stub())
     }
 
-    // Tier 2: Parameterized with defaults
     static func stub(
-        id: ModelIdType = .init(),
+        modelIdentity: ModelIdentity = .stub(),
         title: String = "A Title",
         status: String = "Active"
     ) -> Self {
-        .init(id: id, title: title, status: status)
+        .init(modelIdentity: modelIdentity, title: title, status: status)
     }
 }
 ```
@@ -339,9 +343,11 @@ public extension {Name}ViewModel.RelatedItemReference {
 - Nested types placed AFTER properties that reference them
 - Nested types placed BEFORE `vmId` and parent init
 - Each nested type conforms to: `Codable, Sendable, Identifiable, Stubbable`
+- A nested type that represents an entity carries the opaque `ModelIdentity` and derives `id` from it
 - Extensions use fully qualified names: `{Parent}.{NestedType}`
 - Parent (`@ViewModel`): hand-write only the fully-defaulted `stub(...)`; the macro synthesizes zero-arg `stub()`
-- Nested types (plain `Stubbable`, no `@ViewModel`): hand-write both tiers — zero-arg delegates to parameterized
+- Nested types (plain `Stubbable`, no `@ViewModel`): hand-write both tiers — zero-arg forwards one explicit argument to the parameterized stub
+- Each `ModelIdentity.stub()` is a new identity, so `[.stub(), .stub()]` rows stay distinct
 - Section markers: `// MARK: - Nested Types`
 
 ---
@@ -402,10 +408,10 @@ extension {Name}ViewModel: VaporViewModelFactory {
         // Query database for required data
         // let items = try await Item.query(on: db).all()
 
-        // Build child ViewModels
-        // let itemViewModels = items.map { item in
+        // Build child ViewModels — the Factory reads the identity; the ViewModel never sees the Model
+        // let itemViewModels = try items.map { item in
         //     ItemViewModel(
-        //         id: item.id!,
+        //         modelIdentity: try item.modelIdentity,
         //         title: item.title,
         //         createdAt: item.createdAt ?? .now
         //     )
@@ -483,16 +489,15 @@ public struct {Name}ViewModel {
         self.settings = settings
         self.items = items
     }
-}
 
-// MARK: - Stubbable
+    // MARK: - Stubbable
 
-public extension {Name}ViewModel {
-    static func stub() -> Self {
-        .init(
-            settings: .stub(),
-            items: [.stub()]
-        )
+    // IN THE BODY: `@ViewModel` synthesizes the zero-arg `stub()` witness from it.
+    public static func stub(
+        settings: UserSettings = .stub(),
+        items: [ItemViewModel] = [.stub()]
+    ) -> Self {
+        .init(settings: settings, items: items)
     }
 }
 ```
@@ -568,11 +573,12 @@ public struct SettingsViewModel {
         self.currentTheme = currentTheme
         self.notificationsEnabled = notificationsEnabled
     }
-}
 
-public extension SettingsViewModel {
-    static func stub() -> Self {
-        .init(currentTheme: .light, notificationsEnabled: true)
+    public static func stub(
+        currentTheme: Theme = .light,
+        notificationsEnabled: Bool = true
+    ) -> Self {
+        .init(currentTheme: currentTheme, notificationsEnabled: notificationsEnabled)
     }
 }
 
@@ -670,8 +676,9 @@ public struct {Name}ViewModel: RequestableViewModel {
         self.vmId = .init(type: Self.self)
     }
 
-    public static func stub() -> Self {
-        .init(isStub: true, {stubParamValues})
+    // Every parameter defaulted; `@ViewModel` synthesizes `stub()`.
+    public static func stub({initParamsWithDefaults}) -> Self {
+        .init(isStub: true, {initParamNames})
     }
 }
 ```
@@ -724,6 +731,7 @@ public final class {Name}StubOps: {Name}ViewModelOperations, @unchecked Sendable
 - No `output storage:` parameter on any method — server owns storage.
 - `async throws` only when the body genuinely awaits I/O or throws. A method that stores a scalar should not be `async`.
 - The stub exposes two accessors per operation: `{action}Called` (did the op fire at all?) and `{action}CalledWith` (what data was passed?). UI tests typically assert on both. The stub does not mutate downstream state — server-backed ops can't because there is no server in the test environment.
+- **An action on an entity takes the ViewModel's `modelIdentity`, unchanged.** The VM carries `public let modelIdentity: ModelIdentity` (rooting `vmId` with `modelIdentity.viewModelId`), the View hands it to the op (`try await operations.{action}(modelIdentity)`), and the stub records it (`{action}CalledWith: ModelIdentity?`). A UI test then holds an identity, passes it into `.stub(modelIdentity:)`, taps, and asserts `{action}CalledWith` equals it — see fosmvvm-ui-tests-generator → *Identity Transport Test*. The op never receives the Model or a raw id (**DIP** + encapsulation).
 
 ---
 
@@ -776,8 +784,12 @@ public struct {Name}ViewModel {
         self.{scalarField2} = {scalarField2}
     }
 
-    public static func stub() -> Self {
-        .init(isStub: true, {scalarField1}: {stubValue1}, {scalarField2}: {stubValue2})
+    // Every parameter defaulted; `@ViewModel` synthesizes `stub()`.
+    public static func stub(
+        {scalarField1}: {Type1} = {stubValue1},
+        {scalarField2}: {Type2} = {stubValue2}
+    ) -> Self {
+        .init(isStub: true, {scalarField1}: {scalarField1}, {scalarField2}: {scalarField2})
     }
 }
 ```
@@ -864,13 +876,13 @@ public struct DashboardViewModel: RequestableViewModel {
         self.cards = cards
         self.totalCount = LocalizableInt(value: totalCount)
     }
-}
 
-public extension DashboardViewModel {
-    static func stub() -> Self {
+    // `cardCount` chains down: the stub builds that many cards and reports the same
+    // total, so the hierarchy is valid whatever the caller asks for.
+    public static func stub(cardCount: Int = 2) -> Self {
         .init(
-            cards: [.stub(), .stub()],
-            totalCount: 2
+            cards: (0..<cardCount).map { _ in .stub() },
+            totalCount: cardCount
         )
     }
 }
@@ -884,8 +896,8 @@ import FOSMVVM
 import Foundation
 
 @ViewModel
-public struct CardViewModel {
-    public let id: ModelIdType
+public struct CardViewModel: ModelIdentifiedViewModel {
+    public let modelIdentity: ModelIdentity
     public let title: String
     public let description: String
     public let createdAt: LocalizableDate
@@ -893,29 +905,29 @@ public struct CardViewModel {
     public let vmId: ViewModelId
 
     public init(
-        id: ModelIdType,
+        modelIdentity: ModelIdentity,
         title: String,
         description: String,
         createdAt: Date
     ) {
-        self.id = id
+        self.modelIdentity = modelIdentity
         self.title = title
         self.description = description
         self.createdAt = LocalizableDate(value: createdAt)
-        self.vmId = .init(id: id)
+        self.vmId = modelIdentity.viewModelId
     }
 
     // `@ViewModel` synthesizes the zero-arg `stub()` witness from this fully-defaulted
     // parameterized stub — which must be IN THE BODY (a member macro can't see an
     // extension). Do not hand-write `stub()`.
     public static func stub(
-        id: ModelIdType = .init(),
+        modelIdentity: ModelIdentity = .stub(),
         title: String = "Sample Card",
         description: String = "This is a sample card for previews.",
         createdAt: Date = .now
     ) -> Self {
         .init(
-            id: id,
+            modelIdentity: modelIdentity,
             title: title,
             description: description,
             createdAt: createdAt
@@ -965,22 +977,24 @@ extension DashboardViewModel: VaporViewModelFactory {
     public static func model(context: VaporModelFactoryContext<VMRequest>) async throws -> Self {
         let db = context.req.db
 
-        let items = try await Item.query(on: db)
+        let cards = try await Card.query(on: db)
             .sort(\.$createdAt, .descending)
             .all()
 
-        let cardViewModels = items.map { item in
+        // The one place that touches the `Card` model: it reads the identity and
+        // hands the ViewModel plain values.
+        let cardViewModels = try cards.map { card in
             CardViewModel(
-                id: item.id!,
-                title: item.title,
-                description: item.description,
-                createdAt: item.createdAt ?? .now
+                modelIdentity: try card.modelIdentity,
+                title: card.title,
+                description: card.description,
+                createdAt: card.createdAt ?? .now
             )
         }
 
         return .init(
             cards: cardViewModels,
-            totalCount: items.count
+            totalCount: cards.count
         )
     }
 }
@@ -992,7 +1006,7 @@ extension DashboardViewModel: VaporViewModelFactory {
 en:
   DashboardViewModel:
     pageTitle: "Dashboard"
-    emptyStateMessage: "No items yet. Create your first one!"
+    emptyStateMessage: "No cards yet. Create your first one!"
 ```
 
 ---
@@ -1005,7 +1019,7 @@ en:
 | Dynamic data in text | `@LocalizedSubs` | Substitutions like "Hello, %{name}!" |
 | Composed text | `@LocalizedCompoundString` | Joins pieces with locale-aware ordering |
 | User content | `String` | Already localized or raw data |
-| Database ID | `ModelIdType` | Type-safe round trips |
+| Entity identity | `ModelIdentity` | Opaque; transported to Operations, roots `vmId` |
 | Date/time | `LocalizableDate` | Client formats for locale/timezone |
 | Count/number | `LocalizableInt` | Client formats with grouping |
 | Child component | `ChildViewModel` | Nested ViewModel |
@@ -1071,7 +1085,8 @@ This handles RTL languages and locales where name order differs (e.g., family na
 ### All ViewModels:
 - [ ] `@ViewModel` macro applied
 - [ ] `vmId: ViewModelId` property
-- [ ] `stub()` method for testing/previews
+- [ ] Defaulted `stub(...)` (every parameter defaulted; a child-valued one may be the value that chains down) in the body; zero-arg `stub()` synthesized by `@ViewModel` or hand-written forwarding one explicit argument
+- [ ] Top-level stub values chain down into children's `stub(...)` calls
 - [ ] `Codable, Sendable` conformance
 
 ### Server-Hosted Top-Level:
@@ -1088,8 +1103,10 @@ This handles RTL languages and locales where name order differs (e.g., family na
 - [ ] No Request or Factory files needed
 
 ### Instance ViewModels (either mode):
-- [ ] `id: ModelIdType` property
-- [ ] `vmId = .init(id: id)` in init
+- [ ] Entity rows: `modelIdentity: ModelIdentity` property + `ModelIdentifiedViewModel`
+- [ ] Init takes the `ModelIdentity`, never a `Model`; the Factory reads `model.modelIdentity`
+- [ ] `vmId = modelIdentity.viewModelId` in init (a non-entity row: `.init(id: <natural id>)`)
+- [ ] Stub defaults `modelIdentity: ModelIdentity = .stub()`
 
 ### ViewModels with Localization (either mode):
 - [ ] `@LocalizedString` for static text

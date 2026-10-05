@@ -95,14 +95,32 @@ catch let error as DecodingError {
 Reach for this when: a type needs a fully-initialized sample instance for tests,
 previews, or placeholder UI. FOSMVVM ViewModels, requests, and fields all build
 on this protocol.
-Don't scatter ad-hoc sample factories across test targets — declare `stub()` once
-next to the type.
+Don't scatter ad-hoc sample factories across test targets — declare the stub
+once next to the type. The pattern: a `stub(...)` with every parameter
+defaulted (a child-valued one may instead be the value that chains down) that calls `.init`, and `stub()` forwarding to it with ONE argument
+passed explicitly (with none, `.stub()` resolves to itself and recurses forever).
+A caller specifies only what matters to its test and still gets a fully valid,
+often multi-level, instance. A value passed at the top flows down into the
+children's `stub(...)` calls so the whole hierarchy stays valid.
 
 ```swift
-extension User: Stubbable {
-    static func stub() -> Self { .init(name: "Test User") }
+struct CardList: Stubbable {
+    let number: Int
+
+    static func stub(number: Int = 0) -> Self { .init(number: number) }
+    static func stub() -> Self { .stub(number: 0) }
 }
-let user = User.stub()
+
+struct Board: Stubbable {
+    let name: String
+    let cards: CardList
+
+    static func stub(name: String = "Board", number: Int = 0) -> Self {
+        .init(name: name, cards: .stub(number: number))   // top value chains down
+    }
+    static func stub() -> Self { .stub(name: "Board") }   // one explicit argument
+}
+let board = Board.stub(number: 3)                          // only what the test cares about
 ```
 
 ## Collections

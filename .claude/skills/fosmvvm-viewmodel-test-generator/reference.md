@@ -273,8 +273,13 @@ private struct TestParentViewModel: ViewModel {
 
     var vmId: ViewModelId = .init()
 
+    static func stub(child: TestChildViewModel = .stub()) -> Self {
+        .init(child: child)
+    }
+
+    // The witness forwards ONE argument explicitly; `.stub()` alone would recurse.
     static func stub() -> Self {
-        .init(child: .stub())
+        .stub(child: .stub())
     }
 }
 
@@ -288,6 +293,51 @@ private struct TestChildViewModel: ViewModel {
     }
 }
 ```
+
+---
+
+## Template 5a: Test Suite for a ViewModel That Carries an Identity
+
+For ViewModels that represent an entity (`ModelIdentifiedViewModel`). Holds an identity, passes it into the stub, and proves it comes back out equal across the round-trip.
+
+**Location:** `Tests/{Target}Tests/Localization/{Name}ViewModelTests.swift`
+
+```swift
+// {Name}ViewModelTests.swift
+
+import FOSFoundation
+@testable import FOSMVVM
+import FOSTesting
+import Foundation
+import Testing
+
+@Suite("{Name} ViewModel Tests")
+struct {Name}ViewModelTests: LocalizableTestCase {
+    @Test func {name}ViewModel() throws {
+        try expectFullViewModelTests({Name}ViewModel.self)
+    }
+
+    @Test func {name}ViewModelCarriesItsIdentity() throws {
+        let held = ModelIdentity.stub()
+        let vm: {Name}ViewModel = try {Name}ViewModel.stub(modelIdentity: held)
+            .toJSON(encoder: encoder(locale: en))
+            .fromJSON()
+
+        #expect(vm.modelIdentity == held)
+        #expect(vm.vmId == held.viewModelId)
+    }
+
+    let locStore: LocalizationStore
+    init() throws {
+        self.locStore = try Self.loadLocalizationStore(
+            bundle: Bundle.module,
+            resourceDirectoryName: "{ResourceDir}"
+        )
+    }
+}
+```
+
+Assert with `==` only; never inspect the identity's encoded form. When the parent's stub chains the identity to a child, check it at the child instead (`vm.{children}[0].modelIdentity == held`).
 
 ---
 
@@ -455,6 +505,12 @@ es:
 - [ ] All `@LocalizedString` properties have YAML entries
 - [ ] Child ViewModels have YAML entries
 - [ ] Tests pass: `swift test --filter {TestSuiteName}`
+
+## Identity-Carrying ViewModel Checklist
+
+- [ ] Held `ModelIdentity.stub()` passed into `.stub(modelIdentity:)`
+- [ ] Round-tripped `modelIdentity` equals the held identity
+- [ ] Round-tripped `vmId` equals `held.viewModelId`
 
 ## Embedded ViewModel Test Checklist
 

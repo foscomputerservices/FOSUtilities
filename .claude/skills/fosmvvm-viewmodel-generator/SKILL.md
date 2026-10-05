@@ -191,6 +191,10 @@ client module that drags server/host-only code onto iOS.
    imports *both* the domain module and the ViewModel module, and it maps
    domain → display (`Channel.Platform → GuestPlatform`) when building the VM. Factories
    are **server-side**; the ViewModel module stays domain-free.
+4. **Which entity it is crosses as an opaque `ModelIdentity`.** The factory reads
+   `model.modelIdentity` and passes it to the ViewModel's init — never the model itself,
+   never its raw id. See *An Entity's Identity Passes Through the ViewModel Opaquely*
+   under *2. Child (plain ViewModel)* below.
 
 **SOLID ergonomic (optional).** The Factory's *own* library may add a `private`/`internal`
 **extension on the ViewModel with a domain-typed initializer** that maps domain → simple
@@ -280,23 +284,54 @@ Nested components built by their parent's factory. No Request type.
 
 ```swift
 @ViewModel
-public struct CardViewModel {
-    public let id: ModelIdType
+public struct CardViewModel: ModelIdentifiedViewModel {
+    public let modelIdentity: ModelIdentity   // opaque — transported, never read
     public let title: String
     public let createdAt: LocalizableDate
-    public let vmId: ViewModelId       // instance (list row) — stable id from data
+    public let vmId: ViewModelId       // instance (list row) — rooted in the identity
 
-    // Init takes PLAIN Swift types; the init wraps them + owns formatting.
-    public init(id: ModelIdType, title: String, createdAt: Date) {
-        self.id = id
+    // Init takes the identity + PLAIN Swift types; the init wraps them + owns formatting.
+    public init(modelIdentity: ModelIdentity, title: String, createdAt: Date) {
+        self.modelIdentity = modelIdentity
         self.title = title
         self.createdAt = LocalizableDate(value: createdAt)
-        self.vmId = .init(id: id)      // per-row stable — NEVER .init() on a list row
+        self.vmId = modelIdentity.viewModelId   // per-row stable — NEVER .init() on a list row
+    }
+
+    public static func stub(
+        modelIdentity: ModelIdentity = .stub(),
+        title: String = "Sample Card",
+        createdAt: Date = .now
+    ) -> Self {
+        .init(modelIdentity: modelIdentity, title: title, createdAt: createdAt)
     }
 }
 ```
 
-> **`vmId` derives from the data's identity — bind it, don't reach past it.** The row's `vmId` is built from the model's own id (`.init(id: id)`), so equal data ⇒ stable SwiftUI identity. When the identity value is itself a sealed/opaque type, get the `vmId` from a computed **on that identity** (it reads its own fields and vends a `ViewModelId`) — never expose the identity's raw string to build the token yourself, and never provide two spellings of the derivation. See [Architecture Patterns → Derive on the Owner](../shared/architecture-patterns.md).
+The factory is the one place that touches the `Card` model:
+
+```swift
+// Server/Factory module — imports both the domain and the ViewModel module
+CardViewModel(
+    modelIdentity: try card.modelIdentity,
+    title: card.title,
+    createdAt: card.createdAt ?? .now
+)
+```
+
+> **`vmId` derives from the data's identity — bind it, don't reach past it.** The row's `vmId` comes from `modelIdentity.viewModelId`, so the same entity ⇒ the same SwiftUI identity on every re-fetch. The derivation lives **on the identity**; never read the identity's contents to build the token yourself, and never provide a second spelling of the derivation. See [Architecture Patterns → Derive on the Owner](../shared/architecture-patterns.md).
+
+#### An Entity's Identity Passes Through the ViewModel Opaquely
+
+A ViewModel that represents an entity — a card, a board, a checklist item, a list row — carries that entity's `ModelIdentity` so the chain *data model → ViewModel → View → action → Operation → ServerRequest → server → database change* can say **which** entity it means. The ViewModel treats the identity as **opaque**: it only transports it through the ViewModel / View / Operation chain and roots its `vmId` in it for stability in the view hierarchy.
+
+- **Carry** `public let modelIdentity: ModelIdentity` and conform to `ModelIdentifiedViewModel`.
+- **The init takes the `ModelIdentity`, never a `Model`.** The factory reads `model.modelIdentity` and passes it in.
+- **Root `vmId`** with `self.vmId = modelIdentity.viewModelId`.
+- **Never build, parse, or read inside it.** Hand it unchanged to the Operation that acts on the entity (`operations.delete(modelIdentity)`).
+- **Stub it** with a defaulted `modelIdentity: ModelIdentity = .stub()` parameter. Each `ModelIdentity.stub()` is a new identity, so the rows of a stubbed list stay distinct.
+
+> **Red flag: a `Model` in a ViewModel's init** (`init(card: Card)`). **SOLID protected: DIP** — the ViewModel module never imports the domain module; the factory adapts. **And encapsulation** — the identity stays opaque, so nothing downstream can mint, parse, or route on it. **What breaks on deviation:** a `Model` parameter drags the persistence type into the shared module and onto every client, and leaves the ViewModel unable to write a `stub()` without inventing an entity. A raw `ModelIdType`/`UUID`/`String` id in place of the identity loses the type it names and invites parsing and forging; the coupling then surfaces far from the crack. Full rule: [Architecture Patterns → Identities Pass Through ViewModels Opaquely](../shared/architecture-patterns.md#identities-pass-through-viewmodels-opaquely).
 
 > **Don't restate `Codable`/`Sendable` — the macro adds them.** `@ViewModel`
 > synthesizes `ViewModel` conformance, which *already* provides `Codable` **and**
@@ -323,18 +358,18 @@ For showing data - cards, rows, lists, detail views:
 
 ```swift
 @ViewModel
-public struct UserCardViewModel {
-    public let id: ModelIdType
+public struct MemberCardViewModel: ModelIdentifiedViewModel {
+    public let modelIdentity: ModelIdentity
     public let name: String
     @LocalizedString public var roleDisplayName
     public let createdAt: LocalizableDate
-    public let vmId: ViewModelId       // instance (list row) — stable id from data
+    public let vmId: ViewModelId       // instance (list row) — rooted in the identity
 
-    public init(id: ModelIdType, name: String, createdAt: Date) {
-        self.id = id
+    public init(modelIdentity: ModelIdentity, name: String, createdAt: Date) {
+        self.modelIdentity = modelIdentity
         self.name = name
         self.createdAt = LocalizableDate(value: createdAt)  // init wraps the plain Date
-        self.vmId = .init(id: id)
+        self.vmId = modelIdentity.viewModelId
         // roleDisplayName is @LocalizedString — bound by the macro, not set here
     }
 }
@@ -513,8 +548,8 @@ public struct InfoViewModel: RequestableViewModel {
         self.vmId = .init(type: Self.self)
     }
 
-    public static func stub() -> Self {
-        .init(isStub: true, deviceId: "test-device")
+    public static func stub(deviceId: String = "test-device") -> Self {
+        .init(isStub: true, deviceId: deviceId)
     }
 }
 ```
@@ -603,8 +638,11 @@ public struct PreferencesViewModel {
         self.theme = theme
     }
 
-    public static func stub() -> Self {
-        .init(isStub: true, notificationsEnabled: false, theme: .system)
+    public static func stub(
+        notificationsEnabled: Bool = false,
+        theme: Theme = .system
+    ) -> Self {
+        .init(isStub: true, notificationsEnabled: notificationsEnabled, theme: theme)
     }
 }
 ```
@@ -821,31 +859,55 @@ public struct SettingsViewModel {
 // - static func model(context:) async throws -> Self { ... }
 ```
 
-**Interactive variants.** Both examples above are **display-only**. Interactive ViewModels add an `isStub: Bool` flag, a `public var operations: any ...` computed property, and a private `init(isStub:, ...)` that the public init and `stub()` both delegate to. Full shape (both server-hosted and client-hosted): see **Third Decision: Interactive vs Display-Only** above.
+**Interactive variants.** Both examples above are **display-only**. Interactive ViewModels add an `isStub: Bool` flag, a `public var operations: any ...` computed property, and a private `init(isStub:, ...)` that the public init and the defaulted `stub(...)` both delegate to. Full shape (both server-hosted and client-hosted): see **Third Decision: Interactive vs Display-Only** above.
 
 ### Stubbable Pattern
 
-All ViewModels must satisfy the `Stubbable` witness `stub()` for testing and SwiftUI previews. With `@ViewModel` you rarely hand-write the zero-arg `stub()`: write a **fully-defaulted parameterized** `stub(...)` **in the type's body** and the macro synthesizes the zero-arg witness, forwarding the defaults.
+All ViewModels must satisfy the `Stubbable` witness `stub()` for testing and SwiftUI previews. The pattern has two parts:
+
+1. **`static func stub(<defaulted init parameters>) -> Self { .init(<parameters>) }`** — every parameter defaulted. A child-valued parameter may instead be the value that chains down into the child's `stub(...)` (`stub(number: Int = 0) { .init(sub: .stub(number: number)) }`).
+2. **`static func stub() -> Self { .stub(<one argument, passed explicitly>) }`** — the `Stubbable` witness. With no argument, `.stub()` resolves to itself and recurses forever, so it names one.
+
+**Why:** a test or preview passes just the tiniest amount of information that matters to it and still receives a fully valid, often multi-level, highly structured ViewModel. **Chain values down:** when a value passed at the top must reach the children, forward it into the children's `stub(...)` calls so the entire hierarchy is valid.
 
 ```swift
 @ViewModel
-public struct MyViewModel: RequestableViewModel {
-    public let id: ModelIdType
+public struct BoardViewModel: RequestableViewModel, ModelIdentifiedViewModel {
+    public typealias Request = BoardRequest
+
     @LocalizedString public var title
+    public let modelIdentity: ModelIdentity
+    public let cards: [CardViewModel]
+    public let cardCount: LocalizableInt
     public let vmId: ViewModelId
 
-    public init(id: ModelIdType, /* … */) { /* … */ }
+    public init(modelIdentity: ModelIdentity, cards: [CardViewModel]) {
+        self.modelIdentity = modelIdentity
+        self.cards = cards
+        self.cardCount = .init(value: cards.count)
+        self.vmId = modelIdentity.viewModelId
+    }
 
-    // The fully-defaulted parameterized stub lives IN THE TYPE BODY so `@ViewModel`
-    // can see it and synthesize the zero-arg `stub()` Stubbable witness from it.
+    // Lives IN THE TYPE BODY so `@ViewModel` can see it (see below).
     public static func stub(
-        id: ModelIdType = .init(),
-        title: String = "Sample"
+        modelIdentity: ModelIdentity = .stub(),
+        numberOfCards: Int = 2,
+        cardTitle: String = "Sample Card"
     ) -> Self {
-        .init(id: id, title: title)
+        .init(
+            modelIdentity: modelIdentity,
+            cards: (0..<numberOfCards).map { _ in .stub(title: cardTitle) }   // chained down; each row gets its own identity
+        )
     }
 }
+
+// A test that cares only about an empty board says only that:
+let emptyBoard = BoardViewModel.stub(numberOfCards: 0)
 ```
+
+**With `@ViewModel` you don't hand-write part 2.** When the type's body declares a fully-defaulted `stub(...)` and no zero-arg `stub()`, the macro synthesizes the witness, passing every default explicitly — part 2 of the pattern, written for you. Hand-writing it anyway (`static func stub() -> Self { .stub(modelIdentity: .stub()) }`) is also correct; the macro then steps aside.
+
+**SOLID protected: SRP** — sample data is the type's own responsibility, declared once beside the type, not rebuilt in every test target. **What breaks on deviation:** hand-built instances in each test go stale when the init changes and produce partly valid hierarchies; a top value that doesn't chain down leaves parent and children disagreeing; a `stub()` that passes no argument recurses forever. Full rule: [Architecture Patterns → The Stubbable Pattern](../shared/architecture-patterns.md#the-stubbable-pattern-specify-little-receive-a-valid-whole).
 
 > **The parameterized `stub(...)` must be in the type's body — NOT in an `extension`.**
 > `@ViewModel` is a member macro: Swift hands it only the struct declaration, so a
@@ -854,7 +916,7 @@ public struct MyViewModel: RequestableViewModel {
 > *may* live in an extension — it's a real witness — but a `stub(...)` you expect the macro
 > to forward to cannot.)
 
-Hand-write the zero-arg `stub()` yourself only when the macro has nothing to forward to: a no-argument `init()` (`stub() { .init() }`), an interactive VM whose stub routes through a private `init(isStub:)`, or a **nested type that is plain `Stubbable` without `@ViewModel`** (see Two-Tier Stubbable Pattern). A parameterized `stub(...)` with any non-defaulted parameter is also not forwardable — the macro leaves such types to surface the normal `Stubbable` conformance error.
+Hand-write the zero-arg `stub()` yourself only when the macro has nothing to forward to: a no-argument `init()` (`stub() { .init() }` — a type with no init parameters has only `stub()`, as `ModelIdentity` does), or a **nested type that is plain `Stubbable` without `@ViewModel`** (see Two-Tier Stubbable Pattern). An interactive VM's defaulted `stub(...)` calls its private `init(isStub: true, …)`, and the macro still synthesizes the zero-arg witness from it. A parameterized `stub(...)` with any non-defaulted parameter is also not forwardable — the macro leaves such types to surface the normal `Stubbable` conformance error.
 
 ### Identity: vmId — stable data identity, never a throwaway
 
@@ -867,12 +929,15 @@ value.
 projected from.** Everything below follows from that — including why "I used an init
 parameter" is not on its own an answer.
 
-**1. An `id` init parameter, if one exists.** `userId`, `groupId`, `companyId`, `agentID`
-— the identity the data already carries:
+**1. The entity's identity, if the ViewModel represents one.** A ViewModel that projects a
+model carries its `ModelIdentity` and roots `vmId` in it:
 
 ```swift
-self.vmId = .init(id: userId)
+self.vmId = modelIdentity.viewModelId
 ```
+
+For an id that is not a model's — a `nodeId: String` from a device, a host name — use that
+id: `self.vmId = .init(id: nodeId)`.
 
 **2. Otherwise, a value derived from the init parameters that uniquely identifies this
 projection.** Compose the parameters that together distinguish it, or hash across all of
@@ -915,19 +980,22 @@ property with a default is excluded from `Codable` decoding (the compiler warns)
 with a default, or `let` assigned in `init`.
 
 **Instance — many per screen, ESPECIALLY `List`/`ForEach` rows.** The `vmId` MUST carry the
-row's **stable data identity**, assigned in `init`:
+row's **stable data identity**, assigned in `init`. A row that represents an entity roots it
+in the entity's `ModelIdentity`:
 
 ```swift
+public let modelIdentity: ModelIdentity
 public let vmId: ViewModelId
-public init(id: SomeId, /* … */) {
+public init(modelIdentity: ModelIdentity, /* … */) {
     // …
-    self.vmId = .init(id: id)   // id may be ModelIdType, String, Int, or UUID
+    self.modelIdentity = modelIdentity
+    self.vmId = modelIdentity.viewModelId
 }
 ```
 
-Use the data's own id when it has one (`user.id`, a `nodeId: String`, …). `ViewModelId`
-accepts a plain `String`/`Int`/`UUID`/`ModelIdType` — the id is **not** required to be a
-`ModelIdType`. When there is **no single natural id**, merge stable init args into one:
+A row that is not a model's uses its own natural id — `ViewModelId` accepts a plain
+`String`/`Int`/`UUID` (`self.vmId = .init(id: nodeId)`). When there is **no single natural
+id**, merge stable init args into one:
 
 ```swift
 self.vmId = .init(id: "\(version.versionString)-\(host)")
@@ -939,7 +1007,8 @@ self.vmId = .init(id: "\(version.versionString)-\(host)")
 > - a **constant `.init(type: Self.self)`** on a repeated row → every row shares one id and
 >   they collide.
 >
-> A row needs a **per-row stable** id: `.init(id: <the row's data id>)`.
+> A row needs a **per-row stable** id: `modelIdentity.viewModelId` for an entity,
+> `.init(id: <the row's natural id>)` otherwise.
 
 ### Localization
 
@@ -1058,38 +1127,41 @@ When a child type is **only used by one parent** and represents a summary or ref
 
 ```swift
 @ViewModel
-public struct GovernancePrincipleCardViewModel: Identifiable {  // macro adds Codable+Sendable; only Identifiable is extra
+public struct CardDetailViewModel: ModelIdentifiedViewModel {
     // Properties come first
-    public let versionHistory: [GovernancePrincipleVersionSummary]?
-    public let referencingDecisions: [GovernanceDecisionReference]?
+    public let modelIdentity: ModelIdentity
+    public let checklistItems: [ChecklistItemSummary]?
+    public let assignments: [AssignmentReference]?
 
     // MARK: - Nested Types
 
-    /// Summary of a principle version for display in version history.
-    public struct GovernancePrincipleVersionSummary: Codable, Sendable, Identifiable, Stubbable {
-        public let id: ModelIdType
-        public let version: Int
-        public let createdAt: Date
+    /// One checklist item, as the card's detail lists it.
+    public struct ChecklistItemSummary: Codable, Sendable, Identifiable, Stubbable {
+        public let modelIdentity: ModelIdentity
+        public let title: String
+        public let isDone: Bool
 
-        public init(id: ModelIdType, version: Int, createdAt: Date) {
-            self.id = id
-            self.version = version
-            self.createdAt = createdAt
+        public var id: ViewModelId { modelIdentity.viewModelId }
+
+        public init(modelIdentity: ModelIdentity, title: String, isDone: Bool) {
+            self.modelIdentity = modelIdentity
+            self.title = title
+            self.isDone = isDone
         }
     }
 
-    /// Reference to a decision that cites this principle.
-    public struct GovernanceDecisionReference: Codable, Sendable, Identifiable, Stubbable {
-        public let id: ModelIdType
-        public let title: String
-        public let decisionNumber: String
-        public let createdAt: Date
+    /// A member assigned to this card.
+    public struct AssignmentReference: Codable, Sendable, Identifiable, Stubbable {
+        public let modelIdentity: ModelIdentity
+        public let memberName: String
+        public let assignedAt: Date
 
-        public init(id: ModelIdType, title: String, decisionNumber: String, createdAt: Date) {
-            self.id = id
-            self.title = title
-            self.decisionNumber = decisionNumber
-            self.createdAt = createdAt
+        public var id: ViewModelId { modelIdentity.viewModelId }
+
+        public init(modelIdentity: ModelIdentity, memberName: String, assignedAt: Date) {
+            self.modelIdentity = modelIdentity
+            self.memberName = memberName
+            self.assignedAt = assignedAt
         }
     }
 
@@ -1098,8 +1170,6 @@ public struct GovernancePrincipleCardViewModel: Identifiable {  // macro adds Co
     // ...
 }
 ```
-
-**Reference:** `Sources/KairosModels/Governance/GovernancePrincipleCardViewModel.swift`
 
 **Placement rules:**
 1. Nested types go AFTER the properties that reference them
@@ -1110,49 +1180,50 @@ public struct GovernancePrincipleCardViewModel: Identifiable {  // macro adds Co
 **Conformances for nested types:**
 - `Codable` - for ViewModel encoding
 - `Sendable` - for Swift 6 concurrency
-- `Identifiable` - for SwiftUI ForEach if used in arrays
+- `Identifiable` - for SwiftUI ForEach if used in arrays; a nested type that represents an entity derives `id` from its identity (`modelIdentity.viewModelId`), the same way a ViewModel roots `vmId`
 - `Stubbable` - for testing/previews
+
+A nested type that represents an entity follows the same transport rule as a ViewModel: it carries the opaque `ModelIdentity`, its init takes the identity (never a `Model`), and the parent's factory reads `model.modelIdentity` and passes it in.
 
 **Two-Tier Stubbable Pattern (nested, non-`@ViewModel` types):**
 
-Nested child types are plain `Stubbable` structs — they have **no `@ViewModel` macro**, so nothing synthesizes their `stub()`. Hand-write both tiers. (An `@ViewModel` parent, by contrast, hand-writes only the fully-defaulted parameterized `stub(...)`; its zero-arg `stub()` is macro-synthesized.) Nested types use fully qualified names in their extensions:
+Nested child types are plain `Stubbable` structs — they have **no `@ViewModel` macro**, so nothing synthesizes their `stub()`. Hand-write both parts of the Stubbable pattern. (An `@ViewModel` parent, by contrast, hand-writes only the fully-defaulted parameterized `stub(...)`; its zero-arg `stub()` is macro-synthesized.) Nested types use fully qualified names in their extensions:
 
 ```swift
-public extension GovernancePrincipleCardViewModel.GovernancePrincipleVersionSummary {
-    // Tier 1: Zero-arg convenience (ALWAYS delegates to tier 2)
+public extension CardDetailViewModel.ChecklistItemSummary {
+    // Tier 1: the Stubbable witness — forwards ONE argument explicitly (no argument would recurse)
     static func stub() -> Self {
-        .stub(id: .init())
+        .stub(modelIdentity: .stub())
     }
 
-    // Tier 2: Full parameterized with defaults
+    // Tier 2: every parameter defaulted
     static func stub(
-        id: ModelIdType = .init(),
-        version: Int = 1,
-        createdAt: Date = .now
+        modelIdentity: ModelIdentity = .stub(),
+        title: String = "A Checklist Item",
+        isDone: Bool = false
     ) -> Self {
-        .init(id: id, version: version, createdAt: createdAt)
+        .init(modelIdentity: modelIdentity, title: title, isDone: isDone)
     }
 }
 
-public extension GovernancePrincipleCardViewModel.GovernanceDecisionReference {
+public extension CardDetailViewModel.AssignmentReference {
     static func stub() -> Self {
-        .stub(id: .init())
+        .stub(modelIdentity: .stub())
     }
 
     static func stub(
-        id: ModelIdType = .init(),
-        title: String = "A Title",
-        decisionNumber: String = "DEC-12345",
-        createdAt: Date = .now
+        modelIdentity: ModelIdentity = .stub(),
+        memberName: String = "A Member",
+        assignedAt: Date = .now
     ) -> Self {
-        .init(id: id, title: title, decisionNumber: decisionNumber, createdAt: createdAt)
+        .init(modelIdentity: modelIdentity, memberName: memberName, assignedAt: assignedAt)
     }
 }
 ```
 
 **Why two tiers:**
-- Tests often just need `[.stub()]` without caring about values
-- Other tests need specific values: `.stub(name: "Specific Name")`
+- Tests often just need `[.stub()]` without caring about values — and each `.stub()` row gets its own identity, so a `ForEach` over them never collides
+- Other tests need specific values: `.stub(title: "Buy paint")`
 - Zero-arg ALWAYS calls parameterized version (single source of truth)
 
 **When to nest vs keep top-level:**
@@ -1163,18 +1234,18 @@ public extension GovernancePrincipleCardViewModel.GovernanceDecisionReference {
 | Child represents subset/summary | Child is a full ViewModel |
 | Child has no @ViewModel macro | Child has @ViewModel macro |
 | Child is not RequestableViewModel | Child is RequestableViewModel |
-| Example: VersionSummary, Reference | Example: CardViewModel, ListViewModel |
+| Example: ChecklistItemSummary, AssignmentReference | Example: CardViewModel, BoardViewModel |
 
 **Examples:**
 
 Card with nested summaries:
 ```swift
 @ViewModel
-public struct TaskCardViewModel {
+public struct CardViewModel: ModelIdentifiedViewModel {
     public let assignees: [AssigneeSummary]?
 
     public struct AssigneeSummary: Codable, Sendable, Identifiable, Stubbable {
-        public let id: ModelIdType
+        public let modelIdentity: ModelIdentity
         public let name: String
         public let avatarUrl: String?
         // ...
@@ -1182,16 +1253,16 @@ public struct TaskCardViewModel {
 }
 ```
 
-List with nested references:
+Workspace with nested board references:
 ```swift
 @ViewModel
-public struct ProjectListViewModel {
-    public let relatedProjects: [ProjectReference]?
+public struct WorkspaceViewModel: ModelIdentifiedViewModel {
+    public let boards: [BoardReference]?
 
-    public struct ProjectReference: Codable, Sendable, Identifiable, Stubbable {
-        public let id: ModelIdType
+    public struct BoardReference: Codable, Sendable, Identifiable, Stubbable {
+        public let modelIdentity: ModelIdentity
         public let title: String
-        public let status: String
+        public let cardCount: Int
         // ...
     }
 }
@@ -1280,3 +1351,4 @@ same-named types can't actually clash in one file.) See
 | 2.10 | 2026-07-02 | Naming Conventions: screen read requests are verb-less (`DocksRequest`); added duplicate-type-names-across-modules guidance + [Naming Dictionary](../shared/NAMES.md) cross-ref. (backlog A2/A3) |
 | 2.11 | 2026-07-02 | Quick conventions: child VMs drop redundant `: Codable, Sendable` (macro adds them) — B9; ViewModel enums are raw-value-less (`String(describing:)` key, not `: String rawValue`) — B6; added `SystemVersion`/locale-independent field-type row + anti-pattern (version/hostname are typed, never `LocalizableString`) — B8. |
 | 2.12 | 2026-07-02 | Conceptual set: one top-level VM per screen composing children, never a mega-VM + one-file-per-VM pointer to app-setup — B1/B2; `Localizable*` init takes the plain Swift type and wraps it (formatting policy owned by init) — B3; **rewrote Identity: vmId** — stable data identity, singleton `.init(type: Self.self)` vs list-row `.init(id:)` (String/Int/UUID/merged), List-churn warning; reconciled all `.init()` throwaways in SKILL.md + reference.md (verified against `ViewModelId`) — B4; added **"ViewModel Module Must NOT Depend on Domain Types (Dependency Inversion)"** hard-rule section with Factory-adapter ergonomic — B5. |
+| 2.13 | 2026-10-05 | Entity identity is an opaque `ModelIdentity`: rows and entity ViewModels carry `modelIdentity` (not `id: ModelIdType`), take it in the init (never a `Model`), root `vmId` in `modelIdentity.viewModelId`, and the factory reads `model.modelIdentity`; transport rule section with DIP + encapsulation red flag. Stubbable pattern stated in full (defaulted `stub(...)` + `stub()` forwarding one explicit argument, motivation, chaining rule, SRP); stubs default `modelIdentity: ModelIdentity = .stub()`; interactive examples use a defaulted `stub(...)`. Nested-type examples moved to the showcase vocabulary. |

@@ -345,13 +345,16 @@ Don't conform directly — apply the `@ViewModel` macro (see Macros).
 ### Stable rendering identity — `ViewModelId`
 Reach for this when: giving a ViewModel its `vmId`. Bind it to the underlying
 model's identity whenever possible; use the type for singleton ViewModels.
-`vmId` is *rendering* identity (SwiftUI `ForEach`/`.id`) — data identity is a
-separate `id: ModelIdType` property that round-trips through requests.
+`vmId` is *rendering* identity (SwiftUI `ForEach`/`.id`). An entity ViewModel
+carries its data identity as an opaque `modelIdentity: ModelIdentity` (which
+round-trips through requests) and roots `vmId` in it. `.init(id:)` remains for
+natural non-model ids.
 Don't default to the random initializer casually — random identity churns
 SwiftUI's view cache on every update.
 
 ```swift
-self.vmId = .init(id: user.id) // bound to model identity
+self.vmId = modelIdentity.viewModelId // entity ViewModel (a Card's modelIdentity)
+self.vmId = .init(id: slug) // natural non-model id
 self.vmId = .init(type: Self.self) // singleton ViewModel
 ```
 
@@ -657,19 +660,39 @@ Contract: treat it as opaque — encode/decode it *as a whole* to persist or tra
 it (the encoding is stable within a library major version and always round-trips);
 never parse or hand-construct its encoded form.
 
+Reach for `ModelIdentity.stub()` when: a test or preview needs an identity and has
+no model. Each call returns a NEW identity; it equals itself across encode/decode,
+never equals another stub, and never equals a real model's identity. In a test,
+hold one in a local `let`, pass it into the ViewModel, and assert the same value
+arrives at the Operation to prove the UI -> action -> Operation chain is wired.
+
+```swift
+let cardId = ModelIdentity.stub()
+let vm = CardViewModel.stub(modelIdentity: cardId)   // stub(modelIdentity: = .stub())
+let stubOps = try viewModelOperations()
+// ... drive the delete action ...
+XCTAssertEqual(stubOps.deleteCalledWith, cardId)   // FOSTestingUI (XCTest)
+```
+
 ### A ViewModel that knows its model — `ModelIdentifiedViewModel`
-Reach for this when: a ViewModel projects one specific entity (a user, a document,
-a list row) and you want identity-based behavior (e.g. live refresh) keyed to it.
+Reach for this when: a ViewModel projects one specific entity (a card, a board,
+a list row) and carries that entity's identity, rooting its `vmId` in it. The
+ViewModel takes the identity in its init; its factory reads `model.modelIdentity`.
 Singleton or ephemeral ViewModels don't conform — they keep only `vmId`.
 
 ```swift
 @ViewModel
-struct UserViewModel: RequestableViewModel, ModelIdentifiedViewModel {
+struct CardViewModel: ModelIdentifiedViewModel {
     let modelIdentity: ModelIdentity
     let vmId: ViewModelId
-    init(user: User) throws {
-        self.modelIdentity = try user.modelIdentity
+
+    init(modelIdentity: ModelIdentity) {
+        self.modelIdentity = modelIdentity
         self.vmId = modelIdentity.viewModelId
+    }
+
+    static func stub(modelIdentity: ModelIdentity = .stub()) -> Self {
+        .init(modelIdentity: modelIdentity)
     }
 }
 ```

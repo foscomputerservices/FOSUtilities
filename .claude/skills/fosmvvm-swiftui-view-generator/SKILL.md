@@ -302,7 +302,7 @@ public struct ParentView: ViewModelView {
             // Bind child view with subset of parent's data
             ChildView.bind(
                 appState: .init(
-                    itemId: viewModel.selectedId,
+                    item: viewModel.selectedId,
                     isConnected: viewModel.isConnected
                 )
             )
@@ -416,6 +416,8 @@ Use `.previewHost()` for SwiftUI previews:
 }
 #endif
 ```
+
+Pass only what the preview cares about. Previews use the ViewModel's own `stub(...)` (every parameter defaulted, entity rows default `modelIdentity: ModelIdentity = .stub()`), so a list like `items: [.stub(), .stub()]` gets distinct rows. See [Architecture Patterns → The Stubbable Pattern](../shared/architecture-patterns.md#the-stubbable-pattern-specify-little-receive-a-valid-whole).
 
 ## View Categories
 
@@ -833,25 +835,29 @@ public var vmId: ViewModelId = .init(type: Self.self)
 ```
 This ensures views of the same type get unique identities.
 
-**✅ IDEAL - Use data-based identity when available:**
+**✅ IDEAL - Root `vmId` in the entity's `ModelIdentity` when the ViewModel represents an entity:**
 ```swift
-public struct TaskViewModel {
-    public let id: ModelIdType
+public struct CardViewModel {
+    public let modelIdentity: ModelIdentity   // opaque — transported, never read
     public var vmId: ViewModelId
 
-    public init(id: ModelIdType, /* other params */) {
-        self.id = id
-        self.vmId = .init(id: id)  // Ties view identity to data identity
+    public init(modelIdentity: ModelIdentity, /* other params */) {
+        self.modelIdentity = modelIdentity
+        self.vmId = modelIdentity.viewModelId  // Ties view identity to data identity
         // ...
     }
 }
 ```
 
+The init takes the `ModelIdentity`, never a `Model`; the factory reads `model.modelIdentity`. The view hands the identity unchanged to its Operations (`operations.delete(viewModel.modelIdentity)`) and never builds, parses, or reads inside it.
+
+> **SOLID protected: DIP and encapsulation.** The ViewModel module never imports the domain module, and the opaque identity cannot be minted, parsed, or routed on. **What breaks on deviation:** a `Model` in the init drags persistence types onto every client; a raw `ModelIdType`/`UUID`/`String` id invites parsing and forging. Full rule: [Architecture Patterns → Identities Pass Through ViewModels Opaquely](../shared/architecture-patterns.md#identities-pass-through-viewmodels-opaquely). ViewModel shape and stubs: `fosmvvm-viewmodel-generator`.
+
 **Why this matters:**
 - SwiftUI uses `.id()` modifier to determine when to recreate vs update views
 - `vmId` provides this identity for ViewModelViews
 - Wrong identity = views don't update when data changes
-- Data-based identity (`.init(id:)`) is best because it ties view lifecycle to data lifecycle
+- Data-based identity (`modelIdentity.viewModelId`) is best because it ties view lifecycle to data lifecycle
 
 ## File Organization
 
@@ -1018,10 +1024,10 @@ public var vmId: ViewModelId = .init()
 // ✅ MINIMUM - Type-based identity
 public var vmId: ViewModelId = .init(type: Self.self)
 
-// ✅ IDEAL - Data-based identity (when id available)
-public init(id: ModelIdType) {
-    self.id = id
-    self.vmId = .init(id: id)
+// ✅ IDEAL - Data-based identity (entity ViewModels)
+public init(modelIdentity: ModelIdentity) {
+    self.modelIdentity = modelIdentity
+    self.vmId = modelIdentity.viewModelId
 }
 ```
 
@@ -1154,3 +1160,4 @@ This skill is typically used after discussing requirements or reading specificat
 | 1.1 | 2026-05-03 | Operations section rewrite to align with `ConversationPractice/docs/architecture.md`: surface the framework/app-side seam (`<Name>Operations.swift` / `<Name>StubOps.swift` / `<Name>Ops.swift` file convention), distinguish `FOSMVVM.ViewModelOperations` from per-feature protocols, note App Intents/transport actions share the same protocol, document `toggleRepaint()` motivation, clarify async vs sync op shape, promote display-only-no-Operations decision to a top-level rule. Clarify the storage-vs-method-signature distinction: `any` is acceptable at single-value View storage (Swift 5.7+ implicit existential opening preserves generic specialization at call sites); generics are required at protocol method signatures. All View examples updated to `private let operations: any <Name>ViewModelOperations`. |
 | 1.2 | 2026-09-23 | Images Pattern: catalog assets reach a view as typed `ImageResource` symbols (`Image(.name)`, `Label(_:image:)`), never as a `String` name and never as a name carried on the ViewModel; SF Symbols keep the `systemName` literal at the view. Added the Stringly Image Names mistake. Pairs with the bootstrap's emitted `Assets.xcassets`. |
 | 1.3 | 2026-09-29 | Form validation brought to the shipped API: `withFormValidations()` documented for the results that name no field, the complete form pattern (environment `Validations` → field views → modifier → `replace(with:)` on the typed `ResponseError`), the per-field/model-level asymmetry of `replace(with:)`, and the submit guard. Corrected the typed error's results property to its real name, `responseError.validations`. Restored the YAML frontmatter, which a stray version row had displaced. |
+| 1.4 | 2026-10-05 | Entity identity on ViewModels follows the opaque-identity rule: `modelIdentity: ModelIdentity` taken in the init (never a `Model`), `vmId = modelIdentity.viewModelId`, passed unchanged to Operations. The `vmId` examples replace `id: ModelIdType` / `.init(id:)`, and name DIP + encapsulation with a link to the shared architecture patterns. Preview stubs follow the Stubbable pattern. |

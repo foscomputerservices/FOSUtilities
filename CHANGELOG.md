@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ModelIdentity.stub()`** — `ModelIdentity` is now `Stubbable`, so a ViewModel that carries an identity can write its stub and preview without a model. Each call returns a new identity that equals itself across an encode and decode, never equals another stub, and never equals a real model's identity. A test can hold one, pass it into the ViewModel, and check that an Operation receives the same identity.
+
+### Fixed
+
+- **`ModelIdentifiedViewModel` documentation** — the example's ViewModel now takes its `ModelIdentity` in its init instead of a model; the ViewModel's factory reads `model.modelIdentity` and passes it in. The DocC no longer claims the framework keys live refresh to the protocol.
+
 ## [0.19.1] - 2026-10-04
 
 ### Added

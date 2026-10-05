@@ -120,6 +120,30 @@ So a child ViewModel with any localized property gets its own test:
 Testing only the parent leaves every child's YAML unverified in every locale, and it fails silently
 — the suite stays green while the Spanish build ships English.
 
+## A ViewModel That Carries an Identity: Prove It Comes Back Out
+
+A ViewModel that represents an entity carries its `ModelIdentity` opaquely: it transports the identity to the Operations that act on the entity and roots `vmId` in it. Add one test proving that contract holds across the wire. Hold an identity in a local `let`, pass it into the ViewModel's stub, round-trip the ViewModel, and check the same identity comes back out:
+
+```swift
+@Test func cardViewModelCarriesItsIdentity() throws {
+    try expectFullViewModelTests(CardViewModel.self)
+
+    let cardId = ModelIdentity.stub()
+    let vm: CardViewModel = try CardViewModel.stub(modelIdentity: cardId)
+        .toJSON(encoder: encoder(locale: en))
+        .fromJSON()
+
+    #expect(vm.modelIdentity == cardId)
+    #expect(vm.vmId == cardId.viewModelId)
+}
+```
+
+For a parent whose stub chains the identity down to a child, hold the identity at the top and check it at the child (`vm.cards[0].modelIdentity == cardId`). That the identity reaches the Operation is a UI test's job: see [fosmvvm-ui-tests-generator → Identity Transport Tests](../fosmvvm-ui-tests-generator/SKILL.md#identity-transport-tests).
+
+Assert with `==` only. `ModelIdentity` is opaque — never inspect its encoded form or reach into its contents.
+
+**SOLID protected: DIP + encapsulation.** The ViewModel takes the identity, never the `Model`, and never reads inside it. **What breaks on deviation:** a ViewModel that rebuilds or substitutes an identity (from a `Model`, a raw `UUID`, a shared constant) still encodes and decodes cleanly, and `expectFullViewModelTests` stays green; only the held-identity check catches it.
+
 ## Testing Discipline: Contract, Not Representation
 
 The `expect*` helpers verify **behavior the contract guarantees** — Codable round-trip, version stability, translations exist. Keep any *added* assertions at that same altitude. (Background: [Architecture Patterns → Encapsulation Is the Precondition](../shared/architecture-patterns.md); repo `CLAUDE.md` → *Encapsulation Is the Precondition SOLID Assumes*.)
@@ -441,3 +465,4 @@ so the state stops being shared at all.
 | 1.1 | 2026-01-19 | Updated LocalizableTestCase example to use {ViewModelsTarget}.resourceAccess pattern. |
 | 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 1.3 | 2026-07-02 | Note the version baseline is a **committed artifact** for downstream apps (FOS's own baselines are regenerable/git-ignored fixtures — different policy); `expectFullViewModelTests(_:)` now forwards `#filePath`/`#line` so the baseline lands beside the caller's test. (backlog B7) |
+| 1.4 | 2026-10-05 | Held-identity check for ViewModels that carry a `ModelIdentity`: pass a held `ModelIdentity.stub()` into the stub, round-trip, assert `modelIdentity` and `vmId` come back equal (DIP + encapsulation). Private test ViewModel stubs follow the Stubbable pattern. |

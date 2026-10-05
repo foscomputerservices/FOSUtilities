@@ -616,6 +616,15 @@ import Foundation
 import SwiftUI
 import {ViewModelsTarget}
 
+/// The flow's state; selections are carried as opaque identities.
+public enum {ViewName}State: Codable, Hashable, Sendable {
+    case idle
+    case selectingItem
+    case itemSelected(item: ModelIdentity)
+    case selectingDetails(item: ModelIdentity)
+    case completed(item: ModelIdentity, detail: ModelIdentity)
+}
+
 /// Container view that manages {description}
 public struct {ViewName}View: ViewModelView {
     @Environment(AppState.self) private var appState
@@ -647,12 +656,12 @@ public struct {ViewName}View: ViewModelView {
             case .selectingItem:
                 ItemSelectorView.bind(appState: .init())
 
-            case .itemSelected(let itemId):
+            case .itemSelected(let item):
                 statusView
 
                 ItemDetailView.bind(
                     appState: .init(
-                        itemId: itemId,
+                        item: item,
                         isActive: viewModel.isActive,
                         level: viewModel.level
                     )
@@ -672,12 +681,12 @@ public struct {ViewName}View: ViewModelView {
             case .selectingDetails:
                 DetailSelectorView.bind(appState: .init())
 
-            case .completed(let itemId, let detailId):
+            case .completed(let item, let detail):
                 statusView
 
                 ItemDetailView.bind(
                     appState: .init(
-                        itemId: itemId,
+                        item: item,
                         isActive: viewModel.isActive,
                         level: viewModel.level
                     )
@@ -685,7 +694,7 @@ public struct {ViewName}View: ViewModelView {
 
                 DetailInfoView.bind(
                     appState: .init(
-                        detailId: detailId,
+                        detail: detail,
                         isEnabled: viewModel.isEnabled,
                         status: viewModel.status
                     )
@@ -714,10 +723,10 @@ private extension {ViewName}View {
     }
 
     func proceedToNext() {
-        guard case .itemSelected(let itemId) = viewModel.state else {
+        guard case .itemSelected(let item) = viewModel.state else {
             return
         }
-        appState.state = .selectingDetails(itemId: itemId)
+        appState.state = .selectingDetails(item: item)
         operations.proceedToDetails()
         toggleRepaint()
     }
@@ -751,7 +760,7 @@ private extension {ViewName}View {
     {ViewName}View.previewHost(
         bundle: MyAppResourceAccess.localizationBundle,
         viewModel: .stub(
-            state: .itemSelected(itemId: .init()),
+            state: .itemSelected(item: .stub()),
             isActive: true,
             level: .high
         )
@@ -763,7 +772,7 @@ private extension {ViewName}View {
     {ViewName}View.previewHost(
         bundle: MyAppResourceAccess.localizationBundle,
         viewModel: .stub(
-            state: .completed(itemId: .init(), detailId: .init()),
+            state: .completed(item: .stub(), detail: .stub()),
             isActive: true,
             isEnabled: true
         )
