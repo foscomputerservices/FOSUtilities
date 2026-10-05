@@ -140,7 +140,7 @@ A ViewModel answers: **"What does the View need to display?"**
 | Content Type | How It's Represented | Example |
 |--------------|---------------------|---------|
 | Static UI text | `@LocalizedString` | Page titles, button labels (fixed text) |
-| Dynamic enum values | `LocalizableString` (stored) | Status/state display (see Enum Localization Pattern) |
+| Displayed enum word | `LocalizableCase<Enum>` (stored) | `priority: LocalizableCase<Priority>`; pickers via `includingAllCases: true` (see Enum Localization Pattern) |
 | Dynamic data in text | `@LocalizedSubs` | "Welcome, %{name}!" with substitutions |
 | Composed text | `@LocalizedCompoundString` | Full name from pieces (locale-aware order) |
 | Formatted dates | `LocalizableDate` | `createdAt: LocalizableDate` |
@@ -1057,32 +1057,28 @@ call site.
 
 ### Enum Localization Pattern
 
-For dynamic enum values (status, state, category), use a **stored `LocalizableString`** - NOT `@LocalizedString`.
-
-`@LocalizedString` always looks up the same key (the property name). A stored `LocalizableString` carries the dynamic key from the enum case.
+**A displayed enum word is a `LocalizableCase`.** For a dynamic enum value the View shows as a word (status, state, priority, category), store a `LocalizableCase<TheEnum>`, NOT `@LocalizedString` and NOT a computed string on the enum. One stored value carries both the case (the View switches on `.value`) and its localized word (`Text(viewModel.state)`).
 
 ```swift
-// Enum provides localizableString.
-// NO `: String` raw backing — the case name IS the key (via String(describing:)).
-public enum SessionState: CaseIterable, Codable, Sendable {
+// NO `: String` raw backing — the case name IS the YAML key.
+public enum SessionState: CaseIterable, Codable, Hashable, Sendable {
     case pending, running, completed, failed
-
-    public var localizableString: LocalizableString {
-        .localized(for: Self.self, propertyName: String(describing: self))
-    }
 }
 
-// ViewModel stores it (NOT @LocalizedString)
 @ViewModel
 public struct SessionCardViewModel {
-    public let state: SessionState                // Raw enum for data attributes
-    public let stateDisplay: LocalizableString   // Localized display text
+    public let state: LocalizableCase<SessionState>   // case + localized word
+    public var vmId: ViewModelId
 
-    public init(session: Session) {
-        self.state = session.state
-        self.stateDisplay = session.state.localizableString
+    public init(state: SessionState, vmId: ViewModelId) {
+        self.state = LocalizableCase(state)
+        self.vmId = vmId
     }
 }
+
+// View
+Text(viewModel.state)
+    .foregroundStyle(viewModel.state.value == .failed ? .red : .primary)
 ```
 
 ```yaml
@@ -1095,7 +1091,26 @@ en:
     failed: "Failed"
 ```
 
-**Constraint:** `LocalizableString` only works in ViewModels encoded with `localizingEncoder()`. Do not use in Fluent JSONB fields or other persisted types.
+**A nested enum** sits under the type that encloses it (`Board.Visibility` → `Board: { Visibility: { … } }`), the same rule as `LocalizableString.localized(case:parentType:)`. The library derives the enclosing type; you pass nothing.
+
+**A picker over an enum** builds the value with `includingAllCases: true`; the localized value then carries every case's word as `choices`, in `allCases` order:
+
+```swift
+self.visibility = LocalizableCase(board.visibility, includingAllCases: true)
+
+// View
+Picker(selection: $selection) {
+    ForEach(viewModel.visibility.choices, id: \.value) { choice in
+        Text(choice.localizedString).tag(choice.value)
+    }
+} label: { Text(viewModel.visibilityTitle) }
+```
+
+> **SOLID: SRP.** The enum stays pure vocabulary; the word is a projection the ViewModel carries. A computed `displayName` on the enum, or a second `stateDisplay: LocalizableString` stored beside `state`, splits one responsibility across two places that drift apart, and a computed string never reaches the client at all (the localizing encoder resolves only what a ViewModel stores). One `LocalizableCase` is the case and its word.
+
+> **Testing proves every case.** `expectFullViewModelTests()` checks that *every* case of the enum has a word in every locale, not only the case the stub holds. A missing `failed:` key fails the test even when the stub is `.pending`.
+
+**Constraint:** Localizable values only resolve in ViewModels encoded with `localizingEncoder(in:store:)`. Do not use them in Fluent JSONB fields or other persisted types.
 
 > **ViewModel enums carry no `String`/`Int` raw backing when avoidable.** Write
 > `enum CardLiveness: Codable, Sendable, CaseIterable`, **not** `: String`. `Codable`
@@ -1105,7 +1120,7 @@ en:
 > input, a `.rawValue` that tempts stringly-typed comparisons, and it silently couples the
 > wire format to the case spelling. **Model the vocabulary; don't back it with a
 > primitive.** (A View-switched discriminator enum — one the View renders per case, with
-> no localized text — is likewise raw-less and needs no `localizableString` at all.)
+> no localized text — is likewise raw-less and needs no `LocalizableCase` at all.)
 
 ### Child ViewModels
 
@@ -1352,3 +1367,4 @@ same-named types can't actually clash in one file.) See
 | 2.11 | 2026-07-02 | Quick conventions: child VMs drop redundant `: Codable, Sendable` (macro adds them) — B9; ViewModel enums are raw-value-less (`String(describing:)` key, not `: String rawValue`) — B6; added `SystemVersion`/locale-independent field-type row + anti-pattern (version/hostname are typed, never `LocalizableString`) — B8. |
 | 2.12 | 2026-07-02 | Conceptual set: one top-level VM per screen composing children, never a mega-VM + one-file-per-VM pointer to app-setup — B1/B2; `Localizable*` init takes the plain Swift type and wraps it (formatting policy owned by init) — B3; **rewrote Identity: vmId** — stable data identity, singleton `.init(type: Self.self)` vs list-row `.init(id:)` (String/Int/UUID/merged), List-churn warning; reconciled all `.init()` throwaways in SKILL.md + reference.md (verified against `ViewModelId`) — B4; added **"ViewModel Module Must NOT Depend on Domain Types (Dependency Inversion)"** hard-rule section with Factory-adapter ergonomic — B5. |
 | 2.13 | 2026-10-05 | Entity identity is an opaque `ModelIdentity`: rows and entity ViewModels carry `modelIdentity` (not `id: ModelIdType`), take it in the init (never a `Model`), root `vmId` in `modelIdentity.viewModelId`, and the factory reads `model.modelIdentity`; transport rule section with DIP + encapsulation red flag. Stubbable pattern stated in full (defaulted `stub(...)` + `stub()` forwarding one explicit argument, motivation, chaining rule, SRP); stubs default `modelIdentity: ModelIdentity = .stub()`; interactive examples use a defaulted `stub(...)`. Nested-type examples moved to the showcase vocabulary. |
+| 2.14 | 2026-10-05 | Enum Localization Pattern rewritten: a displayed enum word is a stored `LocalizableCase<Enum>` (case + word in one value; nested enums keyed under the enclosing type, derived; `includingAllCases: true` + `choices` for pickers), replacing the computed `localizableString` + second `LocalizableString` field; SRP named; `expectFullViewModelTests()` proves every case. |

@@ -168,7 +168,7 @@ Complete templates for generating Leaf views that render ViewModels.
     </td>
 
     <td class="status-cell">
-        <span class="status-badge #(row.status)">#(row.statusDisplayName)</span>
+        <span class="status-badge #(row.status)">#(row.statusDisplay)</span>
     </td>
 
     <td class="date-cell">
@@ -415,12 +415,12 @@ const status = element.dataset.status;
 
 ### Localized String Shows Key Path
 
-**Symptom:** Shows `{Entity}CardViewModel.statusDisplayName` instead of "Active"
+**Symptom:** A `LocalizableCase` property (`statusDisplay`) renders blank or shows a key path instead of "Active"
 
 **Fix:**
-1. YAML file exists: `{Entity}CardViewModel.yml`
-2. YAML has the key: `statusDisplayName: "Active"`
-3. ViewModel uses `@LocalizedString`
+1. Add the case under the enum's type key in the YAML: `{Entity}Status: { active: "Active" }`
+2. A nested enum sits under its enclosing type's key
+3. The ViewModel property is a `LocalizableCase<{Entity}Status>`, not a computed `String`
 
 ---
 

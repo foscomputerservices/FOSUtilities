@@ -113,7 +113,7 @@ try expectTranslations(field.title, locales: [en, es])
 
 ### Mock the network — `MockURLSession`
 Reach for this when: testing code that fetches through FOSFoundation's
-DataFetch / URL extensions without touching the network — `init(model:url:)`
+DataFetch / URL extensions; nothing reaches the network — `init(model:url:)`
 cans a 200 JSON response for any Codable; `init(data:error:response:)` scripts
 failure cases. Conforms to URLSessionProtocol (catalogued in FOSFoundation).
 Don't call `session(config:)` on the mock — it is unimplemented; construct with

@@ -561,6 +561,14 @@ See [WebApp Bridge Pattern](#webapp-bridge-pattern) below.
 
 ---
 
+### Device-token register request
+
+An app that receives push notifications sends its device token to the server with a register request. The body carries the token's `deviceToken`, `topic`, `environment` (`PushEnvironment`) and `locale`, exactly the values `PushRegistration`'s `onDeviceToken` hook hands over. The server's handler upserts the row, since the hook runs at every launch and whenever Apple replaces the token.
+
+> **SOLID protected: DIP.** The token travels through a ServerRequest and the server owns its storage; neither the client library nor the push sender owns a table. See `fosmvvm-swiftui-app-setup` (Push notifications) and the `FOSMVVM.md § Push Notifications` catalog entry.
+
+---
+
 ## WebApp Bridge Pattern
 
 When the client is a web browser, you need a bridge between JavaScript and ServerRequest:
@@ -999,3 +1007,4 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.11 | 2026-09-29 | `CreateRequest`/`UpdateRequest` constrain `ResponseError` to `ValidatableViewModelRequestError` (`typealias ResponseError = ValidationError` is the ready-made choice); archive-vs-destroy section with the delete-timestamp boot rule; `Validations` is append-only and `FormFieldIdentifier` is minted with `#fieldId(\Model.property)`; remaining verb-first and Delete-era examples flipped. |
 | 2.12 | 2026-09-30 | A field identity is scoped by the type the key path names, so a hand-built `ValidationResult` mints from the `Fields` protocol the form field was declared on, not from the request body. |
 | 2.10 | 2026-07-02 | Concrete request types are noun-first (`<Noun><Verb>Request`); added "Naming the Concrete Request Type" section + [Naming Dictionary](../shared/NAMES.md) cross-ref; flipped all verb-first examples (`CreateIdeaRequest`→`IdeaCreateRequest`, `MoveIdeaRequest`→`IdeaMoveRequest`, etc.). (backlog A1) |
+| 2.13 | 2026-10-05 | Add "Device-token register request" pointer. |

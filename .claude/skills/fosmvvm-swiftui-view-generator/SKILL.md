@@ -268,6 +268,18 @@ public struct PreferencesView: ViewModelView {
 }
 ```
 
+**Picking an enum case:** for a picker over an enum, build the ViewModel property with `LocalizableCase(value, includingAllCases: true)` and iterate `viewModel.theme.choices`; each choice carries its `value` (the `.tag`) and its localized word.
+
+```swift
+Picker(viewModel.themeLabel, selection: $selection) {
+    ForEach(viewModel.theme.choices, id: \.value) { choice in
+        Text(choice.localizedString).tag(choice.value)
+    }
+}
+```
+
+> **SOLID protected: SRP.** The ViewModel projects the words; the view never derives them from the enum.
+
 **The mental model:**
 
 - `@Environment(UserSettings.self)` puts the reference on the View.
@@ -1161,3 +1173,4 @@ This skill is typically used after discussing requirements or reading specificat
 | 1.2 | 2026-09-23 | Images Pattern: catalog assets reach a view as typed `ImageResource` symbols (`Image(.name)`, `Label(_:image:)`), never as a `String` name and never as a name carried on the ViewModel; SF Symbols keep the `systemName` literal at the view. Added the Stringly Image Names mistake. Pairs with the bootstrap's emitted `Assets.xcassets`. |
 | 1.3 | 2026-09-29 | Form validation brought to the shipped API: `withFormValidations()` documented for the results that name no field, the complete form pattern (environment `Validations` → field views → modifier → `replace(with:)` on the typed `ResponseError`), the per-field/model-level asymmetry of `replace(with:)`, and the submit guard. Corrected the typed error's results property to its real name, `responseError.validations`. Restored the YAML frontmatter, which a stray version row had displaced. |
 | 1.4 | 2026-10-05 | Entity identity on ViewModels follows the opaque-identity rule: `modelIdentity: ModelIdentity` taken in the init (never a `Model`), `vmId = modelIdentity.viewModelId`, passed unchanged to Operations. The `vmId` examples replace `id: ModelIdType` / `.init(id:)`, and name DIP + encapsulation with a link to the shared architecture patterns. Preview stubs follow the Stubbable pattern. |
+| 1.5 | 2026-10-05 | Picker pointer: `LocalizableCase` over `.choices`. |

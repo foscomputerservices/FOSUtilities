@@ -375,6 +375,12 @@ Key points:
 - Use `SQLQueryString` with `\(unsafeRaw:)` for identifiers
 - These columns are database-only (not in protocol or Fluent model)
 
+### Push Destinations
+
+A stored device row conforms to `PushDestination` (FOSMVVMVapor): `deviceToken`, `topic`, `environment: PushEnvironment` and `locale`. The consumer owns the table, its migration and the register handler that upserts the row; the framework never creates it. The `onRetiredToken` hook of `PushConfiguration` is where the row for a token Apple has retired is deleted.
+
+> **SOLID protected: DIP and SRP.** Sending depends on the small `PushDestination` protocol, not on your table, and storage stays your responsibility, separate from delivery. See `FOSMVVMVapor.md § Push Notifications`.
+
 ### Tests
 
 - Use `@Suite` annotation with descriptive name
@@ -480,3 +486,4 @@ See [`../shared/api-catalog/FOSMVVMVapor.md`](../shared/api-catalog/FOSMVVMVapor
 | 2.3 | 2026-09-29 | `DataModelLifecycle` hooks (all optional, all defaulted) in the scaffold with one worked example each; `try app.register(_:migration:)` replaces `app.migrations.add` for every `DataModel`; full lifecycle sequence, after-commit rule, batch-write limits and warning policy in reference.md. |
 | 2.4 | 2026-09-30 | A field identity is scoped by the type the key path names, so `validateModel` mints from the `Fields` protocol (`\{Model}Fields.property`), never from the model that adopts it. |
 | 2.2 | 2026-08-25 | Raw-identity rules aligned with the junction-table principle: `@OptionalParent` for same-database optional FKs, no `[UUID]` arrays, no same-database ids in JSONB, express-approval documentation for external references, honest enum decodes. Post-2.1 framework surface pointer (Container/Sortable/Filterable DataModel, DataModelWriter, live invalidation). |
+| 2.5 | 2026-10-05 | Add "Push Destinations" note: device row conforms to `PushDestination`, consumer owns the table, `onRetiredToken` deletes the row. |

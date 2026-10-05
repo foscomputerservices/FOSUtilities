@@ -33,6 +33,7 @@ line via the `fosutilities-api-catalog-update` skill.
 - Reaching for `URLSession`/`URLRequest`, fetching or posting Codable data → `FOSFoundation.md § Networking`
 - Reaching for `URLSessionWebSocketTask` → `FOSFoundation.md § Networking`
 - Mocking network calls in tests → `FOSFoundation.md § Networking`, `FOSTesting.md § FOSTesting`
+- Backing off when a service says to wait (rate limits, `Retry-After`), or turning a REST service's own error responses into rich errors → `FOSFoundation.md § Networking`
 - Grouping an array into a dictionary, or rate-limiting (throttling) iteration → `FOSFoundation.md § Collections`
 - Converting string casing (camel/snake), trimming prefixes/suffixes, generating random strings → `FOSFoundation.md § String`
 - Hashing (SHA-256/HMAC), obfuscating strings, parsing hex strings or CSV files → `FOSFoundation.md § String`
@@ -43,6 +44,8 @@ line via the `fosutilities-api-catalog-update` skill.
 - Typing a model identifier (never a raw `UUID`/`String` field) → `FOSFoundation.md § Data`
 - Declaring a ViewModel or versioning its factory (`@ViewModel`, `@VersionedFactory`) → `FOSMVVM.md § Macros`
 - Localizing properties from YAML (`@LocalizedString`), substituting values into localized text → `FOSMVVM.md § Localization`
+- Showing an enum case as a localized word, or a picker over an enum → `FOSMVVM.md § Localization` (`LocalizableCase`)
+- Localizing a type of your own through the localizing encoder → `FOSMVVM.md § Localization` (`localized(in:store:)`)
 - Encoding a ViewModel with its localizations resolved → `FOSMVVM.md § Extensions`
 - Describing form fields — control type, keyboard, input constraints, value binding → `FOSMVVM.md § Forms`
 - Minting a field identity from the property it names (`#fieldId`) → `FOSMVVM.md § Forms`
@@ -75,6 +78,8 @@ line via the `fosutilities-api-catalog-update` skill.
 - Refreshing live screens whose data isn't Fluent-persisted — nudging from an `Application`-hosted actor or computed aggregate, or registering a dependency the load plan can't see → `FOSMVVMVapor.md § Live Invalidation`
 - The server-side write path — candidate set, field application, authorization provider, the subject's identity for live grant refresh → `FOSMVVMVapor.md § Protocols`
 - Projecting the database into ViewModels — resolvable requests, Fluent `DataModel` → `FOSMVVMVapor.md § Protocols`
+- Sending Apple push notifications from the server (localized per device, badge-only for tvOS, retired-token cleanup) — behind the `APNs` trait → `FOSMVVMVapor.md § Push Notifications`
+- Asking for notification permission and sending the app's device token to its server → `FOSMVVM.md § Push Notifications`
 - Serving typed/localized errors, gating routes on client app version → `FOSMVVMVapor.md § Middleware`
 - Verifying a caller's bearer token / protecting route groups with app-owned credential rules → `FOSMVVMVapor.md § Middleware`
 - Testing ViewModels — Codable round-trip, version stability, translation coverage → `FOSTesting.md § FOSTesting`

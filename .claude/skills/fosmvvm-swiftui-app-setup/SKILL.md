@@ -710,6 +710,45 @@ is about that phase — the app's whole life after generation.
 | MVVMEnvironment property | `mvvmEnv` | Always `mvvmEnv` |
 | Test flag | `underTest` | Always `underTest` |
 
+## Push Notifications (optional)
+
+Hold a `PushRegistration(environment:onDeviceToken:)` in the app delegate, adapted into the `App` with `@UIApplicationDelegateAdaptor` (`@NSApplicationDelegateAdaptor` on macOS, `@WKApplicationDelegateAdaptor` on watchOS).
+
+```swift
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    let pushRegistration = PushRegistration(environment: pushEnvironment) { token in
+        let request = RegisterDeviceRequest(requestBody: .init(
+            deviceToken: token.deviceToken,
+            topic: token.topic,
+            environment: token.environment,
+            locale: token.locale
+        ))
+        try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        Task { try? await pushRegistration.requestPermission() }
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        pushRegistration.deviceTokenReceived(deviceToken)
+    }
+}
+```
+
+- Forward the delegate's device token to `deviceTokenReceived(_:)`; SwiftUI cannot receive it.
+- Call `requestPermission(badgeOnly:)` at **every** launch (`badgeOnly: true` on tvOS), so the server's stored locale stays current.
+- Send the token with the app's own register `ServerRequest` from `onDeviceToken`; the server's handler inserts or updates.
+- Add the `aps-environment` entitlement, and pass `.sandbox` for development-signed builds or `.production` for TestFlight and App Store builds.
+
+> **SOLID protected: DIP.** The app sends the token through a ServerRequest; the library never owns the storage. **What breaks on deviation:** a library-owned token table couples every app to one persistence choice and bypasses the request contract.
+
+See `FOSMVVM.md § Push Notifications` in the API catalog.
+
 ## Deployment Configuration
 
 FOSMVVM supports deployment detection via Info.plist:
@@ -752,3 +791,4 @@ Runtime Detection:
 | 1.9 | 2026-07-03 | Wire in the FOSUtilities API catalog: pointer to `../shared/api-catalog/FOSMVVM.md` (§ SwiftUI Support, § Versioning) near the top, and an "API Discovery" drop-in for the seeded app `CLAUDE.md` referencing the `fosutilities-api-catalog` skill by name only (never a filesystem path — the catalog lives in the installed plugin). |
 | 1.10 | 2026-07-23 | Add "Client-Hosted Localization" (field feedback from standing up a first `.clientHostedFactory` VM in an overlay-based Xcode app): encode-time vs bind-time localization concept + `missingLocalizationStore`/`noResourcePaths` symptoms; the resource-carrying framework pattern for overlay projects; the five framework-target settings (`DEVELOPMENT_TEAM`, `BUILD_LIBRARY_FOR_DISTRIBUTION`, deployment targets, `SWIFT_VERSION`, SPMLibraries-only linking); the Xcode resource-flattening gotcha (`resourceDirectoryName` nil ⇒ `""` recurses; tests must pass `""`, not the `"Resources"` default); client-VM-framework tests default to the iOS Simulator (macOS build-for-testing PackageFrameworks link failure); `localizationBundle` naming (never `clientLocalizationStore`). All claims verified against `MVVMEnvironment.swift` / `YamlLocalizationStore.swift` / `URL+Files.swift` / `LocalizableTestCase.swift` / `ViewModelView.swift`. |
 | 2.0 | 2026-08-24 | **Re-cut around the app's life, not its creation.** `fosmvvm-bootstrap` (shipped 0.14.0) now emits the App struct, `MVVMEnvironment`, test infrastructure, seeded `CLAUDE.md` and memory files for all three shapes, so this skill's project-creation half was superseded and had begun to drift — its `project.yml` table still read `ENABLE_HARDENED_RUNTIME: YES` for app and tests, while the templates set Debug `NO` / Release `YES` because YES in Debug kills macOS UI testing. Removed: the XcodeGen section, the project file tree, the code-signing section, the file-template list, and the seeded-`CLAUDE.md` instructions — all now the scaffolder's, and audited by `fosmvvm-doctor`. Kept and re-parented: `MVVMEnvironment`, test-view registration, the resource wiring, Client-Hosted Localization (including the hand-added-framework checklist and the `resourceDirectoryName` flattening gotcha), server-hosted contract wiring, deployment configuration. The SPMLibraries type-identity doctrine moved to `.claude/docs/FOSMVVMArchitecture.md`, discharging the never-done item from the bootstrap design §6.7 — it had lived only in this skill and in a template that ships out to customers. |
+| 2.1 | 2026-10-05 | Add "Push notifications (optional)": `PushRegistration`, delegate token forwarding, every-launch permission, register ServerRequest, entitlement and environment. |
