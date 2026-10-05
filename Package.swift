@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 
 import CompilerPluginSupport
 import PackageDescription
@@ -78,6 +78,13 @@ let package = Package(
 
         return result
     }(),
+    traits: [
+        .trait(
+            name: "APNs",
+            description: "Apple push notifications from FOSMVVMVapor (PushNotifications). Off by default; APNSwift and the push code are compiled only when it is on."
+        ),
+        .default(enabledTraits: [])
+    ],
     dependencies: {
         var result: [Package.Dependency] = [
             // 🍎 frameworks
@@ -104,6 +111,9 @@ let package = Package(
         result.append(.package(url: "https://github.com/vapor/fluent.git", .upToNextMajor(from: "4.12.0")))
         result.append(.package(url: "https://github.com/vapor/fluent-sqlite-driver.git", .upToNextMajor(from: "4.8.0")))
         result.append(.package(url: "https://github.com/vapor/leaf-kit.git", .upToNextMajor(from: "1.11.0")))
+        // Compiled only when a consumer enables the APNs trait. With the trait off,
+        // current SwiftPM also skips fetching it; older toolchains may still fetch it.
+        result.append(.package(url: "https://github.com/swift-server-community/APNSwift.git", .upToNextMajor(from: "7.0.1")))
         #endif
 
         #if os(macOS)
@@ -248,7 +258,10 @@ let package = Package(
                 .product(name: "FluentKit", package: "fluent-kit", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "Fluent", package: "fluent", condition: .when(platforms: [.macOS, .linux])),
                 .product(name: "LeafKit", package: "leaf-kit", condition: .when(platforms: [.macOS, .linux])),
-                .product(name: "Yams", package: "Yams")
+                .product(name: "Yams", package: "Yams"),
+                .product(name: "APNS", package: "APNSwift", condition: .when(platforms: [.macOS, .linux], traits: ["APNs"])),
+                .product(name: "APNSCore", package: "APNSwift", condition: .when(platforms: [.macOS, .linux], traits: ["APNs"])),
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.macOS, .linux], traits: ["APNs"]))
             ],
             resources: [
                 .copy("Resources/fosmvvm")
@@ -277,7 +290,9 @@ let package = Package(
                 .byName(name: "FOSTestingVapor"),
                 .product(name: "Vapor", package: "Vapor"),
                 .product(name: "FluentKit", package: "fluent-kit"),
-                .product(name: "Fluent", package: "fluent")
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "APNSCore", package: "APNSwift", condition: .when(traits: ["APNs"])),
+                .product(name: "Crypto", package: "swift-crypto", condition: .when(traits: ["APNs"]))
             ],
             resources: [
                 .copy("TestYAML")

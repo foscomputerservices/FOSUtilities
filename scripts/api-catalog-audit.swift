@@ -125,7 +125,8 @@ func symbolGraphDir() throws -> URL {
     print("Running `swift package dump-symbol-graph` (builds the package; may take a while)...")
     let proc = Process()
     proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    proc.arguments = ["swift", "package", "dump-symbol-graph", "--skip-synthesized-members"]
+    // Every trait on: trait-gated API (APNs) is public surface the catalog covers.
+    proc.arguments = ["swift", "package", "--enable-all-traits", "dump-symbol-graph", "--skip-synthesized-members"]
     let pipe = Pipe()
     proc.standardOutput = pipe
     proc.standardError = FileHandle.standardError

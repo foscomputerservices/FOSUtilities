@@ -1,0 +1,8 @@
+en:
+  PushTest:
+    title: "New card"
+    body: "A card was assigned to you"
+es:
+  PushTest:
+    title: "Tarjeta nueva"
+    body: "Se te asignó una tarjeta"
