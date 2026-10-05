@@ -233,6 +233,22 @@ David, verbatim: "I don't understand why FOS would dictate this. I actually don'
 
 Decides: `feat-stub-model-identity.md`.
 
+OQ21. The C9 hook's name.
+
+**Ruled 2026-10-05:** `Localizable.localized(in locale: Locale, store: LocalizationStore) throws -> String?`, as fosline asked. David: "I do like the localized(in:store:) syntax, it's better. Let's add that and add @available(depricated) ... to the existing APIs to encourage migration to the new syntax." Confirmed "yes, those two": `LocalizableError.localized(locale:localizationStore:) -> Self` gains `localized(in:store:) -> Self`, and `JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)` gains `localizingEncoder(in:store:strictLocalization:)`; each old form is `@available(*, deprecated, renamed:)`, and every call site in the repo moves to the new names.
+
+OQ22–OQ28. **Ruled 2026-10-05 ("Agreed"), as recommended:**
+
+- OQ22: the type is `LocalizableCase<Case>`.
+- OQ23: `LocalizableCase(.oneDay)` or `LocalizableCase(.oneDay, includingAllCases: true)`; `choices: [(value: Case, localizedString: String)]` in `allCases` order, empty without the option.
+- OQ24: the library derives a nested enum's parent type; the YAML matches `localized(case:parentType:)`.
+- OQ25: APNSwift directly, behind FOS's own types; a server never imports APNSwift.
+- OQ26: trait `APNs`; `PushDestination` (`deviceToken`, `topic`, `environment`, `locale`); `PushEnvironment` (`.sandbox`, `.production`); `PushNotification` (`title`, `body` as `LocalizableString`; `badge`; `sound`; `interruptionLevel`: `.passive`, `.active`, `.timeSensitive`, `.critical`); `app.pushNotifications.configure(_: PushConfiguration)` (the `.p8` key, key id, team id, `onRetiredToken: (String) async throws -> Void`); `app.pushNotifications.send(_:to:)`. Client (FOSMVVM): `PushRegistration` with `requestPermission(badgeOnly:)`, `deviceTokenReceived(_ token: Data)`, and the `onDeviceToken` hook, called at every launch.
+- OQ27: `DataFetchError.retryAfter(Duration)`; `DataFetch(urlSession:errorForResponse:)` with a `(HTTPURLResponse, Data?) -> (any Error)?` closure.
+- OQ28: one message to fosline to resolve its real graph against the local branch through a mirror, before the PR.
+
+David, 2026-10-05: one PR for all of 0.20.0's remaining work; "please don't chunk that up into little PR's".
+
 ## Awaiting ruling
 
 Raised while building `feat-stub-model-identity.md`; neither blocks it.
