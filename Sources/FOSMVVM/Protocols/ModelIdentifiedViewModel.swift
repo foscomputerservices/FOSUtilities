@@ -18,19 +18,27 @@ import Foundation
 
 /// A ``ViewModel`` that knows *which* ``Model`` instance it projects.
 ///
-/// Conform when a ViewModel represents a specific entity — a user, a document, a list row — so the
-/// framework can key identity-based behavior (e.g. live refresh) to it. Singleton or ephemeral
-/// ViewModels don't conform and keep only ``ViewModel/vmId``.
+/// Conform when a ViewModel represents a specific entity, such as a board, a card, or a list row, so it
+/// carries the identity of the entity it projects and roots its ``ViewModel/vmId`` in it. Singleton
+/// or ephemeral ViewModels don't conform and keep only ``ViewModel/vmId``.
+///
+/// The identity is opaque to the ViewModel: it takes the identity in its init and passes it,
+/// unchanged, to the Operations that act on the entity. Its factory reads ``Model/modelIdentity``
+/// and passes it in; a test or preview passes ``ModelIdentity/stub()``.
 ///
 /// ```swift
 /// @ViewModel
-/// struct UserViewModel: RequestableViewModel, ModelIdentifiedViewModel {
+/// struct CardViewModel: ModelIdentifiedViewModel {
 ///     let modelIdentity: ModelIdentity
 ///     let vmId: ViewModelId
 ///
-///     init(user: User) throws {
-///         self.modelIdentity = try user.modelIdentity
+///     init(modelIdentity: ModelIdentity) {
+///         self.modelIdentity = modelIdentity
 ///         self.vmId = modelIdentity.viewModelId
+///     }
+///
+///     static func stub(modelIdentity: ModelIdentity = .stub()) -> Self {
+///         .init(modelIdentity: modelIdentity)
 ///     }
 /// }
 /// ```

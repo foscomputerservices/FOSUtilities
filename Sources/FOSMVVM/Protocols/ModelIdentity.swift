@@ -30,8 +30,13 @@ import Foundation
 /// grantedContainers.contains(identity)          // Hashable — use it as a Set member or dictionary key
 /// ```
 ///
-/// You can't build one from raw values (only ``Model/modelIdentity`` or decoding mints one), and you
-/// can't read its contents back out.
+/// You can't build one from raw values, and you can't read its contents back out. An identity comes
+/// only from ``Model/modelIdentity``, from decoding, or, in tests and previews, from ``stub()``.
+///
+/// A ViewModel carries an identity for two reasons: to pass it along, through its View and
+/// Operations, to the ServerRequest that acts on the entity, and to root its ``ViewModel/vmId``. It
+/// never builds one or looks inside it. Its init takes the identity, and its factory passes in
+/// ``Model/modelIdentity``.
 ///
 /// - Important: Treat it as opaque. Encode/decode it *as a whole* to persist or transmit it; never
 ///   parse or hand-build its encoded form. The encoding is stable — it changes only on a library major
@@ -81,6 +86,54 @@ public extension ModelIdentity {
         (try? lhs == rhs.modelIdentity) ?? false
     }
 }
+
+extension ModelIdentity: Stubbable {
+    /// A new stand-in identity for tests and previews.
+    ///
+    /// A ViewModel that carries an identity takes it as a defaulted stub parameter, so every preview
+    /// and test gets a valid one without a model:
+    ///
+    /// ```swift
+    /// @ViewModel
+    /// struct CardViewModel: ModelIdentifiedViewModel {
+    ///     let modelIdentity: ModelIdentity
+    ///     let vmId: ViewModelId
+    ///
+    ///     init(modelIdentity: ModelIdentity) {
+    ///         self.modelIdentity = modelIdentity
+    ///         self.vmId = modelIdentity.viewModelId
+    ///     }
+    ///
+    ///     static func stub(modelIdentity: ModelIdentity = .stub()) -> Self {
+    ///         .init(modelIdentity: modelIdentity)
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// To prove a View wires the identity through to its Operation, hold one, pass it in, and check
+    /// that the same identity comes out the other end of the action:
+    ///
+    /// ```swift
+    /// let cardId = ModelIdentity.stub()
+    /// let app = try presentView(viewModel: .stub(modelIdentity: cardId))
+    ///
+    /// app.uiTestingElement("deleteButton").tap()
+    ///
+    /// let stubOps = try viewModelOperations()
+    /// XCTAssertEqual(stubOps.deleteCalledWith, cardId)
+    /// ```
+    ///
+    /// > Each call returns a different identity, so the rows of a stubbed list stay distinct. A stub
+    /// > identity names no entity: it equals itself across an encode and decode, never equals another
+    /// > stub, and never equals an identity that came from a real model.
+    public static func stub() -> Self {
+        .init(namespace: ModelNamespace(for: StubIdentity.self), id: .init())
+    }
+}
+
+/// Anchors every stub identity's namespace. Private, so no `Model` and no `ModelNamespace(for:)`
+/// outside FOSMVVM can name it: a stub can never collide with a real model's identity.
+private enum StubIdentity {}
 
 public extension ModelIdentity {
     /// A stable ``ViewModelId`` derived from this identity. Bind your ViewModel's `vmId` to it so
