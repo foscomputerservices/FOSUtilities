@@ -264,8 +264,8 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
         let app = try presentView(
             viewModel: .stub(
                 items: [
-                    .stub(id: .init(), title: "Item 1"),
-                    .stub(id: .init(), title: "Item 2")
+                    .stub(title: "Item 1"),   // each stub row gets its own identity
+                    .stub(title: "Item 2")
                 ]
             )
         )
@@ -320,16 +320,18 @@ final class {ViewName}UITests: {ProjectName}ViewModelViewTestCase<
         XCTAssertTrue(stubOps.refreshCalled)
     }
 
-    func testDelete() async throws {
+    func testDeleteSendsTheSelectedItemsIdentity() async throws {
+        let itemId = ModelIdentity.stub()
         let app = try presentView(
-            configuration: .requireAuth()
+            configuration: .requireAuth(),
+            viewModel: .stub(items: [.stub(modelIdentity: itemId, title: "Item 1")])
         )
 
         app.uiTestingElement("itemButton").tap()
         app.uiTestingElement("deleteButton").tap()
 
         let stubOps = try viewModelOperations()
-        XCTAssertTrue(stubOps.deleteCalled)
+        XCTAssertEqual(stubOps.deleteCalledWith, itemId)
         XCTAssertFalse(stubOps.submitCalled)
     }
 
@@ -648,7 +650,7 @@ import ViewModels
 
 public struct {ViewName}View: ViewModelView {
     @State private var items: [ItemViewModel] = []
-    @State private var selectedId: ModelIdType?
+    @State private var selectedId: ModelIdentity?
     @State private var error: Error?
 
     #if DEBUG
@@ -670,10 +672,10 @@ public struct {ViewName}View: ViewModelView {
                 ScrollView {
                     VStack {
                         ForEach(items) { item in
-                            Button { selectItem(item.id) } label: {
+                            Button { selectItem(item.modelIdentity) } label: {
                                 HStack {
                                     Text(item.title)
-                                    if item.id == selectedId {
+                                    if item.modelIdentity == selectedId {
                                         Spacer()
                                         Image(systemName: "checkmark")
                                     }
@@ -734,7 +736,7 @@ private extension {ViewName}View {
         }
     }
 
-    func selectItem(_ id: ModelIdType) {
+    func selectItem(_ id: ModelIdentity) {
         if selectedId == id {
             selectedId = nil
         } else {
@@ -745,7 +747,7 @@ private extension {ViewName}View {
 
     @Sendable func submit() async throws {
         guard let selectedId else { return }
-        try await operations.submit(itemId: selectedId)
+        try await operations.submit(item: selectedId)
         toggleRepaint()
     }
 
@@ -842,6 +844,7 @@ public final class {ViewName}StubOps: {ViewName}ViewModelOperations, @unchecked 
 - `async` only when the body genuinely awaits. Sync state mutations should be sync; gratuitous async introduces out-of-order Task completion on rapid interactions.
 - Never fail silently. No `try?`, no empty `catch {}`. Surface errors to observable state.
 - Every stub exposes a `{action}Called: Bool` accessor so UI tests can assert the operation fired. Client-hosted stubs also mirror the live mutation on `storage`, keeping the projection loop intact under test; server-backed stubs cannot (no server in test env) and expose a `{action}CalledWith` accessor instead.
+- An action on an entity receives the ViewModel's `ModelIdentity`, unchanged, so its stub records `{action}CalledWith: ModelIdentity?`. `ModelIdentity` is `Codable`, so it survives the trip back through `viewModelOperations()`. Test it with the **Identity Transport Pattern** below.
 
 ### Note for display-only ViewModels
 
@@ -946,6 +949,30 @@ func testSomeOperation() async throws {
 }
 ```
 
+## Identity Transport Pattern
+
+`{action}Called` proves the button fired *an* operation; it does not prove the operation was told **which** entity. When the action targets an entity, hold an identity in a local `let`, pass it into the ViewModel's stub, drive the action, and assert the Operation received the same identity. Equality proves the whole chain is wired: ViewModel → View → action → Operation.
+
+```swift
+final class CardUITests: MyAppViewModelViewTestCase<CardViewModel, CardStubOps>, @unchecked Sendable {
+    func testDeleteSendsTheCardsIdentity() async throws {
+        let cardId = ModelIdentity.stub()
+        let app = try presentView(
+            viewModel: .stub(modelIdentity: cardId)
+        )
+
+        app.uiTestingElement("deleteButton").tap()
+
+        let stubOps = try viewModelOperations()
+        XCTAssertEqual(stubOps.deleteCalledWith, cardId)
+    }
+}
+```
+
+The ViewModel's stub takes `modelIdentity` as a defaulted parameter (fosmvvm-viewmodel-generator → Stubbable Pattern), so the test names only the identity it cares about and every other value stays valid. For a row in a list, pass the held identity to that row's stub: `.stub(cards: [.stub(modelIdentity: cardId)])`.
+
+**SOLID protected: DIP + encapsulation.** The View hands the Operation the identity the ViewModel carries — never a `Model`, never a raw id it built or parsed. **What breaks on deviation:** a View that rebuilds the id, swaps in a neighbor row's identity, or passes a raw `UUID` compiles and still sets `{action}Called`; only the equality assertion catches it.
+
 ## Test Configuration Pattern
 
 ```swift
@@ -982,6 +1009,7 @@ let app = try presentView(
 - [ ] Test file created with correct generic parameters
 - [ ] UI state tests added
 - [ ] Operation tests added
+- [ ] Each action on an entity has an Identity Transport test (`{action}CalledWith` equals the held `ModelIdentity`)
 - [ ] setUp() method configured if needed
 - [ ] Every element the test touches is tagged with `.uiTestingIdentifier()` and found with `app.uiTestingElement()`
 

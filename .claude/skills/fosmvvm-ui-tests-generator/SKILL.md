@@ -470,6 +470,26 @@ func testSubmitButtonInvokesOperation() async throws {
 }
 ```
 
+### Identity Transport Tests
+
+When an action targets an entity, `{action}Called` is not enough — it passes even if the Operation was told the wrong entity. A ViewModel that represents an entity carries its `ModelIdentity` opaquely and the View hands it, unchanged, to the Operation. Prove that: hold an identity in a local `let`, pass it into the ViewModel's stub, drive the action, and assert the Operation received the same identity.
+
+```swift
+func testDeleteSendsTheCardsIdentity() async throws {
+    let cardId = ModelIdentity.stub()
+    let app = try presentView(viewModel: .stub(modelIdentity: cardId))
+
+    app.uiTestingElement("deleteButton").tap()
+
+    let stubOps = try viewModelOperations()
+    XCTAssertEqual(stubOps.deleteCalledWith, cardId)
+}
+```
+
+Equality proves the whole ViewModel → View → action → Operation chain is wired. Each `ModelIdentity.stub()` is a new identity, so a list test can hold one row's identity and check that row, not a neighbor, reached the Operation.
+
+**SOLID protected: DIP + encapsulation.** The identity is opaque: the View neither builds nor reads it, and nothing in the chain sees the `Model`. **What breaks on deviation:** a View that rebuilds an id, passes a neighbor row's identity, or substitutes a raw `UUID` still sets `{action}Called`; only the held-identity assertion catches it. Full template: [reference.md → Identity Transport Pattern](reference.md#identity-transport-pattern).
+
 ### Navigation Tests
 
 Two different things wear this name, and only one of them works without a declared parent.
@@ -802,3 +822,4 @@ so the state stops being shared at all.
 | 1.5 | 2026-08-12 | `.uiTestingIdentifier(_:)` reworked so a tag holds on bridged controls (`Picker`, `DatePicker`, `TextField`, `ColorPicker`), on containers whose sub-views carry their own tags, at any depth, and at any position in the modifier chain. Tests now find tagged views with `app.uiTestingElement(_:)` (FOSTestingUI): `XCUIApplication` accessor extensions, XCUITest element-type queries, and the hand-rolled `typeTextAndWait`/`tapMenu`/`text` helpers are all removed in favour of it. |
 | 1.6 | 2026-08-18 | The verified-interaction layer: generate `setText(_:expecting:)` for exact-value text entry (replaces + verifies read-back; `type(_:)` only for genuine append), `selectPickerItem(_:)` for Picker selection (returns only after the selection committed — the next read needs no wait), `waitForStableFrame()` for interactions that bypass `tap()`. `tap()` now settles in-flight frames and aims at the control a composite tag spans; reads resolve the same way, so a row-spanning tag answers with its field. Legacy-helper table routes replacement intent to `setText`. |
 | 1.7 | 2026-08-19 | Keyboard occlusion is owned by the verified APIs: `tap()` and `setText` scroll a keyboard-covered target clear before aiming (a settled frame can still be an occluded frame — the covered control exists, is hittable, and holds a stable frame while every gesture lands on the keys). Never generate scrolling or `dismissKeyboard()` between an entry and a tap the keyboard covers; dismissal remains for asserting content the keyboard hides. |
+| 1.8 | 2026-10-05 | Identity Transport Tests: hold a `ModelIdentity.stub()`, present `.stub(modelIdentity:)`, drive the action, assert `{action}CalledWith` equals the held identity (DIP + encapsulation). Template 4's delete test and Template 8's selection carry `ModelIdentity` instead of `ModelIdType`; stub rows rely on the defaulted identity instead of `id: .init()`. |

@@ -26,14 +26,17 @@ private struct WidgetViewModel: RequestableViewModel, ModelIdentifiedViewModel, 
     let vmId: ViewModelId
     let modelIdentity: ModelIdentity
 
-    init(widget: TestWidget) throws {
-        let identity = try widget.modelIdentity
-        self.modelIdentity = identity
-        self.vmId = identity.viewModelId
+    init(modelIdentity: ModelIdentity) {
+        self.modelIdentity = modelIdentity
+        self.vmId = modelIdentity.viewModelId
+    }
+
+    static func stub(modelIdentity: ModelIdentity = .stub()) -> Self {
+        .init(modelIdentity: modelIdentity)
     }
 
     static func stub() -> Self {
-        try! .init(widget: TestWidget())
+        .stub(modelIdentity: .stub())
     }
 }
 
@@ -57,10 +60,17 @@ private final class WidgetViewModelRequest: ViewModelRequest, @unchecked Sendabl
 }
 
 struct ModelIdentifiedViewModelTests {
-    @Test func exposesModelIdentityRootedInTheModel() throws {
+    @Test func carriesTheIdentityItWasGivenAndRootsItsVmIdInIt() throws {
         let widget = TestWidget()
-        let vm = try WidgetViewModel(widget: widget)
+        let vm = try WidgetViewModel(modelIdentity: widget.modelIdentity)
         #expect(vm.modelIdentity == widget)
         #expect(try vm.vmId == widget.modelIdentity.viewModelId)
+    }
+
+    @Test func aHeldStubIdentityComesBackOutUnchanged() {
+        let held = ModelIdentity.stub()
+        let vm = WidgetViewModel.stub(modelIdentity: held)
+        #expect(vm.modelIdentity == held)
+        #expect(vm.vmId == held.viewModelId)
     }
 }

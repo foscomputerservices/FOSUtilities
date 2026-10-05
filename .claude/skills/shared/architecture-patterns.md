@@ -81,6 +81,64 @@ Adding a requirement that already has a default is **source-compatible** — exi
 
 ---
 
+## Identities Pass Through ViewModels Opaquely
+
+A data-layer identity may travel through a ViewModel. It is how data model -> ViewModel -> UI -> action -> Operation -> ServerRequest -> server -> database change communicate. But the ViewModel treats it as **opaque**: it only transports the identity through the ViewModel / View / Operation chain, and uses it to root the view (`vmId`) for stability in the view hierarchy.
+
+- The ViewModel's init takes the `ModelIdentity`, **never a `Model`**.
+- The factory reads `model.modelIdentity` and passes it in. The factory adapts; the ViewModel never learns the domain.
+- The ViewModel never builds, parses, or reads inside an identity.
+
+```swift
+// ViewModel module: knows ModelIdentity, never Card
+init(modelIdentity: ModelIdentity) {
+    self.modelIdentity = modelIdentity
+    self.vmId = modelIdentity.viewModelId
+}
+
+// Factory: the one place that touches the Model
+CardViewModel(modelIdentity: try card.modelIdentity)
+```
+
+**SOLID protected:** DIP (the ViewModel module never imports the domain/wire module; the factory adapts) and encapsulation (the identity stays opaque, so no one can mint, parse, or route on it). **What breaks on deviation:** a `Model` in the ViewModel's init drags the persistence type into the shared module and onto every client; a raw `UUID` or `String` id invites parsing and forging, and the coupling surfaces far from the crack.
+
+### Testing the Chain with a Held Identity
+
+When a test must stabilize a set of calls, create an identity in the form the ViewModel requests, hold it in a local `let`, pass it into the ViewModel, and get it back out later. Inspect that the argument handed to the Operation is the same identity the ViewModel was given: that proves the whole UI -> action -> Operation sequence is wired.
+
+```swift
+let cardId = ModelIdentity.stub()
+let vm = CardViewModel.stub(modelIdentity: cardId)
+
+let stubOps = try viewModelOperations()
+// ... drive the card's delete action ...
+
+XCTAssertEqual(stubOps.deleteCalledWith, cardId)   // FOSTestingUI (XCTest)
+```
+
+---
+
+## The Stubbable Pattern: Specify Little, Receive a Valid Whole
+
+Implement a `static func stub(<defaulted init parameters>) -> Self { .init(<parameters>) }` (every parameter defaulted; a child-valued parameter may instead be the value that chains down into the child's `stub(...)`), then make the protocol's `static func stub()` forward to it, passing **one** argument explicitly. With no argument, `.stub()` resolves to itself and recurses forever.
+
+This lets a test or preview specify just the tiniest amount of information that matters to it, while still receiving a fully valid, often multi-level, highly structured ViewModel. If a value passed at the top needs to chain down, forward it to the children's `stub(...)` so the entire hierarchy is valid:
+
+```swift
+struct BoardViewModel: Stubbable {
+    let cardList: CardListViewModel
+
+    static func stub(number: Int = 0) -> Self { .init(cardList: .stub(number: number)) }
+    static func stub() -> Self { .stub(number: 0) }
+}
+```
+
+A type with no public init parameters (like `ModelIdentity`) has only `stub()`. Identity parameters default to `.stub()`, so each row of a stubbed list is distinct: `static func stub(modelIdentity: ModelIdentity = .stub()) -> Self`.
+
+**SOLID protected:** SRP (a stub is the type's own sample-data responsibility, declared once beside the type, not scattered across test targets) and test isolation (each test states only its own inputs, and the defaults keep every other value valid and independent). **What breaks on deviation:** hand-built instances per test go stale when the init changes and produce partly valid hierarchies; a top value that doesn't chain down leaves parent and children disagreeing; a `stub()` that passes no argument recurses forever.
+
+---
+
 ## Documentation Has Three Audiences — Don't Conflate Them
 
 The most common documentation failure is writing for the wrong reader. Three homes:
