@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`MockURLSession` no longer reaches the network** — it returned a real task that `DataFetch` resumed, so a mocked test also sent the request; its task now does nothing when resumed.
-- **Form and write teaching follows the library** — the generator skills' edit forms use `@FormFieldModel` fields and carry the edited entity's opaque `ModelIdentity` (rooting `vmId` in it); updates, archives, and destroys name their target with `TargetedQuery`; a create returns the container's children, not a bare id. The `ViewModelId` and `ModelIdentity.viewModelId` DocC examples no longer put a model in a ViewModel.
+- **Form and write teaching follows the library** — the generator skills teach separate create and edit forms over one Fields protocol, with `@FormFieldModel` fields vended from its statics; a create form carries no identity, and an edit form carries a non-optional `ModelIdentity`, conforms to `ModelIdentifiedViewModel`, and roots `vmId` in it. Updates, archives, and destroys name their target with `TargetedQuery`; every write answers with the container's children, not a bare id. The `ViewModelId` and `ModelIdentity.viewModelId` DocC examples no longer put a model in a ViewModel.
 - **`ModelIdentifiedViewModel` documentation** — the example's ViewModel now takes its `ModelIdentity` in its init instead of a model; the ViewModel's factory reads `model.modelIdentity` and passes it in. The DocC no longer claims the framework keys live refresh to the protocol.
 
 ## [0.19.1] - 2026-10-04
