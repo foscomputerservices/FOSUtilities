@@ -30,6 +30,34 @@ public enum DataFetchError: Error, CustomDebugStringConvertible {
     /// The server response contained no data
     case noDataReceived
 
+    /// The service asked the caller to wait this long before trying again
+    ///
+    /// Catch it to back off for exactly as long as the service asked, rather
+    /// than guessing:
+    ///
+    /// ```swift
+    /// func fetchBoard(at url: URL) async throws -> Board {
+    ///     for _ in 1..<3 {
+    ///         do {
+    ///             return try await url.fetch()
+    ///         } catch DataFetchError.retryAfter(let wait) {
+    ///             try await Task.sleep(for: wait)
+    ///         }
+    ///     }
+    ///     return try await url.fetch()
+    /// }
+    /// ```
+    ///
+    /// Thrown when a service is rate limiting the caller or is temporarily
+    /// unavailable and says when to come back. Responses that don't say when
+    /// to come back, or say it in a form that can't be read, surface as they
+    /// always have.
+    ///
+    /// > Note: A ``DataFetch`` created with
+    /// > ``DataFetch/init(urlSession:errorForResponse:)`` asks its hook first;
+    /// > an error the hook returns is thrown instead of this one.
+    case retryAfter(Duration)
+
     /// A response was received, but an unexpected [mime type](FOSFoundation/)
     /// was received in the server response
     case badResponseMimeType(_ mimeType: String)
@@ -69,6 +97,8 @@ public enum DataFetchError: Error, CustomDebugStringConvertible {
             "DataFetchError: Status code: \(code)"
         case .noDataReceived:
             "DataFetchError: No data received"
+        case .retryAfter(let wait):
+            "DataFetchError: Retry after \(wait)"
         case .badResponseMimeType(let mimeTime):
             "DataFetchError: Received unexpected mime type: '\(mimeTime)'"
         case .badDateFormat(let message):
