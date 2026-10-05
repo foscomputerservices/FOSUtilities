@@ -253,7 +253,7 @@ Both `BoardViewModel` and `CardViewModel` need YAML entries (can be in same or s
 
 ### Displayed Enum Words (`LocalizableCase`)
 
-A ViewModel that shows an enum case as a word stores a `LocalizableCase<Enum>` (see the viewmodel generator's Enum Localization Pattern). Its YAML lives under the enum's type name, one key per case; a nested enum sits under the type that encloses it:
+A ViewModel that shows an enum case as a word stores a `LocalizableCase<Enum>` (see the viewmodel generator's Enum Localization Pattern). Its YAML lives under the enum's type name, one key per case; a nested enum sits under every type that encloses it, outermost first:
 
 ```swift
 @ViewModel
@@ -498,4 +498,4 @@ so the state stops being shared at all.
 | 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 1.3 | 2026-07-02 | Note the version baseline is a **committed artifact** for downstream apps (FOS's own baselines are regenerable/git-ignored fixtures — different policy); `expectFullViewModelTests(_:)` now forwards `#filePath`/`#line` so the baseline lands beside the caller's test. (backlog B7) |
 | 1.4 | 2026-10-05 | Held-identity check for ViewModels that carry a `ModelIdentity`: pass a held `ModelIdentity.stub()` into the stub, round-trip, assert `modelIdentity` and `vmId` come back equal (DIP + encapsulation). Private test ViewModel stubs follow the Stubbable pattern. |
-| 1.5 | 2026-10-05 | Displayed enum words: a `LocalizableCase<Enum>` property needs one YAML key per case (nested enums under the enclosing type); `expectFullViewModelTests()` proves every case in every locale, and its missing-translation error names the cases (SRP). |
+| 1.5 | 2026-10-05 | Displayed enum words: a `LocalizableCase<Enum>` property needs one YAML key per case (nested enums under every enclosing type); `expectFullViewModelTests()` proves every case in every locale, and its missing-translation error names the cases (SRP). |

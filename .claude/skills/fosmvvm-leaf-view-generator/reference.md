@@ -419,7 +419,7 @@ const status = element.dataset.status;
 
 **Fix:**
 1. Add the case under the enum's type key in the YAML: `{Entity}Status: { active: "Active" }`
-2. A nested enum sits under its enclosing type's key
+2. A nested enum sits under every enclosing type's key, outermost first (`Board: { Card: { Status: … } }`)
 3. The ViewModel property is a `LocalizableCase<{Entity}Status>`, not a computed `String`
 
 ---

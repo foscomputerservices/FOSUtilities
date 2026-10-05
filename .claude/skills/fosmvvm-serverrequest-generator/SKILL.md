@@ -563,7 +563,7 @@ See [WebApp Bridge Pattern](#webapp-bridge-pattern) below.
 
 ### Device-token register request
 
-An app that receives push notifications sends its device token to the server with a register request. The body carries the token's `deviceToken`, `topic`, `environment` (`PushEnvironment`) and `locale`, exactly the values `PushRegistration`'s `onDeviceToken` hook hands over. The server's handler upserts the row, since the hook runs at every launch and whenever Apple replaces the token.
+An app that receives push notifications sends its device token to the server with a register request. The body carries the `PushRegistration.Registration`'s `deviceToken`, `topic`, `environment` (`PushEnvironment`) and `locale`, exactly the values `PushRegistration`'s `onDeviceToken` hook hands over. The server's handler upserts the row, since the hook runs at every launch and whenever Apple replaces the token.
 
 > **SOLID protected: DIP.** The token travels through a ServerRequest and the server owns its storage; neither the client library nor the push sender owns a table. See `fosmvvm-swiftui-app-setup` (Push notifications) and the `FOSMVVM.md § Push Notifications` catalog entry.
 

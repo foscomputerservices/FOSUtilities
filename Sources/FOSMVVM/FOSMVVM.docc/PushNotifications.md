@@ -8,12 +8,12 @@ Register an app install for Apple push notifications and hand its device token t
 
 ```swift
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let pushRegistration = PushRegistration(environment: pushEnvironment) { token in
+    let pushRegistration = PushRegistration(environment: pushEnvironment) { registration in
         let request = RegisterDeviceRequest(requestBody: .init(
-            deviceToken: token.deviceToken,
-            topic: token.topic,
-            environment: token.environment,
-            locale: token.locale
+            deviceToken: registration.deviceToken,
+            topic: registration.topic,
+            environment: registration.environment,
+            locale: registration.locale
         ))
         try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
     }
@@ -46,7 +46,29 @@ Development-signed builds get ``PushEnvironment/sandbox`` tokens; TestFlight and
 
 ### Sending notifications
 
-The server half, storing the token and sending notifications, is FOSMVVMVapor behind the `APNs` package trait.
+The server half, storing the token and sending notifications, is FOSMVVMVapor behind the `APNs` package trait. Its `PushNotificationService` sends text localized into each install's language, badge-only and silent (content-available) notifications, and an app-defined payload.
+
+### Reading your payload
+
+The server sends your payload as a `Codable` type of your own, beside Apple's `aps` block. Decode it on the device with the same type:
+
+```swift
+struct CardAssignedPayload: Codable, Sendable {
+    let boardName: String
+}
+
+func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse
+) async {
+    let userInfo = response.notification.request.content.userInfo
+    guard
+        let data = try? JSONSerialization.data(withJSONObject: userInfo),
+        let payload = try? JSONDecoder().decode(CardAssignedPayload.self, from: data)
+    else { return }
+    // show payload.boardName
+}
+```
 
 ## Topics
 

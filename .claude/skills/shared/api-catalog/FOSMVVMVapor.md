@@ -596,8 +596,8 @@ func register(_ body: RegisterDeviceBody, for member: Member, on db: any Databas
 }
 ```
 
-### Configure APNs at boot — `pushNotifications` / `PushNotifications` / `configure()` / `PushConfiguration`
-Reach for this when: turning on push in `configure(_:)`. `PushConfiguration` carries the `.p8` key's contents, its key id and your team id, read from the server's environment (never from source), and `onRetiredToken`, called with each token Apple reports it will never deliver to again (HTTP 410: the app was deleted, or the token replaced). Delete the row there. One key serves both APNs environments. Configuring twice, or with a key that is not a `.p8` key, throws at boot. The connections to Apple close on `app.asyncShutdown()`.
+### Configure APNs at boot — `pushNotifications` / `PushNotificationService` / `configure()` / `PushConfiguration`
+Reach for this when: turning on push in `configure(_:)`. `app.pushNotifications` is a `PushNotificationService`. `PushConfiguration` carries the `.p8` key's contents, its key id and your team id, read from the server's environment (never from source), and `onRetiredToken`, called with each token Apple reports it will never deliver to again (HTTP 410: the app was deleted, or the token replaced). Delete the row there. One key serves both APNs environments. Configuring twice, or with a key that is not a `.p8` key, throws at boot. The connections to Apple close on `app.asyncShutdown()`.
 
 ```swift
 try app.pushNotifications.configure(PushConfiguration(
@@ -613,7 +613,9 @@ try app.pushNotifications.configure(PushConfiguration(
 ```
 
 ### Send a notification — `send()` / `PushNotification` / `InterruptionLevel` / `Sound`
-Reach for this when: something happened that users should hear about with the app closed. Choose the recipients (your trigger, your query), build a `PushNotification`, and `send(_:to:)` it. Each destination gets its title and body localized from the server's YAML in its own `locale`, sent as finished text to its `topic` in its `environment`. Every destination is attempted; a missing translation, or any delivery Apple refuses for a reason other than retirement, throws after all were attempted. Leave out the title and body for a badge-only notification (all tvOS shows). The interruption level, sound and badge are Apple's own settings; map your app's kinds of alert to them as you build each notification. `.critical` needs Apple's Critical Alerts entitlement in the receiving app.
+Reach for this when: something happened that users should hear about with the app closed, or an app should refresh in the background. Choose the recipients (your trigger, your query), build a `PushNotification`, and `send(_:to:)` it. The title and body take any `Localizable` (a `LocalizableString`, a `LocalizableSubstitutions` with its values, a `LocalizableCase`, your own); each destination gets them localized from the server's YAML in its own `locale`, sent as finished text to its `topic` in its `environment`. Every destination is attempted; a missing translation, or any delivery Apple refuses for a reason other than retirement, throws after all were attempted. Leave out the title and body for a badge-only notification (all tvOS shows). `contentAvailable: true` wakes the app in the background; with nothing else set it is Apple's background push. `payload:` takes your own `Encodable & Sendable` type, written beside Apple's `aps` block (the app decodes it with the same type); it must encode as an object and not use the key `aps`, or the send throws before contacting Apple. The interruption level, sound and badge are Apple's own settings; map your app's kinds of alert to them as you build each notification. `.critical` needs Apple's Critical Alerts entitlement in the receiving app.
+
+Name the title's type (`LocalizableString.localized(key:)`): the parameter is generic, so a bare `.localized(key:)` does not resolve.
 
 Don't send a token Apple issued in one environment to the other (a development-signed app's token to `.production`): Apple refuses it, and the send reports it rather than retiring the row.
 
@@ -621,7 +623,7 @@ Don't send a token Apple issued in one environment to the other (a development-s
 en:
   CardAssigned:
     title: "New card"
-    body: "A card was assigned to you"
+    body: "A card on %{boardName} was assigned to you"
 ```
 
 ```swift
@@ -630,19 +632,28 @@ let devices = try await MemberDevice.query(on: req.db)
     .filter(\.$member.$id == assignee.requireID())
     .all()
 
+struct CardAssignedPayload: Codable, Sendable {
+    let boardName: String
+}
+
 try await req.application.pushNotifications.send(
     PushNotification(
-        title: .localized(key: "CardAssigned.title"),
-        body: .localized(key: "CardAssigned.body"),
+        title: LocalizableString.localized(key: "CardAssigned.title"),
+        body: LocalizableString.localized(key: "CardAssigned.body")
+            .bind(substitutions: ["boardName": LocalizableString.constant(board.name)]),
         badge: unreadCount,
         sound: .default,
-        interruptionLevel: .timeSensitive
+        interruptionLevel: .timeSensitive,
+        payload: CardAssignedPayload(boardName: board.name)
     ),
     to: devices
 )
 
-// tvOS: the badge only
-try await req.application.pushNotifications.send(PushNotification(badge: unreadCount), to: tvDevices)
+// tvOS: the badge, and wake the app to refresh
+try await req.application.pushNotifications.send(
+    PushNotification(badge: unreadCount, contentAvailable: true),
+    to: tvDevices
+)
 ```
 
 ## Protocols

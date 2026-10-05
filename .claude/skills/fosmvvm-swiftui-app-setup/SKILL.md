@@ -716,12 +716,12 @@ Hold a `PushRegistration(environment:onDeviceToken:)` in the app delegate, adapt
 
 ```swift
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let pushRegistration = PushRegistration(environment: pushEnvironment) { token in
+    let pushRegistration = PushRegistration(environment: pushEnvironment) { registration in
         let request = RegisterDeviceRequest(requestBody: .init(
-            deviceToken: token.deviceToken,
-            topic: token.topic,
-            environment: token.environment,
-            locale: token.locale
+            deviceToken: registration.deviceToken,
+            topic: registration.topic,
+            environment: registration.environment,
+            locale: registration.locale
         ))
         try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
     }

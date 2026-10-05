@@ -129,7 +129,7 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 - DataModel save-time hooks (validate against other models, claim a constraint failure, act on commit) → `FOSMVVMVapor.md § Lifecycle`
 - Live ViewModel refresh (server push), incl. nudging live clients from non-Fluent/hybrid sources → `FOSMVVMVapor.md § Live Invalidation`
 - Testing ViewModels / UI / ServerRequests → `FOSTesting.md § FOSTesting`, `§ FOSTestingUI`, `§ FOSTestingVapor`
-- Apple push notifications (server send behind the `APNs` trait, client permission and token registration) → `FOSMVVMVapor.md § Push Notifications`, `FOSMVVM.md § Push Notifications`
+- Apple push notifications (server send behind the `APNs` trait via `app.pushNotifications`, silent pushes, app-defined payloads; client permission and token registration) → `FOSMVVMVapor.md § Push Notifications`, `FOSMVVM.md § Push Notifications`
 - PDF generation from SwiftUI views → `FOSReporting.md § PDF Rendering`
 
 Skills: `fosutilities-api-catalog` (discover — full reach-for index), `fosutilities-api-catalog-update` (maintain after public API changes).

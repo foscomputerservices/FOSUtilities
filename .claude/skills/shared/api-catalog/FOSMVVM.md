@@ -221,8 +221,8 @@ priority, a board's visibility) or offers a picker over an enum. The view
 switches on `value` and shows the word; with `includingAllCases: true` the
 value also carries every case's word as `choices`, in `allCases` order. YAML
 follows the enum-case rule above: `Priority: { low: …, high: … }`, and a nested
-enum sits under its enclosing type (`Board: { Visibility: { … } }`) — derived
-from the type, nothing to pass. `expectFullViewModelTests()` proves every case
+enum sits under every enclosing type, outermost first (`Board: { Visibility: { … } }`,
+`Board: { Card: { Status: { … } } }`) — derived from the type, nothing to pass. `expectFullViewModelTests()` proves every case
 has a word in every locale, not only the stub's.
 Don't compute a word on the enum (it never reaches the client) or give the
 enum a `String` raw value to stand in for the key.
@@ -1010,10 +1010,12 @@ let environment = PushEnvironment.production
 #endif
 ```
 
-### Ask permission, register, and receive the device token — `PushRegistration` / `requestPermission()` / `deviceTokenReceived()` / `DeviceToken` <!-- apple-only -->
-Reach for this when: the app must receive push notifications. Create one in the app delegate with its `onDeviceToken` hook, call `requestPermission()` at every launch (`badgeOnly: true` on tvOS), and forward Apple's token from the delegate with `deviceTokenReceived(_:)`; SwiftUI cannot receive the token, so that forwarding line is the one the app writes (`@UIApplicationDelegateAdaptor`, `@NSApplicationDelegateAdaptor` on macOS, `@WKApplicationDelegateAdaptor` on watchOS). The hook gets a `DeviceToken`: the token as Apple's hex text, the app's bundle identifier as `topic`, the `environment` the app stated, and `locale`, the app's own language (its preferred localization, not the device's), which the server localizes notifications into. It is called at every launch and whenever Apple replaces the token, so the server's register handler inserts or updates.
+### Ask permission, register, and receive the device token — `PushRegistration` / `requestPermission()` / `deviceTokenReceived()` / `Registration` <!-- apple-only -->
+Reach for this when: the app must receive push notifications. Create one in the app delegate with its `onDeviceToken` hook, call `requestPermission()` at every launch (`badgeOnly: true` on tvOS), and forward Apple's token from the delegate with `deviceTokenReceived(_:)`; SwiftUI cannot receive the token, so that forwarding line is the one the app writes (`@UIApplicationDelegateAdaptor`, `@NSApplicationDelegateAdaptor` on macOS, `@WKApplicationDelegateAdaptor` on watchOS). The hook gets a `PushRegistration.Registration`: the token as Apple's hex text, the app's bundle identifier as `topic`, the `environment` the app stated, and `locale`, the app's own language (its preferred localization, not the device's), which the server localizes notifications into. It is called at every launch and whenever Apple replaces the token, so the server's register handler inserts or updates.
 
-Don't skip the call on later launches: registering every launch is what keeps the stored language current.
+Don't skip the call on later launches: registering every launch is what keeps the stored language current. In tests, `PushRegistration.Registration.stub(locale:)` drives the hook's code without Apple.
+
+The server's `PushNotification` can carry a `payload` of the app's own `Codable` type beside Apple's `aps` block; decode it from the notification's `userInfo` with the same type (`JSONSerialization.data(withJSONObject: userInfo)`, then `JSONDecoder`).
 
 ```swift
 #if DEBUG
@@ -1023,12 +1025,12 @@ let pushEnvironment = PushEnvironment.production
 #endif
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let pushRegistration = PushRegistration(environment: pushEnvironment) { token in
+    let pushRegistration = PushRegistration(environment: pushEnvironment) { registration in
         let request = RegisterDeviceRequest(requestBody: .init(
-            deviceToken: token.deviceToken,
-            topic: token.topic,
-            environment: token.environment,
-            locale: token.locale
+            deviceToken: registration.deviceToken,
+            topic: registration.topic,
+            environment: registration.environment,
+            locale: registration.locale
         ))
         try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
     }
