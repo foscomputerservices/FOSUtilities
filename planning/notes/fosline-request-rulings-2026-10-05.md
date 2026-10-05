@@ -268,8 +268,16 @@ OQ19. How a Leaf web page identifies an entity.
 
 Decides: the Leaf skill's identity teaching.
 
+**Deferred 2026-10-05** to its own work item, `planning/stream/feat-leaf-entity-identity.md`, at David's word: "can we leave this as a work item for later?"
+
 OQ20. Whether edit-form ViewModels carry `ModelIdentity?` instead of `id: ModelIdType?`.
 
 `fosmvvm-viewmodel-generator` (SKILL.md around line 391, `UserFormViewModel`) keeps `id: ModelIdType?` on a form ViewModel, because that id round-trips into the update request contract taught by the fields and serverrequest skills. The serverrequest skill's response-body ids (SKILL.md around 639; reference.md around 331, 655) are the same question. Changing them is a cross-skill decision.
 
 Decides: the form and request skills' identity teaching.
+
+**Ruled 2026-10-05: done now, in 0.20.0** (David: "why would we defer this work? I would think it's needed immediately vs. Leaf"). The library already names an update's target by the opaque identity (`TargetedQuery.target: ModelIdentity`; the form body never carries a raw id), so this is teaching only, no new API:
+
+- The edit form carries `modelIdentity: ModelIdentity?` (nil on a create form), with `vmId = modelIdentity?.viewModelId ?? .init()`. David: "I would expect .init(id: id /* ModelIdType */ ?? .init())", the same meaning on a raw id; and "I would also expect each of the fields to be @FormFieldModel."
+- The serverrequest skill's id-only create response goes; a write returns the container's children. `CreateResponseBody` has no id requirement.
+- The DocC examples of `ViewModelId` and `ModelIdentity.viewModelId` stop putting a model in a ViewModel.
