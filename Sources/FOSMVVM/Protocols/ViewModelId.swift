@@ -21,24 +21,27 @@ import Foundation
 ///
 /// # Overview
 ///
-/// Whenever possible, the ``ViewModelId`` should be bound to some identifying characteristic
-/// of the ``Model`` that was used to project the ``ViewModel``.  This will greatly stabilize the
-/// SwiftUI View hierarchy and caching structure.
+/// Whenever possible, the ``ViewModelId`` should be rooted in the identity of the ``Model``
+/// the ``ViewModel`` projects. This greatly stabilizes the SwiftUI View hierarchy and caching
+/// structure. The ``ViewModel`` takes the opaque ``ModelIdentity``, never the ``Model``,
+/// and roots its `vmId` in it:
 ///
 /// ```swift
-/// @ViewModel struct UserViewModel {
-///   let firstName: String
-///   let lastName: String
+/// @ViewModel struct CardViewModel {
+///   let title: String
 ///
+///   let modelIdentity: ModelIdentity
 ///   let vmId: ViewModelId
 ///
-///   init(user: User) {
-///     self.firstName = user.firstName
-///     self.lastName = user.lastName
-///     self.vmId = .init(id: user.id)
+///   init(modelIdentity: ModelIdentity, title: String) {
+///     self.modelIdentity = modelIdentity
+///     self.title = title
+///     self.vmId = modelIdentity.viewModelId
 ///   }
 /// }
 /// ```
+///
+/// > `init(id:)` is for ids that are not a model's, such as a row's natural `String` or `Int` key.
 ///
 /// # Singleton ViewModels
 ///

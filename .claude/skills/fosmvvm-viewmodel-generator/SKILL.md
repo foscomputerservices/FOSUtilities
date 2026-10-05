@@ -388,29 +388,61 @@ For collecting input - create forms, edit forms, settings:
 ```swift
 @ViewModel
 public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
-    public var id: ModelIdType?
-    public var email: String
-    public var firstName: String
-    public var lastName: String
+    @FormFieldModel(UserFormViewModel.emailField) public var email: String
+    @FormFieldModel(UserFormViewModel.firstNameField) public var firstName: String
+    @FormFieldModel(UserFormViewModel.lastNameField) public var lastName: String
 
-    public let userValidationMessages: UserFieldsMessages
-    public var vmId: ViewModelId = .init(type: Self.self)  // one form per screen — singleton
+    public let modelIdentity: ModelIdentity?  // the user being edited; nil on a create form
+    public var vmId: ViewModelId
+
+    public init(
+        modelIdentity: ModelIdentity? = nil,
+        email: String,
+        firstName: String,
+        lastName: String
+    ) {
+        self.modelIdentity = modelIdentity
+        self.vmId = modelIdentity?.viewModelId ?? .init()
+
+        self.$email.initialValue = email
+        self.$firstName.initialValue = firstName
+        self.$lastName.initialValue = lastName
+    }
+}
+
+public extension UserFormViewModel {
+    static func stub(
+        modelIdentity: ModelIdentity? = .stub(),
+        email: String = "stub@example.com",
+        firstName: String = "Stub",
+        lastName: String = "User"
+    ) -> Self {
+        .init(modelIdentity: modelIdentity, email: email, firstName: firstName, lastName: lastName)
+    }
 }
 ```
 
 **Characteristics:**
-- Properties are `var` (editable)
+- Each editable property is a `@FormFieldModel(…Field) public var …` — never a plain `var`
+- Initial values are set through `$field.initialValue` in `init`, never by assigning the property
 - **Adopts a Fields protocol** for validation
 - Gets FormField definitions from Fields
 - Gets validation logic from Fields
 - Gets localized error messages from Fields
+- The entity being edited travels as `public let modelIdentity: ModelIdentity?` — `nil` on a create form. The form never carries a raw `id: ModelIdType?`
+- `vmId = modelIdentity?.viewModelId ?? .init()` — an edit form roots in the entity; a create form gets a fresh identity
+- The update request echoes `modelIdentity` back as its `TargetedQuery.target` (see `fosmvvm-serverrequest-generator`)
+- Stubs follow the Stubbable pattern: every parameter defaulted, `modelIdentity` defaulting to `.stub()` (pass `nil` for a create form)
+
+> **SOLID protected: DIP and encapsulation.** The identity is transported opaquely: the form carries it, roots its view on it, and hands it back, and never builds, parses, or reads inside it. **What breaks on deviation:** a raw `id: ModelIdType?` can be minted, parsed, and forged, and puts a persistence type on every client. Full rule: [Architecture Patterns → Identities Pass Through ViewModels Opaquely](../shared/architecture-patterns.md#identities-pass-through-viewmodels-opaquely).
 
 ### The Connection
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    UserFields Protocol                          │
-│        (defines editable properties + validation)               │
+│   (defines editable fields + validation; the form VM hosts      │
+│    each one as a @FormFieldModel)                               │
 │                                                                 │
 │  Adopted by:                                                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │

@@ -101,10 +101,13 @@ let user = request.responseBody
 // ✅ RIGHT - Create operation
 let createRequest = IdeaCreateRequest(requestBody: .init(content: content))
 try await createRequest.processRequest(mvvmEnv: mvvmEnv)
-let newId = createRequest.responseBody?.id
+let board = createRequest.responseBody?.viewModel  // the container's children
 
 // ✅ RIGHT - Update operation
-let updateRequest = IdeaMoveRequest(requestBody: .init(ideaId: id, newStatus: status))
+let updateRequest = IdeaMoveRequest(
+    query: .init(target: ideaViewModel.modelIdentity),  // echoed back from the ViewModel
+    requestBody: .init(newStatus: status)
+)
 try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 ```
 
@@ -638,15 +641,27 @@ public struct ResponseBody: UpdateResponseBody {
 }
 ```
 
-### ID-Only Response
+### Container's Children Response
 
-Some operations just need confirmation:
+A write answers with the container's children (data-bearing), not an id:
 
 ```swift
 public struct ResponseBody: CreateResponseBody {
-    public let id: ModelIdType
+    public let viewModel: BoardViewModel  // the board's cards, including the new one
 }
 ```
+
+### Targeting a Record (Update, Archive, Destroy)
+
+The request names its target with a `TargetedQuery` whose `target` is the `ModelIdentity` the ViewModel carried, echoed back. The request body (Fields) never carries a raw id:
+
+```swift
+public struct Query: TargetedQuery {
+    public let target: ModelIdentity
+}
+```
+
+> **SOLID protected: DIP and encapsulation.** The identity stays opaque end to end, and the server resolves it against the candidate set it loaded itself, so a submit cannot retarget. **What breaks on deviation:** a raw `ModelIdType` in a body can be minted and forged, and puts a persistence type in the shared module.
 
 ### Empty Response
 
@@ -964,7 +979,7 @@ See [fosmvvm-serverrequest-test-generator](../fosmvvm-serverrequest-test-generat
 ```swift
 // ✅ RIGHT - tests the actual client code path
 let request = {Entity}UpdateRequest(
-    query: .init(entityId: id),
+    query: .init(target: entityViewModel.modelIdentity),
     requestBody: .init(name: "New Name")
 )
 try await request.processRequest(mvvmEnv: testMvvmEnv)

@@ -203,7 +203,6 @@ import Foundation
 /// Defines the editable fields, validation rules, and localized messages
 /// for creating and editing Ideas.
 public protocol IdeaFields: ValidatableModel, Codable, Sendable {
-    var id: ModelIdType? { get set }
     var content: String { get set }
     var department: Department { get set }
     var status: IdeaStatus { get set }
@@ -366,6 +365,8 @@ final class Idea: DataModel, IdeaFields, Hashable, @unchecked Sendable {
 }
 ```
 
+> **A Fields protocol never carries an identity.** The record an update targets is named by the update request's `TargetedQuery` (`target: ModelIdentity`, the identity the ViewModel carried, echoed back), so the form body has no `id`. **SOLID protected: DIP and encapsulation.** A raw `id: ModelIdType?` in a form contract can be minted, parsed, and forged, and puts a persistence type in the shared module. The Fluent model keeps its own `@ID`; it is the data layer, not part of the form contract.
+
 An adopter declares the fields and nothing else: the `FormField` definitions, the message mints and the validation rules all live on the protocol's extension, so every adopter runs the same checks and reports them with the same words.
 
 ### In a RequestBody
@@ -373,7 +374,6 @@ An adopter declares the fields and nothing else: the `FormField` definitions, th
 ```swift
 public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
     public struct RequestBody: IdeaFields, ServerRequestBody, Stubbable {
-        public var id: ModelIdType? = nil
         public var content: String
         public var department: Department
         public var status: IdeaStatus = .queued
@@ -395,20 +395,17 @@ public final class CreateIdeaRequest: CreateRequest, @unchecked Sendable {
 
 ```swift
 private struct TestIdea: IdeaFields {
-    var id: ModelIdType?
     var content: String
     var department: Department
     var status: IdeaStatus
     var metadata: [String: String]?
 
     init(
-        id: ModelIdType? = .init(),
         content: String = "Test content",
         department: Department = .product,
         status: IdeaStatus = .queued,
         metadata: [String: String]? = nil
     ) {
-        self.id = id
         self.content = content
         self.department = department
         self.status = status
