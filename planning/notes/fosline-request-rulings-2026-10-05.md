@@ -249,6 +249,15 @@ OQ22–OQ28. **Ruled 2026-10-05 ("Agreed"), as recommended:**
 
 David, 2026-10-05: one PR for all of 0.20.0's remaining work; "please don't chunk that up into little PR's".
 
+OQ29–OQ32. Gaps found by fosline's build check of #164, ruled 2026-10-05.
+
+- OQ29: `PushNotification`'s title and body take any `Localizable` (David: "probably should be generic Localizable, if possible"): a generic `init(title: some Localizable, body: some Localizable, …)`, each value captured at construction as a closure that localizes it, so nothing is stored as `any Localizable` and the struct stays non-generic.
+- OQ30 ("all as recommended"): `PushNotification` gains `contentAvailable: Bool` (a silent push) and an app-defined `payload: some Encodable`, written beside Apple's `aps` block; the app never builds the raw JSON.
+- OQ31 ("all as recommended"): `LocalizableCase` keys a nested enum by its full nesting path (`AppStatusViewModel: Check: Kind:`), not its immediate parent only.
+- OQ32 ("all as recommended"): `PushNotifications` → `PushNotificationService` (call sites stay `app.pushNotifications`); `PushRegistration.DeviceToken` → `PushRegistration.Registration` (field `deviceToken`); kept: `PushNotification.Sound`, `PushNotification.InterruptionLevel`, `PushConfiguration(privateKey:keyId:teamId:onRetiredToken:)`, `LocalizableCase.stub(value:includingAllCases:)`, public `Encoder.localizeString(_:)`.
+
+**A correction to OQ11's wording:** the locale stored with a token is the app's preferred language, sent in the register request's body, not the language the request arrived with (client requests always send the system's language).
+
 ## Awaiting ruling
 
 Raised while building `feat-stub-model-identity.md`; neither blocks it.
