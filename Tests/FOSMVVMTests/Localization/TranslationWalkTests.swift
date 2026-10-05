@@ -54,7 +54,7 @@ struct TranslationWalkTests: LocalizableTestCase {
             _ = try child.toJSON(encoder: encoder(locale: Self.es))
         }
 
-        let lenient = JSONEncoder.localizingEncoder(locale: Self.es, localizationStore: locStore)
+        let lenient = JSONEncoder.localizingEncoder(in: Self.es, store: locStore)
         let decoded: WalkChildViewModel = try child.toJSON(encoder: lenient).fromJSON()
         #expect(decoded.label.isEmpty)
     }

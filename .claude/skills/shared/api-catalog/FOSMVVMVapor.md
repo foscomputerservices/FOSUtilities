@@ -548,6 +548,114 @@ let status = context.appState.status
 try context.registerDependency(on: status)
 ```
 
+## Push Notifications
+
+Apple push notifications sent from the server, behind the package trait `APNs` (off by default). Enable it where the server depends on FOSUtilities, or with the trait switch in Xcode's Package Dependencies tab; a server that leaves it off fetches and compiles nothing of APNs, and none of the calls below exist.
+
+```swift
+.package(url: "https://github.com/foscomputerservices/FOSUtilities.git", from: "0.20.0", traits: ["APNs"])
+```
+
+What lies where: the library configures, localizes, sends, and reports retired tokens. The token table, the register `ServerRequest` that writes it, and the trigger that chooses recipients are the server's (FOSMVVM's `PushRegistration` hands the app each token; see `FOSMVVM.md § Push Notifications`). The APNs client behind it is internal; no APNs type appears in this API.
+
+### One stored app install — `PushDestination`
+Reach for this when: declaring the row your server stores per device token. Conform your own Fluent model; the library reads `deviceToken`, `topic` (the app's bundle identifier), `environment` (FOSMVVM's `PushEnvironment`) and `locale` from each row and never owns a table. The app's register request writes the row and updates it at every launch (insert or update by token), so the stored locale follows the app's language.
+
+```swift
+// Shared module: the app's register request carries the four values
+struct RegisterDeviceBody: ServerRequestBody {
+    let deviceToken: String
+    let topic: String
+    let environment: PushEnvironment
+    let locale: Locale
+}
+
+// Server: the stored row
+final class MemberDevice: DataModel, PushDestination, @unchecked Sendable {
+    static let schema = "member_devices"
+    @ID(key: .id) var id: ModelIdType?
+    @Parent(key: "member_id") var member: Member
+    @Field(key: "device_token") var deviceToken: String
+    @Field(key: "topic") var topic: String
+    @Field(key: "environment") var environment: PushEnvironment
+    @Field(key: "locale") var locale: Locale
+    // init()s, validate(fields:validations:), ...
+}
+
+// Server: the register request's handler upserts by token
+func register(_ body: RegisterDeviceBody, for member: Member, on db: any Database) async throws {
+    let device = try await MemberDevice.query(on: db)
+        .filter(\.$deviceToken == body.deviceToken)
+        .first() ?? MemberDevice()
+    device.$member.id = try member.requireID()
+    device.deviceToken = body.deviceToken
+    device.topic = body.topic
+    device.environment = body.environment
+    device.locale = body.locale
+    try await device.save(on: db)
+}
+```
+
+### Configure APNs at boot — `pushNotifications` / `PushNotificationService` / `configure()` / `PushConfiguration`
+Reach for this when: turning on push in `configure(_:)`. `app.pushNotifications` is a `PushNotificationService`. `PushConfiguration` carries the `.p8` key's contents, its key id and your team id, read from the server's environment (never from source), and `onRetiredToken`, called with each token Apple reports it will never deliver to again (HTTP 410: the app was deleted, or the token replaced). Delete the row there. One key serves both APNs environments. Configuring twice, or with a key that is not a `.p8` key, throws at boot. The connections to Apple close on `app.asyncShutdown()`.
+
+```swift
+try app.pushNotifications.configure(PushConfiguration(
+    privateKey: Environment.get("APNS_PRIVATE_KEY")!,
+    keyId: Environment.get("APNS_KEY_ID")!,
+    teamId: Environment.get("APNS_TEAM_ID")!,
+    onRetiredToken: { deviceToken in
+        try await MemberDevice.query(on: app.db)
+            .filter(\.$deviceToken == deviceToken)
+            .delete()
+    }
+))
+```
+
+### Send a notification — `send()` / `PushNotification` / `InterruptionLevel` / `Sound`
+Reach for this when: something happened that users should hear about with the app closed, or an app should refresh in the background. Choose the recipients (your trigger, your query), build a `PushNotification`, and `send(_:to:)` it. The title and body take any `Localizable` (a `LocalizableString`, a `LocalizableSubstitutions` with its values, a `LocalizableCase`, your own); each destination gets them localized from the server's YAML in its own `locale`, sent as finished text to its `topic` in its `environment`. Every destination is attempted; a missing translation, or any delivery Apple refuses for a reason other than retirement, throws after all were attempted. Leave out the title and body for a badge-only notification (all tvOS shows). `contentAvailable: true` wakes the app in the background; with nothing else set it is Apple's background push. `payload:` takes your own `Encodable & Sendable` type, written beside Apple's `aps` block (the app decodes it with the same type); it must encode as an object and not use the key `aps`, or the send throws before contacting Apple. The interruption level, sound and badge are Apple's own settings; map your app's kinds of alert to them as you build each notification. `.critical` needs Apple's Critical Alerts entitlement in the receiving app.
+
+Name the title's type (`LocalizableString.localized(key:)`): the parameter is generic, so a bare `.localized(key:)` does not resolve.
+
+Don't send a token Apple issued in one environment to the other (a development-signed app's token to `.production`): Apple refuses it, and the send reports it rather than retiring the row.
+
+```yaml
+en:
+  CardAssigned:
+    title: "New card"
+    body: "A card on %{boardName} was assigned to you"
+```
+
+```swift
+// The trigger: a card was assigned
+let devices = try await MemberDevice.query(on: req.db)
+    .filter(\.$member.$id == assignee.requireID())
+    .all()
+
+struct CardAssignedPayload: Codable, Sendable {
+    let boardName: String
+}
+
+try await req.application.pushNotifications.send(
+    PushNotification(
+        title: LocalizableString.localized(key: "CardAssigned.title"),
+        body: LocalizableString.localized(key: "CardAssigned.body")
+            .bind(substitutions: ["boardName": LocalizableString.constant(board.name)]),
+        badge: unreadCount,
+        sound: .default,
+        interruptionLevel: .timeSensitive,
+        payload: CardAssignedPayload(boardName: board.name)
+    ),
+    to: devices
+)
+
+// tvOS: the badge, and wake the app to refresh
+try await req.application.pushNotifications.send(
+    PushNotification(badge: unreadCount, contentAvailable: true),
+    to: tvDevices
+)
+```
+
 ## Protocols
 
 The server-side contracts: the response-body factory that projects loaded

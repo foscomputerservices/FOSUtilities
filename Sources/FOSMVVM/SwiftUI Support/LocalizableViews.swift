@@ -186,7 +186,7 @@ private struct LocalizableResolverView<L: Localizable>: View {
             return
         }
 
-        let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: store)
+        let encoder = JSONEncoder.localizingEncoder(in: locale, store: store)
         if let resolved: L = try? localizable
             .toJSON(encoder: encoder)
             .fromJSON() {

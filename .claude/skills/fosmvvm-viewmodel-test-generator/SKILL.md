@@ -251,6 +251,30 @@ public struct CardViewModel {
 
 Both `BoardViewModel` and `CardViewModel` need YAML entries (can be in same or separate files).
 
+### Displayed Enum Words (`LocalizableCase`)
+
+A ViewModel that shows an enum case as a word stores a `LocalizableCase<Enum>` (see the viewmodel generator's Enum Localization Pattern). Its YAML lives under the enum's type name, one key per case; a nested enum sits under every type that encloses it, outermost first:
+
+```swift
+@ViewModel
+public struct CardRowViewModel {
+    public let priority: LocalizableCase<Card.Priority>
+    public var vmId: ViewModelId
+}
+```
+
+```yaml
+en:
+  Card:
+    Priority:
+      low: "Low"
+      high: "High"
+```
+
+`expectFullViewModelTests()` proves **every case** of the enum has a word in every locale, not only the case the stub holds. No extra test is needed, and none should pin a single case's word in place of that check.
+
+**SOLID protected: SRP.** The enum is vocabulary; the word is the ViewModel's projection of it, held in one value. **What breaks on deviation:** a word computed on the enum (or a second display string beside the case) never reaches the client, and a stub that holds `.low` would leave `high:` unverified; a picker would then show a blank row in the one locale nobody looked at.
+
 ### Private Test ViewModels
 
 When tests define private ViewModel structs for testing specific scenarios, those also need YAML:
@@ -408,6 +432,14 @@ en:
     pageTitle: "Page Title"  # Add this
 ```
 
+A `LocalizableCase` names the cases that lack a word:
+
+```
+FOSLocalizableError: CardRowViewModel.priority -- Missing Translation -- es -- cases: high
+```
+
+**Fix:** Add every listed case under the enum's key in that locale's YAML.
+
 ### "Is pending localization" Error
 
 **Cause:** The ViewModel wasn't encoded with a localizing encoder.
@@ -466,3 +498,4 @@ so the state stops being shared at all.
 | 1.2 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
 | 1.3 | 2026-07-02 | Note the version baseline is a **committed artifact** for downstream apps (FOS's own baselines are regenerable/git-ignored fixtures — different policy); `expectFullViewModelTests(_:)` now forwards `#filePath`/`#line` so the baseline lands beside the caller's test. (backlog B7) |
 | 1.4 | 2026-10-05 | Held-identity check for ViewModels that carry a `ModelIdentity`: pass a held `ModelIdentity.stub()` into the stub, round-trip, assert `modelIdentity` and `vmId` come back equal (DIP + encapsulation). Private test ViewModel stubs follow the Stubbable pattern. |
+| 1.5 | 2026-10-05 | Displayed enum words: a `LocalizableCase<Enum>` property needs one YAML key per case (nested enums under every enclosing type); `expectFullViewModelTests()` proves every case in every locale, and its missing-translation error names the cases (SRP). |

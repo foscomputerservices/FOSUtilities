@@ -124,7 +124,7 @@ struct LocalizableStringTests: LocalizableTestCase {
         let localized = LocalizableString.localized(key: "lkjoipuew")
 
         // The production encoder encodes an unknown key as an empty string …
-        let lenient = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let lenient = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let decodedLoc: LocalizableString = try localized.toJSON(encoder: lenient).fromJSON()
         #expect(try decodedLoc.localizedString == "")
 

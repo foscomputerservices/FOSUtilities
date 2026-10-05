@@ -140,7 +140,7 @@ A ViewModel answers: **"What does the View need to display?"**
 | Content Type | How It's Represented | Example |
 |--------------|---------------------|---------|
 | Static UI text | `@LocalizedString` | Page titles, button labels (fixed text) |
-| Dynamic enum values | `LocalizableString` (stored) | Status/state display (see Enum Localization Pattern) |
+| Displayed enum word | `LocalizableCase<Enum>` (stored) | `priority: LocalizableCase<Priority>`; pickers via `includingAllCases: true` (see Enum Localization Pattern) |
 | Dynamic data in text | `@LocalizedSubs` | "Welcome, %{name}!" with substitutions |
 | Composed text | `@LocalizedCompoundString` | Full name from pieces (locale-aware order) |
 | Formatted dates | `LocalizableDate` | `createdAt: LocalizableDate` |
@@ -383,39 +383,108 @@ public struct MemberCardViewModel: ModelIdentifiedViewModel {
 
 ### Form ViewModels
 
-For collecting input - create forms, edit forms, settings:
+For collecting input - create forms, edit forms, settings. **Create and edit are separate Form ViewModels.** Both adopt the same Fields protocol and vend their `@FormFieldModel`s from its static `FormField` definitions, so two forms cost nothing extra.
+
+**The create form carries no identity.** There is no entity yet:
 
 ```swift
 @ViewModel
-public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
-    public var id: ModelIdType?
-    public var email: String
-    public var firstName: String
-    public var lastName: String
+public struct UserCreateFormViewModel: UserFields {  // ← Adopts Fields!
+    @FormFieldModel(UserCreateFormViewModel.emailField) public var email: String
+    @FormFieldModel(UserCreateFormViewModel.firstNameField) public var firstName: String
+    @FormFieldModel(UserCreateFormViewModel.lastNameField) public var lastName: String
 
-    public let userValidationMessages: UserFieldsMessages
-    public var vmId: ViewModelId = .init(type: Self.self)  // one form per screen — singleton
+    public var vmId: ViewModelId
+
+    public init(
+        email: String,
+        firstName: String,
+        lastName: String
+    ) {
+        self.vmId = .init(type: Self.self)
+
+        self.$email.initialValue = email
+        self.$firstName.initialValue = firstName
+        self.$lastName.initialValue = lastName
+    }
+}
+
+public extension UserCreateFormViewModel {
+    static func stub(
+        email: String = "stub@example.com",
+        firstName: String = "Stub",
+        lastName: String = "User"
+    ) -> Self {
+        .init(email: email, firstName: firstName, lastName: lastName)
+    }
+}
+```
+
+**The edit form carries a non-optional `modelIdentity`** and conforms to `ModelIdentifiedViewModel`:
+
+```swift
+@ViewModel
+public struct UserEditFormViewModel: UserFields, ModelIdentifiedViewModel {  // ← Adopts Fields!
+    @FormFieldModel(UserEditFormViewModel.emailField) public var email: String
+    @FormFieldModel(UserEditFormViewModel.firstNameField) public var firstName: String
+    @FormFieldModel(UserEditFormViewModel.lastNameField) public var lastName: String
+
+    public let modelIdentity: ModelIdentity  // the user being edited
+    public var vmId: ViewModelId
+
+    public init(
+        modelIdentity: ModelIdentity,
+        email: String,
+        firstName: String,
+        lastName: String
+    ) {
+        self.modelIdentity = modelIdentity
+        self.vmId = modelIdentity.viewModelId
+
+        self.$email.initialValue = email
+        self.$firstName.initialValue = firstName
+        self.$lastName.initialValue = lastName
+    }
+}
+
+public extension UserEditFormViewModel {
+    static func stub(
+        modelIdentity: ModelIdentity = .stub(),
+        email: String = "stub@example.com",
+        firstName: String = "Stub",
+        lastName: String = "User"
+    ) -> Self {
+        .init(modelIdentity: modelIdentity, email: email, firstName: firstName, lastName: lastName)
+    }
 }
 ```
 
 **Characteristics:**
-- Properties are `var` (editable)
-- **Adopts a Fields protocol** for validation
-- Gets FormField definitions from Fields
-- Gets validation logic from Fields
-- Gets localized error messages from Fields
+- **A form never carries an optional identity.** Create has none; edit has a non-optional `modelIdentity`. Never `ModelIdentity?`, never `?? .init()`, never a raw `id: ModelIdType?`
+- Create form: `vmId = .init(type: Self.self)`
+- Edit form: `public let modelIdentity: ModelIdentity`, conforms to `ModelIdentifiedViewModel`, `vmId = modelIdentity.viewModelId`
+- Each editable property is a `@FormFieldModel(…Field) public var …` — never a plain `var`
+- Initial values are set through `$field.initialValue` in `init`, never by assigning the property
+- **Both forms adopt the same Fields protocol** for validation, and take FormField definitions, validation logic and localized error messages from it
+- The field models belong to the Fields protocol, not to either form. Name them through the conforming form type (`UserEditFormViewModel.emailField`), as `FormFieldModel`'s DocC does
+- The update request echoes the edit form's `modelIdentity` back as its `TargetedQuery.target`; the create request has no target (see `fosmvvm-serverrequest-generator`)
+- Stubs follow the Stubbable pattern: every parameter defaulted; the edit form's stub defaults `modelIdentity: ModelIdentity = .stub()`
+
+> **SOLID protected: SRP, DIP and encapsulation.** SRP: one form, one job. A create form and an edit form are different projections, so each is its own ViewModel. DIP and encapsulation: the identity is transported opaquely. The edit form carries it, roots its view on it, and hands it back, and never builds, parses, or reads inside it. **What breaks on deviation:** an optional identity makes an edit-only form unable to conform to `ModelIdentifiedViewModel` and lets "create" and "edit" blur into one type; a raw `id: ModelIdType?` can be minted, parsed, and forged, and puts a persistence type on every client. Full rule: [Architecture Patterns → Identities Pass Through ViewModels Opaquely](../shared/architecture-patterns.md#identities-pass-through-viewmodels-opaquely).
 
 ### The Connection
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    UserFields Protocol                          │
-│        (defines editable properties + validation)               │
+│   (defines editable fields + validation; the form VM hosts      │
+│    each one as a @FormFieldModel)                               │
 │                                                                 │
 │  Adopted by:                                                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ CreateUserReq   │  │ UserFormVM      │  │ User (Model)    │ │
-│  │ .RequestBody    │  │ (UI form)       │  │ (persistence)   │ │
+│  │ CreateUserReq   │  │ UserCreateForm- │  │ User (Model)    │ │
+│  │ .RequestBody    │  │ UserEditForm-   │  │ (persistence)   │ │
+│  │                 │  │ ViewModel (UI)  │  │                 │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │                                                                 │
 │  Same validation logic everywhere!                              │
@@ -434,9 +503,8 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
 | `UserCardViewModel` | No | No |
 | `UserRowViewModel` | No | No |
 | `UserDetailViewModel` | No | No |
-| `UserFormViewModel` | Yes | `UserFields` |
-| `CreateUserViewModel` | Yes | `UserFields` |
-| `EditUserViewModel` | Yes | `UserFields` |
+| `UserCreateFormViewModel` | Yes | `UserFields` |
+| `UserEditFormViewModel` | Yes | `UserFields` |
 | `SettingsViewModel` | Yes | `SettingsFields` |
 
 ---
@@ -461,7 +529,8 @@ Interactive ViewModels have a companion **Operations** file (`{Name}ViewModelOpe
 | `UserCardViewModel` | No | Renders user data |
 | `UserRowViewModel` | No | Renders list row |
 | `DashboardViewModel` | No | Renders a grid of children |
-| `UserFormViewModel` | Yes | Save/Cancel buttons |
+| `UserCreateFormViewModel` | Yes | Save/Cancel buttons |
+| `UserEditFormViewModel` | Yes | Save/Cancel buttons |
 | `SettingsViewModel` | Yes | Toggles and pickers |
 | `DeviceConnectionViewModel` | Yes | Connect/Disconnect actions |
 
@@ -1057,32 +1126,28 @@ call site.
 
 ### Enum Localization Pattern
 
-For dynamic enum values (status, state, category), use a **stored `LocalizableString`** - NOT `@LocalizedString`.
-
-`@LocalizedString` always looks up the same key (the property name). A stored `LocalizableString` carries the dynamic key from the enum case.
+**A displayed enum word is a `LocalizableCase`.** For a dynamic enum value the View shows as a word (status, state, priority, category), store a `LocalizableCase<TheEnum>`, NOT `@LocalizedString` and NOT a computed string on the enum. One stored value carries both the case (the View switches on `.value`) and its localized word (`Text(viewModel.state)`).
 
 ```swift
-// Enum provides localizableString.
-// NO `: String` raw backing — the case name IS the key (via String(describing:)).
-public enum SessionState: CaseIterable, Codable, Sendable {
+// NO `: String` raw backing — the case name IS the YAML key.
+public enum SessionState: CaseIterable, Codable, Hashable, Sendable {
     case pending, running, completed, failed
-
-    public var localizableString: LocalizableString {
-        .localized(for: Self.self, propertyName: String(describing: self))
-    }
 }
 
-// ViewModel stores it (NOT @LocalizedString)
 @ViewModel
 public struct SessionCardViewModel {
-    public let state: SessionState                // Raw enum for data attributes
-    public let stateDisplay: LocalizableString   // Localized display text
+    public let state: LocalizableCase<SessionState>   // case + localized word
+    public var vmId: ViewModelId
 
-    public init(session: Session) {
-        self.state = session.state
-        self.stateDisplay = session.state.localizableString
+    public init(state: SessionState, vmId: ViewModelId) {
+        self.state = LocalizableCase(state)
+        self.vmId = vmId
     }
 }
+
+// View
+Text(viewModel.state)
+    .foregroundStyle(viewModel.state.value == .failed ? .red : .primary)
 ```
 
 ```yaml
@@ -1095,7 +1160,26 @@ en:
     failed: "Failed"
 ```
 
-**Constraint:** `LocalizableString` only works in ViewModels encoded with `localizingEncoder()`. Do not use in Fluent JSONB fields or other persisted types.
+**A nested enum** sits under every type that encloses it, outermost first (`Board.Visibility` → `Board: { Visibility: { … } }`; `Board.Card.Status` → `Board: { Card: { Status: { … } } }`). The library derives the path from the type; you pass nothing.
+
+**A picker over an enum** builds the value with `includingAllCases: true`; the localized value then carries every case's word as `choices`, in `allCases` order:
+
+```swift
+self.visibility = LocalizableCase(board.visibility, includingAllCases: true)
+
+// View
+Picker(selection: $selection) {
+    ForEach(viewModel.visibility.choices, id: \.value) { choice in
+        Text(choice.localizedString).tag(choice.value)
+    }
+} label: { Text(viewModel.visibilityTitle) }
+```
+
+> **SOLID: SRP.** The enum stays pure vocabulary; the word is a projection the ViewModel carries. A computed `displayName` on the enum, or a second `stateDisplay: LocalizableString` stored beside `state`, splits one responsibility across two places that drift apart, and a computed string never reaches the client at all (the localizing encoder resolves only what a ViewModel stores). One `LocalizableCase` is the case and its word.
+
+> **Testing proves every case.** `expectFullViewModelTests()` checks that *every* case of the enum has a word in every locale, not only the case the stub holds. A missing `failed:` key fails the test even when the stub is `.pending`.
+
+**Constraint:** Localizable values only resolve in ViewModels encoded with `localizingEncoder(in:store:)`. Do not use them in Fluent JSONB fields or other persisted types.
 
 > **ViewModel enums carry no `String`/`Int` raw backing when avoidable.** Write
 > `enum CardLiveness: Codable, Sendable, CaseIterable`, **not** `: String`. `Codable`
@@ -1105,7 +1189,7 @@ en:
 > input, a `.rawValue` that tempts stringly-typed comparisons, and it silently couples the
 > wire format to the case spelling. **Model the vocabulary; don't back it with a
 > primitive.** (A View-switched discriminator enum — one the View renders per case, with
-> no localized text — is likewise raw-less and needs no `localizableString` at all.)
+> no localized text — is likewise raw-less and needs no `LocalizableCase` at all.)
 
 ### Child ViewModels
 
@@ -1352,3 +1436,4 @@ same-named types can't actually clash in one file.) See
 | 2.11 | 2026-07-02 | Quick conventions: child VMs drop redundant `: Codable, Sendable` (macro adds them) — B9; ViewModel enums are raw-value-less (`String(describing:)` key, not `: String rawValue`) — B6; added `SystemVersion`/locale-independent field-type row + anti-pattern (version/hostname are typed, never `LocalizableString`) — B8. |
 | 2.12 | 2026-07-02 | Conceptual set: one top-level VM per screen composing children, never a mega-VM + one-file-per-VM pointer to app-setup — B1/B2; `Localizable*` init takes the plain Swift type and wraps it (formatting policy owned by init) — B3; **rewrote Identity: vmId** — stable data identity, singleton `.init(type: Self.self)` vs list-row `.init(id:)` (String/Int/UUID/merged), List-churn warning; reconciled all `.init()` throwaways in SKILL.md + reference.md (verified against `ViewModelId`) — B4; added **"ViewModel Module Must NOT Depend on Domain Types (Dependency Inversion)"** hard-rule section with Factory-adapter ergonomic — B5. |
 | 2.13 | 2026-10-05 | Entity identity is an opaque `ModelIdentity`: rows and entity ViewModels carry `modelIdentity` (not `id: ModelIdType`), take it in the init (never a `Model`), root `vmId` in `modelIdentity.viewModelId`, and the factory reads `model.modelIdentity`; transport rule section with DIP + encapsulation red flag. Stubbable pattern stated in full (defaulted `stub(...)` + `stub()` forwarding one explicit argument, motivation, chaining rule, SRP); stubs default `modelIdentity: ModelIdentity = .stub()`; interactive examples use a defaulted `stub(...)`. Nested-type examples moved to the showcase vocabulary. |
+| 2.14 | 2026-10-05 | Enum Localization Pattern rewritten: a displayed enum word is a stored `LocalizableCase<Enum>` (case + word in one value; nested enums keyed under every enclosing type, derived; `includingAllCases: true` + `choices` for pickers), replacing the computed `localizableString` + second `LocalizableString` field; SRP named; `expectFullViewModelTests()` proves every case. |

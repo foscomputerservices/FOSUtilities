@@ -26,6 +26,15 @@ import FoundationNetworking
 /// testing of networking functions.  The mock session is initialized with one or more
 /// of **data**, **error**, **response** and these values will immediately be sent
 /// back to the *completionHandlers* of the two *dataTask()* functions.
+///
+/// A fetch through a ``MockURLSession`` never touches the network: the task it
+/// returns does nothing when resumed.
+///
+/// ```swift
+/// let session = try MockURLSession(model: Card.stub(), url: cardURL)
+/// let dataFetch = DataFetch(urlSession: session)
+/// let card: Card = try await dataFetch.fetch(cardURL)
+/// ```
 public final class MockURLSession: URLSessionProtocol {
     public let data: Data?
     public let error: Error?
@@ -36,7 +45,7 @@ public final class MockURLSession: URLSessionProtocol {
         completionHandler: @escaping @Sendable (Data?, URLResponse?, Error?) -> Void
     ) -> URLSessionDataTask {
         completionHandler(data, response, error)
-        return URLSession.shared.dataTask(with: url)
+        return Self.inertSession.dataTask(with: url)
     }
 
     public func dataTask(
@@ -44,7 +53,7 @@ public final class MockURLSession: URLSessionProtocol {
         completionHandler: @escaping (Data?, URLResponse?, (any Error)?) -> Void
     ) -> URLSessionDataTask {
         completionHandler(data, response, error)
-        return URLSession.shared.dataTask(with: request)
+        return Self.inertSession.dataTask(with: request)
     }
 
     public static func session(config: URLSessionConfiguration) -> Self {
@@ -69,4 +78,28 @@ public final class MockURLSession: URLSessionProtocol {
             ]
         )
     }
+
+    /// URLSessionDataTask's own initializer is deprecated on Apple platforms, so the
+    /// returned task comes from a session whose only loader answers without sending.
+    private static let inertSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [InertURLProtocol.self]
+        return URLSession(configuration: config)
+    }()
+}
+
+private final class InertURLProtocol: URLProtocol {
+    override static func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        client?.urlProtocol(self, didFailWithError: URLError(.cancelled))
+    }
+
+    override func stopLoading() {}
 }

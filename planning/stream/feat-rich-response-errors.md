@@ -67,3 +67,4 @@ Done means:
 - 2026-10-05 — widened at David's word: a caller-supplied hook that turns a quirky response into a rich error, beside the built-in standard handling.
 - 2026-10-05 — OQ9 ruled: ships in 0.20.0 with the rest of fosline's request.
 - 2026-10-05 — build order ruled by need: 5 of 5 (rulings file, OQ2).
+- 2026-10-05 — BUILT on feat/0.20.0 for the single 0.20.0 PR; reviewed (standards, requirements trace, docs) and the findings fixed.

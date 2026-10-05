@@ -78,11 +78,23 @@ import FoundationNetworking
 ///  the response to the **error type** type.  If the **error type** decoding succeeds,
 ///  that resulting error will be thrown.
 ///
+///  ## Waiting Before Retrying
+///
+///  When a service asks the caller to come back later and says when,
+///  ``DataFetchError/retryAfter(_:)`` is thrown, carrying the wait.
+///
+///  ## Adapting a Service's Quirks
+///
+///  When a service reports problems in its own way, create the ``DataFetch``
+///  with ``init(urlSession:errorForResponse:)`` and turn those responses into
+///  your own errors.
+///
 /// - Note: Typically **Session** is of type **URLSession**, however during testing
 ///    **FOSTesting/MockURLSession** can be used.  For most cases, use
 ///     **DataFetch<URLSession>.default** to create an instance.
 public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     private let urlSession: Session
+    private let errorForResponse: (@Sendable (HTTPURLResponse, Data?) -> (any Error)?)?
 
     /// Returns an instance that uses **DataFetch.urlSessionConfiguration**
     ///
@@ -302,6 +314,58 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 
     public init(urlSession: Session) {
         self.urlSession = urlSession
+        self.errorForResponse = nil
+    }
+
+    /// Creates an instance that turns a service's own way of reporting a
+    /// problem into an error your app understands
+    ///
+    /// Use it when a service reports a problem in a way the HTTP standards
+    /// don't cover, or splits what you need across its response. Here an
+    /// exchange's REST API sends its error message as JSON and, separately,
+    /// how long to back off; the hook folds both into one error:
+    ///
+    /// ```swift
+    /// struct ExchangeError: Decodable { let code: Int; let msg: String }
+    ///
+    /// struct RateLimited: Error {
+    ///     let message: String
+    ///     let wait: Duration
+    /// }
+    ///
+    /// let dataFetch = DataFetch(urlSession: session) { response, data in
+    ///     guard response.statusCode == 429,
+    ///           let data, let body: ExchangeError = try? data.fromJSON(),
+    ///           let seconds = response.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init)
+    ///     else {
+    ///         return nil
+    ///     }
+    ///     return RateLimited(message: body.msg, wait: .seconds(seconds))
+    /// }
+    ///
+    /// do {
+    ///     let ticker: Ticker = try await dataFetch.fetch(tickerURL)
+    /// } catch let error as RateLimited {
+    ///     try await Task.sleep(for: error.wait)
+    /// }
+    /// ```
+    ///
+    /// The hook sees each HTTP response before ``DataFetch`` interprets it.
+    /// Return an error to have it thrown from the call, or `nil` to let
+    /// ``DataFetch`` handle the response as it otherwise would: the HTTP
+    /// standards first (such as ``DataFetchError/retryAfter(_:)``), then the
+    /// call's `errorType:`.
+    ///
+    /// > Note: The hook is called for every response, successful ones
+    /// > included, and not for a request that fails without one (such as
+    /// > when the network is offline).
+    ///
+    /// - Parameters:
+    ///   - urlSession: The session that carries the requests
+    ///   - errorForResponse: Returns the error to throw for a response, or `nil`
+    public init(urlSession: Session, errorForResponse: @escaping @Sendable (HTTPURLResponse, Data?) -> (any Error)?) {
+        self.urlSession = urlSession
+        self.errorForResponse = errorForResponse
     }
 
     /// Returns a 'standard' **URLSessionConfiguration**
@@ -412,6 +476,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
         }
 
         let responseMimeType = checkReceivedMimeType ? expectedResponseMimeType : nil // Remove mutability
+        let errorForResponse = errorForResponse
 
         return try await withCheckedThrowingContinuation { continuation in
             urlSession
@@ -422,7 +487,8 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
                             response: response,
                             error: e,
                             responseMimeType: responseMimeType,
-                            errorType: errorType
+                            errorType: errorType,
+                            errorForResponse: errorForResponse
                         )
 
                         let headerValue = field.flatMap {
@@ -437,7 +503,17 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
         }
     }
 
-    private static func completionHandler<ResultValue: Decodable, ResultError: Decodable & Error>(responseData: Data?, response: URLResponse?, error: Error?, responseMimeType: String?, errorType: ResultError.Type) throws -> ResultValue {
+    private static func completionHandler<ResultValue: Decodable, ResultError: Decodable & Error>(responseData: Data?, response: URLResponse?, error: Error?, responseMimeType: String?, errorType: ResultError.Type, errorForResponse: (@Sendable (HTTPURLResponse, Data?) -> (any Error)?)?) throws -> ResultValue {
+        // Ahead of the do-block so the errorType decode below cannot replace these errors.
+        if error == nil, let httpResponse = response as? HTTPURLResponse {
+            if let callerError = errorForResponse?(httpResponse, responseData) {
+                throw callerError
+            }
+            if let wait = httpResponse.retryAfterWait(now: Date()) {
+                throw DataFetchError.retryAfter(wait)
+            }
+        }
+
         do {
             try checkResponse( // DataFetchError
                 response: response,

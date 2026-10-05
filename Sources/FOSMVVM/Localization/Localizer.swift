@@ -23,7 +23,7 @@ public enum LocalizerError: Error, CustomDebugStringConvertible {
     /// Localization occurs during encode/init(from:).  If encoding/decoding has not taken place, then this error will result.
     case localizationUnbound
 
-    /// A strict encoder (see `JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)`)
+    /// A strict encoder (see `JSONEncoder.localizingEncoder(in:store:strictLocalization:)`)
     /// met a key the store could not resolve in the given locale
     case missingTranslation(_ localizable: String, locale: String)
 
@@ -51,6 +51,10 @@ public enum LocalizerError: Error, CustomDebugStringConvertible {
 
 extension Locale {
     func localize(_ localizable: some Localizable, localizationStore: LocalizationStore) throws -> String? {
+        try localizable.localized(in: self, store: localizationStore)
+    }
+
+    func localizeLibraryValue(_ localizable: some Localizable, localizationStore: LocalizationStore) throws -> String? {
         if let string = localizable as? LocalizableString {
             return localize(string, localizationStore: localizationStore)
         } else if let compound = localizable as? LocalizableCompoundValue<LocalizableString> {
@@ -81,7 +85,7 @@ extension Locale {
             case .value(let key):
                 if let value = localizationStore.v(key, locale: self) {
                     if Element.self is any LocalizableValue.Type {
-                        fatalError("NYI!")
+                        fatalError("LocalizableArray<\(Element.self)> cannot be localized from a YAML key: only LocalizableString elements are supported (see docs/deferrals.md)")
                     } else if Element.self is LocalizableString.Type {
                         if let value = value as? String {
                             // Reviewed - dgh - The type has already been established

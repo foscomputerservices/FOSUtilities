@@ -74,6 +74,8 @@ struct MyViewModel: ViewModel {
 
 ### Nested Type Support
 
+> Tip: To show an enum case's word in a ``ViewModel``, use ``LocalizableCase`` (see Showing an Enum Case's Word below). The `.localized(case:parentType:)` form below is the underlying key rule it follows.
+
 In some situations ``ViewModel``s contain nested types that need their properties bound.  The *parentType* parameter
 provides support for these situations.  Consider the following ``ViewModel``:
 
@@ -97,6 +99,76 @@ struct ParentViewModel: ViewModel {
         option1: "Option #1"
         option2: "Option #2"
 ```
+
+### Showing an Enum Case's Word
+
+Store the case in a ``LocalizableCase`` and the localized word travels with it:
+
+```swift
+@ViewModel
+public struct CardRowViewModel {
+    public let priority: LocalizableCase<Priority>
+    public let visibility: LocalizableCase<Board.Visibility>
+    @LocalizedString public var visibilityTitle
+    public var vmId = ViewModelId()
+
+    public init(card: Card, board: Board) {
+        priority = LocalizableCase(card.priority)
+        visibility = LocalizableCase(board.visibility, includingAllCases: true)
+    }
+}
+```
+
+```swift
+Text(viewModel.priority)
+Picker(selection: $selection) {
+    ForEach(viewModel.visibility.choices, id: \.value) { choice in
+        Text(choice.localizedString).tag(choice.value)
+    }
+} label: { Text(viewModel.visibilityTitle) }
+```
+
+```yaml
+  en:
+    Priority:
+      low: "Low"
+      high: "High"
+    Board:
+      Visibility:
+        workspace: "Everyone in the workspace"
+        members: "Board members only"
+```
+
+A row shows the word of its one case. With `includingAllCases: true` the value also carries every case's word as ``LocalizableCase/choices``, in `allCases` order, for a picker.
+
+### Localizing Your Own Type
+
+When a value needs locale-aware text the library's types do not provide, implement ``Localizable/localized(in:store:)`` on your own ``Localizable`` and call `encoder.localizeString(self)` from `encode(to:)`:
+
+```swift
+public struct LocalizableEstimate: Localizable {
+    public let hours: Decimal
+    private let text: String?
+
+    public func localized(in locale: Locale, store: LocalizationStore) throws -> String? {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        return formatter.string(for: hours)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(hours, forKey: .hours)
+        try container.encode(text ?? encoder.localizeString(self) ?? "", forKey: .text)
+    }
+
+    // init(from:), isEmpty, localizationStatus, id, localizedString and stub()
+    // as for any Localizable
+}
+```
+
+The localizing encoder then resolves it like any library type. Return `nil` when the store has no text, and a strict encoder fails with a missing-translation error.
 
 ### Multiple Value support
 

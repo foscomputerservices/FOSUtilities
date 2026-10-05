@@ -28,7 +28,7 @@ struct JSONEncoderTests: LocalizableTestCase {
     // MARK: Simple Tests
 
     @Test func localizeString() throws {
-        let encoder = JSONEncoder.localizingEncoder(locale: Self.en, localizationStore: locStore)
+        let encoder = JSONEncoder.localizingEncoder(in: Self.en, store: locStore)
         let localizableString = LocalizableString.localized(.value(key: "test"))
         let string: LocalizableString = try localizableString.toJSON(encoder: encoder).fromJSON()
 
@@ -36,7 +36,7 @@ struct JSONEncoderTests: LocalizableTestCase {
     }
 
     @Test func localizeArray() throws {
-        let encoder = JSONEncoder.localizingEncoder(locale: Self.en, localizationStore: locStore)
+        let encoder = JSONEncoder.localizingEncoder(in: Self.en, store: locStore)
         let localizableArray = LocalizableArray<LocalizableString>.localized(.value(key: "stringArray"))
         let array: LocalizableArray<LocalizableString> = try localizableArray.toJSON(encoder: encoder).fromJSON()
 

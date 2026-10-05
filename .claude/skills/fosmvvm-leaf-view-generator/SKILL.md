@@ -183,9 +183,11 @@ ViewModels should provide both raw values (for data attributes) and localized st
 public struct {Entity}CardViewModel {
     public let id: ModelIdType              // For data-{entity}-id
     public let status: {Entity}Status       // Raw enum for data-status
-    public let statusDisplay: LocalizableString  // Localized (stored, not @LocalizedString)
+    public let statusDisplay: LocalizableCase<{Entity}Status>  // Renders its localized word in Leaf
 }
 ```
+
+The raw `status` exists only because the template writes it into a `data-` attribute for JS; drop it if no script reads the case.
 
 ```html
 <div data-status="#(card.status)">           <!-- Raw: "queued" for JS -->
@@ -429,7 +431,7 @@ public struct TaskCardViewModel {
 
 ```html
 <!-- BAD - localized string can't be sent to server -->
-<div data-status="#(card.statusDisplayName)">
+<div data-status="#(card.statusDisplay)">
 
 <!-- GOOD - raw enum value works for requests -->
 <div data-status="#(card.status)">
@@ -456,7 +458,7 @@ public struct TaskCardViewModel {
 <span class="status">Queued</span>
 
 <!-- GOOD - ViewModel provides localized value -->
-<span class="status">#(card.statusDisplayName)</span>
+<span class="status">#(card.statusDisplay)</span>
 ```
 
 ### Concatenating Localized Values
@@ -608,6 +610,7 @@ For each ViewModel property:
 - **`id: ModelIdType`** → `data-{entity}-id="#(vm.id)"` (for JS)
 - **Raw enum** → `data-{field}="#(vm.field)"` (for state)
 - **`LocalizableString`** → `#(vm.displayName)` (display text)
+- **`LocalizableCase<E>`** → `#(vm.statusDisplay)` (Leaf renders the localized word of the case)
 - **`LocalizableDate`** → `#(vm.createdAt)` (formatted date)
 - **Nested ViewModel** → Embed fragment or access properties
 
@@ -641,6 +644,10 @@ Skill references information from:
 
 ---
 
+## SOLID
+
+**SRP:** the template renders what the ViewModel projected; it never derives words or selections. A case's word comes from a `LocalizableCase` property, not from template logic.
+
 ## See Also
 
 - [Architecture Patterns](../shared/architecture-patterns.md) - Mental models (errors are data, type safety, etc.)
@@ -661,3 +668,4 @@ Skill references information from:
 | 2.2 | 2026-01-19 | Updated Pattern 3 to use stored LocalizableString for dynamic enum displays; linked to Enum Localization Pattern. Added anti-patterns for concatenating localized values and formatting dates in templates. |
 | 2.3 | 2026-01-20 | Added "Rendering Errors in Leaf Templates" section - error types are known at compile time, no need for generic ErrorViewModel patterns. Prevents JavaScript-brain thinking about runtime type discovery. |
 | 2.4 | 2026-01-24 | Update to context-aware approach (remove file-parsing/Q&A). Skill references conversation context instead of asking questions or accepting file paths. |
+| 2.5 | 2026-10-05 | Enum words render from the `LocalizableCase` property (`#(card.statusDisplay)`), replacing the undeclared `statusDisplayName`; property-mapping and SRP lines added. |

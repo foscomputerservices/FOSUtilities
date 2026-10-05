@@ -230,22 +230,61 @@ let user: User = try await DataFetch(urlSession: session).fetch(url)
 
 ### Typed networking failures — `DataFetchError`
 Reach for this when: handling errors from `fetch()` / `send()` / `delete()` —
-distinguish bad status codes, empty responses, MIME mismatches, and decode
-failures instead of string-matching error text.
+distinguish a requested wait, empty responses, MIME mismatches, and decode
+failures instead of string-matching error text. For errors your app shows a
+user, prefer the service's own typed error (`errorType:`) or the hook below.
 
 ```swift
-catch let error as DataFetchError {
-    if case .badStatus(let code) = error { handle(code) }
+catch DataFetchError.noDataReceived {
+    showEmptyBoard()
+}
+```
+
+### Wait as long as the service asks — `retryAfter`
+Reach for this when: a service rate-limits you or is briefly unavailable and
+says when to come back — `DataFetchError.retryAfter` carries the wait as a
+`Duration`, for every fetch, send, and delete.
+Don't read `Retry-After` or check status codes yourself — `DataFetch` already
+understands the standard header in both its forms.
+
+```swift
+for _ in 1..<3 {
+    do {
+        return try await boardURL.fetch()
+    } catch DataFetchError.retryAfter(let wait) {
+        try await Task.sleep(for: wait)
+    }
+}
+return try await boardURL.fetch()
+```
+
+### Adapt a service's quirks into your own errors — `init(urlSession:errorForResponse:)`
+Reach for this when: a service reports problems its own way (an error JSON plus
+a `Retry-After`, a 200 carrying a failure) — the hook sees each response first
+and returns your rich error, or `nil` to let `DataFetch` carry on (the
+standard handling, then `errorType:`).
+Don't wrap the session to read status codes or headers in your app — adapt the
+quirk once in the hook, so the rest of the app only sees rich errors.
+
+```swift
+let dataFetch = DataFetch(urlSession: session) { response, data in
+    guard response.statusCode == 429,
+          let data, let body: ExchangeError = try? data.fromJSON(),
+          let seconds = response.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init)
+    else { return nil }
+    return RateLimited(message: body.msg, wait: .seconds(seconds))
 }
 ```
 
 ### Mockable network sessions — `URLSessionProtocol` / `session()`
 Reach for this when: testing code that uses `DataFetch` without hitting the
-network — inject any conforming session (FOSTesting provides `MockURLSession`).
+network — inject any conforming session (FOSTesting provides `MockURLSession`,
+which never sends a request).
 Don't make real network calls in tests.
 
 ```swift
-let dataFetch = DataFetch(urlSession: MockURLSession.session(config: .default))
+let session = try MockURLSession(model: Card.stub(), url: cardURL)
+let dataFetch = DataFetch(urlSession: session)
 ```
 
 ### Send Codable over a WebSocket — `send()` / `WebSocketError`

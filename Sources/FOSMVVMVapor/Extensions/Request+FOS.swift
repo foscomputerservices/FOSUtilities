@@ -169,8 +169,8 @@ public extension Vapor.Request {
     var localizingEncoder: JSONEncoder {
         get throws {
             try JSONEncoder.localizingEncoder(
-                locale: requireLocale(),
-                localizationStore: application.requireLocalizationStore()
+                in: requireLocale(),
+                store: application.requireLocalizationStore()
             )
         }
     }

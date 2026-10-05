@@ -48,7 +48,9 @@ Form Specifications integrate with:
 - **Localization System** - FormField titles/placeholders and validation messages use `LocalizableString`
 - **Validation System** - Implements `ValidatableModel` protocol
 - **Request System** - RequestBody types adopt Fields for validated transmission
-- **ViewModel System** - ViewModels adopt Fields for form rendering
+- **ViewModel System** - ViewModels adopt Fields for form rendering, hosting each field as `@FormFieldModel(…Field) public var …`
+
+> **A Fields protocol never carries the edited entity's identity** (no `id: ModelIdType?`). Identities the user picks, such as a multi-select of assets, are form data and may be fields, as opaque `ModelIdentity` values, never raw ids. An update names its target with a `TargetedQuery` whose `target: ModelIdentity` is the identity the form ViewModel carried, echoed back; the body (Fields) carries only the editable values. **SOLID protected: DIP and encapsulation** — a raw id in the form contract can be minted and forged, and drags a persistence type into the shared module.
 
 ## When to Use This Skill
 

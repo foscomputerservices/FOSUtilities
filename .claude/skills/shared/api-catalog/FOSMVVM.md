@@ -10,9 +10,11 @@ surface is reached through the macros (`@ViewModel`, `@FieldValidationModel`,
 
 One extension: the localizing JSONEncoder — the engine that resolves every
 `Localizable` value at encode time. The server and `bind()` pipelines call it
-for you; reach for it directly only when localizing by hand.
+for you; reach for it directly only when localizing by hand. Its partner,
+`Encoder.localizeString(_:)`, is what a `Localizable` of your own calls from
+`encode(to:)` (see *Localize a type of your own* in § Localization).
 
-### Localize values during JSON encoding — `localizingEncoder()`
+### Localize values during JSON encoding — `localizingEncoder(in:store:strictLocalization:)`
 Reach for this when: a ViewModel or `Localizable` must be resolved to concrete
 strings outside the standard pipelines (tests, tools, custom factories).
 Localization *is* encoding: values stay `localizationPending` until they
@@ -21,7 +23,7 @@ Don't localize by string lookup against the store — the encoder resolves
 property-name bindings, substitutions, and compound values in one pass.
 
 ```swift
-let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: store)
+let encoder = JSONEncoder.localizingEncoder(in: locale, store: store)
 let localized: MyViewModel = try viewModel.toJSON(encoder: encoder).fromJSON()
 ```
 
@@ -150,6 +152,39 @@ if viewModel.title.localizationStatus == .localized {
 }
 ```
 
+### Localize a type of your own — `localized(in:store:)` / `localizeString(_:)`
+Reach for this when: a value needs locale-aware text the library's types don't
+give you (an exact amount past `Double`'s precision, a unit with its own
+formatting), declared in your own module. Implement `localized(in:store:)` on
+your `Localizable`, and call `encoder.localizeString(self)` from `encode(to:)`;
+the localizing encoder then resolves it like any library type, and a strict
+encoder fails on `nil` with `missingTranslation`.
+Don't fall back to `LocalizableString.constant` (drops the locale's grouping)
+or a computed string on the type (it never reaches the client).
+
+```swift
+public struct LocalizableEstimate: Localizable {
+    public let hours: Decimal
+    private let text: String?
+
+    public func localized(in locale: Locale, store: LocalizationStore) throws -> String? {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        return formatter.string(for: hours)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(hours, forKey: .hours)
+        try container.encode(text ?? encoder.localizeString(self) ?? "", forKey: .text)
+    }
+
+    // init(from:) decodes `text`; isEmpty, localizationStatus, id,
+    // localizedString and stub() as for any Localizable
+}
+```
+
 ### Carry a string through localization — `LocalizableString`
 Reach for this when: a ViewModel property, error message, or field title is a
 string that may be locale-dependent. `.constant` passes fixed text through
@@ -178,6 +213,39 @@ enum ErrorCode: Codable, Sendable {
         .localized(case: self, parentType: SimpleError.self)
     }
 }
+```
+
+### Show an enum case's word in a ViewModel — `LocalizableCase` / `choices`
+Reach for this when: a ViewModel shows an enum case as a word (a row's
+priority, a board's visibility) or offers a picker over an enum. The view
+switches on `value` and shows the word; with `includingAllCases: true` the
+value also carries every case's word as `choices`, in `allCases` order. YAML
+follows the enum-case rule above: `Priority: { low: …, high: … }`, and a nested
+enum sits under every enclosing type, outermost first (`Board: { Visibility: { … } }`,
+`Board: { Card: { Status: { … } } }`) — derived from the type, nothing to pass. `expectFullViewModelTests()` proves every case
+has a word in every locale, not only the stub's.
+Don't compute a word on the enum (it never reaches the client) or give the
+enum a `String` raw value to stand in for the key.
+
+```swift
+@ViewModel public struct CardRowViewModel {
+    public let priority: LocalizableCase<Priority>          // a row's word
+    public let visibility: LocalizableCase<Board.Visibility> // a picker
+    @LocalizedString public var visibilityTitle
+    public var vmId = ViewModelId()
+
+    public init(card: Card, board: Board) {
+        priority = LocalizableCase(card.priority)
+        visibility = LocalizableCase(board.visibility, includingAllCases: true)
+    }
+}
+
+Text(viewModel.priority)
+Picker(selection: $selection) {
+    ForEach(viewModel.visibility.choices, id: \.value) { choice in
+        Text(choice.localizedString).tag(choice.value)
+    }
+} label: { Text(viewModel.visibilityTitle) }
 ```
 
 ### Locale-formatted values — `LocalizableInt` / `LocalizableDouble` / `LocalizableDate` / `LocalizableValue`
@@ -452,8 +520,9 @@ name states that expectation). An error created **on the client** declares
 `localized(mvvmEnv:locale:)` runs the same round-trip a
 `ClientHostedViewModelFactory` runs for a ViewModel, against the app's own
 localization YAML, returning `nil` when it cannot (present the debug
-description then); `localized(locale:localizationStore:)` is the underlying
-throwing mechanism. An error type belongs to one localization domain — its
+description then); `localized(in:store:)` is the underlying
+throwing mechanism (the older `localized(locale:localizationStore:)` is
+deprecated). An error type belongs to one localization domain — its
 YAML lives where it is thrown; an unresolved message at presentation surfaces
 as the debug description.
 
@@ -923,6 +992,66 @@ struct UpdateCardQuery: TargetedQuery, ScopedQuery {
 }
 struct ArchiveBoardQuery: TargetedQuery {
     let target: ModelIdentity         // candidates within .subject name no container
+}
+```
+
+## Push Notifications
+
+The app's half of Apple push notifications: permission, registration with Apple, and each device token handed to the app to send to its server. The register `ServerRequest` and the server's token storage are the app's; the server's send is `FOSMVVMVapor.md § Push Notifications`.
+
+### Name the APNs environment a token belongs to — `PushEnvironment`
+Reach for this when: an app's register request tells its server which APNs environment issued its token. Development-signed builds (run from Xcode) get `.sandbox` tokens; TestFlight and App Store builds get `.production`. It lives in FOSMVVM, not FOSMVVMVapor, so a shared register request body can carry it.
+
+```swift
+#if DEBUG
+let environment = PushEnvironment.sandbox
+#else
+let environment = PushEnvironment.production
+#endif
+```
+
+### Ask permission, register, and receive the device token — `PushRegistration` / `requestPermission()` / `deviceTokenReceived()` / `Registration` <!-- apple-only -->
+Reach for this when: the app must receive push notifications. Create one in the app delegate with its `onDeviceToken` hook, call `requestPermission()` at every launch (`badgeOnly: true` on tvOS), and forward Apple's token from the delegate with `deviceTokenReceived(_:)`; SwiftUI cannot receive the token, so that forwarding line is the one the app writes (`@UIApplicationDelegateAdaptor`, `@NSApplicationDelegateAdaptor` on macOS, `@WKApplicationDelegateAdaptor` on watchOS). The hook gets a `PushRegistration.Registration`: the token as Apple's hex text, the app's bundle identifier as `topic`, the `environment` the app stated, and `locale`, the app's own language (its preferred localization, not the device's), which the server localizes notifications into. It is called at every launch and whenever Apple replaces the token, so the server's register handler inserts or updates.
+
+Don't skip the call on later launches: registering every launch is what keeps the stored language current. In tests, `PushRegistration.Registration.stub(locale:)` drives the hook's code without Apple.
+
+The server's `PushNotification` can carry a `payload` of the app's own `Codable` type beside Apple's `aps` block; decode it from the notification's `userInfo` with the same type (`JSONSerialization.data(withJSONObject: userInfo)`, then `JSONDecoder`).
+
+```swift
+#if DEBUG
+let pushEnvironment = PushEnvironment.sandbox
+#else
+let pushEnvironment = PushEnvironment.production
+#endif
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    let pushRegistration = PushRegistration(environment: pushEnvironment) { registration in
+        let request = RegisterDeviceRequest(requestBody: .init(
+            deviceToken: registration.deviceToken,
+            topic: registration.topic,
+            environment: registration.environment,
+            locale: registration.locale
+        ))
+        try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        Task { try? await pushRegistration.requestPermission() }
+        return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        pushRegistration.deviceTokenReceived(deviceToken)
+    }
+}
+
+@main
+struct BoardsApp: App {
+    @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
+    // ...
 }
 ```
 

@@ -10,9 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`ModelIdentity.stub()`** — `ModelIdentity` is now `Stubbable`, so a ViewModel that carries an identity can write its stub and preview without a model. Each call returns a new identity that equals itself across an encode and decode, never equals another stub, and never equals a real model's identity. A test can hold one, pass it into the ViewModel, and check that an Operation receives the same identity.
+- **`Localizable.localized(in:store:)`** — a `Localizable` declared outside FOSUtilities localizes itself through the same encoder as the library's own types by implementing this requirement; the library's types answer it as before. `Encoder.localizeString(_:)` is now public, so a value's own `encode(to:)` can reach the encoder's locale and store.
+- **`LocalizableCase<Case>`** — a ViewModel stores an enum case and its localized word in one value: the view switches on `value` and shows the word. Built with `includingAllCases: true`, it also carries the word of every case as `choices`, ready for a picker. Each case's word is one YAML key under the enum's type name (a nested enum sits under every type that encloses it, outermost first: `Board.Card.Status` is `Board: Card: Status:`). `expectFullViewModelTests()` proves every case of the enum is translated in every locale, and Leaf renders the word.
+- **Apple push notifications** — behind the new `APNs` package trait, off by default (with it off, neither the push code nor APNSwift is compiled; current SwiftPM also skips fetching APNSwift). A server configures APNs with `app.pushNotifications.configure(_:)` and sends a `PushNotification` with `app.pushNotifications.send(_:to:)` (a `PushNotificationService`) to its own stored rows conforming to `PushDestination`; each destination gets the title and body, any `Localizable` (a `LocalizableSubstitutions` with its values filled), localized in its own locale. `contentAvailable: true` makes a silent (background) push, and `payload:` carries the app's own `Encodable` type beside Apple's `aps` block. A token Apple retires is reported through the configuration's `onRetiredToken` hook. On the client, `PushRegistration` asks for permission (badge-only for tvOS) and hands the app each device token, with its topic, environment, and the app's preferred language, at every launch; `PushRegistration.Registration.stub(...)` lets a test drive the code its `onDeviceToken` hook runs.
+- **`DataFetchError.retryAfter(Duration)`** — a 429 or 503 response carrying `Retry-After` (seconds or an HTTP date) throws the wait as a `Duration`.
+- **`DataFetch(urlSession:errorForResponse:)`** — a caller adapts a service's own response conventions into a rich error of its own; returning `nil` falls through to the standard handling.
+
+### Changed
+
+- **Swift tools version 6.1** — the package declares traits, which need tools version 6.1.
+- **`DataFetchError` gains a case** (`retryAfter`), so an exhaustive `switch` over it needs one more case.
+
+### Deprecated
+
+- **`JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)`** — use `localizingEncoder(in:store:strictLocalization:)`.
+- **`LocalizableError.localized(locale:localizationStore:)`** — use `localized(in:store:)`.
 
 ### Fixed
 
+- **`MockURLSession` no longer reaches the network** — it returned a real task that `DataFetch` resumed, so a mocked test also sent the request; its task now does nothing when resumed.
+- **Form and write teaching follows the library** — the generator skills teach separate create and edit forms over one Fields protocol, with `@FormFieldModel` fields vended from its statics; a create form carries no identity, and an edit form carries a non-optional `ModelIdentity`, conforms to `ModelIdentifiedViewModel`, and roots `vmId` in it. Updates, archives, and destroys name their target with `TargetedQuery`; every write answers with the container's children, not a bare id. The `ViewModelId` and `ModelIdentity.viewModelId` DocC examples no longer put a model in a ViewModel.
 - **`ModelIdentifiedViewModel` documentation** — the example's ViewModel now takes its `ModelIdentity` in its init instead of a model; the ViewModel's factory reads `model.modelIdentity` and passes it in. The DocC no longer claims the framework keys live refresh to the protocol.
 
 ## [0.19.1] - 2026-10-04

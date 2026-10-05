@@ -64,23 +64,33 @@ import FOSMVVM
 import Foundation
 
 public final class {Action}Request: {Protocol}, @unchecked Sendable {
-    public typealias Query = EmptyQuery
     public typealias Fragment = EmptyFragment
-    public typealias ResponseError = EmptyError
-    // ^ reads only. A CreateRequest or UpdateRequest constrains ResponseError to a
+    public typealias ResponseError = ValidationError
+    // ^ A CreateRequest or UpdateRequest constrains ResponseError to a
     //   ValidatableViewModelRequestError, so EmptyError does not compile there:
-    //   `public typealias ResponseError = ValidationError` is the ready-made choice.
+    //   `ValidationError` is the ready-made choice. (A read may keep EmptyError.)
 
+    public let query: Query?
     public let requestBody: RequestBody?
     public var responseBody: ResponseBody?
 
-    // What the client sends
+    // Which record the write targets: the ModelIdentity the ViewModel carried,
+    // echoed back. The body never carries a raw id.
+    public struct Query: TargetedQuery {
+        public let target: ModelIdentity
+
+        public init(target: ModelIdentity) {
+            self.target = target
+        }
+    }
+
+    // What the client sends: the editable values only
     public struct RequestBody: ServerRequestBody, ValidatableModel {
-        public let {entity}Id: ModelIdType
+        public let newValue: SomeType
         // Add other fields as needed
 
-        public init({entity}Id: ModelIdType) {
-            self.{entity}Id = {entity}Id
+        public init(newValue: SomeType) {
+            self.newValue = newValue
         }
 
         public func validate(
@@ -93,9 +103,9 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
 
     // What the server returns
     public struct ResponseBody: {Protocol}ResponseBody {
-        public let viewModel: {Entity}ViewModel  // Or appropriate ViewModel
+        public let viewModel: {Container}ViewModel  // The container's children, data-bearing
 
-        public init(viewModel: {Entity}ViewModel) {
+        public init(viewModel: {Container}ViewModel) {
             self.viewModel = viewModel
         }
     }
@@ -106,6 +116,7 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
         requestBody: RequestBody? = nil,
         responseBody: ResponseBody? = nil
     ) {
+        self.query = query
         self.requestBody = requestBody
         self.responseBody = responseBody
     }
@@ -115,20 +126,21 @@ public final class {Action}Request: {Protocol}, @unchecked Sendable {
 
 public extension {Action}Request {
     static func stub() -> Self {
-        .stub(requestBody: .stub())
+        .stub(query: .init(target: .stub()), requestBody: .stub())
     }
 
     static func stub(
+        query: Query? = .init(target: .stub()),
         requestBody: RequestBody? = .stub(),
         responseBody: ResponseBody? = nil
     ) -> Self {
-        .init(requestBody: requestBody, responseBody: responseBody)
+        .init(query: query, requestBody: requestBody, responseBody: responseBody)
     }
 }
 
 extension {Action}Request.RequestBody: Stubbable {
     public static func stub() -> Self {
-        .init({entity}Id: .init())
+        .init(newValue: .stub())
     }
 }
 
@@ -143,7 +155,18 @@ extension {Action}Request.ResponseBody: Stubbable {
 
 ## Template 2: Controller (Server-Side Handler)
 
-**Location:** `Sources/{WebServerTarget}/Controllers/{Action}Controller.swift`
+**Writes (create, update, archive) are served by the framework.** Adopt `WriteTargetProviding` / `DataModelWriter` on the request's `RequestBody` in the server target: `candidates` declares the auth-scoped set the `TargetedQuery.target` must resolve to, and `apply(to:)` assigns fields (synchronous, no database access). The framework loads, saves and re-serves the container's children. See `FOSMVVMVapor.md § Protocols` in the API catalog.
+
+```swift
+extension {Action}Request.RequestBody: DataModelWriter {
+    static let candidates = {Entity}.loadingPlan(.write, within: .request)
+    func apply(to {entity}: {Entity}) throws {
+        {entity}.someField = newValue
+    }
+}
+```
+
+**Location of a hand-written handler (reads and custom actions only):** `Sources/{WebServerTarget}/Controllers/{Action}Controller.swift`
 
 ```swift
 import Fluent
@@ -170,20 +193,16 @@ private extension {Action}Request {
 
         // 1. Fetch entity (with relationships if needed)
         guard let {entity} = try await {Entity}.query(on: db)
-            .filter(\.$id == requestBody.{entity}Id)
+            .filter(\.$id == serverRequest.query?.{entity}Id)
             .with(\.$createdBy)  // Add relationships as needed
             .first()
         else {
-            throw Abort(.notFound, reason: "{Entity} not found: \(requestBody.{entity}Id)")
+            throw Abort(.notFound, reason: "{Entity} not found")
         }
 
-        // 2. Perform the operation
-        // {entity}.someField = requestBody.newValue
-        // try await {entity}.save(on: db)
-
-        // 3. Build and return ViewModel
+        // 2. Build and return the ViewModel, rooted in the identity the factory passes in
         let viewModel = {Entity}ViewModel(
-            id: try {entity}.requireID()
+            modelIdentity: try {entity}.modelIdentity
             // ... map fields
         )
 
@@ -213,10 +232,10 @@ try versionedGroup.register(collection: {Action}Controller())
 // MVVMEnvironment configured ONCE at app/tool startup (see "REMEMBER" section above)
 
 // Make requests using mvvmEnv
-let request = {Action}Request(requestBody: .init(
-    {entity}Id: entityId
-    // ... other fields
-))
+let request = {Action}Request(
+    query: .init(target: viewModel.modelIdentity),  // echoed back from the ViewModel
+    requestBody: .init(newValue: newValue)
+)
 
 do {
     try await request.processRequest(mvvmEnv: mvvmEnv)
@@ -328,7 +347,7 @@ public final class {Entity}CreateRequest: CreateRequest, @unchecked Sendable {
     }
 
     public struct ResponseBody: CreateResponseBody {
-        public let id: ModelIdType  // Or full ViewModel
+        public let viewModel: {Container}ViewModel  // The container's children, including the new one
     }
     // ...
 }
@@ -340,13 +359,16 @@ public final class {Entity}CreateRequest: CreateRequest, @unchecked Sendable {
 public final class {Entity}UpdateRequest: UpdateRequest, @unchecked Sendable {
     public typealias ResponseError = ValidationError
 
+    public struct Query: TargetedQuery {
+        public let target: ModelIdentity  // the identity the ViewModel carried, echoed back
+    }
+
     public struct RequestBody: ServerRequestBody, ValidatableModel {
-        public let {entity}Id: ModelIdType
-        public let newValue: SomeType
+        public let newValue: SomeType  // editable values only, never an id
     }
 
     public struct ResponseBody: UpdateResponseBody {
-        public let viewModel: {Entity}ViewModel
+        public let viewModel: {Container}ViewModel  // The container's children
     }
     // ...
 }
@@ -356,11 +378,11 @@ public final class {Entity}UpdateRequest: UpdateRequest, @unchecked Sendable {
 
 ```swift
 public final class {Entity}ArchiveRequest: ArchiveRequest, @unchecked Sendable {
-    public struct RequestBody: ServerRequestBody {
-        public let {entity}Id: ModelIdType
+    public struct Query: TargetedQuery {
+        public let target: ModelIdentity
     }
 
-    public typealias ResponseBody = EmptyBody  // Often no response needed
+    public typealias ResponseBody = EmptyBody  // The container's remaining children are usually the more useful answer
     // ...
 }
 ```
@@ -378,8 +400,8 @@ Registering an `ArchiveRequest` for a model without one **fails at boot** with `
 
 ```swift
 public final class {Entity}DestroyRequest: DestroyRequest, @unchecked Sendable {
-    public struct RequestBody: ServerRequestBody {
-        public let {entity}Id: ModelIdType
+    public struct Query: TargetedQuery {
+        public let target: ModelIdentity
     }
 
     public typealias ResponseBody = EmptyBody  // Or the container's remaining children
@@ -649,10 +671,11 @@ public struct ResponseBody: UpdateResponseBody {
 }
 ```
 
-### ID-Only Response
+### Container's Children Response
+A write answers with the container's children (data-bearing), not an id:
 ```swift
 public struct ResponseBody: CreateResponseBody {
-    public let id: ModelIdType
+    public let viewModel: BoardViewModel  // the board's cards, including the new one
 }
 ```
 

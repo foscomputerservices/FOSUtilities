@@ -31,7 +31,7 @@ struct VersionedViewModelTests: LocalizableTestCase {
     }
 
     var encoder: JSONEncoder {
-        .localizingEncoder(locale: Self.en, localizationStore: locStore)
+        .localizingEncoder(in: Self.en, store: locStore)
     }
 
     init() throws {

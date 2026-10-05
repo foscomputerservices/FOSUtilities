@@ -67,12 +67,12 @@ struct LocalizableErrorTests: LocalizableTestCase {
         #expect(localizable.localizedMessage.localizationStatus == .localized)
     }
 
-    // MARK: Client-hosted domain — localized(locale:localizationStore:)
+    // MARK: Client-hosted domain — localized(in:store:)
 
     @Test func clientHosted_localizes_viaTheSameRoundTripAsAViewModel() throws {
         let localized = try TestOfflineError().localized(
-            locale: Self.en,
-            localizationStore: locStore
+            in: Self.en,
+            store: locStore
         )
 
         #expect(try localized.localizedMessage.localizedString == "This action requires a network connection")
@@ -80,8 +80,8 @@ struct LocalizableErrorTests: LocalizableTestCase {
 
     @Test func clientHosted_localizes_perLocale() throws {
         let localized = try TestOfflineError().localized(
-            locale: Self.es,
-            localizationStore: locStore
+            in: Self.es,
+            store: locStore
         )
 
         #expect(try localized.localizedMessage.localizedString == "Esta acción requiere conexión de red")

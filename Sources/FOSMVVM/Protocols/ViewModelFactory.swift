@@ -101,8 +101,8 @@ public extension ClientHostedViewModelFactory where Self == Request.ResponseBody
 
         // Now localize the model
         let encoder = JSONEncoder.localizingEncoder(
-            locale: context.locale,
-            localizationStore: context.localizationStore
+            in: context.locale,
+            store: context.localizationStore
         )
 
         return try model
@@ -121,8 +121,8 @@ public extension ClientHostedViewModelFactory where Self == Request.ResponseBody
 
         // Now localize the model
         let encoder = JSONEncoder.localizingEncoder(
-            locale: context.locale,
-            localizationStore: context.localizationStore
+            in: context.locale,
+            store: context.localizationStore
         )
 
         return try model

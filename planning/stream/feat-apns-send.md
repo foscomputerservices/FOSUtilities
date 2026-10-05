@@ -48,3 +48,4 @@ Done means: on the server, boot wiring, a send, and a typed report of a retired 
 - 2026-10-05 — OQ11 ruled: server-side localization per token; the consumer owns the token storage.
 - 2026-10-05 — OQ12 ruled: the adopter maps its severities; the library exposes APNs' settings.
 - 2026-10-05 — build order ruled by need: 3 of 5 (rulings file, OQ2).
+- 2026-10-05 — BUILT on feat/0.20.0 for the single 0.20.0 PR; reviewed (standards, requirements trace, docs) and the findings fixed.

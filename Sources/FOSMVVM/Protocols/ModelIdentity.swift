@@ -140,7 +140,15 @@ public extension ModelIdentity {
     /// SwiftUI keeps the view stable as the model's data changes:
     ///
     /// ```swift
-    /// self.vmId = try user.modelIdentity.viewModelId
+    /// // In the ViewModel's init, which takes the identity:
+    /// init(modelIdentity: ModelIdentity, title: String) {
+    ///     self.modelIdentity = modelIdentity
+    ///     self.title = title
+    ///     self.vmId = modelIdentity.viewModelId
+    /// }
+    ///
+    /// // In the factory, the one place that touches the model:
+    /// CardViewModel(modelIdentity: try card.modelIdentity, title: card.title)
     /// ```
     var viewModelId: ViewModelId {
         namespace.viewModelId(rooting: id)

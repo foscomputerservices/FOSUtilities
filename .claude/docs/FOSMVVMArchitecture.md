@@ -570,7 +570,7 @@ This maps directly to relational algebra:
 - **ViewModelFactory** → SELECT statement (the projector)
 - **ViewModel** → Result set (the projection)
 
-Localization happens during encoding via `JSONEncoder.localizingEncoder()`.
+Localization happens during encoding via `JSONEncoder.localizingEncoder(in:store:)`.
 
 ### ServerRequest (`Sources/FOSMVVM/Protocols/ServerRequest.swift`)
 
@@ -1235,7 +1235,7 @@ A complete form specification consists of:
 1. Client creates `ViewModelRequest`
 2. Server's `ViewModelFactory.model(context:)` queries database
 3. Factory builds ViewModel with pending localizations
-4. Server encodes with `JSONEncoder.localizingEncoder()` → resolves all strings
+4. Server encodes with `JSONEncoder.localizingEncoder(in:store:)` → resolves all strings
 5. Client decodes fully localized ViewModel
 6. View displays ViewModel
 

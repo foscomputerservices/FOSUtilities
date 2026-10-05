@@ -206,7 +206,7 @@ jobs:
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             swift build
           else
-            swift test
+            swift test --traits APNs
           fi
         shell: bash
 

@@ -101,10 +101,13 @@ let user = request.responseBody
 // ✅ RIGHT - Create operation
 let createRequest = IdeaCreateRequest(requestBody: .init(content: content))
 try await createRequest.processRequest(mvvmEnv: mvvmEnv)
-let newId = createRequest.responseBody?.id
+let board = createRequest.responseBody?.viewModel  // the container's children
 
 // ✅ RIGHT - Update operation
-let updateRequest = IdeaMoveRequest(requestBody: .init(ideaId: id, newStatus: status))
+let updateRequest = IdeaMoveRequest(
+    query: .init(target: ideaViewModel.modelIdentity),  // echoed back from the ViewModel
+    requestBody: .init(newStatus: status)
+)
 try await updateRequest.processRequest(mvvmEnv: mvvmEnv)
 ```
 
@@ -561,6 +564,14 @@ See [WebApp Bridge Pattern](#webapp-bridge-pattern) below.
 
 ---
 
+### Device-token register request
+
+An app that receives push notifications sends its device token to the server with a register request. The body carries the `PushRegistration.Registration`'s `deviceToken`, `topic`, `environment` (`PushEnvironment`) and `locale`, exactly the values `PushRegistration`'s `onDeviceToken` hook hands over. The server's handler upserts the row, since the hook runs at every launch and whenever Apple replaces the token.
+
+> **SOLID protected: DIP.** The token travels through a ServerRequest and the server owns its storage; neither the client library nor the push sender owns a table. See `fosmvvm-swiftui-app-setup` (Push notifications) and the `FOSMVVM.md § Push Notifications` catalog entry.
+
+---
+
 ## WebApp Bridge Pattern
 
 When the client is a web browser, you need a bridge between JavaScript and ServerRequest:
@@ -620,25 +631,33 @@ async function handle{Action}(data) {
 
 ## Common Patterns
 
-### ViewModel Response
+### Container's Children Response
 
-Most operations return a ViewModel for UI update:
-
-```swift
-public struct ResponseBody: UpdateResponseBody {
-    public let viewModel: IdeaCardViewModel
-}
-```
-
-### ID-Only Response
-
-Some operations just need confirmation:
+Every write, a create, an update, or a command, answers with the container's children (data-bearing), never a bare id. The client already holds the target's identity, so echoing it back adds nothing:
 
 ```swift
 public struct ResponseBody: CreateResponseBody {
-    public let id: ModelIdType
+    public let viewModel: BoardViewModel  // the board's cards, including the new one
+}
+
+public struct ResponseBody: UpdateResponseBody {
+    public let viewModel: BoardViewModel  // the board's cards, the updated one included
 }
 ```
+
+### Targeting a Record (Update, Archive, Destroy)
+
+The request names its target with a `TargetedQuery` whose `target` is the `ModelIdentity` the ViewModel carried, echoed back. The request body (Fields) never carries a raw id:
+
+```swift
+public struct Query: TargetedQuery {
+    public let target: ModelIdentity
+}
+```
+
+A model with exactly one row still names it: its edit form carries that row's identity, and the update targets it, so the library's write route loads and authorizes the target. An `EmptyQuery` update needs a hand-written handler that skips that check.
+
+> **SOLID protected: DIP and encapsulation.** The identity stays opaque end to end, and the server resolves it against the candidate set it loaded itself, so a submit cannot retarget. **What breaks on deviation:** a raw `ModelIdType` in a body can be minted and forged, and puts a persistence type in the shared module.
 
 ### Empty Response
 
@@ -956,7 +975,7 @@ See [fosmvvm-serverrequest-test-generator](../fosmvvm-serverrequest-test-generat
 ```swift
 // ✅ RIGHT - tests the actual client code path
 let request = {Entity}UpdateRequest(
-    query: .init(entityId: id),
+    query: .init(target: entityViewModel.modelIdentity),
     requestBody: .init(name: "New Name")
 )
 try await request.processRequest(mvvmEnv: testMvvmEnv)
@@ -999,3 +1018,4 @@ try await app.sendRequest(.PATCH, "/entity/\(id)", body: json)
 | 2.11 | 2026-09-29 | `CreateRequest`/`UpdateRequest` constrain `ResponseError` to `ValidatableViewModelRequestError` (`typealias ResponseError = ValidationError` is the ready-made choice); archive-vs-destroy section with the delete-timestamp boot rule; `Validations` is append-only and `FormFieldIdentifier` is minted with `#fieldId(\Model.property)`; remaining verb-first and Delete-era examples flipped. |
 | 2.12 | 2026-09-30 | A field identity is scoped by the type the key path names, so a hand-built `ValidationResult` mints from the `Fields` protocol the form field was declared on, not from the request body. |
 | 2.10 | 2026-07-02 | Concrete request types are noun-first (`<Noun><Verb>Request`); added "Naming the Concrete Request Type" section + [Naming Dictionary](../shared/NAMES.md) cross-ref; flipped all verb-first examples (`CreateIdeaRequest`→`IdeaCreateRequest`, `MoveIdeaRequest`→`IdeaMoveRequest`, etc.). (backlog A1) |
+| 2.13 | 2026-10-05 | Add "Device-token register request" pointer. |

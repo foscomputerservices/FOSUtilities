@@ -233,6 +233,46 @@ David, verbatim: "I don't understand why FOS would dictate this. I actually don'
 
 Decides: `feat-stub-model-identity.md`.
 
+OQ21. The C9 hook's name.
+
+**Ruled 2026-10-05:** `Localizable.localized(in locale: Locale, store: LocalizationStore) throws -> String?`, as fosline asked. David: "I do like the localized(in:store:) syntax, it's better. Let's add that and add @available(depricated) ... to the existing APIs to encourage migration to the new syntax." Confirmed "yes, those two": `LocalizableError.localized(locale:localizationStore:) -> Self` gains `localized(in:store:) -> Self`, and `JSONEncoder.localizingEncoder(locale:localizationStore:strictLocalization:)` gains `localizingEncoder(in:store:strictLocalization:)`; each old form is `@available(*, deprecated, renamed:)`, and every call site in the repo moves to the new names.
+
+OQ22–OQ28. **Ruled 2026-10-05 ("Agreed"), as recommended:**
+
+- OQ22: the type is `LocalizableCase<Case>`.
+- OQ23: `LocalizableCase(.oneDay)` or `LocalizableCase(.oneDay, includingAllCases: true)`; `choices: [(value: Case, localizedString: String)]` in `allCases` order, empty without the option.
+- OQ24: the library derives a nested enum's parent type; the YAML matches `localized(case:parentType:)`.
+- OQ25: APNSwift directly, behind FOS's own types; a server never imports APNSwift.
+- OQ26: trait `APNs`; `PushDestination` (`deviceToken`, `topic`, `environment`, `locale`); `PushEnvironment` (`.sandbox`, `.production`); `PushNotification` (`title`, `body` as `LocalizableString`; `badge`; `sound`; `interruptionLevel`: `.passive`, `.active`, `.timeSensitive`, `.critical`); `app.pushNotifications.configure(_: PushConfiguration)` (the `.p8` key, key id, team id, `onRetiredToken: (String) async throws -> Void`); `app.pushNotifications.send(_:to:)`. Client (FOSMVVM): `PushRegistration` with `requestPermission(badgeOnly:)`, `deviceTokenReceived(_ token: Data)`, and the `onDeviceToken` hook, called at every launch.
+- OQ27: `DataFetchError.retryAfter(Duration)`; `DataFetch(urlSession:errorForResponse:)` with a `(HTTPURLResponse, Data?) -> (any Error)?` closure.
+- OQ28: one message to fosline to resolve its real graph against the local branch through a mirror, before the PR.
+
+David, 2026-10-05: one PR for all of 0.20.0's remaining work; "please don't chunk that up into little PR's".
+
+OQ29–OQ32. Gaps found by fosline's build check of #164, ruled 2026-10-05.
+
+- OQ29: `PushNotification`'s title and body take any `Localizable` (David: "probably should be generic Localizable, if possible"): a generic `init(title: some Localizable, body: some Localizable, …)`, each value captured at construction as a closure that localizes it, so nothing is stored as `any Localizable` and the struct stays non-generic.
+- OQ30 ("all as recommended"): `PushNotification` gains `contentAvailable: Bool` (a silent push) and an app-defined `payload: some Encodable`, written beside Apple's `aps` block; the app never builds the raw JSON.
+- OQ31 ("all as recommended"): `LocalizableCase` keys a nested enum by its full nesting path (`AppStatusViewModel: Check: Kind:`), not its immediate parent only.
+- OQ32 ("all as recommended"): `PushNotifications` → `PushNotificationService` (call sites stay `app.pushNotifications`); `PushRegistration.DeviceToken` → `PushRegistration.Registration` (field `deviceToken`); kept: `PushNotification.Sound`, `PushNotification.InterruptionLevel`, `PushConfiguration(privateKey:keyId:teamId:onRetiredToken:)`, `LocalizableCase.stub(value:includingAllCases:)`, public `Encoder.localizeString(_:)`.
+
+**A correction to OQ11's wording:** the locale stored with a token is the app's preferred language, sent in the register request's body, not the language the request arrived with (client requests always send the system's language).
+
+OQ33. Optional identity on a form.
+
+fosline found that an edit-only form cannot conform to `ModelIdentifiedViewModel` (non-optional `modelIdentity`) under the OQ20 teaching of `modelIdentity: ModelIdentity?`. David, verbatim: "If a form is edit-only, an optional id is, obviously bogus, it should be non-optional. To me create shouldn't even have an id, so actually I'm not sure why modelId would ever be optional."
+
+**Ruled 2026-10-05:** create and edit are separate form ViewModels; a form never carries an optional identity. The create form carries no identity (`vmId = .init(type: Self.self)`); the edit form carries a non-optional `modelIdentity`, conforms to `ModelIdentifiedViewModel`, and roots `vmId = modelIdentity.viewModelId`. Both adopt the same Fields protocol and vend their `@FormFieldModel`s from its statics. David: "Since form field models can be vended from static properties, and really shouldn't be tied to to the view model at all, but tied to the protocol (e.g. UserFields, in this case), then having Create forms and edit forms is no burden at all." This supersedes OQ20's `modelIdentity: ModelIdentity?` with `?? .init()`.
+
+OQ34–OQ37. **Ruled 2026-10-05 ("OQ33-37 - agreed"), as recommended:**
+
+- OQ34: updates answer with the container's children too, never a bare identity; the client already holds the target's identity.
+- OQ35: a command is a write and answers with the container's children, which include the new pending command.
+- OQ36: a one-row model's update still names its row with `TargetedQuery`, so the library's write route authorizes it; its edit form carries that row's identity.
+- OQ37: the Fields rule covers only the edited entity's own identity; picked identities (a multi-select) are form data and may stay in a Fields protocol as opaque `ModelIdentity` values.
+
+Facts given to fosline with these: `ViewModelId.init()` mints a random id (marked `isRandom`), so a create form's `vmId` is random unless it uses `.init(type: Self.self)`; `UpdateRequest` itself does not require `TargetedQuery`, the library's write route does.
+
 ## Awaiting ruling
 
 Raised while building `feat-stub-model-identity.md`; neither blocks it.
@@ -243,8 +283,16 @@ OQ19. How a Leaf web page identifies an entity.
 
 Decides: the Leaf skill's identity teaching.
 
+**Deferred 2026-10-05** to its own work item, `planning/stream/feat-leaf-entity-identity.md`, at David's word: "can we leave this as a work item for later?"
+
 OQ20. Whether edit-form ViewModels carry `ModelIdentity?` instead of `id: ModelIdType?`.
 
 `fosmvvm-viewmodel-generator` (SKILL.md around line 391, `UserFormViewModel`) keeps `id: ModelIdType?` on a form ViewModel, because that id round-trips into the update request contract taught by the fields and serverrequest skills. The serverrequest skill's response-body ids (SKILL.md around 639; reference.md around 331, 655) are the same question. Changing them is a cross-skill decision.
 
 Decides: the form and request skills' identity teaching.
+
+**Ruled 2026-10-05: done now, in 0.20.0** (David: "why would we defer this work? I would think it's needed immediately vs. Leaf"). The library already names an update's target by the opaque identity (`TargetedQuery.target: ModelIdentity`; the form body never carries a raw id), so this is teaching only, no new API:
+
+- The edit form carries `modelIdentity: ModelIdentity?` (nil on a create form), with `vmId = modelIdentity?.viewModelId ?? .init()`. David: "I would expect .init(id: id /* ModelIdType */ ?? .init())", the same meaning on a raw id; and "I would also expect each of the fields to be @FormFieldModel."
+- The serverrequest skill's id-only create response goes; a write returns the container's children. `CreateResponseBody` has no id requirement.
+- The DocC examples of `ViewModelId` and `ModelIdentity.viewModelId` stop putting a model in a ViewModel.

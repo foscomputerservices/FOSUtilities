@@ -110,12 +110,15 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 
 - JSON/`Codable` glue, wire-format dates, `Stubbable` test instances → `FOSFoundation.md § Coding`
 - `URLSession` fetch/post, WebSockets, mocking network calls in tests → `FOSFoundation.md § Networking`
+- Waiting after a 429/503 (`Retry-After`), adapting a REST service's own error responses → `FOSFoundation.md § Networking`
 - Grouping collections, throttled (rate-limited) iteration → `FOSFoundation.md § Collections`
 - String casing/hashing/obfuscation, CSV parsing, hex/rounded formatting → `FOSFoundation.md § String`, `§ Numbers`
 - Async-from-sync bridging, semaphores in async code → `FOSFoundation.md § Async`
 - Semantic version comparison/parsing → `FOSFoundation.md § Versioning`
 - Typed model identifiers (never a raw `UUID`/`String` field) → `FOSFoundation.md § Data`
 - Declaring/localizing/encoding ViewModels, factories, requests → `FOSMVVM.md § Macros`, `§ Localization`, `§ Protocols`
+- Showing an enum case as a localized word, or a picker over an enum → `FOSMVVM.md § Localization` (`LocalizableCase`)
+- Localizing a type of your own through the localizing encoder → `FOSMVVM.md § Localization` (`localized(in:store:)`)
 - Credential rejection / typed 401 recovery → `FOSMVVM.md § Protocols`
 - Grants that name a model, loading what a subject's grants reach with no container named, containment scopes → `FOSMVVM.md § Protocols`, `FOSMVVMVapor.md § Protocols`
 - A model no other model owns (top-level lists, system-wide rows, create at the top) → `FOSMVVMVapor.md § Containment`
@@ -126,6 +129,7 @@ Before hand-writing a helper, check whether it already exists — the catalog in
 - DataModel save-time hooks (validate against other models, claim a constraint failure, act on commit) → `FOSMVVMVapor.md § Lifecycle`
 - Live ViewModel refresh (server push), incl. nudging live clients from non-Fluent/hybrid sources → `FOSMVVMVapor.md § Live Invalidation`
 - Testing ViewModels / UI / ServerRequests → `FOSTesting.md § FOSTesting`, `§ FOSTestingUI`, `§ FOSTestingVapor`
+- Apple push notifications (server send behind the `APNs` trait via `app.pushNotifications`, silent pushes, app-defined payloads; client permission and token registration) → `FOSMVVMVapor.md § Push Notifications`, `FOSMVVM.md § Push Notifications`
 - PDF generation from SwiftUI views → `FOSReporting.md § PDF Rendering`
 
 Skills: `fosutilities-api-catalog` (discover — full reach-for index), `fosutilities-api-catalog-update` (maintain after public API changes).
@@ -166,7 +170,7 @@ public struct MyViewModel: RequestableViewModel {
 
 ### Platform Constraints
 
-- Swift 6.0+ required (`swiftLanguageModes: [.v6]`)
+- Swift 6.1+ required (tools version 6.1 for package traits; `swiftLanguageModes: [.v6]`)
 - `FOSMVVMVapor` / `FOSTestingVapor`: macOS/Linux only
 - `FOSReporting`: Apple platforms only (iOS, macOS, visionOS, watchOS)
 - `FOSMacros`: macOS/Linux/Windows only (macro compilation)
