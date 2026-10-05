@@ -50,6 +50,12 @@ Also flag the random form wherever it appears, and `.init(type: Self.self)` on a
 
 The stored-property test stands on its own — do not lean on `ForEach(items, id: \.vmId)` at call sites as corroboration unless that spelling is otherwise rare in the project. Many codebases write it uniformly, including over types with no stored `id` at all, in which case the signal fires everywhere and discriminates nothing.
 
+## Check: form-viewmodel-no-optional-identity
+**Severity:** warning
+**What:** A form ViewModel (one hosting `@FormFieldModel`s) never carries an optional identity. Create and edit are separate form ViewModels.
+**Anti-pattern:** `public let modelIdentity: ModelIdentity?` on a form, with `vmId = modelIdentity?.viewModelId ?? .init()` serving create (nil) and edit (set) in one type.
+**Detection:** For each `@ViewModel` hosting `@FormFieldModel`s, flag a stored `ModelIdentity?` (or `ModelIdType?`). The remedy is a split: a create form with no identity (`vmId = .init(type: Self.self)`) and an edit form with a non-optional `modelIdentity` that conforms to `ModelIdentifiedViewModel`, both adopting the same Fields protocol.
+
 ## Check: viewmodel-not-a-mega-vm
 **Severity:** warning
 **What:** One top-level ViewModel per screen, composing child ViewModels — not one ViewModel serving several unrelated surfaces.

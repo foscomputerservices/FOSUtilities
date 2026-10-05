@@ -383,26 +383,25 @@ public struct MemberCardViewModel: ModelIdentifiedViewModel {
 
 ### Form ViewModels
 
-For collecting input - create forms, edit forms, settings:
+For collecting input - create forms, edit forms, settings. **Create and edit are separate Form ViewModels.** Both adopt the same Fields protocol and vend their `@FormFieldModel`s from its static `FormField` definitions, so two forms cost nothing extra.
+
+**The create form carries no identity.** There is no entity yet:
 
 ```swift
 @ViewModel
-public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
-    @FormFieldModel(UserFormViewModel.emailField) public var email: String
-    @FormFieldModel(UserFormViewModel.firstNameField) public var firstName: String
-    @FormFieldModel(UserFormViewModel.lastNameField) public var lastName: String
+public struct UserCreateFormViewModel: UserFields {  // ← Adopts Fields!
+    @FormFieldModel(UserCreateFormViewModel.emailField) public var email: String
+    @FormFieldModel(UserCreateFormViewModel.firstNameField) public var firstName: String
+    @FormFieldModel(UserCreateFormViewModel.lastNameField) public var lastName: String
 
-    public let modelIdentity: ModelIdentity?  // the user being edited; nil on a create form
     public var vmId: ViewModelId
 
     public init(
-        modelIdentity: ModelIdentity? = nil,
         email: String,
         firstName: String,
         lastName: String
     ) {
-        self.modelIdentity = modelIdentity
-        self.vmId = modelIdentity?.viewModelId ?? .init()
+        self.vmId = .init(type: Self.self)
 
         self.$email.initialValue = email
         self.$firstName.initialValue = firstName
@@ -410,9 +409,47 @@ public struct UserFormViewModel: UserFields {  // ← Adopts Fields!
     }
 }
 
-public extension UserFormViewModel {
+public extension UserCreateFormViewModel {
     static func stub(
-        modelIdentity: ModelIdentity? = .stub(),
+        email: String = "stub@example.com",
+        firstName: String = "Stub",
+        lastName: String = "User"
+    ) -> Self {
+        .init(email: email, firstName: firstName, lastName: lastName)
+    }
+}
+```
+
+**The edit form carries a non-optional `modelIdentity`** and conforms to `ModelIdentifiedViewModel`:
+
+```swift
+@ViewModel
+public struct UserEditFormViewModel: UserFields, ModelIdentifiedViewModel {  // ← Adopts Fields!
+    @FormFieldModel(UserEditFormViewModel.emailField) public var email: String
+    @FormFieldModel(UserEditFormViewModel.firstNameField) public var firstName: String
+    @FormFieldModel(UserEditFormViewModel.lastNameField) public var lastName: String
+
+    public let modelIdentity: ModelIdentity  // the user being edited
+    public var vmId: ViewModelId
+
+    public init(
+        modelIdentity: ModelIdentity,
+        email: String,
+        firstName: String,
+        lastName: String
+    ) {
+        self.modelIdentity = modelIdentity
+        self.vmId = modelIdentity.viewModelId
+
+        self.$email.initialValue = email
+        self.$firstName.initialValue = firstName
+        self.$lastName.initialValue = lastName
+    }
+}
+
+public extension UserEditFormViewModel {
+    static func stub(
+        modelIdentity: ModelIdentity = .stub(),
         email: String = "stub@example.com",
         firstName: String = "Stub",
         lastName: String = "User"
@@ -423,18 +460,17 @@ public extension UserFormViewModel {
 ```
 
 **Characteristics:**
+- **A form never carries an optional identity.** Create has none; edit has a non-optional `modelIdentity`. Never `ModelIdentity?`, never `?? .init()`, never a raw `id: ModelIdType?`
+- Create form: `vmId = .init(type: Self.self)`
+- Edit form: `public let modelIdentity: ModelIdentity`, conforms to `ModelIdentifiedViewModel`, `vmId = modelIdentity.viewModelId`
 - Each editable property is a `@FormFieldModel(…Field) public var …` — never a plain `var`
 - Initial values are set through `$field.initialValue` in `init`, never by assigning the property
-- **Adopts a Fields protocol** for validation
-- Gets FormField definitions from Fields
-- Gets validation logic from Fields
-- Gets localized error messages from Fields
-- The entity being edited travels as `public let modelIdentity: ModelIdentity?` — `nil` on a create form. The form never carries a raw `id: ModelIdType?`
-- `vmId = modelIdentity?.viewModelId ?? .init()` — an edit form roots in the entity; a create form gets a fresh identity
-- The update request echoes `modelIdentity` back as its `TargetedQuery.target` (see `fosmvvm-serverrequest-generator`)
-- Stubs follow the Stubbable pattern: every parameter defaulted, `modelIdentity` defaulting to `.stub()` (pass `nil` for a create form)
+- **Both forms adopt the same Fields protocol** for validation, and take FormField definitions, validation logic and localized error messages from it
+- The field models belong to the Fields protocol, not to either form. Name them through the conforming form type (`UserEditFormViewModel.emailField`), as `FormFieldModel`'s DocC does
+- The update request echoes the edit form's `modelIdentity` back as its `TargetedQuery.target`; the create request has no target (see `fosmvvm-serverrequest-generator`)
+- Stubs follow the Stubbable pattern: every parameter defaulted; the edit form's stub defaults `modelIdentity: ModelIdentity = .stub()`
 
-> **SOLID protected: DIP and encapsulation.** The identity is transported opaquely: the form carries it, roots its view on it, and hands it back, and never builds, parses, or reads inside it. **What breaks on deviation:** a raw `id: ModelIdType?` can be minted, parsed, and forged, and puts a persistence type on every client. Full rule: [Architecture Patterns → Identities Pass Through ViewModels Opaquely](../shared/architecture-patterns.md#identities-pass-through-viewmodels-opaquely).
+> **SOLID protected: SRP, DIP and encapsulation.** SRP: one form, one job. A create form and an edit form are different projections, so each is its own ViewModel. DIP and encapsulation: the identity is transported opaquely. The edit form carries it, roots its view on it, and hands it back, and never builds, parses, or reads inside it. **What breaks on deviation:** an optional identity makes an edit-only form unable to conform to `ModelIdentifiedViewModel` and lets "create" and "edit" blur into one type; a raw `id: ModelIdType?` can be minted, parsed, and forged, and puts a persistence type on every client. Full rule: [Architecture Patterns → Identities Pass Through ViewModels Opaquely](../shared/architecture-patterns.md#identities-pass-through-viewmodels-opaquely).
 
 ### The Connection
 
@@ -446,8 +482,9 @@ public extension UserFormViewModel {
 │                                                                 │
 │  Adopted by:                                                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
-│  │ CreateUserReq   │  │ UserFormVM      │  │ User (Model)    │ │
-│  │ .RequestBody    │  │ (UI form)       │  │ (persistence)   │ │
+│  │ CreateUserReq   │  │ UserCreateForm- │  │ User (Model)    │ │
+│  │ .RequestBody    │  │ UserEditForm-   │  │ (persistence)   │ │
+│  │                 │  │ ViewModel (UI)  │  │                 │ │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │
 │                                                                 │
 │  Same validation logic everywhere!                              │
@@ -466,9 +503,8 @@ public extension UserFormViewModel {
 | `UserCardViewModel` | No | No |
 | `UserRowViewModel` | No | No |
 | `UserDetailViewModel` | No | No |
-| `UserFormViewModel` | Yes | `UserFields` |
-| `CreateUserViewModel` | Yes | `UserFields` |
-| `EditUserViewModel` | Yes | `UserFields` |
+| `UserCreateFormViewModel` | Yes | `UserFields` |
+| `UserEditFormViewModel` | Yes | `UserFields` |
 | `SettingsViewModel` | Yes | `SettingsFields` |
 
 ---
@@ -493,7 +529,8 @@ Interactive ViewModels have a companion **Operations** file (`{Name}ViewModelOpe
 | `UserCardViewModel` | No | Renders user data |
 | `UserRowViewModel` | No | Renders list row |
 | `DashboardViewModel` | No | Renders a grid of children |
-| `UserFormViewModel` | Yes | Save/Cancel buttons |
+| `UserCreateFormViewModel` | Yes | Save/Cancel buttons |
+| `UserEditFormViewModel` | Yes | Save/Cancel buttons |
 | `SettingsViewModel` | Yes | Toggles and pickers |
 | `DeviceConnectionViewModel` | Yes | Connect/Disconnect actions |
 
