@@ -258,6 +258,21 @@ OQ29–OQ32. Gaps found by fosline's build check of #164, ruled 2026-10-05.
 
 **A correction to OQ11's wording:** the locale stored with a token is the app's preferred language, sent in the register request's body, not the language the request arrived with (client requests always send the system's language).
 
+OQ33. Optional identity on a form.
+
+fosline found that an edit-only form cannot conform to `ModelIdentifiedViewModel` (non-optional `modelIdentity`) under the OQ20 teaching of `modelIdentity: ModelIdentity?`. David, verbatim: "If a form is edit-only, an optional id is, obviously bogus, it should be non-optional. To me create shouldn't even have an id, so actually I'm not sure why modelId would ever be optional."
+
+**Ruled 2026-10-05:** create and edit are separate form ViewModels; a form never carries an optional identity. The create form carries no identity (`vmId = .init(type: Self.self)`); the edit form carries a non-optional `modelIdentity`, conforms to `ModelIdentifiedViewModel`, and roots `vmId = modelIdentity.viewModelId`. Both adopt the same Fields protocol and vend their `@FormFieldModel`s from its statics. David: "Since form field models can be vended from static properties, and really shouldn't be tied to to the view model at all, but tied to the protocol (e.g. UserFields, in this case), then having Create forms and edit forms is no burden at all." This supersedes OQ20's `modelIdentity: ModelIdentity?` with `?? .init()`.
+
+OQ34–OQ37. **Ruled 2026-10-05 ("OQ33-37 - agreed"), as recommended:**
+
+- OQ34: updates answer with the container's children too, never a bare identity; the client already holds the target's identity.
+- OQ35: a command is a write and answers with the container's children, which include the new pending command.
+- OQ36: a one-row model's update still names its row with `TargetedQuery`, so the library's write route authorizes it; its edit form carries that row's identity.
+- OQ37: the Fields rule covers only the edited entity's own identity; picked identities (a multi-select) are form data and may stay in a Fields protocol as opaque `ModelIdentity` values.
+
+Facts given to fosline with these: `ViewModelId.init()` mints a random id (marked `isRandom`), so a create form's `vmId` is random unless it uses `.init(type: Self.self)`; `UpdateRequest` itself does not require `TargetedQuery`, the library's write route does.
+
 ## Awaiting ruling
 
 Raised while building `feat-stub-model-identity.md`; neither blocks it.

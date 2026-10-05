@@ -365,7 +365,7 @@ final class Idea: DataModel, IdeaFields, Hashable, @unchecked Sendable {
 }
 ```
 
-> **A Fields protocol never carries an identity.** The record an update targets is named by the update request's `TargetedQuery` (`target: ModelIdentity`, the identity the ViewModel carried, echoed back), so the form body has no `id`. **SOLID protected: DIP and encapsulation.** A raw `id: ModelIdType?` in a form contract can be minted, parsed, and forged, and puts a persistence type in the shared module. The Fluent model keeps its own `@ID`; it is the data layer, not part of the form contract.
+> **A Fields protocol never carries the edited entity's identity.** Identities the user picks (a multi-select, say) are form data and may be fields, as opaque `ModelIdentity` values. The record an update targets is named by the update request's `TargetedQuery` (`target: ModelIdentity`, the identity the ViewModel carried, echoed back), so the form body has no `id`. **SOLID protected: DIP and encapsulation.** A raw `id: ModelIdType?` in a form contract can be minted, parsed, and forged, and puts a persistence type in the shared module. The Fluent model keeps its own `@ID`; it is the data layer, not part of the form contract.
 
 An adopter declares the fields and nothing else: the `FormField` definitions, the message mints and the validation rules all live on the protocol's extension, so every adopter runs the same checks and reports them with the same words.
 

@@ -631,23 +631,17 @@ async function handle{Action}(data) {
 
 ## Common Patterns
 
-### ViewModel Response
-
-Most operations return a ViewModel for UI update:
-
-```swift
-public struct ResponseBody: UpdateResponseBody {
-    public let viewModel: IdeaCardViewModel
-}
-```
-
 ### Container's Children Response
 
-A write answers with the container's children (data-bearing), not an id:
+Every write, a create, an update, or a command, answers with the container's children (data-bearing), never a bare id. The client already holds the target's identity, so echoing it back adds nothing:
 
 ```swift
 public struct ResponseBody: CreateResponseBody {
     public let viewModel: BoardViewModel  // the board's cards, including the new one
+}
+
+public struct ResponseBody: UpdateResponseBody {
+    public let viewModel: BoardViewModel  // the board's cards, the updated one included
 }
 ```
 
@@ -660,6 +654,8 @@ public struct Query: TargetedQuery {
     public let target: ModelIdentity
 }
 ```
+
+A model with exactly one row still names it: its edit form carries that row's identity, and the update targets it, so the library's write route loads and authorizes the target. An `EmptyQuery` update needs a hand-written handler that skips that check.
 
 > **SOLID protected: DIP and encapsulation.** The identity stays opaque end to end, and the server resolves it against the candidate set it loaded itself, so a submit cannot retarget. **What breaks on deviation:** a raw `ModelIdType` in a body can be minted and forged, and puts a persistence type in the shared module.
 
