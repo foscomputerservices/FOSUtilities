@@ -81,7 +81,7 @@ let package = Package(
     traits: [
         .trait(
             name: "APNs",
-            description: "Apple push notifications from FOSMVVMVapor (PushNotifications). Off by default; APNSwift and the push code are compiled only when it is on."
+            description: "Apple push notifications from FOSMVVMVapor (PushNotificationService). Off by default; APNSwift and the push code are compiled only when it is on."
         ),
         .default(enabledTraits: [])
     ],

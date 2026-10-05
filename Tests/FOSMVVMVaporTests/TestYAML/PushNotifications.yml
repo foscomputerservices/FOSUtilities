@@ -2,7 +2,9 @@ en:
   PushTest:
     title: "New card"
     body: "A card was assigned to you"
+    assigned: "A card on %{boardName} was assigned to you"
 es:
   PushTest:
     title: "Tarjeta nueva"
     body: "Se te asignó una tarjeta"
+    assigned: "Se te asignó una tarjeta en %{boardName}"

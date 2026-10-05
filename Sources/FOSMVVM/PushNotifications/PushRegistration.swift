@@ -40,12 +40,12 @@ import AppKit
 /// #endif
 ///
 /// final class AppDelegate: NSObject, UIApplicationDelegate {
-///     let pushRegistration = PushRegistration(environment: pushEnvironment) { token in
+///     let pushRegistration = PushRegistration(environment: pushEnvironment) { registration in
 ///         let request = RegisterDeviceRequest(requestBody: .init(
-///             deviceToken: token.deviceToken,
-///             topic: token.topic,
-///             environment: token.environment,
-///             locale: token.locale
+///             deviceToken: registration.deviceToken,
+///             topic: registration.topic,
+///             environment: registration.environment,
+///             locale: registration.locale
 ///         ))
 ///         try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
 ///     }
@@ -91,19 +91,19 @@ public final class PushRegistration {
     /// request:
     ///
     /// ```swift
-    /// let pushRegistration = PushRegistration(environment: pushEnvironment) { token in
+    /// let pushRegistration = PushRegistration(environment: pushEnvironment) { registration in
     ///     let request = RegisterDeviceRequest(requestBody: .init(
-    ///         deviceToken: token.deviceToken,
-    ///         topic: token.topic,
-    ///         environment: token.environment,
-    ///         locale: token.locale
+    ///         deviceToken: registration.deviceToken,
+    ///         topic: registration.topic,
+    ///         environment: registration.environment,
+    ///         locale: registration.locale
     ///     ))
     ///     try? await request.processRequest(mvvmEnv: BoardsApp.mvvmEnv)
     /// }
     /// ```
     ///
     /// Your server's row conforms to FOSMVVMVapor's `PushDestination` with these values.
-    public struct DeviceToken: Hashable, Sendable, Stubbable {
+    public struct Registration: Hashable, Sendable, Stubbable {
         /// The token Apple issued to this app install, as hexadecimal text
         public let deviceToken: String
 
@@ -124,26 +124,26 @@ public final class PushRegistration {
         /// with no localization of its own (only `Base`) uses the device's language.
         public let locale: Locale
 
-        /// A ``DeviceToken`` for tests and previews
+        /// A ``Registration`` for tests and previews
         ///
         /// Test the code your `onDeviceToken` hook runs without registering with Apple:
         ///
         /// ```swift
         /// extension RegisterDeviceRequest.RequestBody {
-        ///     init(_ token: PushRegistration.DeviceToken) {
+        ///     init(_ registration: PushRegistration.Registration) {
         ///         self.init(
-        ///             deviceToken: token.deviceToken,
-        ///             topic: token.topic,
-        ///             environment: token.environment,
-        ///             locale: token.locale
+        ///             deviceToken: registration.deviceToken,
+        ///             topic: registration.topic,
+        ///             environment: registration.environment,
+        ///             locale: registration.locale
         ///         )
         ///     }
         /// }
         ///
         /// @Test func registerBodyCarriesTheAppsLanguage() {
-        ///     let token = PushRegistration.DeviceToken.stub(locale: Locale(identifier: "fr"))
+        ///     let registration = PushRegistration.Registration.stub(locale: Locale(identifier: "fr"))
         ///
-        ///     #expect(RegisterDeviceRequest.RequestBody(token).locale == token.locale)
+        ///     #expect(RegisterDeviceRequest.RequestBody(registration).locale == registration.locale)
         /// }
         /// ```
         ///
@@ -166,7 +166,7 @@ public final class PushRegistration {
         }
     }
 
-    private let onDeviceToken: @MainActor @Sendable (DeviceToken) async -> Void
+    private let onDeviceToken: @MainActor @Sendable (Registration) async -> Void
     private let environment: PushEnvironment
     private let bundle: Bundle
 
@@ -179,8 +179,8 @@ public final class PushRegistration {
     /// let environment = PushEnvironment.production
     /// #endif
     ///
-    /// let pushRegistration = PushRegistration(environment: environment) { token in
-    ///     // send token.deviceToken, .topic, .environment and .locale to your server
+    /// let pushRegistration = PushRegistration(environment: environment) { registration in
+    ///     // send registration.deviceToken, .topic, .environment and .locale to your server
     /// }
     /// ```
     ///
@@ -190,7 +190,7 @@ public final class PushRegistration {
     ///     whenever Apple replaces it; send it to your server here
     public convenience init(
         environment: PushEnvironment,
-        onDeviceToken: @escaping @MainActor @Sendable (DeviceToken) async -> Void
+        onDeviceToken: @escaping @MainActor @Sendable (Registration) async -> Void
     ) {
         self.init(environment: environment, bundle: .main, onDeviceToken: onDeviceToken)
     }
@@ -198,7 +198,7 @@ public final class PushRegistration {
     init(
         environment: PushEnvironment,
         bundle: Bundle,
-        onDeviceToken: @escaping @MainActor @Sendable (DeviceToken) async -> Void
+        onDeviceToken: @escaping @MainActor @Sendable (Registration) async -> Void
     ) {
         self.environment = environment
         self.bundle = bundle
@@ -249,10 +249,10 @@ public final class PushRegistration {
     }
 
     func handOver(_ token: Data) async {
-        await onDeviceToken(deviceToken(from: token))
+        await onDeviceToken(registration(from: token))
     }
 
-    func deviceToken(from token: Data) -> DeviceToken {
+    func registration(from token: Data) -> Registration {
         .init(
             deviceToken: token.map { String(format: "%02x", $0) }.joined(),
             topic: topic,

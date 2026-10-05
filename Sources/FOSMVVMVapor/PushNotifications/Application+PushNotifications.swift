@@ -29,8 +29,8 @@ public extension Vapor.Application {
     /// try app.pushNotifications.configure(configuration)
     /// try await app.pushNotifications.send(notification, to: devices)
     /// ```
-    var pushNotifications: PushNotifications {
-        PushNotifications(application: self)
+    var pushNotifications: PushNotificationService {
+        PushNotificationService(application: self)
     }
 }
 
@@ -48,8 +48,8 @@ public extension Vapor.Application {
 ///
 /// try await req.application.pushNotifications.send(
 ///     PushNotification(
-///         title: .localized(key: "CardAssigned.title"),
-///         body: .localized(key: "CardAssigned.body"),
+///         title: LocalizableString.localized(key: "CardAssigned.title"),
+///         body: LocalizableString.localized(key: "CardAssigned.body"),
 ///         sound: .default
 ///     ),
 ///     to: devices
@@ -59,7 +59,7 @@ public extension Vapor.Application {
 /// The title and body are localized for each destination in its own locale, from the
 /// same localization YAML your responses use (see `initYamlLocalization`), so each
 /// device shows finished text in its app's language.
-public struct PushNotifications: Sendable {
+public struct PushNotificationService: Sendable {
     let application: Application
 
     /// Turns on push notifications for this server
@@ -111,9 +111,10 @@ public struct PushNotifications: Sendable {
     /// - Parameters:
     ///   - notification: The notification to send
     ///   - destinations: The app installs to send it to
-    /// - Throws: When push notifications are not configured, when the notification's
-    ///   text has no translation for a destination's locale, or, after every destination
-    ///   was attempted, when any of them failed
+    /// - Throws: When push notifications are not configured, or the notification's
+    ///   payload is not a keyed object or uses the key `aps` (both before contacting
+    ///   Apple); when the notification's text has no translation for a destination's
+    ///   locale, or, after every destination was attempted, when any of them failed
     public func send<Destinations: Sequence>(
         _ notification: PushNotification,
         to destinations: Destinations
@@ -133,6 +134,9 @@ public struct PushNotifications: Sendable {
         guard !targets.isEmpty else {
             return
         }
+        if let payload = notification.payload {
+            try Self.requireObjectBesideAPS(payload)
+        }
 
         let needsText = notification.title != nil || notification.body != nil
         let store: (any LocalizationStore)? = needsText ? try application.requireLocalizationStore() : nil
@@ -141,7 +145,27 @@ public struct PushNotifications: Sendable {
     }
 }
 
-extension PushNotifications {
+extension PushNotificationService {
+    /// The app's payload is written into the same JSON object as `aps`, so it must be an
+    /// object and must leave `aps` to Apple; an array or scalar would also trap JSONEncoder.
+    static func requireObjectBesideAPS(_ payload: PushNotification.AppPayload) throws {
+        let data = try JSONEncoder().encode(EncodedAppPayload(payload: payload))
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw PushNotificationsError.payloadNotAnObject
+        }
+        guard object["aps"] == nil else {
+            throw PushNotificationsError.payloadUsesAPSKey
+        }
+    }
+
+    private struct EncodedAppPayload: Encodable {
+        let payload: PushNotification.AppPayload
+
+        func encode(to encoder: any Encoder) throws {
+            try payload.encode(encoder)
+        }
+    }
+
     /// The test seam: installs `transport` in place of Apple
     func configure(
         transport: some PushTransport,
@@ -252,7 +276,9 @@ struct PushService: Sendable {
                     body: localize(notification.body, in: target.locale, store: store),
                     badge: notification.badge,
                     sound: notification.sound,
-                    interruptionLevel: notification.interruptionLevel
+                    interruptionLevel: notification.interruptionLevel,
+                    contentAvailable: notification.contentAvailable,
+                    appPayload: notification.payload
                 )
             }
             byLocale[target.locale] = payload
@@ -261,7 +287,7 @@ struct PushService: Sendable {
     }
 
     private static func localize(
-        _ text: LocalizableString?,
+        _ text: PushNotification.LocalizedText?,
         in locale: Locale,
         store: (any LocalizationStore)?
     ) throws -> String? {
@@ -272,10 +298,7 @@ struct PushService: Sendable {
             throw PushNotificationsError.notConfigured
         }
 
-        // Strict: a missing translation fails this destination instead of sending a
-        // blank alert.
-        let encoder = JSONEncoder.localizingEncoder(in: locale, store: store, strictLocalization: true)
-        return try JSONDecoder().decode(String.self, from: encoder.encode(text))
+        return try text.localize(locale, store)
     }
 }
 
@@ -319,6 +342,8 @@ enum PushNotificationsError: Error, CustomDebugStringConvertible {
     case notConfigured
     case alreadyConfigured
     case invalidPrivateKey
+    case payloadNotAnObject
+    case payloadUsesAPSKey
     case deliveryFailed([any Error], attempted: Int)
 
     var debugDescription: String {
@@ -329,6 +354,10 @@ enum PushNotificationsError: Error, CustomDebugStringConvertible {
             "app.pushNotifications.configure(_:) was called more than once"
         case .invalidPrivateKey:
             "PushConfiguration.privateKey is not a PEM-encoded APNs .p8 key"
+        case .payloadNotAnObject:
+            "PushNotification.payload must encode as a keyed object (a struct or a dictionary)"
+        case .payloadUsesAPSKey:
+            "PushNotification.payload must not use the key \"aps\"; it belongs to Apple"
         case .deliveryFailed(let failures, let attempted):
             "Push notifications: \(failures.count) of \(attempted) deliveries failed; first: \(String(reflecting: failures[0]))"
         }

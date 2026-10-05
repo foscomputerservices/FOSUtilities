@@ -74,6 +74,81 @@ struct PushPayloadTests {
         #expect(aps["badge"] as? Int == 5)
     }
 
+    @Test func contentAvailableIsOne() throws {
+        let aps = try encodedAPS(PushPayload(
+            title: "t",
+            body: nil,
+            badge: nil,
+            sound: nil,
+            interruptionLevel: .active,
+            contentAvailable: true
+        ))
+
+        #expect(aps["content-available"] as? Int == 1)
+    }
+
+    @Test func withoutContentAvailableTheKeyIsAbsent() throws {
+        let aps = try encodedAPS(PushPayload(title: "t", body: nil, badge: nil, sound: nil, interruptionLevel: .active))
+
+        #expect(aps["content-available"] == nil)
+    }
+
+    @Test func badgeOnlyWithContentAvailableIsAnAlertPushForTVOS() throws {
+        let payload = PushPayload(
+            title: nil,
+            body: nil,
+            badge: 3,
+            sound: nil,
+            interruptionLevel: .active,
+            contentAvailable: true
+        )
+        let aps = try encodedAPS(payload)
+
+        #expect(aps.count == 2)
+        #expect(aps["badge"] as? Int == 3)
+        #expect(aps["content-available"] as? Int == 1)
+        #expect(!payload.isBackground)
+    }
+
+    @Test func onlyContentAvailableIsABackgroundPush() throws {
+        let payload = PushPayload(
+            title: nil,
+            body: nil,
+            badge: nil,
+            sound: nil,
+            interruptionLevel: .active,
+            contentAvailable: true
+        )
+        let aps = try encodedAPS(payload)
+
+        #expect(aps.count == 1)
+        #expect(aps["content-available"] as? Int == 1)
+        #expect(payload.isBackground)
+    }
+
+    @Test func appPayloadKeysSitBesideAPS() throws {
+        let data = try JSONEncoder().encode(PushPayload(
+            title: "t",
+            body: nil,
+            badge: 1,
+            sound: nil,
+            interruptionLevel: .active,
+            appPayload: .init(BoardPayload(boardName: "Roadmap", cardCount: 12))
+        ))
+        let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        #expect(root.count == 3)
+        #expect(root["boardName"] as? String == "Roadmap")
+        #expect(root["cardCount"] as? Int == 12)
+        let aps = try #require(root["aps"] as? [String: Any])
+        #expect(aps["badge"] as? Int == 1)
+    }
+
+    private struct BoardPayload: Encodable, Sendable {
+        let boardName: String
+        let cardCount: Int
+    }
+
     private func encodedAPS(_ payload: PushPayload) throws -> [String: Any] {
         let data = try JSONEncoder().encode(payload)
         let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])

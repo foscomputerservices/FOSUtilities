@@ -21,7 +21,7 @@ import Foundation
 /// One app install that can receive a push notification
 ///
 /// Conform the row your server stores for each registered device token, then pass
-/// the rows you choose as recipients to ``PushNotifications/send(_:to:)``:
+/// the rows you choose as recipients to ``PushNotificationService/send(_:to:)``:
 ///
 /// ```swift
 /// final class MemberDevice: Model, PushDestination, @unchecked Sendable {

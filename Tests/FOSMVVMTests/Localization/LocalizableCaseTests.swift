@@ -45,7 +45,19 @@ struct LocalizableCaseTests: LocalizableTestCase {
         #expect(try visibility.localizedString == "Board members only")
     }
 
-    @Test func nestedEnum_matchesTheExistingCaseRule() throws {
+    @Test func enumNestedTwoLevels_isKeyedByItsFullPath() throws {
+        let english: LocalizableCase<Board.Card.Status> = try LocalizableCase(Board.Card.Status.done)
+            .toJSON(encoder: encoder())
+            .fromJSON()
+        let spanish: LocalizableCase<Board.Card.Status> = try LocalizableCase(Board.Card.Status.done)
+            .toJSON(encoder: encoder(locale: Self.es))
+            .fromJSON()
+
+        #expect(try english.localizedString == "Done")
+        #expect(try spanish.localizedString == "Hecha")
+    }
+
+    @Test func enumNestedOneLevel_matchesTheExistingCaseRule() throws {
         let caseWord: LocalizableCase<Board.Visibility> = try LocalizableCase(Board.Visibility.workspace)
             .toJSON(encoder: encoder(locale: Self.es))
             .fromJSON()
@@ -200,6 +212,13 @@ private struct Board {
     enum Visibility: CaseIterable, Codable, Hashable {
         case workspace
         case members
+    }
+
+    enum Card {
+        enum Status: CaseIterable, Codable, Hashable {
+            case open
+            case done
+        }
     }
 }
 

@@ -51,8 +51,8 @@ import Foundation
 ///     high: "High"
 /// ```
 ///
-/// An enum nested in another type sits under that type's key, as it does for
-/// ``LocalizableString/localized(case:parentType:parentKeys:index:)``. For `Board.Visibility`:
+/// An enum nested in other types sits under each of them, outermost first. For
+/// `Board.Visibility` and `Board.Card.Status`:
 ///
 /// ```yaml
 /// en:
@@ -60,7 +60,13 @@ import Foundation
 ///     Visibility:
 ///       workspace: "Everyone in the workspace"
 ///       members: "Board members only"
+///     Card:
+///       Status:
+///         open: "Open"
+///         done: "Done"
 /// ```
+///
+/// > Generic arguments are not part of the key: `Workspace<Plan>.Tier` sits under `Workspace`.
 ///
 /// ## Pickers
 ///

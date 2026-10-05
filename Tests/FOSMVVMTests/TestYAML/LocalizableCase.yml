@@ -6,6 +6,10 @@ en:
     Visibility:
       workspace: "Everyone in the workspace"
       members: "Board members only"
+    Card:
+      Status:
+        open: "Open"
+        done: "Done"
   Workspace:
     Tier:
       free: "Free"
@@ -29,6 +33,10 @@ es:
     Visibility:
       workspace: "Todo el espacio de trabajo"
       members: "Solo miembros del tablero"
+    Card:
+      Status:
+        open: "Abierta"
+        done: "Hecha"
   Workspace:
     Tier:
       free: "Gratis"

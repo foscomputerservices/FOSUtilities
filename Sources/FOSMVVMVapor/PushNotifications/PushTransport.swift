@@ -21,7 +21,7 @@ import Foundation
 /// Delivers one finished payload to one device token
 ///
 /// The production conformer talks to Apple (``APNSPushTransport``); tests install a
-/// recording conformer through `PushNotifications.configure(_:transport:)`, so no
+/// recording conformer through `PushNotificationService.configure(transport:onRetiredToken:)`, so no
 /// test ever reaches Apple.
 protocol PushTransport: Sendable {
     func deliver(
@@ -41,22 +41,54 @@ enum PushDeliveryResult: Sendable, Equatable {
     case retired
 }
 
-/// A notification after localization: the text one destination will show
+/// A notification after localization: what one destination receives
 ///
-/// The encoded shape is the APNs `aps` dictionary. Internal on purpose: the shape is
-/// Apple's wire format, pinned by PushPayloadTests, never published.
-struct PushPayload: Encodable, Sendable, Equatable {
+/// The encoded shape is the APNs `aps` dictionary, with the app's payload keys beside
+/// it. Internal on purpose: the shape is Apple's wire format, pinned by PushPayloadTests,
+/// never published.
+struct PushPayload: Encodable, Sendable {
     let title: String?
     let body: String?
     let badge: Int?
     let sound: PushNotification.Sound?
     let interruptionLevel: PushNotification.InterruptionLevel
+    let contentAvailable: Bool
+    let appPayload: PushNotification.AppPayload?
+
+    init(
+        title: String?,
+        body: String?,
+        badge: Int?,
+        sound: PushNotification.Sound?,
+        interruptionLevel: PushNotification.InterruptionLevel,
+        contentAvailable: Bool = false,
+        appPayload: PushNotification.AppPayload? = nil
+    ) {
+        self.title = title
+        self.body = body
+        self.badge = badge
+        self.sound = sound
+        self.interruptionLevel = interruptionLevel
+        self.contentAvailable = contentAvailable
+        self.appPayload = appPayload
+    }
 
     var isBadgeOnly: Bool {
         title == nil && body == nil && sound == nil
     }
 
+    /// Apple's background push: only `content-available`, no alert, sound or badge.
+    /// It must be sent with push type `background` and priority 5; anything the user
+    /// sees, a badge included, is an `alert` push.
+    var isBackground: Bool {
+        contentAvailable && isBadgeOnly && badge == nil
+    }
+
     func encode(to encoder: any Encoder) throws {
+        // The app's keys first: JSONEncoder merges the keyed container requested below
+        // into the same object. send(_:to:) has already proven the payload is an object
+        // without an "aps" key.
+        try appPayload?.encode(encoder)
         var container = encoder.container(keyedBy: RootKeys.self)
         try container.encode(APS(payload: self), forKey: .aps)
     }
@@ -73,6 +105,7 @@ struct PushPayload: Encodable, Sendable, Equatable {
             case badge
             case sound
             case interruptionLevel = "interruption-level"
+            case contentAvailable = "content-available"
         }
 
         struct Alert: Encodable {
@@ -108,6 +141,9 @@ struct PushPayload: Encodable, Sendable, Equatable {
             // A badge-only notification has nothing to present, so no level.
             if !payload.isBadgeOnly {
                 try container.encode(interruptionLevelValue, forKey: .interruptionLevel)
+            }
+            if payload.contentAvailable {
+                try container.encode(1, forKey: .contentAvailable)
             }
         }
 

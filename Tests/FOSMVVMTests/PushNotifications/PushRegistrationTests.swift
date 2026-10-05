@@ -24,49 +24,49 @@ import Testing
 struct PushRegistrationTests {
     @Test func handsTheTokenToTheHookAsHexText() async throws {
         let received = Received()
-        let registration = try PushRegistration(environment: .sandbox, bundle: .boards()) { token in
-            received.tokens.append(token)
+        let pushRegistration = try PushRegistration(environment: .sandbox, bundle: .boards()) { registration in
+            received.registrations.append(registration)
         }
 
-        await registration.handOver(Data([0x00, 0x0F, 0xA5, 0xFF]))
+        await pushRegistration.handOver(Data([0x00, 0x0F, 0xA5, 0xFF]))
 
-        let token = try #require(received.tokens.first)
-        #expect(received.tokens.count == 1)
-        #expect(token.deviceToken == "000fa5ff")
+        let first = try #require(received.registrations.first)
+        #expect(received.registrations.count == 1)
+        #expect(first.deviceToken == "000fa5ff")
     }
 
     @Test func handsOverEveryTokenItReceives() async throws {
         let received = Received()
-        let registration = try PushRegistration(environment: .sandbox, bundle: .boards()) { token in
-            received.tokens.append(token)
+        let pushRegistration = try PushRegistration(environment: .sandbox, bundle: .boards()) { registration in
+            received.registrations.append(registration)
         }
 
-        await registration.handOver(Data([0x01]))
-        await registration.handOver(Data([0x01]))
-        await registration.handOver(Data([0x02]))
+        await pushRegistration.handOver(Data([0x01]))
+        await pushRegistration.handOver(Data([0x01]))
+        await pushRegistration.handOver(Data([0x02]))
 
-        #expect(received.tokens.map(\.deviceToken) == ["01", "01", "02"])
+        #expect(received.registrations.map(\.deviceToken) == ["01", "01", "02"])
     }
 
     @Test func topicIsTheAppsBundleIdentifier() throws {
-        let registration = try PushRegistration(environment: .sandbox, bundle: .boards()) { _ in }
+        let pushRegistration = try PushRegistration(environment: .sandbox, bundle: .boards()) { _ in }
 
-        #expect(registration.deviceToken(from: Data([0x01])).topic == "com.example.boards")
+        #expect(pushRegistration.registration(from: Data([0x01])).topic == "com.example.boards")
     }
 
     @Test func environmentIsTheOneTheAppStated() throws {
-        let registration = try PushRegistration(environment: .production, bundle: .boards()) { _ in }
+        let pushRegistration = try PushRegistration(environment: .production, bundle: .boards()) { _ in }
 
-        #expect(registration.deviceToken(from: Data([0x01])).environment == .production)
+        #expect(pushRegistration.registration(from: Data([0x01])).environment == .production)
     }
 
     @Test func localeIsTheAppsPreferredLocalization() throws {
         let bundle = try Bundle.boards()
-        let registration = PushRegistration(environment: .sandbox, bundle: bundle) { _ in }
+        let pushRegistration = PushRegistration(environment: .sandbox, bundle: bundle) { _ in }
         let preferred = try #require(bundle.preferredLocalizations.first)
 
         #expect(preferred != "Base")
-        #expect(registration.deviceToken(from: Data([0x01])).locale == Locale(identifier: preferred))
+        #expect(pushRegistration.registration(from: Data([0x01])).locale == Locale(identifier: preferred))
     }
 
     @Test func localeSkipsBase() {
@@ -81,30 +81,30 @@ struct PushRegistrationTests {
     }
 }
 
-@Suite("PushRegistration.DeviceToken — stubs")
-struct PushRegistrationDeviceTokenStubTests {
+@Suite("PushRegistration.Registration — stubs")
+struct PushRegistrationStubTests {
     @Test func stubOverridesOnlyWhatItIsGiven() {
-        let token = PushRegistration.DeviceToken.stub(locale: Locale(identifier: "fr"))
+        let registration = PushRegistration.Registration.stub(locale: Locale(identifier: "fr"))
 
-        #expect(token.locale == Locale(identifier: "fr"))
-        #expect(token.deviceToken == PushRegistration.DeviceToken.stub().deviceToken)
-        #expect(token.topic == PushRegistration.DeviceToken.stub().topic)
-        #expect(token.environment == PushRegistration.DeviceToken.stub().environment)
+        #expect(registration.locale == Locale(identifier: "fr"))
+        #expect(registration.deviceToken == PushRegistration.Registration.stub().deviceToken)
+        #expect(registration.topic == PushRegistration.Registration.stub().topic)
+        #expect(registration.environment == PushRegistration.Registration.stub().environment)
     }
 
-    @Test func stubIsAUsableToken() {
-        let token = PushRegistration.DeviceToken.stub()
+    @Test func stubIsAUsableRegistration() {
+        let registration = PushRegistration.Registration.stub()
 
-        #expect(!token.deviceToken.isEmpty)
-        let isHexadecimal = token.deviceToken.allSatisfy(\.isHexDigit)
+        #expect(!registration.deviceToken.isEmpty)
+        let isHexadecimal = registration.deviceToken.allSatisfy(\.isHexDigit)
         #expect(isHexadecimal)
-        #expect(!token.topic.isEmpty)
+        #expect(!registration.topic.isEmpty)
     }
 }
 
 @MainActor
 private final class Received {
-    var tokens: [PushRegistration.DeviceToken] = []
+    var registrations: [PushRegistration.Registration] = []
 }
 
 private extension Bundle {

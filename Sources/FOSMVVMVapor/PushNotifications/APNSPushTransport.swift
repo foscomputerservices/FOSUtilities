@@ -70,9 +70,9 @@ struct APNSPushTransport: PushTransport {
             _ = try await client.send(APNSRequest(
                 message: payload,
                 deviceToken: deviceToken,
-                pushType: .alert,
+                pushType: payload.isBackground ? .background : .alert,
                 expiration: nil,
-                priority: .immediately,
+                priority: payload.isBackground ? .consideringDevicePower : .immediately,
                 apnsID: nil,
                 topic: topic,
                 collapseID: nil

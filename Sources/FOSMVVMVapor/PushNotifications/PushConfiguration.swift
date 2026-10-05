@@ -20,7 +20,7 @@ import Foundation
 /// Your APNs signing key and what to do when Apple retires a device token
 ///
 /// Read the key from your server's own environment at boot, never from source, and
-/// pass the configuration to ``PushNotifications/configure(_:)``:
+/// pass the configuration to ``PushNotificationService/configure(_:)``:
 ///
 /// ```swift
 /// try app.pushNotifications.configure(PushConfiguration(

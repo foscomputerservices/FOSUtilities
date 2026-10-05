@@ -40,10 +40,110 @@ struct PushNotificationsTests {
         }
     }
 
+    @Test func localizesASubstitutionsBodyWithItsValuesInEachLocale() async throws {
+        try await withPushApp { app, transport, _ in
+            let notification = PushNotification(
+                title: LocalizableString.localized(key: "PushTest.title"),
+                body: LocalizableString.localized(key: "PushTest.assigned")
+                    .bind(substitutions: ["boardName": LocalizableString.constant("Roadmap")])
+            )
+            try await app.pushNotifications.send(
+                notification,
+                to: [Device(token: "aa01", locale: .en), Device(token: "bb02", locale: .es)]
+            )
+
+            let sent = await transport.sentByToken
+            #expect(sent["aa01"]?.payload.title == "New card")
+            #expect(sent["aa01"]?.payload.body == "A card on Roadmap was assigned to you")
+            #expect(sent["bb02"]?.payload.title == "Tarjeta nueva")
+            #expect(sent["bb02"]?.payload.body == "Se te asignó una tarjeta en Roadmap")
+        }
+    }
+
+    @Test func missingTranslationOfASubstitutionsBodyFailsThatDestination() async throws {
+        try await withPushApp { app, transport, _ in
+            let notification = PushNotification(
+                body: LocalizableString.localized(key: "PushTest.missing")
+                    .bind(substitutions: ["boardName": LocalizableString.constant("Roadmap")])
+            )
+            let error = await #expect(throws: PushNotificationsError.self) {
+                try await app.pushNotifications.send(notification, to: [Device(token: "aa01")])
+            }
+
+            let (failures, attempted) = try #require(error?.deliveryFailures)
+            #expect(attempted == 1)
+            let allMissingTranslations = failures.allSatisfy(\.isMissingTranslation)
+            #expect(allMissingTranslations)
+            #expect(await transport.sentByToken.isEmpty)
+        }
+    }
+
+    @Test func carriesContentAvailableAndTheAppPayload() async throws {
+        try await withPushApp { app, transport, _ in
+            let notification = PushNotification(
+                title: LocalizableString.localized(key: "PushTest.title"),
+                contentAvailable: true,
+                payload: CardAssignedPayload(boardName: "Roadmap", unreadCount: 4)
+            )
+            try await app.pushNotifications.send(notification, to: [Device(token: "aa01")])
+
+            let payload = try #require(await transport.sentByToken["aa01"]?.payload)
+            #expect(payload.contentAvailable)
+            #expect(!payload.isBackground)
+
+            let root = try encodedRoot(payload)
+            let decoded = try JSONDecoder().decode(CardAssignedPayload.self, from: JSONSerialization.data(withJSONObject: root))
+            #expect(decoded == CardAssignedPayload(boardName: "Roadmap", unreadCount: 4))
+        }
+    }
+
+    @Test func sendsABadgeOnlyContentAvailablePushForTVOS() async throws {
+        try await withPushApp(localized: false) { app, transport, _ in
+            try await app.pushNotifications.send(
+                PushNotification(badge: 2, contentAvailable: true),
+                to: [Device(token: "aa01", topic: "com.example.boards.tv")]
+            )
+
+            let sent = try #require(await transport.sentByToken["aa01"])
+            #expect(sent.topic == "com.example.boards.tv")
+            #expect(sent.payload.isBadgeOnly)
+            #expect(sent.payload.badge == 2)
+            #expect(sent.payload.contentAvailable)
+            // A badge is something the user sees, so this is an alert push, not a background one
+            #expect(!sent.payload.isBackground)
+        }
+    }
+
+    @Test func aPayloadThatIsNotAnObjectThrowsBeforeSending() async throws {
+        try await withPushApp(localized: false) { app, transport, _ in
+            let error = await #expect(throws: PushNotificationsError.self) {
+                try await app.pushNotifications.send(
+                    PushNotification(badge: 1, payload: ["Roadmap", "Backlog"]),
+                    to: [Device(token: "aa01")]
+                )
+            }
+            #expect(error?.isPayloadNotAnObject == true)
+            #expect(await transport.sentByToken.isEmpty)
+        }
+    }
+
+    @Test func aPayloadUsingTheAPSKeyThrowsBeforeSending() async throws {
+        try await withPushApp(localized: false) { app, transport, _ in
+            let error = await #expect(throws: PushNotificationsError.self) {
+                try await app.pushNotifications.send(
+                    PushNotification(badge: 1, payload: ["aps": "mine"]),
+                    to: [Device(token: "aa01")]
+                )
+            }
+            #expect(error?.isPayloadUsesAPSKey == true)
+            #expect(await transport.sentByToken.isEmpty)
+        }
+    }
+
     @Test func carriesBadgeSoundAndInterruptionLevel() async throws {
         try await withPushApp { app, transport, _ in
             let notification = PushNotification(
-                title: .localized(key: "PushTest.title"),
+                title: LocalizableString.localized(key: "PushTest.title"),
                 badge: 7,
                 sound: .named("card-assigned.caf"),
                 interruptionLevel: .timeSensitive
@@ -121,7 +221,7 @@ struct PushNotificationsTests {
         try await withPushApp { app, transport, _ in
             let error = await #expect(throws: PushNotificationsError.self) {
                 try await app.pushNotifications.send(
-                    PushNotification(title: .localized(key: "PushTest.missing")),
+                    PushNotification(title: LocalizableString.localized(key: "PushTest.missing")),
                     to: [Device(token: "aa01")]
                 )
             }
@@ -268,6 +368,20 @@ private extension PushNotificationsError {
         return false
     }
 
+    var isPayloadNotAnObject: Bool {
+        if case .payloadNotAnObject = self {
+            return true
+        }
+        return false
+    }
+
+    var isPayloadUsesAPSKey: Bool {
+        if case .payloadUsesAPSKey = self {
+            return true
+        }
+        return false
+    }
+
     var isInvalidPrivateKey: Bool {
         if case .invalidPrivateKey = self {
             return true
@@ -287,10 +401,20 @@ private extension Error {
 
 private extension PushNotification {
     static let cardAssigned = PushNotification(
-        title: .localized(key: "PushTest.title"),
-        body: .localized(key: "PushTest.body"),
+        title: LocalizableString.localized(key: "PushTest.title"),
+        body: LocalizableString.localized(key: "PushTest.body"),
         sound: .default
     )
+}
+
+private struct CardAssignedPayload: Codable, Equatable, Sendable {
+    let boardName: String
+    let unreadCount: Int
+}
+
+private func encodedRoot(_ payload: PushPayload) throws -> [String: Any] {
+    let data = try JSONEncoder().encode(payload)
+    return try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
 }
 
 private extension Locale {
