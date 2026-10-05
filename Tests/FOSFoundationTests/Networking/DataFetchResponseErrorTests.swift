@@ -47,8 +47,8 @@ struct DataFetchResponseErrorTests {
 
         let error = await thrownError { let _: Board = try await dataFetch.fetch(boardURL) }
 
-        let wait = try #require(wait(in: error))
-        #expect(wait > .seconds(100) && wait <= .seconds(121))
+        let delay = try #require(wait(in: error))
+        #expect(delay > .seconds(100) && delay <= .seconds(121))
     }
 
     @Test(arguments: ["soon", "-5", "+5", "1.5", "Someday, 99 Nov 9999"])
