@@ -87,6 +87,7 @@ struct ComposedChildTests {
 
 @Suite("ComposableFactory")
 struct ComposableFactoryTests {
+    @available(*, deprecated, message: "exercises the loadingPlans default a bare conformer reads")
     @Test("An empty plan block and the children default both read back empty")
     func bareConformerDefaults() {
         #expect(TestViewModel.loadingPlans.plans.isEmpty)

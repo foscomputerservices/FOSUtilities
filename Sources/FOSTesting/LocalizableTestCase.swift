@@ -96,8 +96,8 @@ public extension LocalizableTestCase {
     /// never a blank that ships.
     func encoder(locale: Locale = Self.en) -> JSONEncoder {
         JSONEncoder.localizingEncoder(
-            locale: locale,
-            localizationStore: locStore,
+            in: locale,
+            store: locStore,
             strictLocalization: true
         )
     }
@@ -114,14 +114,15 @@ public extension LocalizableTestCase {
                 .toJSON(encoder: encoder)
                 .fromJSON()
 
-            try Self.expectTranslated(model, path: "\(Model.self)", locale: locale)
+            try expectTranslated(model, path: "\(Model.self)", locale: locale)
         }
     }
 
     /// Walks a decoded value and its children — stored child ViewModels, optionals, and
     /// collections included — so a missing translation on a row or a nested ViewModel fails
-    /// the parent's pass instead of shipping silently.
-    private static func expectTranslated(_ value: Any, path: String, locale: Locale) throws {
+    /// the parent's pass instead of shipping silently. A `LocalizableCase` is proven for
+    /// every case of its enum, not only the case the stub holds.
+    private func expectTranslated(_ value: Any, path: String, locale: Locale) throws {
         if let localizedProperty = value as? any LocalizedPropertyTranslation {
             let localizable = localizedProperty.translatedValue
             guard localizable.localizationStatus == .localized else {
@@ -136,6 +137,12 @@ public extension LocalizableTestCase {
         if let localizable = value as? (any Localizable) {
             guard !localizable.isEmpty else {
                 throw FOSLocalizableError.error("\(path) -- Missing Translation -- \(locale.identifier)")
+            }
+            if let everyCase = localizable as? any EveryCaseLocalizable {
+                let missing = try everyCase.casesMissingTranslation(in: locale, store: locStore)
+                guard missing.isEmpty else {
+                    throw FOSLocalizableError.error("\(path) -- Missing Translation -- \(locale.identifier) -- cases: \(missing.joined(separator: ", "))")
+                }
             }
             return
         }
@@ -175,9 +182,7 @@ public extension LocalizableTestCase {
             guard localized.localizationStatus == .localized else {
                 throw FOSLocalizableError.error("\(localizable) -- Is pending localization")
             }
-            guard !localized.isEmpty else {
-                throw FOSLocalizableError.error("\(localizable) -- Missing Translation -- \(locale.identifier)")
-            }
+            try expectTranslated(localized, path: "\(localizable)", locale: locale)
         }
     }
 

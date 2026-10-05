@@ -49,6 +49,12 @@ extension LocalizableDouble: LeafDataRepresentable {
     }
 }
 
+extension LocalizableCase: LeafDataRepresentable {
+    public var leafData: LeafData {
+        .string((try? localizedString) ?? "")
+    }
+}
+
 extension LocalizableArray: LeafDataRepresentable {
     public var leafData: LeafData {
         .string((try? localizedString) ?? "")

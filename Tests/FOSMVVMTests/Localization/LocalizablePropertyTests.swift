@@ -22,14 +22,14 @@ import Testing
 
 struct LocalizablePropertyTests: LocalizableTestCase {
     @Test func localizedString_basic() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedString.localizedString == "Some Text")
     }
 
     @Test func localizedString_parentKey() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.title.localizedString == "Title")
@@ -40,7 +40,7 @@ struct LocalizablePropertyTests: LocalizableTestCase {
     }
 
     @Test func localizedString_index() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm1: TestViewModel = .init()
         let json = try vm1.toJSON(encoder: vmEncoder)
         let vm: TestViewModel = try json.fromJSON()
@@ -49,14 +49,14 @@ struct LocalizablePropertyTests: LocalizableTestCase {
     }
 
     @Test func localizedInt() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedInt.localizedString == "42")
     }
 
     @Test func localizedPieces() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.pieces.localizedArray.count == 2)
@@ -65,14 +65,14 @@ struct LocalizablePropertyTests: LocalizableTestCase {
     }
 
     @Test func localizedCompoundString_noSep() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedCompoundNoSep.localizedString == "Piece #1Piece #2")
     }
 
     @Test func localizedCompoundString_sep() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: TestViewModel = try .init().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(try vm.aLocalizedCompoundSep.localizedString == "Piece #1*Piece #2")
@@ -120,8 +120,8 @@ struct LocalizablePropertyTests: LocalizableTestCase {
 
     @Test func encoderReuse_multipleViewModels_freshEncoders() throws {
         // Using fresh encoders for each ViewModel should work correctly
-        let vmEncoder1 = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
-        let vmEncoder2 = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder1 = JSONEncoder.localizingEncoder(in: en, store: locStore)
+        let vmEncoder2 = JSONEncoder.localizingEncoder(in: en, store: locStore)
 
         // Each encode with its own fresh encoder
         let vm1: ErrorPathTestViewModel = try .stub(value: 100)
@@ -139,7 +139,7 @@ struct LocalizablePropertyTests: LocalizableTestCase {
 
     @Test func nestedEncode_propertyNamesRestored() throws {
         // After encoding a nested ViewModel, the parent's property names should be restored
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
 
         // Parent with nested children
         let parent: NestedPropertyTestViewModel = try .stub()

@@ -1,0 +1,8 @@
+en:
+  Priority:
+    low: "Low"
+    high: "High"
+es:
+  Priority:
+    low: "Baja"
+    high: "Alta"

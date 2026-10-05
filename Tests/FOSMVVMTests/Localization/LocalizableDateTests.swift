@@ -29,7 +29,7 @@ struct LocalizableDateTests: LocalizableTestCase {
     @Test func defaultStyle_usesMediumDate() throws {
         // When no style is specified, default is medium dateStyle
         let locDate = LocalizableDate(value: testDate)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         // Default style is medium - exact format varies by locale, but should contain month name
@@ -43,7 +43,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func dateStyle_short() throws {
         let locDate = LocalizableDate(value: testDate, dateStyle: .short)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: enUS, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: enUS, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -53,7 +53,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func dateStyle_long() throws {
         let locDate = LocalizableDate(value: testDate, dateStyle: .long)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -63,7 +63,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func dateStyle_full() throws {
         let locDate = LocalizableDate(value: testDate, dateStyle: .full)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -75,7 +75,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func timeStyle_short() throws {
         let locDate = LocalizableDate(value: testDate, timeStyle: .short)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: enUS, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: enUS, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -85,7 +85,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func timeStyle_medium() throws {
         let locDate = LocalizableDate(value: testDate, timeStyle: .medium)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: enUS, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: enUS, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -97,7 +97,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func combinedStyles_dateAndTime() throws {
         let locDate = LocalizableDate(value: testDate, dateStyle: .medium, timeStyle: .short)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: enUS, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: enUS, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -110,7 +110,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func customFormat_isoStyle() throws {
         let locDate = LocalizableDate(value: testDate, dateFormat: "yyyy-MM-dd")
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -119,7 +119,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func customFormat_dateTimeStyle() throws {
         let locDate = LocalizableDate(value: testDate, dateFormat: "yyyy-MM-dd HH:mm")
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -135,7 +135,7 @@ struct LocalizableDateTests: LocalizableTestCase {
             timeStyle: .full, // Should be ignored
             dateFormat: "dd/MM/yy"
         )
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -147,7 +147,7 @@ struct LocalizableDateTests: LocalizableTestCase {
     @Test func locale_germanFormat() throws {
         let de = Locale(identifier: "de_DE")
         let locDate = LocalizableDate(value: testDate, dateStyle: .medium)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: de, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: de, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -158,7 +158,7 @@ struct LocalizableDateTests: LocalizableTestCase {
     @Test func locale_japaneseFormat() throws {
         let ja = Locale(identifier: "ja_JP")
         let locDate = LocalizableDate(value: testDate, dateStyle: .medium)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: ja, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: ja, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         let result = try encoded.localizedString
@@ -170,7 +170,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func codable_preservesValue() throws {
         let locDate = LocalizableDate(value: testDate, dateStyle: .long)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         // The value should be preserved through encoding
@@ -179,7 +179,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func codable_preservesStyles() throws {
         let locDate = LocalizableDate(value: testDate, dateStyle: .short, timeStyle: .medium)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(encoded.dateStyle == .short)
@@ -188,7 +188,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func codable_preservesCustomFormat() throws {
         let locDate = LocalizableDate(value: testDate, dateFormat: "EEEE, MMMM d")
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(encoded.dateFormat == "EEEE, MMMM d")
@@ -203,7 +203,7 @@ struct LocalizableDateTests: LocalizableTestCase {
 
     @Test func localizationStatus_localizedAfterEncode() throws {
         let locDate = LocalizableDate(value: testDate)
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let encoded: LocalizableDate = try locDate.toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(encoded.localizationStatus == .localized)

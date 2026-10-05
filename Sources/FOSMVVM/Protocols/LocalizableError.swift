@@ -116,7 +116,7 @@ public extension LocalizableError {
     /// the client-domain twin of the wire's `ErrorMiddleware` encode
     ///
     /// ```swift
-    /// let localized = try error.localized(locale: locale, localizationStore: store)
+    /// let localized = try error.localized(in: locale, store: store)
     /// Text(localized.localizedMessage)
     /// ```
     ///
@@ -124,12 +124,20 @@ public extension LocalizableError {
     /// for a ViewModel. Presentation code usually wants
     /// ``localized(mvvmEnv:locale:)`` instead, which selects the store and degrades
     /// gracefully.
-    func localized(locale: Locale, localizationStore: LocalizationStore) throws -> Self {
+    func localized(in locale: Locale, store: LocalizationStore) throws -> Self {
         try toJSON(encoder: .localizingEncoder(
-            locale: locale,
-            localizationStore: localizationStore
+            in: locale,
+            store: store
         ))
         .fromJSON()
+    }
+
+    /// A copy of the error with its `@Localized…` properties resolved for the locale
+    ///
+    /// > Use ``localized(in:store:)`` instead.
+    @available(*, deprecated, renamed: "localized(in:store:)")
+    func localized(locale: Locale, localizationStore: LocalizationStore) throws -> Self {
+        try localized(in: locale, store: localizationStore)
     }
 
     /// The error, ready to present — client-hosted errors are resolved against the
@@ -156,6 +164,6 @@ public extension LocalizableError {
             return nil
         }
 
-        return try? localized(locale: locale, localizationStore: store)
+        return try? localized(in: locale, store: store)
     }
 }

@@ -194,7 +194,6 @@ struct FormerPlanSpellingsTests {
     /// A grant declaring only `authorizedContainer`, vended by a provider declaring only
     /// `containerAuthorizations(for:)` and registered through `useContainerAuthorizationProvider(_:)`,
     /// still scopes a load through the engine exactly as before.
-    @available(*, deprecated, message: "exercises the former useApexContainerResolver spelling")
     @available(*, deprecated, message: "exercises the former spellings")
     @Test func formerGrantAndProviderStillScopeALoad() async throws {
         try await withFluentTestApp { app in
@@ -217,6 +216,7 @@ struct FormerPlanSpellingsTests {
         }
     }
 
+    @available(*, deprecated, message: "exercises the former useApexContainerResolver spelling")
     @Test func formerResolverSpellingRegistersTheApplicationScope() async throws {
         try await withFluentTestApp { app in
             let workspace = Workspace(name: "Top Workspace")

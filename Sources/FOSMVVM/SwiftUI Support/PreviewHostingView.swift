@@ -269,8 +269,8 @@ private struct PreviewHostingView<Inner: ViewModelView>: View {
 
     private func viewModel(localizationStore: LocalizationStore, viewModel: Inner.VM) -> Inner.VM {
         let encoder = JSONEncoder.localizingEncoder(
-            locale: locale,
-            localizationStore: localizationStore
+            in: locale,
+            store: localizationStore
         )
         do {
             return try viewModel.toJSON(encoder: encoder).fromJSON()

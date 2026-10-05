@@ -54,10 +54,10 @@ struct LocalizedDateTests: LocalizableTestCase {
     // MARK: - Codable Round-Trip Tests
 
     @Test func codable_localizesPerLocale() throws {
-        let enEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let enEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let enVM: DateTestViewModel = try DateTestViewModel().toJSON(encoder: enEncoder).fromJSON()
 
-        let esEncoder = JSONEncoder.localizingEncoder(locale: es, localizationStore: locStore)
+        let esEncoder = JSONEncoder.localizingEncoder(in: es, store: locStore)
         let esVM: DateTestViewModel = try DateTestViewModel().toJSON(encoder: esEncoder).fromJSON()
 
         // Medium style in en contains the abbreviated month "Jul"
@@ -71,7 +71,7 @@ struct LocalizedDateTests: LocalizableTestCase {
     }
 
     @Test func codable_roundTripPreservesValueAndStatus() throws {
-        let vmEncoder = JSONEncoder.localizingEncoder(locale: en, localizationStore: locStore)
+        let vmEncoder = JSONEncoder.localizingEncoder(in: en, store: locStore)
         let vm: DateTestViewModel = try DateTestViewModel().toJSON(encoder: vmEncoder).fromJSON()
 
         #expect(vm.defaultStyled.value == fixedTestDate)

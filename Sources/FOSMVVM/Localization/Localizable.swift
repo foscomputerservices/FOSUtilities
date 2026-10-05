@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import FOSFoundation
+import Foundation
 
 public typealias LocalizableId = String
 
@@ -59,6 +60,67 @@ public protocol Localizable: Codable, Hashable, Identifiable, Sendable, Stubbabl
     ///
     /// - Returns: An array of individually localized **String** segments
     var localizedArray: [String] { get throws }
+
+    /// Resolves the text this value shows in *locale*
+    ///
+    /// The localizing encoder calls this for every ``Localizable`` it encodes. Implement it to
+    /// localize a type of your own, declared in your own module, through the same encoder as
+    /// the library's types:
+    ///
+    /// ```swift
+    /// public struct LocalizableEstimate: Localizable {
+    ///     public let hours: Decimal
+    ///     private let text: String?
+    ///
+    ///     public init(hours: Decimal) {
+    ///         self.hours = hours
+    ///         self.text = nil
+    ///     }
+    ///
+    ///     public func localized(in locale: Locale, store: LocalizationStore) throws -> String? {
+    ///         let formatter = NumberFormatter()
+    ///         formatter.locale = locale
+    ///         formatter.numberStyle = .decimal
+    ///         return formatter.string(for: hours)
+    ///     }
+    ///
+    ///     public func encode(to encoder: Encoder) throws {
+    ///         var container = encoder.container(keyedBy: CodingKeys.self)
+    ///         try container.encode(hours, forKey: .hours)
+    ///         try container.encode(text ?? encoder.localizeString(self) ?? "", forKey: .text)
+    ///     }
+    ///
+    ///     // init(from:), isEmpty, localizationStatus, id, localizedString and stub()
+    ///     // as for any Localizable
+    /// }
+    /// ```
+    ///
+    /// Encode with ``FOSMVVM/JSONEncoder/localizingEncoder(in:store:strictLocalization:)`` and
+    /// the value arrives localized, exactly as a ``LocalizableDouble`` or ``LocalizableString`` does.
+    /// A value that needs words from the YAML can resolve a ``LocalizableString`` the same way:
+    /// `try LocalizableString.localized(case: kind).localized(in: locale, store: store)`.
+    ///
+    /// > Return **nil** when the store has no text for the value. A strict encoder then fails
+    /// > the encode with ``LocalizerError/missingTranslation(_:locale:)``, just as it does for
+    /// > the library's own types.
+    ///
+    /// - Parameters:
+    ///   - locale: The **Locale** to localize into
+    ///   - store: The ``LocalizationStore`` that holds the translations
+    /// - Returns: The localized text, or **nil** when *store* cannot resolve it
+    func localized(in locale: Locale, store: LocalizationStore) throws -> String?
+}
+
+public extension Localizable {
+    /// Resolves the text of the library's own ``Localizable`` types
+    ///
+    /// ``LocalizableString``, ``LocalizableInt``, ``LocalizableDouble``, ``LocalizableDate``,
+    /// ``LocalizableSubstitutions`` and ``LocalizableCompoundValue`` of ``LocalizableString``
+    /// resolve here. Any other type throws ``LocalizerError/unknownLocalizationType(_:)``;
+    /// implement this method on your own ``Localizable`` to localize it.
+    func localized(in locale: Locale, store: LocalizationStore) throws -> String? {
+        try locale.localizeLibraryValue(self, localizationStore: store)
+    }
 }
 
 extension Localizable {

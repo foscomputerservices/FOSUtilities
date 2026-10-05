@@ -1,0 +1,45 @@
+en:
+  Priority:
+    low: "Low"
+    high: "High"
+  Board:
+    Visibility:
+      workspace: "Everyone in the workspace"
+      members: "Board members only"
+  Workspace:
+    Tier:
+      free: "Free"
+      team: "Team"
+  CardEstimate:
+    small: "Small"
+    large: "Large"
+  Assignment:
+    Role:
+      owner: "Owner"
+      reviewer: "Reviewer"
+  PriorityRowViewModel:
+    title: "Priority"
+  RoleRowViewModel:
+    title: "Role"
+es:
+  Priority:
+    low: "Baja"
+    high: "Alta"
+  Board:
+    Visibility:
+      workspace: "Todo el espacio de trabajo"
+      members: "Solo miembros del tablero"
+  Workspace:
+    Tier:
+      free: "Gratis"
+      team: "Equipo"
+  CardEstimate:
+    small: "Pequeña"
+    large: "Grande"
+  Assignment:
+    Role:
+      owner: "Propietario"
+  PriorityRowViewModel:
+    title: "Prioridad"
+  RoleRowViewModel:
+    title: "Rol"

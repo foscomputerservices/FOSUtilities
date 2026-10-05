@@ -353,8 +353,8 @@ import XCTest
             fatalError("setUpWithError not called")
         }
         return JSONEncoder.localizingEncoder(
-            locale: locale ?? en,
-            localizationStore: locStore
+            in: locale ?? en,
+            store: locStore
         )
     }
 }

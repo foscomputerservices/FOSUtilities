@@ -74,8 +74,8 @@ struct KeyEchoLocalizationStoreTests {
     @Test func localizingEncoderResolvesMissedKeyNonEmpty() throws {
         let store = KeyEchoLocalizationStore(wrapping: nil)
         let encoder = JSONEncoder.localizingEncoder(
-            locale: en,
-            localizationStore: store
+            in: en,
+            store: store
         )
 
         let localized: LocalizableString = try LocalizableString
@@ -94,8 +94,8 @@ struct KeyEchoLocalizationStoreTests {
             ])
         )
         let encoder = JSONEncoder.localizingEncoder(
-            locale: en,
-            localizationStore: store
+            in: en,
+            store: store
         )
 
         let localized: LocalizableString = try LocalizableString
@@ -105,6 +105,29 @@ struct KeyEchoLocalizationStoreTests {
 
         #expect(try localized.localizedString == "Client Value")
     }
+
+    @Test func localizingEncoderEchoesACaseWordAndItsChoices() throws {
+        let store = KeyEchoLocalizationStore(
+            wrapping: DictionaryStore(storage: [
+                "en": ["Priority.high": "High"]
+            ])
+        )
+        let encoder = JSONEncoder.localizingEncoder(in: en, store: store)
+
+        let localized: LocalizableCase<Priority> = try LocalizableCase(Priority.low, includingAllCases: true)
+            .toJSON(encoder: encoder)
+            .fromJSON()
+
+        #expect(!localized.isEmpty)
+        #expect(try localized.localizedString.contains("Priority.low"))
+        #expect(localized.choices.map(\.value) == [.low, .high])
+        #expect(localized.choices.last?.localizedString == "High")
+    }
+}
+
+private enum Priority: CaseIterable, Codable, Hashable {
+    case low
+    case high
 }
 
 private struct DictionaryStore: LocalizationStore {

@@ -134,6 +134,22 @@ public indirect enum LocalizableRef: Hashable, Identifiable, CustomStringConvert
     }
 }
 
+extension LocalizableRef {
+    /// The reference ``LocalizableString/localized(case:parentType:parentKeys:index:)`` builds
+    /// for *enumCase* when given the type the enum is declared in
+    ///
+    /// A top-level enum's case is keyed `Enum.case`; a nested enum's is keyed `Parent.Enum.case`,
+    /// the parent being the type that immediately encloses the enum.
+    init(caseOf enumCase: some Any) {
+        let enumType = type(of: enumCase)
+        self = .value(key: Self.key(
+            typeName: Self.typeName(for: enumType),
+            parentType: Self.enclosingTypeName(of: enumType),
+            propertyName: String(describing: enumCase)
+        ))
+    }
+}
+
 public extension LocalizableRef {
     // MARK: Identifiable Protocol
 
@@ -184,5 +200,45 @@ private extension LocalizableRef {
         }
 
         return String(result.prefix(upTo: genericIndex))
+    }
+
+    /// The name ``typeName(for:)`` gives the type that immediately encloses *type*, or **nil**
+    /// for a type declared at module or function scope
+    static func enclosingTypeName(of type: Any.Type) -> String? {
+        // String(reflecting:) yields e.g. "Module.Parent<Swift.Int>.Kind",
+        // "(extension in Module):Module.Parent<Swift.Int>.Kind", or, for private and local
+        // types, "Module.(unknown context at $1f2e3d).Parent.Kind"; the dots inside generic
+        // arguments and parenthesized contexts are not path separators.
+        let reflected = String(reflecting: type)
+        var components = [Substring]()
+        var depth = 0
+        var start = reflected.startIndex
+        var previous: Character?
+        for index in reflected.indices {
+            switch reflected[index] {
+            case "<", "(":
+                depth += 1
+            case ">" where previous != "-", ")":
+                depth -= 1
+            case "." where depth == 0:
+                components.append(reflected[start..<index])
+                start = reflected.index(after: index)
+            default:
+                break
+            }
+            previous = reflected[index]
+        }
+        components.append(reflected[start...])
+
+        // The first component is the module, the last is the type itself
+        guard components.count > 2 else {
+            return nil
+        }
+        let enclosing = components[components.count - 2]
+        guard !enclosing.hasPrefix("(") else {
+            return nil
+        }
+
+        return String(enclosing.prefix { $0 != "<" })
     }
 }

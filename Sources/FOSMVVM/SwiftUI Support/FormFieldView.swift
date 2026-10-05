@@ -404,7 +404,7 @@ private extension FormFieldView where Value == String {
                 #endif
 
             default:
-                Text("The FormInputType \(inputType) is NYI!")
+                Text(verbatim: "The FormInputType \(inputType) is NYI!")
             }
 
         default:
@@ -517,7 +517,7 @@ private extension FormFieldView where Value == String? {
                 #endif
 
             default:
-                Text("The FormInputType \(inputType) is NYI!")
+                Text(verbatim: "The FormInputType \(inputType) is NYI!")
             }
 
         default:

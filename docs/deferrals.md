@@ -218,3 +218,15 @@ The first two are one symptom: the keyboard-dismissal control `testHost()` plant
 **Why it matters:** a boot refusal added later would break an app that leaned on the overlap; a ruling before any app does is cheap.
 
 **What reopens it:** a consuming project declaring two system containers over one type, or David ruling either way.
+
+## `LocalizableArray` of `LocalizableValue` elements traps when built from a YAML key
+
+**Recorded:** 2026-10-05, during the 0.20.0 review, when `LocalizableCase` made the gap reachable.
+
+**What it is:** `Localizer.array(_:localizationStore:)` (`Sources/FOSMVVM/Localization/Localizer.swift`) localizes a `LocalizableArray` built from a YAML key only when its elements are `LocalizableString`. For an element type conforming to `LocalizableValue` it calls `fatalError`, naming the element type, as it always has for `LocalizableInt`, `LocalizableDouble` and `LocalizableDate`. `LocalizableCase` is a `LocalizableValue`, so `LocalizableArray<LocalizableCase<…>>` built from a key now reaches the trap; constant and empty arrays are unaffected.
+
+**Why it matters:** the failure is a crash at encode time, not a compile error, so a ViewModel that declares the array builds cleanly and dies the first time it is localized.
+
+**Why it was deferred:** what a YAML key should hold for a `LocalizableValue` element (a list of case names, of words, or something else per value type) is undesigned, and no consumer has asked for it.
+
+**What reopens it:** a consumer declaring such an array; or `LocalizableArray` being reworked for another reason.

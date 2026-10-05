@@ -18,29 +18,63 @@ import FOSFoundation
 import Foundation
 
 public extension JSONEncoder {
-    /// A ``JSONEncoder`` that encodes ``Localizable`` values
+    /// A ``JSONEncoder`` that localizes every ``Localizable`` it encodes
+    ///
+    /// ```swift
+    /// let encoder = JSONEncoder.localizingEncoder(in: locale, store: localizationStore)
+    /// let localized: BoardViewModel = try viewModel.toJSON(encoder: encoder).fromJSON()
+    /// ```
+    ///
+    /// Every ``Localizable`` in the encoded value, nested ViewModels and collections
+    /// included, arrives with its text resolved for *locale*.
     ///
     /// - Parameters:
     ///   - locale: The **Locale** to use to encode ``Localizable`` values
-    ///   - localizationStore: The ``LocalizationStore`` to use to resolve localization
+    ///   - store: The ``LocalizationStore`` to use to resolve localization
     ///     lookups during encoding
     ///   - strictLocalization: When **true**, a key the store cannot resolve fails the
     ///     encode with ``LocalizerError/missingTranslation(_:locale:)`` instead of
     ///     encoding an empty string. Test encoders use it so a missing key is red, never
     ///     a blank that ships (default: **false**)
     /// - Returns: A ``JSONEncoder`` that encodes ``Localizable`` values
-    static func localizingEncoder(locale: Locale, localizationStore: LocalizationStore, strictLocalization: Bool = false) -> JSONEncoder {
+    static func localizingEncoder(in locale: Locale, store: LocalizationStore, strictLocalization: Bool = false) -> JSONEncoder {
         let encoder = LocalizingEncoder()
         encoder.dateEncodingStrategy = .formatted(DateFormatter.JSONDateTimeFormatter)
         encoder.userInfo[.localeKey] = locale
-        encoder.userInfo[.localizationStoreKey] = localizationStore
+        encoder.userInfo[.localizationStoreKey] = store
         encoder.userInfo[.strictLocalizationKey] = strictLocalization
         return encoder
     }
+
+    /// A ``JSONEncoder`` that localizes every ``Localizable`` it encodes
+    ///
+    /// > Use ``localizingEncoder(in:store:strictLocalization:)`` instead.
+    @available(*, deprecated, renamed: "localizingEncoder(in:store:strictLocalization:)")
+    static func localizingEncoder(locale: Locale, localizationStore: LocalizationStore, strictLocalization: Bool = false) -> JSONEncoder {
+        localizingEncoder(in: locale, store: localizationStore, strictLocalization: strictLocalization)
+    }
 }
 
-extension Encoder {
-    /// Converts the ``Localizable`` into a **String**
+public extension Encoder {
+    /// Localizes a ``Localizable`` with this encoder's locale and store
+    ///
+    /// Call it from the `encode(to:)` of your own ``Localizable`` to obtain its text:
+    ///
+    /// ```swift
+    /// public func encode(to encoder: Encoder) throws {
+    ///     var container = encoder.container(keyedBy: CodingKeys.self)
+    ///     try container.encode(hours, forKey: .hours)
+    ///     try container.encode(encoder.localizeString(self) ?? "", forKey: .text)
+    /// }
+    /// ```
+    ///
+    /// The text comes from the value's ``Localizable/localized(in:store:)``. When the encoder
+    /// is strict and that returns **nil**, this throws
+    /// ``LocalizerError/missingTranslation(_:locale:)``.
+    ///
+    /// > The encoder must come from
+    /// > ``FOSMVVM/JSONEncoder/localizingEncoder(in:store:strictLocalization:)``; any other
+    /// > encoder throws ``LocalizerError/localizationStoreMissing``.
     ///
     /// Even though the ``Localizable`` might be a value type (e.g., int, double, date, etc.)
     /// most often, the localized result should be a **String**.  This is because the
@@ -76,7 +110,9 @@ extension Encoder {
         }
         return localized
     }
+}
 
+extension Encoder {
     /// Converts the ``Localizable`` into an **Array** of *Element*s
     ///
     /// - Parameter localizable: The ``Localizable`` to be localized into an **Array**
@@ -99,8 +135,8 @@ extension Encoder {
         }
 
         let encoder = JSONEncoder.localizingEncoder(
-            locale: locale,
-            localizationStore: localizationStore
+            in: locale,
+            store: localizationStore
         )
         encoder.registerModel(model, at: "")
         encoder.propertyNameBindings = model.allPropertyNames()
@@ -119,7 +155,7 @@ extension Encoder {
             throw LocalizerError.localizationStoreMissing
         }
 
-        let encoder = JSONEncoder.localizingEncoder(locale: locale, localizationStore: localizationStore)
+        let encoder = JSONEncoder.localizingEncoder(in: locale, store: localizationStore)
         encoder.registerModel(model, at: "")
         encoder.propertyNameBindings = model.allPropertyNames()
 
