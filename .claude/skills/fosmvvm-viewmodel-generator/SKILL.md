@@ -467,6 +467,7 @@ public extension UserEditFormViewModel {
 - Initial values are set through `$field.initialValue` in `init`, never by assigning the property
 - **Both forms adopt the same Fields protocol** for validation, and take FormField definitions, validation logic and localized error messages from it
 - The field models belong to the Fields protocol, not to either form. Name them through the conforming form type (`UserEditFormViewModel.emailField`), as `FormFieldModel`'s DocC does
+- **Stock button titles are the client's to translate**: the app's YAML must define `FOSForms: { ok, cancel, save }` in every locale (`@FormFieldModel` defaults to `FOSForms.save`/`FOSForms.cancel`; FOSUtilities ships none, and `expectFullViewModelTests()` fails under strict localization without them)
 - The update request echoes the edit form's `modelIdentity` back as its `TargetedQuery.target`; the create request has no target (see `fosmvvm-serverrequest-generator`)
 - Stubs follow the Stubbable pattern: every parameter defaulted; the edit form's stub defaults `modelIdentity: ModelIdentity = .stub()`
 

@@ -49,6 +49,7 @@ Form Specifications integrate with:
 - **Validation System** - Implements `ValidatableModel` protocol
 - **Request System** - RequestBody types adopt Fields for validated transmission
 - **ViewModel System** - ViewModels adopt Fields for form rendering, hosting each field as `@FormFieldModel(…Field) public var …`
+- **Stock button titles** - A form ViewModel's `@FormFieldModel` save/cancel titles are the YAML keys `FOSForms.save` / `FOSForms.cancel`; the app's YAML must define `FOSForms: { ok, cancel, save }` (FOSUtilities ships no translation)
 
 > **A Fields protocol never carries the edited entity's identity** (no `id: ModelIdType?`). Identities the user picks, such as a multi-select of assets, are form data and may be fields, as opaque `ModelIdentity` values, never raw ids. An update names its target with a `TargetedQuery` whose `target: ModelIdentity` is the identity the form ViewModel carried, echoed back; the body (Fields) carries only the editable values. **SOLID protected: DIP and encapsulation** — a raw id in the form contract can be minted and forged, and drags a persistence type into the shared module.
 

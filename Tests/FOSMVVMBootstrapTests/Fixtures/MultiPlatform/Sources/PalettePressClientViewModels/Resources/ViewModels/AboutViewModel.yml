@@ -4,6 +4,10 @@ en:
     tagline: "A FOSMVVM client-server app."
     detailsButtonTitle: "Details"
     okButtonTitle: "OK"
+  FOSForms:
+    ok: "OK"
+    cancel: "Cancel"
+    save: "Save"
 
 es:
   AboutViewModel:
@@ -11,3 +15,7 @@ es:
     tagline: "Una aplicación cliente-servidor de FOSMVVM."
     detailsButtonTitle: "Detalles"
     okButtonTitle: "Aceptar"
+  FOSForms:
+    ok: "Aceptar"
+    cancel: "Cancelar"
+    save: "Guardar"

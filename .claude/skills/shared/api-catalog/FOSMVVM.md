@@ -189,8 +189,9 @@ public struct LocalizableEstimate: Localizable {
 Reach for this when: a ViewModel property, error message, or field title is a
 string that may be locale-dependent. `.constant` passes fixed text through
 untouched (ideal for stubs); `.localized(key:)` references the YAML store.
-`defaultOkTitle` / `defaultCancelTitle` / `defaultSaveTitle` cover stock
-button labels.
+`defaultOkTitle` / `defaultCancelTitle` / `defaultSaveTitle` name stock
+button labels; the client provides the translations (YAML
+`FOSForms: { ok, cancel, save }`, FOSUtilities ships none).
 
 ```swift
 let fixed = LocalizableString.constant("42")
