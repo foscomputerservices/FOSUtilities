@@ -254,7 +254,10 @@ struct DoctorStructureRuleTests {
             mutatingProject: { $0.replacingOccurrences(of: "productName = FOSMVVM;", with: "productName = FOSTesting;") },
             shape: .clientServer
         )
-        #expect(report.findings.contains { $0.summary.contains("which is a testing product") })
+        let finding = try #require(report.findings.first { $0.summary.contains("which is a testing product") })
+        // A non-test target whose own sources import the testing product cannot
+        // just drop the link; the remedy has to name the fix that compiles.
+        #expect(finding.remedy.contains("move those sources into the test targets that use them"))
     }
 
     @Test("R4a — a second direct link to a shipping product is an error")
@@ -278,6 +281,42 @@ struct DoctorStructureRuleTests {
             shape: .localOnly
         )
         #expect(report.findings.contains { $0.summary.contains("without Code Sign On Copy") })
+    }
+
+    @Test("R5 — a hosted unit-test bundle that embeds is told its host carries the copy")
+    func unitTestBundleEmbeds() throws {
+        // Give the unit-test bundle the app's own Embed Frameworks phase.
+        let report = try Fixture.clientServer(
+            mutatingProject: { $0.replacingOccurrences(
+                of: "D789C45A890AF28CCC9E8EDF /* Frameworks */,",
+                with: "D789C45A890AF28CCC9E8EDF /* Frameworks */,\n\t\t\t\t18FD30D2A7A7DAA1C28E3055 /* Embed Frameworks */,"
+            ) },
+            shape: .clientServer
+        )
+        let finding = try #require(report.findings.first {
+            $0.target == "PalettePressUnitTests" && $0.summary.contains("only the app should embed")
+        })
+        #expect(finding.severity == .error)
+        #expect(finding.remedy.contains("test host"))
+    }
+
+    @Test("R5 — a UI-test bundle that embeds is not told it has a test host")
+    func uiTestBundleEmbeds() throws {
+        // A UI-test bundle has no host; it runs in a separate runner process.
+        // The rule still holds, but the reason it gives has to be true for it.
+        let report = try Fixture.clientServer(
+            mutatingProject: { $0.replacingOccurrences(
+                of: "DF730D25FB369B2CFCC88A36 /* Frameworks */,",
+                with: "DF730D25FB369B2CFCC88A36 /* Frameworks */,\n\t\t\t\t18FD30D2A7A7DAA1C28E3055 /* Embed Frameworks */,"
+            ) },
+            shape: .clientServer
+        )
+        let finding = try #require(report.findings.first {
+            $0.target == "PalettePressUITests" && $0.summary.contains("only the app should embed")
+        })
+        #expect(finding.severity == .error)
+        #expect(!finding.remedy.contains("test host already"))
+        #expect(finding.remedy.contains("runner process"))
     }
 
     @Test("R3 — a hosted test bundle without TEST_HOST is an error")
@@ -358,6 +397,62 @@ struct DoctorStructureRuleTests {
             shape: .clientServer
         )
         #expect(report.findings.contains { $0.summary.contains("identifier no target") })
+    }
+
+    @Test("R9 — a plan's SwiftPM package references are left alone")
+    func planForAPackageContainer() throws {
+        // A package scheme's plan names its test targets by the package's
+        // container, with identifiers that are target names rather than pbxproj
+        // object identifiers. They can never match this project's targets, so
+        // judging them reports every package test target as dangling.
+        let report = try Fixture.clientServer(
+            mutatingTestPlan: { plan in
+                var plan = plan
+                plan["testTargets"] = [
+                    [
+                        "target": [
+                            "containerPath": "container:",
+                            "identifier": "PalettePressPackageTests",
+                            "name": "PalettePressPackageTests"
+                        ]
+                    ],
+                    [
+                        "target": [
+                            "containerPath": "container:Packages/Shared",
+                            "identifier": "SharedTests",
+                            "name": "SharedTests"
+                        ]
+                    ]
+                ]
+                return plan
+            },
+            shape: .clientServer
+        )
+        #expect(report.findings.isEmpty, "unexpected: \(report.text)")
+    }
+
+    @Test("R9 — a plan inside the generated .swiftpm folder is not read")
+    func planInsideSwiftPMFolderIsIgnored() throws {
+        // Xcode writes package-scheme plans under .swiftpm/ on its own. That
+        // folder is generated state, like .build, and not the project's source.
+        let report = try Fixture.clientServer(
+            shape: .clientServer,
+            then: { root in
+                let folder = root.appendingPathComponent(".swiftpm/xcode/xcshareddata/xctestplans")
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let plan: [String: Any] = [
+                    "testTargets": [[
+                        "target": [
+                            "identifier": "DEADBEEFDEADBEEFDEADBEEF",
+                            "name": "PalettePressPackageTests"
+                        ]
+                    ]]
+                ]
+                try JSONSerialization.data(withJSONObject: plan)
+                    .write(to: folder.appendingPathComponent("PalettePressPackage.xctestplan"))
+            }
+        )
+        #expect(report.findings.isEmpty, "unexpected: \(report.text)")
     }
 
     // MARK: Shape-conditional
@@ -589,6 +684,10 @@ struct DoctorSharedModuleRuleTests {
         let finding = try #require(report.findings.first { $0.summary.contains("outside a shared ViewModels module") })
         #expect(finding.severity == .error)
         #expect(finding.summary.contains("StrayViewModel.swift"))
+        // A framework only the using app embeds satisfies the rule; the remedy
+        // must not read as forcing the module into every target.
+        #expect(finding.remedy.contains("the targets that use it"))
+        #expect(!finding.remedy.contains("every other target"))
     }
 
     @Test("R13 — a ViewModel inside the shared module is silent")

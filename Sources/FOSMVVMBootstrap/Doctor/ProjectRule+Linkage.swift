@@ -93,7 +93,7 @@ extension ProjectRule {
                         severity: .error,
                         target: target.name,
                         summary: "links \(testing.joined(separator: ", ")), which is a testing product, into a non-test target.",
-                        remedy: "Remove the link here, and link \(testing.joined(separator: ", ")) directly on each test target that uses it. Testing products belong on test targets only — linked here they ride into the shipping app — and they do not go through SPMLibraries: test-only types are never shared across targets, so the one-doorway rule does not apply to them."
+                        remedy: "Remove the link here, and link \(testing.joined(separator: ", ")) directly on each test target that uses it. If \(target.name)'s own sources import it, removing the link alone will not compile: move those sources into the test targets that use them, as the scaffolder's templates keep shared test helpers in each test target. Testing products belong on test targets only — linked here they ride into the shipping app — and they do not go through SPMLibraries: test-only types are never shared across targets, so the one-doorway rule does not apply to them."
                     )
                 }
         }
@@ -102,9 +102,17 @@ extension ProjectRule {
     /// R5 — single-embed.
     ///
     /// The app embeds each local framework with sign-on-copy; every other
-    /// target links without embedding, because the test host already carries
-    /// the embedded copy. Embedding twice puts two copies in one bundle, which
-    /// is the type-identity failure the umbrella exists to prevent.
+    /// target links without embedding, each for its own reason:
+    ///
+    /// - A hosted unit-test bundle loads into its test host, the app, which
+    ///   already carries the embedded copy. Embedding again puts two copies in
+    ///   one process, the type-identity failure the umbrella exists to prevent.
+    /// - A UI-test bundle has no host: it runs in a separate runner process and
+    ///   drives the app from outside. Link-only is the shape the scaffolder
+    ///   settled on for it and emits in every template.
+    /// - A framework leaves embedding to the app, which embeds every local
+    ///   framework itself; nesting one inside another puts a second copy in the
+    ///   app bundle.
     static var singleEmbed: ProjectRule {
         ProjectRule(summary: "the app embeds local frameworks with sign-on-copy; nothing else embeds") { project, _ in
             var findings: [Finding] = []
@@ -122,7 +130,7 @@ extension ProjectRule {
                                 severity: .error,
                                 target: target.name,
                                 summary: "embeds \(embedded.name), but only the app should embed.",
-                                remedy: "Change \(embedded.name) to link-only (Do Not Embed) on \(target.name). Its test host already embeds the framework; a second copy in this bundle produces two non-identical copies of the same types."
+                                remedy: "Change \(embedded.name) to link-only (Do Not Embed) on \(target.name). \(singleEmbedReason(for: target.kind))"
                             )
                         )
                     }
@@ -155,6 +163,17 @@ extension ProjectRule {
             }
 
             return findings
+        }
+    }
+
+    private static func singleEmbedReason(for kind: TargetKind) -> String {
+        switch kind {
+        case .unitTestBundle:
+            "Its test host, the app, already embeds the framework; a second copy in this bundle produces two non-identical copies of the same types in one process."
+        case .uiTestBundle:
+            "A UI-test bundle has no test host — it runs in a separate runner process and drives the app from outside — and link-only is the shape the FOSMVVM scaffolder settled on for it and emits in every template."
+        case .application, .framework, .other:
+            "The app embeds every local framework itself; embedding it here as well nests a second copy inside the app bundle, two non-identical copies of the same types."
         }
     }
 }

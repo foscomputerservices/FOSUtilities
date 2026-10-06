@@ -461,7 +461,7 @@ private extension AuditedProject {
     }
 
     static func files(under root: URL) -> [URL] {
-        let skipped: Set = [".build", ".git", "DerivedData", "build"]
+        let skipped: Set = [".build", ".git", ".swiftpm", "DerivedData", "build"]
         guard let walker = FileManager.default.enumerator(
             at: root.standardizedFileURL,
             includingPropertiesForKeys: [.isRegularFileKey]
@@ -495,7 +495,7 @@ private extension AuditedProject {
     /// an empty one — slots declared, art not yet dropped in — still counts.
     static func appIconSetNames(in root: URL) -> Set<String> {
         let iconContainers: Set = ["appiconset", "solidimagestack", "brandassets", "icon"]
-        let skipped: Set = [".build", ".git", "DerivedData", "build"]
+        let skipped: Set = [".build", ".git", ".swiftpm", "DerivedData", "build"]
         let sources = root.appendingPathComponent("Sources")
         guard let walker = FileManager.default.enumerator(
             at: sources.standardizedFileURL,
