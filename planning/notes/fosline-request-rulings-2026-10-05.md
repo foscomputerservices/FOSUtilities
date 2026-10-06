@@ -273,6 +273,14 @@ OQ34–OQ37. **Ruled 2026-10-05 ("OQ33-37 - agreed"), as recommended:**
 
 Facts given to fosline with these: `ViewModelId.init()` mints a random id (marked `isRandom`), so a create form's `vmId` is random unless it uses `.init(type: Self.self)`; `UpdateRequest` itself does not require `TargetedQuery`, the library's write route does.
 
+OQ38. Requiring `TargetedQuery` on `UpdateRequest`, `ArchiveRequest`, `DestroyRequest` (fosline's request, 2026-10-06).
+
+**Ruled 2026-10-06: declined.** David, verbatim: "No, TargetedQuery requires a single id. Those requests could use a more general query to specify a set of records to operate over. that would be like saying that a SQL update always had to specify an id = 42 query." The protocols stay unconstrained; the library's write route keeps its own `TargetedQuery` requirement, and a mismatched registration is still rejected at boot.
+
+OQ39. What a create (or a command that creates) may answer with.
+
+**Ruled 2026-10-06:** a write normally answers with the container's children, but is not limited to that; a create may answer with the new record's identity, as an opaque `ModelIdentity`, or whatever else serves the app. David: "yes, it's not limited to just the id, but sure, why not?" Softens the "never a bare id" wording given to OQ34 and OQ35 in the skills.
+
 ## Awaiting ruling
 
 Raised while building `feat-stub-model-identity.md`; neither blocks it.

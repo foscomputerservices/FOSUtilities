@@ -633,7 +633,7 @@ async function handle{Action}(data) {
 
 ### Container's Children Response
 
-Every write, a create, an update, or a command, answers with the container's children (data-bearing), never a bare id. The client already holds the target's identity, so echoing it back adds nothing:
+A write normally answers with the container's children (data-bearing): the screen gets its new state in one round trip. It is not limited to that; a create may answer with the new record's identity (an opaque `ModelIdentity`, never a raw id) or whatever else the app needs, and the app fetches what it wants next:
 
 ```swift
 public struct ResponseBody: CreateResponseBody {
@@ -642,6 +642,12 @@ public struct ResponseBody: CreateResponseBody {
 
 public struct ResponseBody: UpdateResponseBody {
     public let viewModel: BoardViewModel  // the board's cards, the updated one included
+}
+```
+
+```swift
+public struct ResponseBody: CreateResponseBody {
+    public let modelIdentity: ModelIdentity  // the new card; the app reads it with its own request
 }
 ```
 
