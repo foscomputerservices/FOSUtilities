@@ -67,6 +67,8 @@ The templates embed into the app **only**. Everything else links. `Templates/loc
 
 The unit-test target at `:114` does the same, because its `TEST_HOST` is the app, which already carries the embedded copy. Embedding again would put a second copy in the bundle — the exact type-identity failure the umbrella exists to prevent.
 
+The UI-test target links only too, for a different reason: it has no `TEST_HOST` — it runs in a separate runner process and drives the app from outside — so there is no host copy to duplicate. Link-only is the shape the scaffolder settled on for it by trial and error (ruled OQ41, 2026-10-06), and doctor's remedy says so rather than borrowing the unit-test reason.
+
 So the rule is **single-embed**: the app embeds SPMLibraries and every local framework with sign-on-copy; every other target links only.
 
 ---
@@ -83,7 +85,7 @@ Twelve, restated against what the templates actually do.
 
 **R4a — shipping FOS products enter only through SPMLibraries.** Severity: error. See the reconciliation above.
 
-**R4b — testing FOS products enter only through test targets.** Severity: error. Their presence in SPMLibraries means testing code is riding into the shipping app.
+**R4b — testing FOS products enter only through test targets.** Severity: error. Their presence in SPMLibraries means testing code is riding into the shipping app. When a non-test target's own sources import the testing product, unlinking it alone cannot compile; the remedy is to move those sources into the test targets that use them, as the templates keep shared helpers per test target.
 
 **R5 — single-embed.** Severity: error. The app embeds SPMLibraries and each local framework with sign-on-copy; every other target links without embedding.
 
@@ -222,7 +224,9 @@ That test needs `xcodegen` on the machine, so it cannot join the fast suite. It 
 
 **Why declared values are enough for v1.** Every rule in the table is a setting the templates write literally, at a known level. Inheritance matters when a customer introduces xcconfigs, which is exactly when they will reach for `--resolved`.
 
-**R9 honours `containerPath` (corrected 2026-08-24).** It first validated every `.xctestplan` in the tree against the root project, which is wrong the moment a repo holds more than one Xcode project. Pointed at a real codebase, it reported a dangling reference for a plan whose `containerPath` named a sibling project that had not been generated yet — a confident finding about a file that was not its business. References naming another container are now skipped. Both corrections in this section came from the same exercise, and neither was reachable from a project the scaffolder had generated: those are correct by construction, so they can only confirm the rules, never falsify them.
+**R9 honours `containerPath` (corrected 2026-08-24).** It first validated every `.xctestplan` in the tree against the root project, which is wrong the moment a repo holds more than one Xcode project. Pointed at a real codebase, it reported a dangling reference for a plan whose `containerPath` named a sibling project that had not been generated yet — a confident finding about a file that was not its business. References naming another container are now skipped.
+
+**R9 skips SwiftPM package references and `.swiftpm/` (corrected 2026-10-06).** A field report on a hand-maintained project with a root `Package.swift` showed two more misses. A reference whose container is a SwiftPM package (`container:` or `container:Packages/Shared`) was treated as this project's and judged against pbxproj identifiers it can never match; only a nil container or this project's `.xcodeproj` now counts. And the file walk read the generated `.swiftpm/**/*.xctestplan`; `.swiftpm` is now skipped alongside `.build`, `.git`, `DerivedData`, and `build`. Both corrections in this section came from the same exercise, and neither was reachable from a project the scaffolder had generated: those are correct by construction, so they can only confirm the rules, never falsify them.
 
 **The manifest scan reads both spellings (corrected 2026-08-24).** It first read only string literals, on the reasoning that the scaffolder emits `.macOS("14.0")`. That was the wrong subject: doctor exists for projects the scaffolder never created, and those are usually written `.macOS(.v14)` — as FOSUtilities' own manifest is. The narrow scan meant R10's floor check silently did nothing for most of its actual subjects while reporting a warning that read like a limitation rather than a miss. Caught by running the plugin from a throwaway consumer package, which is why that gate was worth executing rather than assuming.
 

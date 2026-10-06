@@ -1686,7 +1686,7 @@ The shared module solves agreement between targets that are *compiled together*.
 Two carve-outs, both deliberate:
 
 - **Testing products** (`FOSTesting`, `FOSTestingUI`, `FOSTestingVapor`) stay *out* of the umbrella and link directly into test targets. The umbrella embeds in the shipping app, and testing products must not ride along; their types are never shared across target boundaries, so the identity rule does not apply to them. (Ruled 2026-08-19.)
-- **Single-embed.** The app embeds the umbrella and every local framework with sign-on-copy; every other target links without embedding, because the test host already carries the embedded copy. Embedding twice puts two copies in one bundle — the identity failure the umbrella exists to prevent, reintroduced.
+- **Single-embed.** The app embeds the umbrella and every local framework with sign-on-copy; every other target links without embedding. A hosted unit-test bundle links only because its test host, the app, already carries the embedded copy; embedding twice puts two copies in one process — the identity failure the umbrella exists to prevent, reintroduced. A UI-test bundle has no host — it runs in a separate runner process and drives the app from outside — and links only because that is the shape the scaffolder settled on, by trial and error, and emits in every template.
 
 This is enforced in three places, and they must agree: the scaffolder's `project.yml` templates emit it, `fosmvvm-doctor` audits an existing project for it (rules R4a/R4b/R5), and generated projects ship a `memory/spm-libraries-settled.md` carrying the argument for the app's own future sessions.
 
