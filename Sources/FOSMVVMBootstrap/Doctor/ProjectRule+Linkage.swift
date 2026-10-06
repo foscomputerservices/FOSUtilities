@@ -169,7 +169,7 @@ extension ProjectRule {
     private static func singleEmbedReason(for kind: TargetKind) -> String {
         switch kind {
         case .unitTestBundle:
-            "Its test host, the app, already embeds the framework; a second copy in this bundle produces two non-identical copies of the same types in one process."
+            "In the FOSMVVM shape every unit-test bundle is hosted, and its test host, the app, already embeds the framework; a second copy in this bundle produces two non-identical copies of the same types in one process."
         case .uiTestBundle:
             "A UI-test bundle has no test host — it runs in a separate runner process and drives the app from outside — and link-only is the shape the FOSMVVM scaffolder settled on for it and emits in every template."
         case .application, .framework, .other:
