@@ -52,7 +52,8 @@ enum Fixture {
         mutatingEntitlements: ((String) -> String)? = nil,
         mutatingManifest: ((String) -> String)? = nil,
         mutatingTestPlan: (([String: Any]) -> [String: Any])? = nil,
-        shape: ProjectShape? = nil
+        shape: ProjectShape? = nil,
+        then edit: ((URL) throws -> Void)? = nil
     ) throws -> Doctor.Report {
         try examine(
             "ClientServer",
@@ -61,7 +62,8 @@ enum Fixture {
             mutatingEntitlements: mutatingEntitlements,
             mutatingManifest: mutatingManifest,
             mutatingTestPlan: mutatingTestPlan,
-            shape: shape
+            shape: shape,
+            then: edit
         )
     }
 

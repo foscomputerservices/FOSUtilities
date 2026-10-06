@@ -360,6 +360,62 @@ struct DoctorStructureRuleTests {
         #expect(report.findings.contains { $0.summary.contains("identifier no target") })
     }
 
+    @Test("R9 — a plan's SwiftPM package references are left alone")
+    func planForAPackageContainer() throws {
+        // A package scheme's plan names its test targets by the package's
+        // container, with identifiers that are target names rather than pbxproj
+        // object identifiers. They can never match this project's targets, so
+        // judging them reports every package test target as dangling.
+        let report = try Fixture.clientServer(
+            mutatingTestPlan: { plan in
+                var plan = plan
+                plan["testTargets"] = [
+                    [
+                        "target": [
+                            "containerPath": "container:",
+                            "identifier": "PalettePressPackageTests",
+                            "name": "PalettePressPackageTests"
+                        ]
+                    ],
+                    [
+                        "target": [
+                            "containerPath": "container:Packages/Shared",
+                            "identifier": "SharedTests",
+                            "name": "SharedTests"
+                        ]
+                    ]
+                ]
+                return plan
+            },
+            shape: .clientServer
+        )
+        #expect(report.findings.isEmpty, "unexpected: \(report.text)")
+    }
+
+    @Test("R9 — a plan inside the generated .swiftpm folder is not read")
+    func planInsideSwiftPMFolderIsIgnored() throws {
+        // Xcode writes package-scheme plans under .swiftpm/ on its own. That
+        // folder is generated state, like .build, and not the project's source.
+        let report = try Fixture.clientServer(
+            shape: .clientServer,
+            then: { root in
+                let folder = root.appendingPathComponent(".swiftpm/xcode/xcshareddata/xctestplans")
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let plan: [String: Any] = [
+                    "testTargets": [[
+                        "target": [
+                            "identifier": "DEADBEEFDEADBEEFDEADBEEF",
+                            "name": "PalettePressPackageTests"
+                        ]
+                    ]]
+                ]
+                try JSONSerialization.data(withJSONObject: plan)
+                    .write(to: folder.appendingPathComponent("PalettePressPackage.xctestplan"))
+            }
+        )
+        #expect(report.findings.isEmpty, "unexpected: \(report.text)")
+    }
+
     // MARK: Shape-conditional
 
     @Test("R7 — a client-server app without outgoing connections is an error")
