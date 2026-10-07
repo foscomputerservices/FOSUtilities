@@ -14,7 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if os(WASI)
+#if os(WASI) && !WASM
+#error("Building FOSUtilities for WASI requires its WASM trait: add traits: [\"WASM\"] to the FOSUtilities package dependency.")
+#endif
+
+#if os(WASI) && WASM
 import Foundation
 import JavaScriptKit
 
@@ -179,4 +183,4 @@ public final class URLSession: URLSessionProtocol {
         shared as! Self
     }
 }
-#endif // os(WASI)
+#endif // os(WASI) && WASM

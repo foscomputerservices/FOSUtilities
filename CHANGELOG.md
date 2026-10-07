@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrading from 0.20.1
+
+- **Building for WebAssembly:** add `traits: ["WASM"]` to your FOSUtilities package dependency (the same way a server enables `APNs`). Without it, a WASI build stops with an error naming the trait.
+
+### Changed
+
+- **JavaScriptKit sits behind the new `WASM` trait** — off by default, so a package that does not build for WebAssembly no longer resolves or pins JavaScriptKit (current SwiftPM skips fetching it; older toolchains may still fetch it). With the trait on, a WASI build links JavaScriptKit and gets FOSFoundation's fetch-backed `URLSession`, as before.
+
 ## [0.20.1] - 2026-10-07
 
 ### Fixed
