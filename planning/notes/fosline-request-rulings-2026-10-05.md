@@ -273,6 +273,26 @@ OQ34–OQ37. **Ruled 2026-10-05 ("OQ33-37 - agreed"), as recommended:**
 
 Facts given to fosline with these: `ViewModelId.init()` mints a random id (marked `isRandom`), so a create form's `vmId` is random unless it uses `.init(type: Self.self)`; `UpdateRequest` itself does not require `TargetedQuery`, the library's write route does.
 
+OQ38. Requiring `TargetedQuery` on `UpdateRequest`, `ArchiveRequest`, `DestroyRequest` (fosline's request, 2026-10-06).
+
+**Ruled 2026-10-06: declined.** David, verbatim: "No, TargetedQuery requires a single id. Those requests could use a more general query to specify a set of records to operate over. that would be like saying that a SQL update always had to specify an id = 42 query." The protocols stay unconstrained; the library's write route keeps its own `TargetedQuery` requirement, and a mismatched registration is still rejected at boot.
+
+OQ39. What a create (or a command that creates) may answer with.
+
+**Ruled 2026-10-06:** a write normally answers with the container's children, but is not limited to that; a create may answer with the new record's identity, as an opaque `ModelIdentity`, or whatever else serves the app. David: "yes, it's not limited to just the id, but sure, why not?" Softens the "never a bare id" wording given to OQ34 and OQ35 in the skills.
+
+OQ40. An upgrade note for adopters coming from 0.19.x with a lockfile.
+
+**Ruled 2026-10-06 ("yes"):** added to the 0.20.0 GitHub release and the CHANGELOG's 0.20.0 section: move the FOSUtilities pin to 0.20.0 first, then add `traits: ["APNs"]`, because SwiftPM checks the trait against the currently pinned version.
+
+OQ41. Single-embed (R5) on UI-test bundles (a consumer's doctor field report, 2026-10-06).
+
+**Ruled 2026-10-06:** link-only for UI-test bundles is doctrine. David: "yes, I think with trial and error we finally settled this in FOSUtilities and [the consumer] is behind". The rule stays; its stated reason is corrected for UI-test bundles (`planning/stream/chore-doctor-field-report-2026-10-06.md`).
+
+OQ42. Who translates the `FOSForms` stock titles.
+
+**Ruled 2026-10-06:** the client provides them; FOSUtilities ships none. David: "correct, client provides the mappings". The docs did not say so; `planning/stream/docs-fosforms-stock-titles.md` closes that.
+
 ## Awaiting ruling
 
 Raised while building `feat-stub-model-identity.md`; neither blocks it.

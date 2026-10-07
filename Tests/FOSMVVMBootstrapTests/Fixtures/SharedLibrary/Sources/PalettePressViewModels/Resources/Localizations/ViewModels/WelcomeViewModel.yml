@@ -3,8 +3,16 @@ en:
     welcomeTitle: "Welcome"
     welcomeMessage: "Your FOSMVVM shared library is alive."
     okButtonTitle: "OK"
+  FOSForms:
+    ok: "OK"
+    cancel: "Cancel"
+    save: "Save"
 es:
   WelcomeViewModel:
     welcomeTitle: "Bienvenido"
     welcomeMessage: "Tu biblioteca compartida FOSMVVM está viva."
     okButtonTitle: "Aceptar"
+  FOSForms:
+    ok: "Aceptar"
+    cancel: "Cancelar"
+    save: "Guardar"

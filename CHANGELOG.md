@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`fosmvvm-doctor` no longer reports a SwiftPM package's test plan** — references to a package's test targets (`container:`) are left alone, and the generated `.swiftpm/` folder is not read.
+- **`fosmvvm-doctor` remedies state a true reason** — single-embed explains each target kind on its own terms (a hosted unit-test bundle's host already embeds; a UI-test bundle links only, the scaffolder's settled shape); the testing-products remedy says to move a non-test target's own testing sources into the test targets that use them; the shared-module remedy asks only the targets that use the ViewModels module to import it.
+
+### Documentation
+
+- **`FOSForms` stock titles are the client's to translate** — `LocalizableString.defaultOkTitle`, `defaultCancelTitle`, and `defaultSaveTitle` (the default save title of `@FormFieldModel`) resolve the YAML keys `FOSForms.ok`, `FOSForms.cancel`, and `FOSForms.save`, which FOSUtilities does not ship; the DocC now says so, and scaffolded projects carry the keys.
+- **A create may answer with the new record's identity** — the serverrequest skill no longer forbids it; a write normally answers with the container's children.
+
 ## [0.20.0] - 2026-10-05
+
+### Upgrading from 0.19.x
+
+- **With a lockfile:** move your FOSUtilities pin to 0.20.0 first (resolve without `traits:`), then add `traits: ["APNs"]` and resolve again. SwiftPM checks the trait against the currently pinned version, which declares no traits.
 
 ### Added
 

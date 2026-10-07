@@ -43,7 +43,7 @@ extension ProjectRule {
                 Finding(
                     severity: .error,
                     summary: "\(homeless.count) ViewModel declaration\(homeless.count == 1 ? " lives" : "s live") outside a shared ViewModels module: \(shown)\(overflow).",
-                    remedy: "Create a shared module — Sources/<Name>ViewModels, its own framework or library target — holding the ViewModels, ServerRequests, and Fields, and have every other target import it."
+                    remedy: "Create a shared module — Sources/<Name>ViewModels, its own framework or library target — holding the ViewModels, ServerRequests, and Fields, and have the targets that use it import it."
                 )
             ]
         }

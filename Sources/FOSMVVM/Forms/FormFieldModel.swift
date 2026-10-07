@@ -54,6 +54,11 @@ public final class FormFieldModel<Value: Codable & Hashable>: Codable, Resettabl
         self
     }
 
+    /// The title of the form's save button.
+    ///
+    /// Defaults to the YAML key `FOSForms.save`, which your app translates
+    /// (see ``LocalizableString/defaultSaveTitle``). Pass `saveButtonTitle:` to
+    /// ``init(_:default:saveButtonTitle:)`` to use your own key instead.
     public let saveButtonTitle: LocalizableString
     public let cancelButtonTitle: LocalizableString
     public var hasValue: Bool {
@@ -129,6 +134,9 @@ public final class FormFieldModel<Value: Codable & Hashable>: Codable, Resettabl
     }
 
     /// Initializes a new `FormFieldModel`
+    ///
+    /// > When *saveButtonTitle* is omitted the title is the YAML key `FOSForms.save`.
+    /// > Your app provides that translation; see ``LocalizableString/defaultSaveTitle``.
     ///
     /// > If *formField* is not provided during initialization, it **must** be provided
     /// > before use.

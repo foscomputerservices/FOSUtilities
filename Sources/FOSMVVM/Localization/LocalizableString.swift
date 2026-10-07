@@ -209,14 +209,59 @@ public extension LocalizableString {
 }
 
 public extension LocalizableString {
+    /// The stock "OK" button label, the YAML key `FOSForms.ok`.
+    ///
+    /// Pass it wherever a ViewModel needs an acknowledge button title: `okButtonTitle: .defaultOkTitle`. Provide the translation like this:
+    ///
+    /// ```yaml
+    /// en:
+    ///   FOSForms:
+    ///     ok: "OK"
+    ///     cancel: "Cancel"
+    ///     save: "Save"
+    /// ```
+    ///
+    /// > FOSUtilities ships no translation for the `FOSForms` keys. Your app provides them
+    /// > in its own YAML, in every locale it supports. Until they exist,
+    /// > `expectFullViewModelTests()` fails under strict localization.
     static var defaultOkTitle: Self {
         .localized(.value(keys: "FOSForms", "ok"))
     }
 
+    /// The stock "Cancel" button label, the YAML key `FOSForms.cancel`.
+    ///
+    /// ``FormFieldModel`` uses it for its cancel button, so every form ViewModel needs this key. Provide the translation like this:
+    ///
+    /// ```yaml
+    /// en:
+    ///   FOSForms:
+    ///     ok: "OK"
+    ///     cancel: "Cancel"
+    ///     save: "Save"
+    /// ```
+    ///
+    /// > FOSUtilities ships no translation for the `FOSForms` keys. Your app provides them
+    /// > in its own YAML, in every locale it supports. Until they exist,
+    /// > `expectFullViewModelTests()` fails under strict localization.
     static var defaultCancelTitle: Self {
         .localized(.value(keys: "FOSForms", "cancel"))
     }
 
+    /// The stock "Save" button label, the YAML key `FOSForms.save`.
+    ///
+    /// ``FormFieldModel`` uses it for its save button unless you pass `saveButtonTitle:`, so every form ViewModel needs this key. Provide the translation like this:
+    ///
+    /// ```yaml
+    /// en:
+    ///   FOSForms:
+    ///     ok: "OK"
+    ///     cancel: "Cancel"
+    ///     save: "Save"
+    /// ```
+    ///
+    /// > FOSUtilities ships no translation for the `FOSForms` keys. Your app provides them
+    /// > in its own YAML, in every locale it supports. Until they exist,
+    /// > `expectFullViewModelTests()` fails under strict localization.
     static var defaultSaveTitle: Self {
         .localized(.value(keys: "FOSForms", "save"))
     }

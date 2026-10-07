@@ -99,10 +99,12 @@ extension ProjectRule {
     ///
     /// `containerPath` is `container:MyApp.xcodeproj`. A reference with no
     /// container is taken as this project's; one naming a different `.xcodeproj`
-    /// belongs to a sibling and is left alone.
+    /// belongs to a sibling and is left alone, as does one naming a SwiftPM
+    /// package (`container:` or `container:Packages/Shared`), whose identifiers
+    /// are target names rather than pbxproj object identifiers.
     private static func belongsHere(_ container: String?, project: AuditedProject) -> Bool {
-        guard let container, container.hasSuffix(".xcodeproj") else { return true }
-        guard let name = project.xcodeProjectName else { return false }
+        guard let container else { return true }
+        guard container.hasSuffix(".xcodeproj"), let name = project.xcodeProjectName else { return false }
         return container.hasSuffix("/\(name)") || container == "container:\(name)"
     }
 }

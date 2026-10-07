@@ -5,6 +5,10 @@ en:
     errorTitle: "An Error Occurred"
     errorMessage: "The operation failed: %{error}"
     dismissButtonLabel: "OK"
+  FOSForms:
+    ok: "OK"
+    cancel: "Cancel"
+    save: "Save"
 
 es:
   BoardViewModel:
@@ -13,3 +17,7 @@ es:
     errorTitle: "Ocurrió un Error"
     errorMessage: "La operación falló: %{error}"
     dismissButtonLabel: "Aceptar"
+  FOSForms:
+    ok: "Aceptar"
+    cancel: "Cancelar"
+    save: "Guardar"
