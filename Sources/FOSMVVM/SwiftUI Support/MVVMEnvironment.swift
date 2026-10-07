@@ -21,7 +21,7 @@ import SwiftUI
 #else
 import Observation
 #endif
-#if os(WASI)
+#if os(WASI) && WASM
 import JavaScriptKit
 #endif
 #if canImport(FoundationNetworking)
@@ -492,7 +492,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) {
-        #if os(WASI)
+        #if os(WASI) && WASM
         _ = JSObject.global.console.log("[MVVMEnv] Designated init started")
         #endif
         self.localizationStore = nil
@@ -505,7 +505,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.requestErrorHandler = requestErrorHandler
         self.session = session
 
-        #if os(WASI)
+        #if os(WASI) && WASM
         _ = JSObject.global.console.log("[MVVMEnv] Before version setup")
         #endif
 
@@ -519,7 +519,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         SystemVersion.setCurrentVersion(currentVersion)
         #endif
 
-        #if os(WASI)
+        #if os(WASI) && WASM
         _ = JSObject.global.console.log("[MVVMEnv] Init complete")
         #endif
     }
@@ -559,7 +559,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         session: URLSession? = nil,
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil
     ) {
-        #if os(WASI)
+        #if os(WASI) && WASM
         _ = JSObject.global.console.log("[MVVMEnv] Convenience init started")
         #endif
         self.init(

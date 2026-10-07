@@ -83,6 +83,10 @@ let package = Package(
             name: "APNs",
             description: "Apple push notifications from FOSMVVMVapor (PushNotificationService). Off by default; APNSwift and the push code are compiled only when it is on."
         ),
+        .trait(
+            name: "WASM",
+            description: "WebAssembly (WASI) support in FOSFoundation and FOSMVVM: URLSession over the browser's fetch through JavaScriptKit. Off by default; a WASI build requires it, and JavaScriptKit is linked only when it is on."
+        ),
         .default(enabledTraits: [])
     ],
     dependencies: {
@@ -102,6 +106,8 @@ let package = Package(
             // Yams to avoid a package-identity collision with downstream consumers that also
             // depend on jpsim/Yams (SwiftPM package deps cannot be platform-conditioned).
             .package(url: "https://github.com/jpsim/Yams.git", .upToNextMajor(from: "6.2.2")),
+            // Linked only when a consumer enables the WASM trait. With the trait off,
+            // current SwiftPM also skips fetching it; older toolchains may still fetch it.
             .package(url: "https://github.com/swiftwasm/JavaScriptKit", from: "0.19.0")
         ]
 
@@ -134,7 +140,7 @@ let package = Package(
                 dependencies: [
                     // Crypto only for Linux (not needed for WASI/WASM)
                     .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
-                    .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi]))
+                    .product(name: "JavaScriptKit", package: "JavaScriptKit", condition: .when(platforms: [.wasi], traits: ["WASM"]))
                 ]
             ),
             .macro(
