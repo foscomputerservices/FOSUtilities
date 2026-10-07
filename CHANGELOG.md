@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2026-10-07
+
 ### Upgrading from 0.20.1
 
 - **Building for WebAssembly:** add `traits: ["WASM"]` to your FOSUtilities package dependency (the same way a server enables `APNs`). Without it, a WASI build stops with an error naming the trait.
