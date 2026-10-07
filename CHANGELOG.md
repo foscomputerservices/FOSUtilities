@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-10-07
+
 ### Fixed
 
 - **`fosmvvm-doctor` no longer reports a SwiftPM package's test plan** — references to a package's test targets (`container:`) are left alone, and the generated `.swiftpm/` folder is not read.
