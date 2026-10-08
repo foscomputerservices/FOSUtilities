@@ -58,12 +58,12 @@ jobs:
   # what happened.
   changes:
     name: Detect code changes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       code: ${{ steps.decide.outputs.code }}
       patch_id: ${{ steps.filter.outputs.patch_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -117,7 +117,7 @@ jobs:
       # A hit restores the marker the green run wrote, so the summary can name it.
       - id: green
         if: steps.filter.outputs.code_paths == 'true' && steps.filter.outputs.patch_id != ''
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .ci-green
           key: ci-green-${{ steps.filter.outputs.patch_id }}
@@ -151,16 +151,26 @@ jobs:
     name: Format and lint
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      # `brew install` leaves a preinstalled older formula alone, and the
-      # runner image pool has carried two SwiftFormat versions at once;
-      # `brew upgrade` makes latest mean latest on every runner.
+      # The latest release binaries, straight from each project. Not Homebrew: the
+      # runner image pool has carried two SwiftFormat versions at once, and making
+      # Homebrew upgrade them also cleans up and migrates every preinstalled formula,
+      # which floods the run with warnings about packages we never use.
       - name: Install linters
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          brew update
-          brew install swiftformat swiftlint
-          brew upgrade swiftformat swiftlint
+          mkdir -p "$RUNNER_TEMP/linters"
+          cd "$RUNNER_TEMP/linters"
+          gh release download --repo nicklockwood/SwiftFormat --pattern swiftformat.zip
+          gh release download --repo realm/SwiftLint --pattern portable_swiftlint.zip
+          unzip -q swiftformat.zip
+          unzip -q -o portable_swiftlint.zip
+          chmod +x swiftformat swiftlint
+          echo "$RUNNER_TEMP/linters" >> "$GITHUB_PATH"
+          ./swiftformat --version
+          ./swiftlint version
 
       # --lint reports without writing. `swiftformat .` is the fix.
       # fileHeader is excluded here, not in .swiftformat: its template year is
@@ -187,31 +197,23 @@ jobs:
   run_tests:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    name: Test Swift v${{ matrix.swift }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Test Swift ${{ matrix.swift }} on Ubuntu 26.04
+    # The official swift.org image, not a setup action: swift.org publishes Ubuntu 26.04
+    # (resolute) toolchains from Swift 6.4.0; 6.3.x stops at Ubuntu 24.04.
+    runs-on: ubuntu-26.04
+    container: swift:${{ matrix.swift }}-resolute
     strategy:
       matrix:
-        os: [ubuntu-latest] #, windows-latest] #, macos-latest] -- MasOS hangs on swift build, runs fine on xcodebuild
-        swift: ["6.3.2"] # match the dev/release toolchain; 6.2.1 crashed under parallel-test load (runtime bug fixed upstream)
+        swift: ["6.4.0"] # match the dev/release toolchain; 6.2.1 crashed under parallel-test load (runtime bug fixed upstream)
       fail-fast: false
     steps:
-      - uses: SwiftyLab/setup-swift@latest
-        with:
-          swift-version: ${{ matrix.swift }}
-
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
       - name: Run Tests
-        run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            swift build
-          else
-            swift test --traits APNs
-          fi
+        run: swift test --traits APNs
         shell: bash
 
       - name: API Catalog Audit
-        if: matrix.os == 'ubuntu-latest'
         run: swift scripts/api-catalog-audit.swift
         shell: bash
 
@@ -221,19 +223,15 @@ jobs:
   run_release_build:
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    name: Build (Release) Swift v${{ matrix.swift }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Build (Release) Swift ${{ matrix.swift }} on Ubuntu 26.04
+    runs-on: ubuntu-26.04
+    container: swift:${{ matrix.swift }}-resolute
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        swift: ["6.3.2"]
+        swift: ["6.4.0"]
       fail-fast: false
     steps:
-      - uses: SwiftyLab/setup-swift@latest
-        with:
-          swift-version: ${{ matrix.swift }}
-
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
       - name: Build (Release)
         run: swift build -c release
@@ -270,7 +268,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
       - name: Install xcpretty
         run: gem install xcpretty
@@ -352,7 +350,7 @@ jobs:
         with:
           xcode-version: "26.3"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Printed, not assumed. The Xcode-to-SDK pairing is what this leg is about, and the
       # Swift version is the other half of the floor the README does not currently state.
@@ -401,7 +399,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Record the toolchain this leg actually got
         run: |
@@ -452,7 +450,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
       - name: Staleness gate
         run: swift scripts/localizable-overload-sweep.swift --check
@@ -483,7 +481,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -518,7 +516,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -570,7 +568,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -655,7 +653,7 @@ jobs:
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -737,14 +735,14 @@ jobs:
       - bootstrap_generated_app_tests
       - probe_ui_tests
     if: needs.changes.outputs.code == 'true' && needs.changes.outputs.patch_id != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Write the marker
         run: |
           mkdir -p .ci-green
           echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > .ci-green/run
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         with:
           path: .ci-green
           key: ci-green-${{ needs.changes.outputs.patch_id }}
