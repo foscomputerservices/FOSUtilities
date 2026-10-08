@@ -637,8 +637,12 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     /// Whether `failure` actually reached the caller's binding; only then can emptying that binding
     /// be a retry (a binding that drops writes, like `.constant(nil)`, must not loop).
     @State private var failureDelivered = false
-    /// Bumped to fetch again after a failure.
+    /// Bumped to fetch again for the same query and fragment: a retry, or an invalidation.
     @State private var attempt = 0
+    /// The key whose ViewModel is on screen, so the view reappearing does not fetch it again.
+    @State private var shownKey: LoadKey?
+    /// Bumped as each load starts, so a live refresh that began earlier knows it was superseded.
+    @State private var loadGeneration = 0
     /// Inert unless `VM` is a `LiveViewModel`: only then is it ever handed a dispatcher (see
     /// `registerLive`), so a non-live bind never touches the invalidation machinery.
     @State private var liveCoordinator = LiveRegistrationCoordinator()
@@ -648,28 +652,23 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     private let error: Binding<Error?>?
     private let loadingView: ((Error?) -> LoadingView)?
 
+    /// Every load (first, navigation, retry, invalidation) runs in the one `.task(id:)` keyed on
+    /// this, so SwiftUI cancels a superseded or abandoned load.
+    private struct LoadKey: Equatable {
+        let query: VM.Request.Query?
+        let fragment: VM.Request.Fragment?
+        let attempt: Int
+    }
+
+    private var loadKey: LoadKey {
+        LoadKey(query: query, fragment: fragment, attempt: attempt)
+    }
+
     var body: some View {
         ZStack {
             if let viewModel {
                 VMV(viewModel: viewModel)
                     .id(viewModel.vmId)
-                    .onChange(of: query, initial: true) { Task {
-                        await loadAndBind()
-                        viewModelInvalidated.wrappedValue = false
-                    } }
-                    .onChange(of: fragment, initial: true) {
-                        guard fragment != nil else { return }
-                        Task {
-                            await loadAndBind()
-                            viewModelInvalidated.wrappedValue = false
-                        }
-                    }
-                    .onChange(of: viewModelInvalidated.wrappedValue, initial: false) {
-                        guard viewModelInvalidated.wrappedValue == true else {
-                            return
-                        }
-                        self.viewModel = nil
-                    }
                     .onChange(of: viewModelRefreshed.wrappedValue, initial: false) {
                         let refreshedVMStr = viewModelRefreshed.wrappedValue
 
@@ -687,10 +686,22 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                         Task { await refreshInPlace() }
                     }
             } else {
-                waitingView.task(id: attempt) {
-                    await loadAndBind()
-                }
+                waitingView
             }
+        }
+        .task(id: loadKey) {
+            guard viewModel == nil || loadKey != shownKey else { return }
+            await loadAndBind(key: loadKey)
+        }
+        // Observed here, not on the bound view, so an invalidation that arrives mid-load restarts
+        // it. The flag is acknowledged at once, so it can never be left set.
+        .onChange(of: viewModelInvalidated.wrappedValue, initial: false) {
+            guard viewModelInvalidated.wrappedValue == true else {
+                return
+            }
+            viewModelInvalidated.wrappedValue = false
+            viewModel = nil
+            attempt += 1
         }
         .onChange(of: retryRequested, initial: false) {
             guard retryRequested else { return }
@@ -737,7 +748,8 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     /// Navigation / initial load: replace the bound ViewModel outright (no gate — different data),
     /// then (re-)register the live set if `VM` is live. A failed load registers nothing and lands in
     /// `failure` and the caller's binding under the `task(error:)` rules.
-    private func loadAndBind() async {
+    private func loadAndBind(key: LoadKey) async {
+        loadGeneration += 1
         let failureBinding = ServerBindFailure.binding(
             failure: Binding(get: { failure }, set: { failure = $0 }),
             delivered: Binding(get: { failureDelivered }, set: { failureDelivered = $0 }),
@@ -758,6 +770,7 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                 let registrations = try await request.processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
                 guard !Task.isCancelled else { return }
                 viewModel = request.viewModel
+                shownKey = key
                 registerLive(registrations)
             } catch {
                 guard !Task.isCancelled else { throw error }
@@ -779,14 +792,29 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     ///
     /// A failed re-fetch keeps the stale data on screen and keeps listening with the prior set —
     /// reregistering to an empty set would deafen it until the next `.connected` sweep or
-    /// navigation. A genuinely-empty *successful* response still reregisters to empty.
+    /// navigation. A credential rejection still reaches the `error:` binding. A refresh that a
+    /// newer load superseded changes nothing. A genuinely-empty *successful* response still
+    /// reregisters to empty.
     private func refreshInPlace() async {
+        let generation = loadGeneration
         let request = makeRequest()
         do {
             let registrations = try await request.processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+            // A navigation, retry or invalidation since this began owns the screen now
+            guard generation == loadGeneration, viewModel != nil else { return }
             swapThroughFreshnessGate(request.viewModel)
             registerLive(registrations)
+        } catch let rejection as CredentialRejectedError {
+            guard generation == loadGeneration else { return }
+            // A rejection always reaches the caller: the screen keeps its data and its `error:`
+            // binding gets the rejection, so the app can re-authenticate
+            ServerBindFailure.binding(
+                failure: Binding(get: { failure }, set: { failure = $0 }),
+                delivered: Binding(get: { failureDelivered }, set: { failureDelivered = $0 }),
+                caller: error
+            ).wrappedValue = rejection
         } catch {
+            guard generation == loadGeneration else { return }
             // fosmvvm-review:disable:next no-silent-failure -- the screen keeps its data; stale-data signal: planning/stream/feat-stale-data-signal.md
             print("ViewModel Refresh Error: \(error)")
             _ = request.routeToRequestErrorHandler(error, mvvmEnv: mvvmEnv)

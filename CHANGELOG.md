@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A bound screen fetches once.** A successful first load no longer triggers a second fetch.
+- **A query or fragment change cancels the load it replaces,** so a slow, superseded load can no longer overwrite the newer result.
+- **An invalidation that arrives while a screen is loading is no longer lost;** the load restarts.
+- **A live refresh that a newer load superseded no longer installs stale data.**
+- **A credential rejection during a live refresh reaches the screen's `error:` binding** instead of being dropped; the data on screen stays.
 - **`MVVMEnvironment`'s `loadingView` is shown again.** `bind()` had ignored it and always shown a plain `ProgressView`.
 
 ## [0.20.2] - 2026-10-07
