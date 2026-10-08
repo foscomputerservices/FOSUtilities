@@ -1,5 +1,5 @@
 ---
-status: open
+status: in progress
 last_updated: 2026-10-08
 origin: David, 2026-10-08, from the PR #167 CI run's annotations ("For the next work item after this PR merges, is there any way to resolve these warnings?")
 ---
@@ -52,3 +52,4 @@ The step's comment records why it upgrades (an older preinstalled SwiftFormat on
 ## History
 
 - 2026-10-08 — Opened at David's direction, to start right after PR #167 merges.
+- 2026-10-08 — Built on `chore/ci-warnings`. Annotations of the full run 37793923225 grouped: 17 Node 20 warnings (checkout@v2/@v4, cache/restore@v4), 10 Homebrew warnings (the automatic `brew cleanup` after install, and the azure-cli formula-to-cask migration, both over preinstalled formulae), 1 SwiftyLab cache-reservation warning, 1 overload-sweep floor warning (a documented deferral in `docs/deferrals.md`, out of scope here), 18 notices (macOS capacity, kept; Ubuntu 26 migration), 16 cancellations from a superseded run. Changes: checkout@v7 and cache@v6 (both Node 24; v7's fork-PR block does not affect our `pull_request` / `workflow_dispatch` triggers); linters from the latest SwiftFormat/SwiftLint release binaries instead of Homebrew; Linux jobs on `ubuntu-26.04` in `swift:6.4.0-resolute`, SwiftyLab removed; the two remaining `ubuntu-latest` jobs on `ubuntu-26.04`. `main` requires no status checks, so the renamed Linux jobs block nothing. Linux build on 6.4 not yet proven: Docker is not running locally; the PR's CI run is the first proof.
