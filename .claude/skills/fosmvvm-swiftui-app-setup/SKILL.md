@@ -65,6 +65,23 @@ private var mvvmEnv: MVVMEnvironment {
 - `appBundle` - Usually `Bundle.main` (the app bundle)
 - `resourceBundles` - Array of localization bundles from your modules
 - `deploymentURLs` - URLs for each deployment environment
+- `loadingView` - Optional: the app-wide view shown while a server-hosted ViewModel loads and after its load fails. It receives `nil` while waiting and the error after a failure; a screen can replace it with `bind(error:loadingView:)`. Omit it for a plain `ProgressView` that ignores the error.
+
+**OCP:** change how waiting and failure look by passing `loadingView:` (app-wide) or `bind(error:loadingView:)` (one screen). Don't wrap `bind()` or copy its fetch to customize the waiting view: a copied fetch drifts from the library's cancellation, retry and live-refresh rules, and the copy, not the library, then decides what the user sees.
+
+```swift
+MVVMEnvironment(
+    appBundle: Bundle.main,
+    deploymentURLs: deploymentURLs,
+    loadingView: { error in
+        if error != nil {
+            ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+        } else {
+            ProgressView()
+        }
+    }
+)
+```
 
 **Resource Bundle Accessors:**
 
@@ -792,3 +809,4 @@ Runtime Detection:
 | 1.10 | 2026-07-23 | Add "Client-Hosted Localization" (field feedback from standing up a first `.clientHostedFactory` VM in an overlay-based Xcode app): encode-time vs bind-time localization concept + `missingLocalizationStore`/`noResourcePaths` symptoms; the resource-carrying framework pattern for overlay projects; the five framework-target settings (`DEVELOPMENT_TEAM`, `BUILD_LIBRARY_FOR_DISTRIBUTION`, deployment targets, `SWIFT_VERSION`, SPMLibraries-only linking); the Xcode resource-flattening gotcha (`resourceDirectoryName` nil ⇒ `""` recurses; tests must pass `""`, not the `"Resources"` default); client-VM-framework tests default to the iOS Simulator (macOS build-for-testing PackageFrameworks link failure); `localizationBundle` naming (never `clientLocalizationStore`). All claims verified against `MVVMEnvironment.swift` / `YamlLocalizationStore.swift` / `URL+Files.swift` / `LocalizableTestCase.swift` / `ViewModelView.swift`. |
 | 2.0 | 2026-08-24 | **Re-cut around the app's life, not its creation.** `fosmvvm-bootstrap` (shipped 0.14.0) now emits the App struct, `MVVMEnvironment`, test infrastructure, seeded `CLAUDE.md` and memory files for all three shapes, so this skill's project-creation half was superseded and had begun to drift — its `project.yml` table still read `ENABLE_HARDENED_RUNTIME: YES` for app and tests, while the templates set Debug `NO` / Release `YES` because YES in Debug kills macOS UI testing. Removed: the XcodeGen section, the project file tree, the code-signing section, the file-template list, and the seeded-`CLAUDE.md` instructions — all now the scaffolder's, and audited by `fosmvvm-doctor`. Kept and re-parented: `MVVMEnvironment`, test-view registration, the resource wiring, Client-Hosted Localization (including the hand-added-framework checklist and the `resourceDirectoryName` flattening gotcha), server-hosted contract wiring, deployment configuration. The SPMLibraries type-identity doctrine moved to `.claude/docs/FOSMVVMArchitecture.md`, discharging the never-done item from the bootstrap design §6.7 — it had lived only in this skill and in a template that ships out to customers. |
 | 2.1 | 2026-10-05 | Add "Push notifications (optional)": `PushRegistration`, delegate token forwarding, every-launch permission, register ServerRequest, entitlement and environment. |
+| 2.2 | 2026-10-08 | `MVVMEnvironment` `loadingView:`: the app-wide loading and load-failure view, a `@ViewBuilder` closure taking `Error?`. |
