@@ -616,3 +616,27 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
 private struct DummyError: Decodable, Error {}
 
 // swiftlint:enable type_body_length
+
+public extension DataFetch where Session == URLSession {
+    /// Returns an instance that uses **DataFetch.urlSessionConfiguration**
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// let dataFetch = DataFetch<URLSession>.default
+    /// ```
+    ///
+    /// Every instance shares one `URLSession`, so fetching through it never creates a session
+    /// per call.
+    static var `default`: DataFetch<URLSession> {
+        .init(urlSession: SharedURLSession.session)
+    }
+}
+
+/// One process-wide session behind `DataFetch<URLSession>.default`. It is never deallocated:
+/// FoundationNetworking on Linux can abort when a `URLSession` is freed
+/// (swift-corelibs-foundation#5203, fatal under the Swift 6.4 runtime), and every session that is
+/// never invalidated leaks on Apple platforms.
+private enum SharedURLSession {
+    static let session = URLSession(configuration: DataFetch<URLSession>.urlSessionConfiguration())
+}

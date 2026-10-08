@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`DataFetch<URLSession>.default` (and so `URL.fetch` and every `ServerRequest` sent without a session) shares one `URLSession`** instead of creating one per call. On Linux with Swift 6.4, freeing a `URLSession` can abort the process (swift-corelibs-foundation#5203); on Apple platforms the per-call sessions leaked.
 - **A bound screen fetches once.** A successful first load no longer triggers a second fetch.
 - **A query or fragment change cancels the load it replaces,** so a slow, superseded load can no longer overwrite the newer result.
 - **An invalidation that arrives while a screen is loading is no longer lost;** the load restarts.
