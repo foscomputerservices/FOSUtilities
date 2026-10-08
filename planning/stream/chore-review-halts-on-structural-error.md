@@ -1,6 +1,6 @@
 ---
 status: open
-last_updated: 2026-10-03
+last_updated: 2026-10-08
 origin: session
 ---
 
@@ -21,6 +21,12 @@ origin: session
 - The probe's ViewModels appear deliberately local to the probe app rather than shared — the rule they trip is aimed at scaffolded projects adopting FOSMVVM, where a shared module is the prescribed shape.
 - Test evidence and the wider context audit: `planning/notes/context-injection-inventory.md`.
 
+## Ruling (David, 2026-10-08)
+
+In FOSUtilities, `fosmvvm-review` runs **cross-cutting checks only, with no doctor**. Doctor's rules describe an adopting app (shared ViewModels module, entitlements, test plans, embedding); FOSUtilities is the framework plus tooling. The generator-area checks grade adopter code against what the generator skills prescribe, which the framework's own machinery legitimately departs from. The cross-cutting checks carry `.claude/CLAUDE.md` principles that govern the framework too.
+
+This answers suggested action 1. The remaining actions now reduce to: make the skill honor this ruling in this repo (suggested action 3 decides the mechanism), then re-run the planted-violation test (action 6) against the cross-cutting checks.
+
 ## Suggested actions
 
 1. Rule whether doctor's shared-ViewModels-module rule should apply to this repository at all. It exists for adopting projects; FOSUtilities is the framework plus tooling, and `Tools/UITestingProbe` is a probe app, not a product target.
@@ -37,3 +43,4 @@ origin: session
 ## History
 
 - 2026-10-03 minted at David's direction, from a planted-violation test run during a context-injection audit. The test confirmed doctor fires correctly and deterministically; the finding is the gate's triggering condition, not doctor's accuracy.
+- 2026-10-08 ruled: cross-cutting checks only, no doctor, in this repository (feat/bind-error review).

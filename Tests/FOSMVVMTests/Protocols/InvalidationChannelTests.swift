@@ -19,7 +19,7 @@ import FOSMVVM
 import Foundation
 import Testing
 
-@Suite("InvalidationChannel")
+@Suite("InvalidationChannel", .systemVersionAccess)
 struct InvalidationChannelTests {
     @Test("A channel yields .connected then .invalidated through events()")
     func channelYieldsEvents() async {
