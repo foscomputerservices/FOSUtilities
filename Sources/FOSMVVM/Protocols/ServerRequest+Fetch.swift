@@ -165,11 +165,31 @@ public extension ServerRequest {
     ///   - mvvmEnv: The current ``MVVMEnvironment`` for the client application
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
     func processRequest(mvvmEnv: MVVMEnvironment) async throws {
-        _ = try await processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+        do {
+            _ = try await processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+        } catch {
+            guard routeToRequestErrorHandler(error, mvvmEnv: mvvmEnv) else { throw error }
+        }
+    }
+
+    /// Hands a request's own ``ServerRequestError`` to `mvvmEnv.requestErrorHandler`; returns `true`
+    /// when the handler took it. A surface rejection (``CredentialRejectedError``) is never routed.
+    internal func routeToRequestErrorHandler(_ error: Error, mvvmEnv: MVVMEnvironment) -> Bool {
+        guard
+            !(error is CredentialRejectedError),
+            let error = error as? ServerRequestError,
+            let errorHandler = mvvmEnv.requestErrorHandler
+        else {
+            return false
+        }
+
+        errorHandler(self, error)
+        return true
     }
 
     /// Internal live-delivery seam: the `mvvmEnv` fetch, additionally returning the response's live
-    /// registration set (spec §3.4). Error handling matches `processRequest(mvvmEnv:)`; the bind
+    /// registration set (spec §3.4). It always throws a failure; whether `requestErrorHandler` takes
+    /// it instead is each caller's policy (`processRequest(mvvmEnv:)`, the bind resolver). The bind
     /// resolver drives every server-hosted request through it — a non-live ViewModel simply ignores
     /// the returned set.
     ///
@@ -177,41 +197,26 @@ public extension ServerRequest {
     /// publish the wire seam onto ``ServerRequest``'s public surface.
     @discardableResult
     internal func processRequestCapturingRegistrations(mvvmEnv: MVVMEnvironment) async throws -> [ModelIdentity] {
+        // Composition sits outside the retry-aware `do`: a rejection thrown by the provider
+        // itself is a client-side failure, not a server refusal, and must not open the
+        // refresh seam.
+        let headers = try await credentialedRequestHeaders(mvvmEnv: mvvmEnv)
+
         do {
-            // Composition sits outside the retry-aware `do`: a rejection thrown by the provider
-            // itself is a client-side failure, not a server refusal, and must not open the
-            // refresh seam.
-            let headers = try await credentialedRequestHeaders(mvvmEnv: mvvmEnv)
-
-            do {
-                return try await sendCapturingRegistrations(headers: headers, mvvmEnv: mvvmEnv)
-            } catch let rejection as CredentialRejectedError {
-                guard
-                    let provider = mvvmEnv.clientCredentialProvider,
-                    let refreshed = await provider.credentialHeaders(afterRejection: rejection)
-                else {
-                    throw rejection
-                }
-
-                // Exactly one retry. A second rejection falls to the outer arm and reaches the
-                // caller; a non-rejection `ServerRequestError` falls to the outer arm, which
-                // `catch` clauses cannot do on their own (they do not chain).
-                return try await sendCapturingRegistrations(
-                    headers: staticRequestHeaders(mvvmEnv: mvvmEnv) + refreshed,
-                    mvvmEnv: mvvmEnv
-                )
-            }
+            return try await sendCapturingRegistrations(headers: headers, mvvmEnv: mvvmEnv)
         } catch let rejection as CredentialRejectedError {
-            // A surface rejection always reaches the caller — recovery
-            // (refresh credential, retry) is a call-site decision.
-            throw rejection
-        } catch let error as ServerRequestError {
-            if let errorHandler = mvvmEnv.requestErrorHandler {
-                errorHandler(self, error)
-                return []
-            } else {
-                throw error
+            guard
+                let provider = mvvmEnv.clientCredentialProvider,
+                let refreshed = await provider.credentialHeaders(afterRejection: rejection)
+            else {
+                throw rejection
             }
+
+            // Exactly one retry. A second rejection, or any other failure, reaches the caller.
+            return try await sendCapturingRegistrations(
+                headers: staticRequestHeaders(mvvmEnv: mvvmEnv) + refreshed,
+                mvvmEnv: mvvmEnv
+            )
         }
     }
 }

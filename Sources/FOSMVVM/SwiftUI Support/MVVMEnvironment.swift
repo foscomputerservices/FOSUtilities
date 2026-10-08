@@ -117,7 +117,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// A function that is called when there is an error processing a ``ServerRequest``
     ///
     /// Surface rejections (``CredentialRejectedError``) are never routed here — they
-    /// always throw to the caller.
+    /// always throw to the caller. A screen bound with `bind(error:)` keeps its own fetch
+    /// failures; a screen bound without `error:` sends them here.
     public let requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)?
 
     /// A custom ``URLSession``
@@ -248,11 +249,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
         registerTestView(type, designedFor: scrollable ? .scrolling : [])
     }
 
-    /// A view to be presented when the ``ViewModel`` is being requested
-    /// from the web service
-    ///
-    /// > Note: A non-localized "Loading..." is presented if no view is provided
-    public let loadingView: @Sendable () -> AnyView
+    /// The app-wide view shown while a server-hosted ``ViewModel`` loads or after its load fails;
+    /// a `bind(error:loadingView:)` closure replaces it for one screen.
+    let loadingView: @MainActor (Error?) -> AnyView
     #endif
 
     /// A ``LocalizationStore`` instance that provides access to the localization data
@@ -326,6 +325,22 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// > If *currentVersion* is not specified, *SystemVersion.currentVersion* is set to *appBundle.appleOSVersion*, which is loaded from the xcodeproj.
     /// > See also: <doc:Versioning>
     ///
+    /// ## Showing your own loading and error view
+    ///
+    /// ```swift
+    /// MVVMEnvironment(
+    ///     appBundle: .main,
+    ///     deploymentURLs: deploymentURLs,
+    ///     loadingView: { error in
+    ///         if error != nil {
+    ///             ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    ///         } else {
+    ///             ProgressView()
+    ///         }
+    ///     }
+    /// )
+    /// ```
+    ///
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
     ///   - appBundle: The application's *Bundle* (e.g. *Bundle.main*)
@@ -341,9 +356,12 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
     ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
+    ///      A screen bound with `bind(error:)` keeps its own fetch failures.
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
-    ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
-    ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
+    ///   - loadingView: The view shown while a server-hosted ``ViewModel`` is being retrieved, and after
+    ///     its retrieval fails. It receives `nil` while waiting and the error after a failure. A screen can
+    ///     replace it with `bind(error:loadingView:)`. (default: a
+    ///     [ProgressView](https://developer.apple.com/documentation/swiftui/progressview) that ignores the error)
     public init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
@@ -355,7 +373,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         deploymentURLs: [Deployment: URLPackage],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
-        loadingView: (@Sendable () -> AnyView)? = nil
+        @ViewBuilder loadingView: @escaping @MainActor (Error?) -> some View = { _ in ProgressView() }
     ) {
         self.localizationStore = nil
         self.resourceBundles = resourceBundles ?? [appBundle]
@@ -366,7 +384,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.deploymentURLs = deploymentURLs
         self.requestErrorHandler = requestErrorHandler
         self.session = session
-        self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
+        self.loadingView = Self.erasedLoadingView(loadingView)
 
         // fosmvvm-review:disable:next no-silent-failure -- This behavior is intentional
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
@@ -380,6 +398,22 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///
     /// > If *currentVersion* is not specified, *SystemVersion.currentVersion* is set to *appBundle.appleOSVersion*, which is loaded from the xcodeproj.
     /// > See also: <doc:Versioning>
+    ///
+    /// ## Showing your own loading and error view
+    ///
+    /// ```swift
+    /// MVVMEnvironment(
+    ///     appBundle: .main,
+    ///     deploymentURLs: deploymentURLs,
+    ///     loadingView: { error in
+    ///         if error != nil {
+    ///             ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    ///         } else {
+    ///             ProgressView()
+    ///         }
+    ///     }
+    /// )
+    /// ```
     ///
     /// - Parameters:
     ///   - currentVersion: The current SystemVersion of the application (default: see note)
@@ -396,9 +430,12 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
     ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
+    ///      A screen bound with `bind(error:)` keeps its own fetch failures.
     ///   - session: An optional *URLSession* to use to process the request (default: *DataFetch.urlSessionConfiguration()*)
-    ///   - loadingView: A function that produces a View that will be displayed while the ``ViewModel``
-    ///     is being retrieved (default: [ProgressView](https://developer.apple.com/documentation/swiftui/progressview))
+    ///   - loadingView: The view shown while a server-hosted ``ViewModel`` is being retrieved, and after
+    ///     its retrieval fails. It receives `nil` while waiting and the error after a failure. A screen can
+    ///     replace it with `bind(error:loadingView:)`. (default: a
+    ///     [ProgressView](https://developer.apple.com/documentation/swiftui/progressview) that ignores the error)
     public convenience init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
@@ -410,7 +447,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         deploymentURLs: [Deployment: URL],
         requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
-        loadingView: (@Sendable () -> AnyView)? = nil
+        @ViewBuilder loadingView: @escaping @MainActor (Error?) -> some View = { _ in ProgressView() }
     ) {
         self.init(
             currentVersion: currentVersion,
@@ -439,10 +476,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
     init(
         localizationStore: LocalizationStore,
         deploymentURLs: [Deployment: URLPackage],
+        requestErrorHandler: (@Sendable (any ServerRequest, any ServerRequestError) -> Void)? = nil,
         session: URLSession? = nil,
-        loadingView: (
-            @Sendable () -> AnyView
-        )? = nil
+        @ViewBuilder loadingView: @escaping @MainActor (Error?) -> some View = { _ in ProgressView() }
     ) {
         self.localizationStore = localizationStore
         self.resourceBundles = []
@@ -451,9 +487,9 @@ public final class MVVMEnvironment: @unchecked Sendable {
         self.clientCredentialProvider = nil
         self.invalidationChannel = nil
         self.deploymentURLs = deploymentURLs
-        self.requestErrorHandler = nil
+        self.requestErrorHandler = requestErrorHandler
         self.session = session
-        self.loadingView = loadingView ?? { AnyView(DefaultLoadingView()) }
+        self.loadingView = Self.erasedLoadingView(loadingView)
 
         SystemVersion.setCurrentVersion(SystemVersion.current)
     }
@@ -480,6 +516,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
     ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
+    ///      A screen bound with `bind(error:)` keeps its own fetch failures.
     public init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
@@ -510,7 +547,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
         #endif
 
         #if canImport(SwiftUI)
-        self.loadingView = { AnyView(DefaultLoadingView()) }
+        self.loadingView = Self.defaultLoadingView
         // fosmvvm-review:disable:next no-silent-failure -- This behavior is intentional
         let currentVersion = currentVersion ?? (try? appBundle.appleOSVersion) ?? SystemVersion.current
         SystemVersion.setCurrentVersion(currentVersion)
@@ -547,6 +584,7 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
     ///      (``CredentialRejectedError``) are never routed here — they always throw to the caller.
+    ///      A screen bound with `bind(error:)` keeps its own fetch failures.
     public convenience init(
         currentVersion: SystemVersion? = nil,
         appBundle: Bundle,
@@ -664,11 +702,14 @@ private extension MVVMEnvironment {
 }
 
 #if canImport(SwiftUI)
-
-private struct DefaultLoadingView: View {
-    var body: some View {
-        ProgressView()
+extension MVVMEnvironment {
+    /// The one place an app's `loadingView` closure is type-erased for storage.
+    static func erasedLoadingView(
+        _ loadingView: @escaping @MainActor (Error?) -> some View
+    ) -> @MainActor (Error?) -> AnyView {
+        { AnyView(loadingView($0)) }
     }
-}
 
+    static let defaultLoadingView: @MainActor (Error?) -> AnyView = { _ in AnyView(ProgressView()) }
+}
 #endif

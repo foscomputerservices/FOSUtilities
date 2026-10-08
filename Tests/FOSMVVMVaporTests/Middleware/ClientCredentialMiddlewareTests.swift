@@ -240,6 +240,19 @@ struct ClientCredentialMiddlewareTests {
             #expect(handled.count == 1)
             #expect(handled.last is StrictContractError)
             #expect(failing.responseBody == nil)
+
+            // (c) The fetch seam the bind resolver uses always throws; the handler policy is
+            // the caller's, so the handler is not told here
+            let bound = ShowOperationFailureRequest()
+            do {
+                try await bound.processRequestCapturingRegistrations(mvvmEnv: admittedEnv)
+                Issue.record("Expected StrictContractError to be thrown")
+            } catch is StrictContractError {
+                // thrown, not swallowed
+            } catch {
+                Issue.record("Expected StrictContractError, got \(error)")
+            }
+            #expect(handled.count == 1)
         }
     }
 

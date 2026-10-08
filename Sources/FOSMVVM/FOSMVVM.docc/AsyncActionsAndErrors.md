@@ -6,10 +6,11 @@ Run a throwing async operation from a Button, route its failure to one screen-le
 
 Most user-initiated actions in an FOSMVVM application are asynchronous and can fail: the View dispatches through ``ViewModelOperations`` (see <doc:Operations>), the operation performs a ``ServerRequest``, and the server may answer with a typed error.
 
-Four pieces carry that flow — from tap or view appearance to alert — and they are designed to be wired together:
+Five pieces carry that flow — from tap, view appearance, or a bound screen's fetch to alert — and they are designed to be wired together:
 
 - **Async `Button` forms** run a `@Sendable () async throws` action and deposit any thrown error into an `error:` binding.
 - **`task(error:)` / `task(id:error:)`** run a view-lifetime (or value-keyed) load and route its error into the same binding.
+- **`bind(error:)`** routes a failed fetch of a server-hosted ``ViewModel`` into a binding of its own.
 - **`alert(error:title:message:dismissButtonLabel:)`** presents whatever lands in that binding, localized.
 - **``LocalizableError``** gives your error types user-presentable, YAML-localized messages — composed exactly like a ``ViewModel``.
 
@@ -98,6 +99,37 @@ The screen's initial load is not a tap — it belongs to the view's lifetime. Th
 ```
 
 The load starts on appearance — and restarts when `id` changes; a thrown error lands in `error` and the alert presents it. Cancellation — leaving the screen, an `id` restart, or the `CancellationError` sentinel — never deposits into the binding, so teardown and superseded loads stay silent. The full contract is in <doc:AsyncLifecycle>.
+
+## Bound Screens That Fail to Load
+
+A screen bound with `bind()` is fetched for you, so there is no load of your own to wrap in `task(error:)`. Give `bind` an error binding of its own instead:
+
+```swift
+@State private var loadError: Error?
+
+var body: some View {
+    OverviewView.bind(error: $loadError)
+        .alert(error: $loadError,
+               title: viewModel.unreachableTitle,
+               dismissButtonLabel: viewModel.tryAgainTitle)
+}
+```
+
+A failed fetch lands in `loadError` under the same rules as `task(error:)`: each fetch clears the binding first, and a cancelled fetch writes nothing. Clearing the binding fetches again, so dismissing the alert retries.
+
+Don't share this binding with buttons, `task(error:)`, or another `bind`. Clearing it means "fetch again", and `bind` cannot tell who cleared it, so the screen's other errors need their own binding and their own alert. The alert's strings come from the calling view's ``ViewModel``; the bound screen has none until its fetch succeeds.
+
+To show the failure in place instead, give `bind` a `loadingView:` closure. It receives `nil` while loading and the error after a failure, and replaces the app-wide `loadingView` given to ``MVVMEnvironment`` for that screen:
+
+```swift
+OverviewView.bind(error: $loadError) { error in
+    if error != nil {
+        ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    } else {
+        ProgressView()
+    }
+}
+```
 
 ## Localizing Your Errors
 

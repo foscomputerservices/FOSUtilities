@@ -86,7 +86,7 @@ struct MyApp: App {
 
 ### Binding a SwiftUI View to a ViewModel
 
-Once the ``MVVMEnvironment`` has been configured, SwiftUI views can be bound to their corresponding ``ViewModel``s via the ``ViewModelView/bind(viewModel:)`` function.  This will load the required ``ViewModel`` from the server and bind it to the ``RequestableViewModel``.
+Once the ``MVVMEnvironment`` has been configured, SwiftUI views can be bound to their corresponding ``ViewModel``s with `bind()`, a static function on ``ViewModelView``.  This will load the required ``ViewModel`` from the server and bind it to the ``RequestableViewModel``.
 
 ```swift
 @main
@@ -108,6 +108,26 @@ struct MyApp: App {
     }
 }
 ```
+
+### Showing Loading and Load Failures
+
+While a server-hosted ``ViewModel`` is being fetched, `bind()` shows a loading view. By default it is a plain `ProgressView`. Give ``MVVMEnvironment`` a `loadingView:` to show your own, app-wide. It receives `nil` while waiting and the error if the fetch failed:
+
+```swift
+MVVMEnvironment(
+    appBundle: Bundle.main,
+    deploymentURLs: deploymentURLs,
+    loadingView: { error in
+        if error != nil {
+            ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+        } else {
+            ProgressView()
+        }
+    }
+)
+```
+
+For one screen, pass `error:` to `bind` to receive the failure (clearing it fetches again), and `loadingView:` to replace the app-wide view. See <doc:AsyncActionsAndErrors>.
 
 ### Binding Authorization to an ``MVVMEnvironment``
 

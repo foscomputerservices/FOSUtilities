@@ -328,6 +328,39 @@ public struct ParentView: ViewModelView {
 - Parent creates child's `AppState` from its own ViewModel data
 - Enables composition without tight coupling
 
+#### When a server-hosted child fails to load
+
+A server-hosted child is fetched by `bind()`. Pass `error:` so a failed fetch reaches the parent, and present it with the app's own view. Setting the binding back to `nil` fetches again, so an alert's dismiss button doubles as "Try again":
+
+```swift
+@State private var loadError: Error?
+
+var body: some View {
+    OverviewView.bind(error: $loadError)
+        .alert(error: $loadError,
+               title: viewModel.unreachableTitle,
+               dismissButtonLabel: viewModel.tryAgainTitle)
+}
+```
+
+To replace the waiting area for one screen (spinner and error card), pass `loadingView:`. It receives `nil` while loading and the error after a failure:
+
+```swift
+OverviewView.bind(error: $loadError) { error in
+    if error != nil {
+        ContentUnavailableView(viewModel.unreachableTitle, systemImage: "wifi.slash")
+    } else {
+        ProgressView()
+    }
+}
+```
+
+**Give `bind` its own binding; never share it** with buttons, `task(error:)`, or another `bind`. Clearing it means "fetch again", and `bind` cannot tell who cleared it.
+
+**SRP:** the library only routes the failure; what the user sees is the app's design. Don't catch fetch errors by hand or fetch in `.task` to get at them — that splits one responsibility across two places.
+
+**Client-hosted children never take `error:` or `loadingView:`.** They are built in the app and never fail to load. A macro-built client-hosted ViewModel always needs `appState:`; a `bind()` that misses it reaches the server path and stops with a diagnostic naming the fix.
+
 ### 4. Form Views with Validation
 
 A form reads one `Validations` from the environment, hands it to every `FormFieldView`, wraps itself in `withFormValidations()`, and puts the server's answer back with `replace(with:)`. That is the whole pattern; here it is end to end:
@@ -1174,3 +1207,4 @@ This skill is typically used after discussing requirements or reading specificat
 | 1.3 | 2026-09-29 | Form validation brought to the shipped API: `withFormValidations()` documented for the results that name no field, the complete form pattern (environment `Validations` → field views → modifier → `replace(with:)` on the typed `ResponseError`), the per-field/model-level asymmetry of `replace(with:)`, and the submit guard. Corrected the typed error's results property to its real name, `responseError.validations`. Restored the YAML frontmatter, which a stray version row had displaced. |
 | 1.4 | 2026-10-05 | Entity identity on ViewModels follows the opaque-identity rule: `modelIdentity: ModelIdentity` taken in the init (never a `Model`), `vmId = modelIdentity.viewModelId`, passed unchanged to Operations. The `vmId` examples replace `id: ModelIdType` / `.init(id:)`, and name DIP + encapsulation with a link to the shared architecture patterns. Preview stubs follow the Stubbable pattern. |
 | 1.5 | 2026-10-05 | Picker pointer: `LocalizableCase` over `.choices`. |
+| 1.6 | 2026-10-08 | Child binding: `bind(error:)` and `bind(error:loadingView:)` for a failed server fetch (SRP: the app owns the error view), with a binding of its own that is never shared; client-hosted children never take them and macro-built ones always need `appState:`. |

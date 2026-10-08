@@ -34,7 +34,7 @@ import Testing
 //       is absolutely required for the tests to function
 //       correctly.
 
-@Suite(.serialized)
+@Suite(.serialized, .systemVersionAccess)
 struct SystemVersionTests {
     // MARK: HTTPURLResponse Tests
 

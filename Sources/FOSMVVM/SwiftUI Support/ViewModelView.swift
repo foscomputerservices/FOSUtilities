@@ -108,10 +108,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - query: A *SystemQuery* to be sent to the server to indicate how to compose the ``ViewModel``
     ///   - fragment: *Future*
     ///
-    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
-    ///   *Self* if the ``ViewModel`` has been successfully retrieved
-    ///
-    /// - See Also: ``MVVMEnvironment/loadingView``
+    /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
     @MainActor static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil
@@ -158,19 +155,136 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - query: A *SystemQuery* to be sent to the server to indicate how to compose the ``ViewModel``
     ///   - fragment: *Future*
     ///
-    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
+    /// - Returns: The app-wide loading view while retrieving the ``ViewModel`` or an instance of
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
-    /// - See Also: ``MVVMEnvironment/loadingView``
+    /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
     @MainActor static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil
     ) -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM {
-        VMServerResolverView<VM, Self>(
+        VMServerResolverView<VM, Self, EmptyView>(
             query: query,
-            fragment: fragment
+            fragment: fragment,
+            error: nil,
+            loadingView: nil
+        )
+    }
+
+    /// Retrieves a ``RequestableViewModel`` from the web service, binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view), and hands a failed fetch to
+    /// your error binding
+    ///
+    /// To respond when the fetch fails, pass a binding to an error. Present it as an alert:
+    ///
+    /// ```swift
+    /// @State private var loadError: Error?
+    ///
+    /// var body: some View {
+    ///     OverviewView.bind(query: .init( ... ), error: $loadError)
+    ///         .alert(error: $loadError,
+    ///                title: viewModel.unreachableTitle,
+    ///                dismissButtonLabel: viewModel.tryAgainTitle)
+    /// }
+    /// ```
+    ///
+    /// Dismissing the alert clears `loadError`, which fetches again, so its button acts as "Try
+    /// again". The alert's strings come from the calling view's ``ViewModel``: the screen being
+    /// bound has no ``ViewModel`` until its fetch succeeds.
+    ///
+    /// Or present it in place, as a card:
+    ///
+    /// ```swift
+    /// @State private var loadError: Error?
+    ///
+    /// var body: some View {
+    ///     OverviewView.bind(query: .init( ... ), error: $loadError)
+    ///         .overlay {
+    ///             if loadError != nil {
+    ///                 ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    ///             }
+    ///         }
+    /// }
+    /// ```
+    ///
+    /// A failed fetch lands in `loadError`. Each fetch clears it first, so the binding always holds
+    /// the outcome of the latest attempt. To try again, set it back to `nil`; the view fetches again.
+    ///
+    /// Give `bind` a binding of its own and don't share it: clearing it means "fetch again".
+    ///
+    /// > Note: A fetch cancelled because the view went away writes nothing to `loadError`.
+    ///
+    /// - Parameters:
+    ///   - query: A *SystemQuery* to be sent to the server to indicate how to compose the ``ViewModel``
+    ///   - fragment: *Future*
+    ///   - error: Receives the failure of the latest fetch; set it to `nil` to fetch again
+    ///
+    /// - Returns: The app-wide loading view while retrieving the ``ViewModel`` or an instance of
+    ///   *Self* if the ``ViewModel`` has been successfully retrieved
+    ///
+    /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
+    @MainActor static func bind(
+        query: VM.Request.Query,
+        fragment: VM.Request.Fragment? = nil,
+        error: Binding<Error?>
+    ) -> some View where
+        VM.Request.RequestBody == EmptyBody,
+        VM.Request.ResponseBody == VM {
+        VMServerResolverView<VM, Self, EmptyView>(
+            query: query,
+            fragment: fragment,
+            error: error,
+            loadingView: nil
+        )
+    }
+
+    /// Retrieves a ``RequestableViewModel`` from the web service and binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view), showing your own view
+    /// while it loads or after it fails
+    ///
+    /// ```swift
+    /// @State private var loadError: Error?
+    ///
+    /// var body: some View {
+    ///     OverviewView.bind(query: .init( ... ), error: $loadError) { error in
+    ///         if error != nil {
+    ///             ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    ///         } else {
+    ///             ProgressView("Loading overview")
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// `loadingView` is shown until the ``ViewModel`` arrives. It receives `nil` while the fetch
+    /// is in flight and the error if the fetch failed. It replaces the app-wide `loadingView`
+    /// given to ``MVVMEnvironment`` for this one screen.
+    ///
+    /// Pass `error` to observe or retry: setting it back to `nil` fetches again. Without it,
+    /// `loadingView` still receives the error, but nothing can retry.
+    ///
+    /// Give `bind` a binding of its own and don't share it: clearing it means "fetch again".
+    ///
+    /// - Parameters:
+    ///   - query: A *SystemQuery* to be sent to the server to indicate how to compose the ``ViewModel``
+    ///   - fragment: *Future*
+    ///   - error: Receives the failure of the latest fetch; set it to `nil` to fetch again (default: none)
+    ///   - loadingView: The view shown while loading or after a failure
+    @MainActor static func bind(
+        query: VM.Request.Query,
+        fragment: VM.Request.Fragment? = nil,
+        error: Binding<Error?>? = nil,
+        @ViewBuilder loadingView: @escaping (Error?) -> some View
+    ) -> some View where
+        VM.Request.RequestBody == EmptyBody,
+        VM.Request.ResponseBody == VM {
+        VMServerResolverView<VM, Self, _>(
+            query: query,
+            fragment: fragment,
+            error: error,
+            loadingView: loadingView
         )
     }
 
@@ -226,10 +340,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - fragment: *Future*
     ///   - appState: Context transferred from one view to another ``ViewModel``
     ///
-    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
-    ///   *Self* if the ``ViewModel`` has been successfully retrieved
-    ///
-    /// - See Also: ``MVVMEnvironment/loadingView``
+    /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
     @MainActor static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil,
@@ -272,10 +383,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// }
     /// ```
     ///
-    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
-    ///   *Self* if the ``ViewModel`` has been successfully retrieved
-    ///
-    /// - See Also: ``MVVMEnvironment/loadingView``
+    /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
     @MainActor static func bind() -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
@@ -313,17 +421,130 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// }
     /// ```
     ///
-    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
+    /// - Returns: The app-wide loading view while retrieving the ``ViewModel`` or an instance of
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
-    /// - See Also: ``MVVMEnvironment/loadingView``
+    /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
     @MainActor static func bind() -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
-        VM.Request.Fragment == EmptyFragment,
-        VM.Request.RequestBody == EmptyBody {
-        VMServerResolverView<VM, Self>(query: nil, fragment: nil)
+        VM.Request.Fragment == EmptyFragment {
+        VMServerResolverView<VM, Self, EmptyView>(
+            query: nil,
+            fragment: nil,
+            error: nil,
+            loadingView: nil
+        )
+    }
+
+    /// Retrieves a ``RequestableViewModel`` from the web service, binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view), and hands a failed fetch to
+    /// your error binding
+    ///
+    /// To respond when the fetch fails, pass a binding to an error. Present it as an alert:
+    ///
+    /// ```swift
+    /// @State private var loadError: Error?
+    ///
+    /// var body: some View {
+    ///     OverviewView.bind(error: $loadError)
+    ///         .alert(error: $loadError,
+    ///                title: viewModel.unreachableTitle,
+    ///                dismissButtonLabel: viewModel.tryAgainTitle)
+    /// }
+    /// ```
+    ///
+    /// Dismissing the alert clears `loadError`, which fetches again, so its button acts as "Try
+    /// again". The alert's strings come from the calling view's ``ViewModel``: the screen being
+    /// bound has no ``ViewModel`` until its fetch succeeds.
+    ///
+    /// Or present it in place, as a card:
+    ///
+    /// ```swift
+    /// @State private var loadError: Error?
+    ///
+    /// var body: some View {
+    ///     OverviewView.bind(error: $loadError)
+    ///         .overlay {
+    ///             if loadError != nil {
+    ///                 ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    ///             }
+    ///         }
+    /// }
+    /// ```
+    ///
+    /// A failed fetch lands in `loadError`. Each fetch clears it first, so the binding always holds
+    /// the outcome of the latest attempt. To try again, set it back to `nil`; the view fetches again.
+    ///
+    /// Give `bind` a binding of its own and don't share it: clearing it means "fetch again".
+    ///
+    /// > Note: A fetch cancelled because the view went away writes nothing to `loadError`.
+    ///
+    /// - Parameters:
+    ///   - error: Receives the failure of the latest fetch; set it to `nil` to fetch again
+    ///
+    /// - Returns: The app-wide loading view while retrieving the ``ViewModel`` or an instance of
+    ///   *Self* if the ``ViewModel`` has been successfully retrieved
+    ///
+    /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
+    @MainActor static func bind(error: Binding<Error?>) -> some View where
+        VM.Request.RequestBody == EmptyBody,
+        VM.Request.ResponseBody == VM,
+        VM.Request.Query == EmptyQuery,
+        VM.Request.Fragment == EmptyFragment {
+        VMServerResolverView<VM, Self, EmptyView>(
+            query: nil,
+            fragment: nil,
+            error: error,
+            loadingView: nil
+        )
+    }
+
+    /// Retrieves a ``RequestableViewModel`` from the web service and binds it to the
+    /// [View](https://developer.apple.com/documentation/swiftui/view), showing your own view
+    /// while it loads or after it fails
+    ///
+    /// ```swift
+    /// @State private var loadError: Error?
+    ///
+    /// var body: some View {
+    ///     OverviewView.bind(error: $loadError) { error in
+    ///         if error != nil {
+    ///             ContentUnavailableView("Can't reach the server", systemImage: "wifi.slash")
+    ///         } else {
+    ///             ProgressView("Loading overview")
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// `loadingView` is shown until the ``ViewModel`` arrives. It receives `nil` while the fetch
+    /// is in flight and the error if the fetch failed. It replaces the app-wide `loadingView`
+    /// given to ``MVVMEnvironment`` for this one screen.
+    ///
+    /// Pass `error` to observe or retry: setting it back to `nil` fetches again. Without it,
+    /// `loadingView` still receives the error, but nothing can retry.
+    ///
+    /// Give `bind` a binding of its own and don't share it: clearing it means "fetch again".
+    ///
+    /// - Parameters:
+    ///   - error: Receives the failure of the latest fetch; set it to `nil` to fetch again (default: none)
+    ///   - loadingView: The view shown while loading or after a failure
+    @MainActor static func bind(
+        error: Binding<Error?>? = nil,
+        @ViewBuilder loadingView: @escaping (Error?) -> some View
+    ) -> some View where
+        VM.Request.RequestBody == EmptyBody,
+        VM.Request.ResponseBody == VM,
+        VM.Request.Query == EmptyQuery,
+        VM.Request.Fragment == EmptyFragment {
+        VMServerResolverView<VM, Self, _>(
+            query: nil,
+            fragment: nil,
+            error: error,
+            loadingView: loadingView
+        )
     }
 
     /// Retrieves a ``RequestableViewModel`` locally and binds it to the
@@ -375,10 +596,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// - Parameters:
     ///   - appState: Context transferred from one view to another ``ViewModel``
     ///
-    /// - Returns: A *Loading View* while retrieving the ``ViewModel`` or an instance of
-    ///   *Self* if the ``ViewModel`` has been successfully retrieved
-    ///
-    /// - See Also: ``MVVMEnvironment/loadingView``
+    /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
     @MainActor static func bind(appState: VM.AppState) -> some View where
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
@@ -394,7 +612,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     }
 }
 
-private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView>: View where
+private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView, LoadingView: View>: View where
     VM.Request.RequestBody == EmptyBody,
     VM == VM.Request.ResponseBody,
     VMV.VM == VM {
@@ -413,35 +631,44 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     @Environment(\.viewModelInvalidated) private var viewModelInvalidated
     @Environment(\.viewModelRefreshed) private var viewModelRefreshed
     @State private var viewModel: VM?
+    /// The latest load failure, held here so the loading view receives it even when the caller
+    /// passed no `error` binding.
+    @State private var failure: Error?
+    /// Whether `failure` actually reached the caller's binding; only then can emptying that binding
+    /// be a retry (a binding that drops writes, like `.constant(nil)`, must not loop).
+    @State private var failureDelivered = false
+    /// Bumped to fetch again for the same query and fragment: a retry, or an invalidation.
+    @State private var attempt = 0
+    /// The key whose ViewModel is on screen, so the view reappearing does not fetch it again.
+    @State private var shownKey: LoadKey?
+    /// Bumped as each load starts, so a live refresh that began earlier knows it was superseded.
+    @State private var loadGeneration = 0
     /// Inert unless `VM` is a `LiveViewModel`: only then is it ever handed a dispatcher (see
     /// `registerLive`), so a non-live bind never touches the invalidation machinery.
     @State private var liveCoordinator = LiveRegistrationCoordinator()
 
     private let query: VM.Request.Query?
     private let fragment: VM.Request.Fragment?
+    private let error: Binding<Error?>?
+    private let loadingView: ((Error?) -> LoadingView)?
+
+    /// Every load (first, navigation, retry, invalidation) runs in the one `.task(id:)` keyed on
+    /// this, so SwiftUI cancels a superseded or abandoned load.
+    private struct LoadKey: Equatable {
+        let query: VM.Request.Query?
+        let fragment: VM.Request.Fragment?
+        let attempt: Int
+    }
+
+    private var loadKey: LoadKey {
+        LoadKey(query: query, fragment: fragment, attempt: attempt)
+    }
 
     var body: some View {
         ZStack {
             if let viewModel {
                 VMV(viewModel: viewModel)
                     .id(viewModel.vmId)
-                    .onChange(of: query, initial: true) { Task {
-                        await loadAndBind()
-                        viewModelInvalidated.wrappedValue = false
-                    } }
-                    .onChange(of: fragment, initial: true) {
-                        guard fragment != nil else { return }
-                        Task {
-                            await loadAndBind()
-                            viewModelInvalidated.wrappedValue = false
-                        }
-                    }
-                    .onChange(of: viewModelInvalidated.wrappedValue, initial: false) {
-                        guard viewModelInvalidated.wrappedValue == true else {
-                            return
-                        }
-                        self.viewModel = nil
-                    }
                     .onChange(of: viewModelRefreshed.wrappedValue, initial: false) {
                         let refreshedVMStr = viewModelRefreshed.wrappedValue
 
@@ -459,16 +686,55 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
                         Task { await refreshInPlace() }
                     }
             } else {
-                ProgressView().task {
-                    await loadAndBind()
-                }
+                waitingView
             }
+        }
+        .task(id: loadKey) {
+            guard viewModel == nil || loadKey != shownKey else { return }
+            await loadAndBind(key: loadKey)
+        }
+        // Observed here, not on the bound view, so an invalidation that arrives mid-load restarts
+        // it. The flag is acknowledged at once, so it can never be left set.
+        .onChange(of: viewModelInvalidated.wrappedValue, initial: false) {
+            guard viewModelInvalidated.wrappedValue == true else {
+                return
+            }
+            viewModelInvalidated.wrappedValue = false
+            viewModel = nil
+            attempt += 1
+        }
+        .onChange(of: retryRequested, initial: false) {
+            guard retryRequested else { return }
+            attempt += 1
         }
     }
 
-    init(query: VM.Request.Query?, fragment: VM.Request.Fragment?) {
+    private var retryRequested: Bool {
+        ServerBindFailure.retryRequested(
+            delivered: failureDelivered,
+            callerError: error?.wrappedValue,
+            failure: failure
+        )
+    }
+
+    @ViewBuilder private var waitingView: some View {
+        if let loadingView {
+            loadingView(failure)
+        } else {
+            mvvmEnv.loadingView(failure)
+        }
+    }
+
+    init(
+        query: VM.Request.Query?,
+        fragment: VM.Request.Fragment?,
+        error: Binding<Error?>?,
+        loadingView: ((Error?) -> LoadingView)?
+    ) {
         self.query = query
         self.fragment = fragment
+        self.error = error
+        self.loadingView = loadingView
     }
 
     /// The gated in-place swap seam shared by same-request refresh arrivals — the pushed-JSON path
@@ -480,27 +746,79 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
     }
 
     /// Navigation / initial load: replace the bound ViewModel outright (no gate — different data),
-    /// then (re-)register the live set if `VM` is live. A failed load registers nothing — the error
-    /// path's `(nil, [])` must not touch the registration (see `refreshInPlace`).
-    private func loadAndBind() async {
-        let (vm, registrations) = await resolveServerHostedRequest()
-        viewModel = vm
-        guard vm != nil else { return }
-        registerLive(registrations)
+    /// then (re-)register the live set if `VM` is live. A failed load registers nothing and lands in
+    /// `failure` and the caller's binding under the `task(error:)` rules.
+    private func loadAndBind(key: LoadKey) async {
+        loadGeneration += 1
+        let failureBinding = ServerBindFailure.binding(
+            failure: Binding(get: { failure }, set: { failure = $0 }),
+            delivered: Binding(get: { failureDelivered }, set: { failureDelivered = $0 }),
+            caller: error
+        )
+        await AsyncTaskEngine.run(error: failureBinding) { @MainActor in
+            if let misuse = ServerBindDiagnostic.clientHostedFailure(VM.self, view: VMV.self) {
+                #if DEBUG
+                MissingEnvironmentDiagnostic.reportAndStop(misuse.diagnostic)
+                #else
+                print(misuse.diagnostic)
+                throw misuse
+                #endif
+            }
+
+            let request = makeRequest()
+            do {
+                let registrations = try await request.processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+                guard !Task.isCancelled else { return }
+                viewModel = request.viewModel
+                shownKey = key
+                registerLive(registrations)
+            } catch {
+                guard !Task.isCancelled else { throw error }
+
+                print("ViewModel Bind Error: \(error)")
+                // With an `error:` binding the screen owns the failure; without one the app's
+                // `requestErrorHandler` hears it as it always has. The loading view gets it either way.
+                if self.error == nil {
+                    _ = request.routeToRequestErrorHandler(error, mvvmEnv: mvvmEnv)
+                }
+                viewModel = nil
+                throw error
+            }
+        }
     }
 
     /// A nudge-triggered same-request refresh: re-fetch and swap through the freshness gate, then
     /// re-register the latest response's set so newly-touched containers start listening.
     ///
-    /// A failed re-fetch returns `(nil, [])`, so the guard covers the swap AND the registration:
-    /// the screen keeps showing its stale data and keeps listening with the prior set —
-    /// reregistering to the error path's empty set would deafen it until the next `.connected`
-    /// sweep or navigation. A genuinely-empty *successful* response still reregisters to empty.
+    /// A failed re-fetch keeps the stale data on screen and keeps listening with the prior set —
+    /// reregistering to an empty set would deafen it until the next `.connected` sweep or
+    /// navigation. A credential rejection still reaches the `error:` binding. A refresh that a
+    /// newer load superseded changes nothing. A genuinely-empty *successful* response still
+    /// reregisters to empty.
     private func refreshInPlace() async {
-        let (vm, registrations) = await resolveServerHostedRequest()
-        guard let vm else { return }
-        swapThroughFreshnessGate(vm)
-        registerLive(registrations)
+        let generation = loadGeneration
+        let request = makeRequest()
+        do {
+            let registrations = try await request.processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+            // A navigation, retry or invalidation since this began owns the screen now
+            guard generation == loadGeneration, viewModel != nil else { return }
+            swapThroughFreshnessGate(request.viewModel)
+            registerLive(registrations)
+        } catch let rejection as CredentialRejectedError {
+            guard generation == loadGeneration else { return }
+            // A rejection always reaches the caller: the screen keeps its data and its `error:`
+            // binding gets the rejection, so the app can re-authenticate
+            ServerBindFailure.binding(
+                failure: Binding(get: { failure }, set: { failure = $0 }),
+                delivered: Binding(get: { failureDelivered }, set: { failureDelivered = $0 }),
+                caller: error
+            ).wrappedValue = rejection
+        } catch {
+            guard generation == loadGeneration else { return }
+            // fosmvvm-review:disable:next no-silent-failure -- the screen keeps its data; stale-data signal: planning/stream/feat-stale-data-signal.md
+            print("ViewModel Refresh Error: \(error)")
+            _ = request.routeToRequestErrorHandler(error, mvvmEnv: mvvmEnv)
+        }
     }
 
     private func registerLive(_ registrations: [ModelIdentity]) {
@@ -512,29 +830,92 @@ private struct VMServerResolverView<VM: RequestableViewModel, VMV: ViewModelView
         liveCoordinator.update(registrations: registrations, dispatcher: mvvmEnv.invalidationDispatcher)
     }
 
-    private func resolveServerHostedRequest() async -> (viewModel: VM?, registrations: [ModelIdentity]) {
-        do {
-            let request = VM.Request(
-                query: query,
-                fragment: fragment,
-                requestBody: nil,
-                responseBody: nil
-            )
+    private func makeRequest() -> VM.Request {
+        VM.Request(
+            query: query,
+            fragment: fragment,
+            requestBody: nil,
+            responseBody: nil
+        )
+    }
+}
 
-            let registrations = try await request.processRequestCapturingRegistrations(mvvmEnv: mvvmEnv)
+/// Catches a client-hosted ViewModel that reached the server resolver: a debug build stops with
+/// the diagnostic; a release build fails the load instead of fetching, without retrying.
+/// Swift cannot exclude client-hosted ViewModels from the server `bind` overloads, so a `bind()`
+/// that misses every client overload (no `appState:` for a macro-built ViewModel, or
+/// `error:`/`loadingView:`) lands here and would otherwise fetch from the server.
+enum ServerBindDiagnostic {
+    /// The release-build form: the load fails with this instead of fetching. Its description is
+    /// what an alert would show a user; the developer diagnostic is printed.
+    struct ClientHostedBoundAsServerError: Error, CustomDebugStringConvertible {
+        let diagnostic: String
 
-            return (request.viewModel, registrations)
-        } catch { // fosmvvm-review:disable:this no-silent-failure -- Error handling is TBD
-            print("ViewModel Bind Error: \(error)")
-            // TODO: Error handling
-            // Probably want to handle errors out-of-band.
-            // That is, no need to put an error view here,
-            // as that would yield tiny error views all
-            // over the UI.  But instead, some top-level
-            // way to display to the user that the app
-            // encountered an error.
-            return (nil, [])
+        var debugDescription: String {
+            "This screen could not be loaded."
         }
+    }
+
+    static func clientHostedFailure(_ vm: (some Any).Type, view: (some Any).Type) -> ClientHostedBoundAsServerError? {
+        clientHostedBoundAsServer(vm, view: view).map(ClientHostedBoundAsServerError.init)
+    }
+
+    static func clientHostedBoundAsServer<VM, VMV>(_ vm: VM.Type, view: VMV.Type) -> String? {
+        guard vm is any ClientHostedViewModelFactory.Type else { return nil }
+
+        return """
+        ================================================================================
+        FOSMVVM: '\(VMV.self).bind(...)' would fetch a client-hosted ViewModel from the server.
+
+        '\(VM.self)' is client-hosted: it is built in the app, never fetched. This
+        bind() call matched none of the client-hosted overloads, so it reached the
+        server path.
+
+        To fix:
+
+          - Pass the ViewModel's app state:
+
+                \(VMV.self).bind(appState: .init( ... ))
+
+          - Remove error: and loadingView: — a client-hosted ViewModel is built
+            synchronously, so it never waits and never fails to load.
+
+        See the documentation for ClientHostedViewModelFactory and ViewModelView.bind.
+        ================================================================================
+        """
+    }
+}
+
+/// How a server-hosted bind routes a load failure: into the resolver's own state (which the
+/// loading view reads) and, when given, the caller's `error` binding.
+enum ServerBindFailure {
+    /// One binding that writes both, so `AsyncTaskEngine` applies the `task(error:)` rules to each.
+    /// The caller's binding belongs to this bind alone (the DocC says not to share it), so every
+    /// write goes to it.
+    @MainActor static func binding(
+        failure: Binding<Error?>,
+        delivered: Binding<Bool>,
+        caller: Binding<Error?>?
+    ) -> Binding<Error?> {
+        Binding(
+            get: { failure.wrappedValue },
+            set: { newValue in
+                failure.wrappedValue = newValue
+                caller?.wrappedValue = newValue
+                delivered.wrappedValue = newValue != nil && caller?.wrappedValue != nil
+            }
+        )
+    }
+
+    /// A retry is requested while this bind's failure is showing, it reached the caller's binding,
+    /// and the caller has emptied that binding. A state, not a transition: a failure
+    /// written and cleared between two renders still reads as a request. Starting the attempt
+    /// clears `failure`, which ends the request.
+    static func retryRequested(delivered: Bool, callerError: Error?, failure: Error?) -> Bool {
+        guard let failure, !(failure is ServerBindDiagnostic.ClientHostedBoundAsServerError) else {
+            return false
+        }
+        return delivered && callerError == nil
     }
 }
 

@@ -25,6 +25,7 @@ import Testing
 /// The alert is Localizable *composition* — the generated twins render; the only logic is
 /// the `%{error}` substitution-value ladder, tested here rung by rung across both
 /// localization domains, plus the composed message as a value.
+@Suite(.systemVersionAccess)
 struct ErrorAlertTests: LocalizableTestCase {
     // MARK: Substitution-value ladder
 
