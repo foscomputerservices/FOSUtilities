@@ -1,6 +1,7 @@
 ---
 status: open
 last_updated: 2026-10-09
+state: paused, awaiting David's rulings OQ29-OQ32 (David on vacation)
 origin: PopTalk session relaying David, 2026-10-09; fix (1) ruled by David (OQ28)
 ---
 
@@ -44,6 +45,49 @@ public final class FormFieldModel<Value: Codable & Hashable>: Codable, Resettabl
 
 **Field evidence (PopTalk, FOSUtilities 0.20.2):** 18 view models hold fields such as `@FormFieldModel(Self.preChargeField) public var batteryIncreasePreCharge: String`; 84 view-model tests pass without resolving a field title. Validation messages are reached, because the `FieldValidationModel` values on the view models are `RetrievablePropertyNames`.
 
+**Finding, 2026-10-09 (probe against `main` 0c75a4f, test code since removed):** the gap is narrower than this item first said. `expectFullViewModelTests` encodes with the strict encoder, so a field title whose YAML key is missing ALREADY fails at encode (`LocalizerError: Missing translation for localized(ProbeMissingVM.nope.title) in locale 'en'`); so does a missing `FOSForms.save`. Two cases pass silently: a key present with a blank value (`""`), and a `.empty` title (e.g. `FormField.dummy` never replaced). PopTalk's 84 passing tests did resolve their field titles; what they cannot catch is blank or empty field text.
+
+**Also held by `FormFieldModel`:** `cancelButtonTitle` (`LocalizableString/defaultCancelTitle`, YAML `FOSForms.cancel`). Nothing else in `Sources/FOSMVVM/Forms` is localized (title, placeholder, save, cancel are the full set).
+
+**Proposed customer DocC for `expectFullViewModelTests` (`Sources/FOSTesting/LocalizableTestCase.swift:189`), awaiting OQ31:**
+
+```swift
+    /// Performs tests to ensure that the **ViewModel** is complete and stable
+    ///
+    /// This test performs all aspects of automated verification against the **ViewModel**, including:
+    ///
+    ///   - ``expectCodable(_:encoder:decoder:_:)``
+    ///   - ``expectVersionedViewModel(_:version:encoder:decoder:_:fixedTestFilePath:file:line:)-79yr2``
+    ///   - ``expectTranslations(_:locales:)``
+    ///
+    /// The translation check reaches every localized value the view model holds:
+    /// nested view models, rows of collections, optionals, and each `@FormFieldModel`
+    /// field's title, placeholder, and save and cancel button titles. A missing or blank
+    /// translation fails the test and names the property, for example
+    /// `MyViewModel.email.title -- Missing Translation -- es`.
+    ///
+    /// > A field the view model holds needs no ``expectFullFormFieldTests(_:locales:)`` call;
+    /// > use that for a ``FormField`` checked on its own.
+    ///
+    /// ## Example
+    ///
+    /// ```swift
+    /// try expectFullViewModelTests(MyViewModel.self)
+    /// ```
+```
+
+Parameters unchanged. The draft also fixes two pre-existing errors in today's DocC: the example calls a nonexistent `expectFullyTestedViewModel`, and "ViewMode" for "ViewModel".
+
+**Awaiting David's ruling:**
+
+OQ29 — Proceed on the narrower premise (blank/empty field text, not missing keys), and correct this item's wording accordingly?
+
+OQ30 — Check `cancelButtonTitle` too?
+
+OQ31 — Approve the DocC above, including the two pre-existing doc fixes?
+
+OQ32 — Failing-first test uses a field whose title value is blank in `es` (the case that passes today)?
+
 ## Suggested actions
 
 1. Customer DocC first (fosmvvm-planning): what `expectFullViewModelTests` now promises about fields.
@@ -56,3 +100,4 @@ public final class FormFieldModel<Value: Codable & Hashable>: Codable, Resettabl
 ## History
 
 - 2026-10-09 — Opened at David's ruling (OQ28), from PopTalk's relay.
+- 2026-10-09 — Branch `fix/viewmodel-walker-form-fields` cut; probe narrowed the gap to blank/empty field text; DocC drafted; OQ29-OQ32 put to David. Paused: David on vacation.
