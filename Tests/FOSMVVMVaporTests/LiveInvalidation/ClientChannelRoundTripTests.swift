@@ -99,6 +99,32 @@ struct ClientChannelRoundTripTests {
         }
     }
 
+    /// A server that requires a compatible app version (`RequireVersionedAppMiddleware`) accepts
+    /// the open: the channel sends the system-version header every client request carries.
+    @Test func connectsBehindVersionMiddleware() async throws {
+        try await withServedFluentTestApp { app in
+            app.invalidationHeartbeatInterval = .milliseconds(200)
+            let versioned = app.grouped(RequireVersionedAppMiddleware())
+            try configureLiveWorkspace(app, on: versioned)
+        } _: { _, baseURL in
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+
+            let channel = SSEInvalidationChannel(
+                baseURL: { baseURL },
+                credentialProvider: nil,
+                session: session
+            )
+
+            try await withTimeout(.seconds(15)) {
+                var iterator = channel.events().makeAsyncIterator()
+                guard case .connected = await iterator.next() else {
+                    throw RoundTripError.expectedConnected
+                }
+            }
+        }
+    }
+
     /// A non-2xx open (here a 401 group) is a drop, not a connection: no `.connected` is ever
     /// emitted (no false dispatcher sweep) and back-off GROWS across the retries instead of
     /// resetting into a hot spin.

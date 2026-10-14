@@ -117,7 +117,11 @@ struct SSEInvalidationChannel: InvalidationChannel {
         onOpen: () -> Void
     ) async throws {
         let credentialHeaders = try await credentialProvider?.credentialHeaders() ?? []
-        let request = try await Self.makeRequest(baseURL: baseURL(), credentialHeaders: credentialHeaders)
+        let request = try await Self.makeRequest(
+            baseURL: baseURL(),
+            systemVersion: SystemVersion.current,
+            credentialHeaders: credentialHeaders
+        )
         let session = session ?? .shared
 
         let (bytes, response) = try await session.bytes(for: request)
@@ -161,16 +165,21 @@ struct SSEInvalidationChannel: InvalidationChannel {
         }
     }
 
-    /// The stream-open request: the frozen §6 `invalidations` path with `Accept: text/event-stream`
-    /// and the provider's credential headers. Factored out so header attachment is unit-testable.
-    static func makeRequest(baseURL: URL, credentialHeaders: [(field: String, value: String)]) -> URLRequest {
+    /// The stream-open request: the frozen §6 `invalidations` path with `Accept: text/event-stream`,
+    /// the system-version header every client request carries, and the provider's credential
+    /// headers. Factored out so header attachment is unit-testable.
+    static func makeRequest(
+        baseURL: URL,
+        systemVersion: SystemVersion,
+        credentialHeaders: [(field: String, value: String)]
+    ) -> URLRequest {
         // FROZEN §6 wire literal — the server keeps its own private copy in
         // FOSMVVMVapor/LiveInvalidation/InvalidationRoute.swift (`InvalidationRoute.pathComponent`).
         // Frozen contracts make this duplication safe; the FOSMVVMVaporTests round-trip locks it
         // end-to-end. Do NOT promote to shared public surface.
         var request = URLRequest(url: baseURL.appending(path: "invalidations"))
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        for header in credentialHeaders {
+        for header in systemVersion.versioningHeaders + credentialHeaders {
             request.setValue(header.value, forHTTPHeaderField: header.field)
         }
         return request

@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A query or fragment change cancels the load it replaces,** so a slow, superseded load can no longer overwrite the newer result.
 - **An invalidation that arrives while a screen is loading is no longer lost;** the load restarts.
 - **A live refresh that a newer load superseded no longer installs stale data.**
+- **Live invalidation now connects to a server that checks app versions.** The stream open sends the `X-FOS-Version` header like every other client request; before, a server behind `RequireVersionedAppMiddleware` refused every open and screens refreshed only on their own fetches.
 - **A credential rejection during a live refresh reaches the screen's `error:` binding** instead of being dropped; the data on screen stays.
 - **`MVVMEnvironment`'s `loadingView` is shown again.** `bind()` had ignored it and always shown a plain `ProgressView`.
 

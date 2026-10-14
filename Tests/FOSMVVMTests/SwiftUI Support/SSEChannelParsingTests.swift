@@ -129,6 +129,41 @@ struct SSEChannelParsingTests {
         let connects = await collectConnects(count: 3)
         #expect(connects == 3)
     }
+
+    // MARK: - Stream-open request
+
+    /// The open carries the system-version header exactly as every other client request does, so
+    /// a server behind the version middleware accepts it.
+    @Test func openCarriesSystemVersionHeader() throws {
+        let version = SystemVersion(major: 3, minor: 1, patch: 4)
+        let request = try SSEInvalidationChannel.makeRequest(
+            baseURL: #require(URL(string: "https://example.com/api")),
+            systemVersion: version,
+            credentialHeaders: []
+        )
+
+        var expected = try URLRequest(url: #require(URL(string: "https://example.com")))
+        expected.addSystemVersioningHeader(systemVersion: version)
+
+        let header = request.value(forHTTPHeaderField: SystemVersion.httpHeader)
+        #expect(header != nil)
+        #expect(header == expected.value(forHTTPHeaderField: SystemVersion.httpHeader))
+    }
+
+    /// The open asks for an event stream and carries the provider's credential headers alongside
+    /// the version header.
+    @Test func openCarriesAcceptAndCredentialHeaders() throws {
+        let request = try SSEInvalidationChannel.makeRequest(
+            baseURL: #require(URL(string: "https://example.com/api")),
+            systemVersion: SystemVersion(major: 1),
+            credentialHeaders: [(field: "Authorization", value: "Bearer token")]
+        )
+
+        #expect(request.url?.path() == "/api/invalidations")
+        #expect(request.value(forHTTPHeaderField: "Accept") == "text/event-stream")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
+        #expect(request.value(forHTTPHeaderField: SystemVersion.httpHeader) != nil)
+    }
 }
 
 // MARK: - Reconnect harness
