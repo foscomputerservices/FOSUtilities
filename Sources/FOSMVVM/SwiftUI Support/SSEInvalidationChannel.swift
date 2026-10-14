@@ -179,9 +179,7 @@ struct SSEInvalidationChannel: InvalidationChannel {
         // end-to-end. Do NOT promote to shared public surface.
         var request = URLRequest(url: baseURL.appending(path: "invalidations"))
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        // The server's version middleware refuses an unversioned open, which reads here as a drop.
-        request.addSystemVersioningHeader(systemVersion: systemVersion)
-        for header in credentialHeaders {
+        for header in systemVersion.versioningHeaders + credentialHeaders {
             request.setValue(header.value, forHTTPHeaderField: header.field)
         }
         return request
