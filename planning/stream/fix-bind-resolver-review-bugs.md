@@ -1,6 +1,6 @@
 ---
-status: in progress
-last_updated: 2026-10-08
+status: closed
+last_updated: 2026-10-14
 origin: feat/bind-error review rounds (David 2026-10-08: "You found good bugs, so those should be fixed too, but in a separate branch")
 ---
 
@@ -33,3 +33,4 @@ Reference: `feat/bind-error` (kept, not merged) tried one design — one `.task(
 
 - 2026-10-08 — Opened at David's direction; `bind(error:)` ships first on `feat/bind-error-v2`.
 - 2026-10-08 — Built on `fix/bind-resolver` (branched off `feat/bind-error-v2`) at David's "create a branch off of that and add the other fixes". One `.task(id:)` per load key; reappearance of the shown key does not re-fetch; invalidation observed at the resolver and acknowledged at once; `loadGeneration` supersedes stale refreshes; refresh rejections go to the `error:` binding. Hosted tests for the double fetch, superseded reload and mid-load invalidation, each watched failing first. Stale refresh and refresh rejection have no hosted test (they need a live-invalidation channel in the harness).
+- 2026-10-14 — Released in 0.20.3; closed.
