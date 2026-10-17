@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -46,6 +46,8 @@ public extension SliderTick where V: BinaryFloatingPoint {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(iOS 26.0, macOS 26.0, watchOS 26.0, visionOS 26.0, *)
+    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, _ value: V) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value)
     }

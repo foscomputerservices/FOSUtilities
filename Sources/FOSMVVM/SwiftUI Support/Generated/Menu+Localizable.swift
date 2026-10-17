@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import DeveloperToolsSupport
@@ -46,6 +46,7 @@ public extension Menu where Label == SwiftUI.Label<Text, Image>, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, content: content)
     }
@@ -57,6 +58,7 @@ public extension Menu where Label == SwiftUI.Label<Text, Image>, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: ImageResource, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, content: content)
     }
@@ -71,6 +73,7 @@ public extension Menu where Label: View, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> Content, primaryAction: @escaping () -> Void) where Label == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content, primaryAction: primaryAction)
     }
@@ -82,6 +85,7 @@ public extension Menu where Label: View, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> Content) where Label == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

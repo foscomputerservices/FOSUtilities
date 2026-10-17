@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -44,6 +44,7 @@ public extension AccessibilityActionCategory {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)))
     }

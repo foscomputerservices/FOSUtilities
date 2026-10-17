@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import Foundation
@@ -49,6 +49,9 @@ public extension NewDocumentButton where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, contentType: UTType, prepareDocumentURL: @escaping () async throws -> URL? = { nil }) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), contentType: contentType, prepareDocumentURL: prepareDocumentURL)
     }
@@ -60,6 +63,9 @@ public extension NewDocumentButton where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, contentType: UTType? = nil) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), contentType: contentType)
     }
@@ -71,6 +77,9 @@ public extension NewDocumentButton where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     init<D>(_ localizable: some Localizable, defaultValue: String? = nil, for documentType: D.Type = D.self, contentType: UTType? = nil, prepareDocument: @escaping () async throws -> D? = { nil }) where D: ReferenceFileDocument {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: documentType, contentType: contentType, prepareDocument: prepareDocument)
     }
@@ -82,6 +91,9 @@ public extension NewDocumentButton where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(iOS 18.0, macOS 15.0, visionOS 2.0, *)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     init<D>(_ localizable: some Localizable, defaultValue: String? = nil, for documentType: D.Type = D.self, contentType: UTType? = nil, prepareDocument: @escaping () async throws -> D? = { nil }) where D: FileDocument {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: documentType, contentType: contentType, prepareDocument: prepareDocument)
     }

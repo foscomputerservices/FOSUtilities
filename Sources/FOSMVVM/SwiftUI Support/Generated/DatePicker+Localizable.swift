@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import Foundation
@@ -46,6 +46,7 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, displayedComponents: displayedComponents)
     }
@@ -57,6 +58,7 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, in range: ClosedRange<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: range, displayedComponents: displayedComponents)
     }
@@ -68,6 +70,7 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, in range: PartialRangeFrom<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: range, displayedComponents: displayedComponents)
     }
@@ -79,6 +82,7 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, in range: PartialRangeThrough<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: range, displayedComponents: displayedComponents)
     }

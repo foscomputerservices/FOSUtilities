@@ -2049,8 +2049,10 @@ func renderLicenseHeader(fileName: String) -> String {
 /// The trailing swiftformat directive keeps Apple's generic signatures as the
 /// graphs spell them: Transform copies generic parameter lists and `where`
 /// clauses VERBATIM (spec rule), and the opaqueGenericParameters /
-/// simplifyGenericConstraints rules would rewrite exactly those — the
-/// directive resolves the conflict in the file, not in the repo config.
+/// simplifyGenericConstraints rules would rewrite exactly those; each member
+/// carries its own availability, which extensionAttributes would hoist onto
+/// the extension — the directive resolves the conflict in the file, not in the
+/// repo config.
 func renderGeneratedStamp(_ stamp: GenerationStamp) -> String {
     """
     // GENERATED FILE — DO NOT EDIT
@@ -2058,8 +2060,8 @@ func renderGeneratedStamp(_ stamp: GenerationStamp) -> String {
     // SDKs: \(stamp.sdkLine)
     // Regenerate: swift scripts/localizable-overload-sweep.swift
     //
-    // Generic signatures mirror Apple's declarations verbatim:
-    // swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+    // Generic signatures and per-member availability mirror Apple's declarations verbatim:
+    // swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
     """
 }
 

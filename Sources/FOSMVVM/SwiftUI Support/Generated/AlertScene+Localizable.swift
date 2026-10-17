@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -49,6 +49,11 @@ public extension AlertScene {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS 15.0, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    @available(visionOS, unavailable)
     init<T>(_ localizable: some Localizable, defaultValue: String? = nil, isPresented: Binding<Bool>, presenting data: T?, @ViewBuilder actions: (T) -> Actions, @ViewBuilder message: (T) -> Message) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isPresented: isPresented, presenting: data, actions: actions, message: message)
     }
@@ -60,6 +65,11 @@ public extension AlertScene {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS 15.0, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    @available(visionOS, unavailable)
     init<T>(_ localizable: some Localizable, defaultValue: String? = nil, isPresented: Binding<Bool>, presenting data: T?, @ViewBuilder actions: (T) -> Actions) where Message == EmptyView {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isPresented: isPresented, presenting: data, actions: actions)
     }
@@ -71,6 +81,11 @@ public extension AlertScene {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS 15.0, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, isPresented: Binding<Bool>, @ViewBuilder actions: () -> Actions, @ViewBuilder message: () -> Message) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isPresented: isPresented, actions: actions, message: message)
     }
@@ -82,6 +97,11 @@ public extension AlertScene {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS 15.0, *)
+    @available(iOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
+    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, isPresented: Binding<Bool>, @ViewBuilder actions: () -> Actions) where Message == EmptyView {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isPresented: isPresented, actions: actions)
     }

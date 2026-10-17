@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import Foundation
@@ -48,6 +48,9 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>, in bounds: Range<Date>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: bounds)
     }
@@ -59,6 +62,9 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>, in bounds: PartialRangeFrom<Date>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: bounds)
     }
@@ -70,6 +76,9 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>, in bounds: PartialRangeUpTo<Date>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: bounds)
     }
@@ -81,6 +90,9 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(macOS, unavailable)
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection)
     }

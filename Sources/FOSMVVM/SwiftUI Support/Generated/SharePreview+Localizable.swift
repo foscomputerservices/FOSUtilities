@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -45,6 +45,7 @@ public extension SharePreview {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, image: Image, icon: Icon) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, icon: icon)
     }
@@ -59,6 +60,7 @@ public extension SharePreview where Image == Never, Icon == Never {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue))
     }
@@ -73,6 +75,7 @@ public extension SharePreview where Image == Never, Icon: Transferable {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, icon: Icon) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), icon: icon)
     }
@@ -87,6 +90,7 @@ public extension SharePreview where Image: Transferable, Icon == Never {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, image: Image) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image)
     }

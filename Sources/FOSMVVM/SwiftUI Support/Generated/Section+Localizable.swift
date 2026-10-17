@@ -19,8 +19,8 @@
 // SDKs: macosx 26.5 | iphoneos 26.5 | appletvos 26.5 | watchos 26.5 | xros 26.5
 // Regenerate: swift scripts/localizable-overload-sweep.swift
 //
-// Generic signatures mirror Apple's declarations verbatim:
-// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints
+// Generic signatures and per-member availability mirror Apple's declarations verbatim:
+// swiftformat:disable opaqueGenericParameters simplifyGenericConstraints extensionAttributes
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -66,6 +66,8 @@ public extension Section where Parent: TableRowContent, Content: TableRowContent
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     nonisolated init<V>(_ localizable: some Localizable, defaultValue: String? = nil, isExpanded: Binding<Bool>, @TableRowBuilder<V> content: () -> Content) where Parent == TableHeaderRowContent<V, Text>, Footer == EmptyTableRowContent<V>, V == Content.TableRowValue {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isExpanded: isExpanded, content: content)
     }
@@ -81,6 +83,8 @@ public extension Section where Parent: TableRowContent, Content: TableRowContent
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
+    @available(tvOS, unavailable)
+    @available(watchOS, unavailable)
     nonisolated init<V>(_ localizable: some Localizable, defaultValue: String? = nil, @TableRowBuilder<V> content: () -> Content) where Parent == TableHeaderRowContent<V, Text>, Footer == EmptyTableRowContent<V>, V == Content.TableRowValue {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }
