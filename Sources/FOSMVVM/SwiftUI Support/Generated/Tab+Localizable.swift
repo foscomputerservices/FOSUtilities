@@ -44,7 +44,6 @@ public extension Tab where Value == Never, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, role: TabRole?, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, role: role, content: content)
     }
@@ -54,7 +53,6 @@ public extension Tab where Value == Never, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, content: content)
     }
@@ -64,7 +62,6 @@ public extension Tab where Value == Never, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil, image: String, role: TabRole?, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, role: role, content: content)
     }
@@ -74,7 +71,6 @@ public extension Tab where Value == Never, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil, image: String, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, content: content)
     }
@@ -87,7 +83,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init<T>(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, value: T, role: TabRole?, @ViewBuilder content: () -> Content) where Value == T?, Label == DefaultTabLabel, T: Hashable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, value: value, role: role, content: content)
     }
@@ -97,7 +92,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, value: Value, role: TabRole?, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, value: value, role: role, content: content)
     }
@@ -107,7 +101,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init<T>(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, value: T, @ViewBuilder content: () -> Content) where Value == T?, Label == DefaultTabLabel, T: Hashable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, value: value, content: content)
     }
@@ -117,7 +110,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, value: Value, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, value: value, content: content)
     }
@@ -127,7 +119,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init<T>(_ localizable: some Localizable, defaultValue: String? = nil, image: String, value: T, role: TabRole?, @ViewBuilder content: () -> Content) where Value == T?, Label == DefaultTabLabel, T: Hashable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, value: value, role: role, content: content)
     }
@@ -137,7 +128,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: String, value: Value, role: TabRole?, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, value: value, role: role, content: content)
     }
@@ -147,7 +137,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init<T>(_ localizable: some Localizable, defaultValue: String? = nil, image: String, value: T, @ViewBuilder content: () -> Content) where Value == T?, Label == DefaultTabLabel, T: Hashable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, value: value, content: content)
     }
@@ -157,7 +146,6 @@ public extension Tab where Value: Hashable, Content: View, Label: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: String, value: Value, @ViewBuilder content: () -> Content) where Label == DefaultTabLabel {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, value: value, content: content)
     }

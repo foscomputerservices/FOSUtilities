@@ -401,11 +401,10 @@ extension RetrievablePropertyNames { // Internal for testing
                     } else if let locProp = child.value as? LocalizedSubs {
                         localizableId = locProp.localizationId
                     }
-                } else if String(describing: type(of: child.value)).starts(with: localizedArrayPropertyTypeName) {
-                    // _LocalizedArrayProperty support
-                    if let locArrayProp = child.value as? LocalizedStrings {
-                        localizableId = locArrayProp.localizationId
-                    }
+                } else if String(describing: type(of: child.value)).starts(with: localizedArrayPropertyTypeName),
+                          // _LocalizedArrayProperty support
+                          let locArrayProp = child.value as? LocalizedStrings {
+                    localizableId = locArrayProp.localizationId
                 }
 
                 if let localizableId {

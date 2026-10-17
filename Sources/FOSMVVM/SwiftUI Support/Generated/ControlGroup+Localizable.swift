@@ -46,7 +46,6 @@ public extension ControlGroup where Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init<C>(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, @ViewBuilder content: () -> C) where Content == LabeledControlGroupContent<C, Label<Text, Image>>, C: View {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, content: content)
     }
@@ -58,7 +57,6 @@ public extension ControlGroup where Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init<C>(_ localizable: some Localizable, defaultValue: String? = nil, image: ImageResource, @ViewBuilder content: () -> C) where Content == LabeledControlGroupContent<C, Label<Text, Image>>, C: View {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, content: content)
     }
@@ -70,7 +68,6 @@ public extension ControlGroup where Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init<C>(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> C) where Content == LabeledControlGroupContent<C, Text>, C: View {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

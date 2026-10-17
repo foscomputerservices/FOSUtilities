@@ -46,8 +46,6 @@ public extension ColorPicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Color>, supportsOpacity: Bool = true) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, supportsOpacity: supportsOpacity)
     }
@@ -59,8 +57,6 @@ public extension ColorPicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<CGColor>, supportsOpacity: Bool = true) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, supportsOpacity: supportsOpacity)
     }

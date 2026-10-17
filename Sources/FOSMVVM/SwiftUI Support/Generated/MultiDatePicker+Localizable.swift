@@ -48,9 +48,6 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>, in bounds: Range<Date>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: bounds)
     }
@@ -62,9 +59,6 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>, in bounds: PartialRangeFrom<Date>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: bounds)
     }
@@ -76,9 +70,6 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>, in bounds: PartialRangeUpTo<Date>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: bounds)
     }
@@ -90,9 +81,6 @@ public extension MultiDatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Set<DateComponents>>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection)
     }

@@ -48,10 +48,6 @@ public extension Window {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(visionOS 26.0, *)
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, id: String, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), id: id, content: content)
     }

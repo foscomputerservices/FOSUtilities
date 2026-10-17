@@ -39,7 +39,7 @@ struct CollectionTests {
         }
 
         let stop = Date()
-        #expect(lastNum == array.last!)
+        #expect(try lastNum == #require(array.last))
         #expect(result.count == array.count)
         #expect(stop.timeIntervalSince(start) > TimeInterval(array.count / 10) * 0.5)
     }

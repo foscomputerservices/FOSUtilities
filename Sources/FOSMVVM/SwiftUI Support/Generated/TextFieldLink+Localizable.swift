@@ -48,10 +48,6 @@ public extension TextFieldLink where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, prompt: Text? = nil, onSubmit: @escaping (String) -> Void) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), prompt: prompt, onSubmit: onSubmit)
     }

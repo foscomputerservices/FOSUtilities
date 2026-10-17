@@ -47,8 +47,6 @@ public extension TableColumn where RowValue: Identifiable, RowValue == Sort.Comp
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, sortUsing comparator: Sort, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), sortUsing: comparator, content: content)
     }
@@ -64,8 +62,6 @@ public extension TableColumn where RowValue: Identifiable, Sort == KeyPathCompar
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init<V, C>(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, V>, comparator: C, @ViewBuilder content: @escaping (RowValue) -> Content) where V == C.Compared, C: SortComparator {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, comparator: comparator, content: content)
     }
@@ -77,8 +73,6 @@ public extension TableColumn where RowValue: Identifiable, Sort == KeyPathCompar
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, String>, comparator: String.StandardComparator = .localizedStandard) where Content == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, comparator: comparator)
     }
@@ -90,8 +84,6 @@ public extension TableColumn where RowValue: Identifiable, Sort == KeyPathCompar
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init<V>(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, V>, @ViewBuilder content: @escaping (RowValue) -> Content) where V: Comparable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -107,8 +99,6 @@ public extension TableColumn where RowValue: Identifiable, Sort == Never, Conten
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, String>) where Content == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value)
     }
@@ -120,8 +110,6 @@ public extension TableColumn where RowValue: Identifiable, Sort == Never, Conten
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }
@@ -137,8 +125,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, String>, comparator: String.StandardComparator = .localizedStandard, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, comparator: comparator, content: content)
     }
@@ -150,8 +136,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, String?>, comparator: String.StandardComparator = .localizedStandard, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, comparator: comparator, content: content)
     }
@@ -163,8 +147,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, String>, comparator: String.StandardComparator = .localizedStandard) where Content == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, comparator: comparator)
     }
@@ -176,8 +158,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Date>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -189,8 +169,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Date?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -202,8 +180,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UUID>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -215,8 +191,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UUID?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -228,8 +202,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Bool>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -241,8 +213,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Bool?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -254,8 +224,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Double>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -267,8 +235,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Double?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -280,8 +246,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Float>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -293,8 +257,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Float?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -306,8 +268,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -319,8 +279,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -332,8 +290,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -345,8 +301,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -358,8 +312,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int8>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -371,8 +323,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int8?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -384,8 +334,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int16>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -397,8 +345,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int16?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -410,8 +356,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int32>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -423,8 +367,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int32?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -436,8 +378,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int64>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -449,8 +389,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, Int64?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -462,8 +400,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt8>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -475,8 +411,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt8?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -488,8 +422,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt16>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -501,8 +433,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt16?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -514,8 +444,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt32>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -527,8 +455,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt32?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -540,8 +466,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt64>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }
@@ -553,8 +477,6 @@ public extension TableColumn where RowValue: NSObject, RowValue: Identifiable, S
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, value: KeyPath<RowValue, UInt64?>, @ViewBuilder content: @escaping (RowValue) -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, content: content)
     }

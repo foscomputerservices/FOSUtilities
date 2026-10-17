@@ -49,10 +49,6 @@ public extension MenuBarExtra where Label == SwiftUI.Label<Text, Image>, Content
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, isInserted: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, isInserted: isInserted, content: content)
     }
@@ -64,10 +60,6 @@ public extension MenuBarExtra where Label == SwiftUI.Label<Text, Image>, Content
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, content: content)
     }
@@ -79,10 +71,6 @@ public extension MenuBarExtra where Label == SwiftUI.Label<Text, Image>, Content
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: ImageResource, isInserted: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, isInserted: isInserted, content: content)
     }
@@ -94,10 +82,6 @@ public extension MenuBarExtra where Label == SwiftUI.Label<Text, Image>, Content
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: String, isInserted: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, isInserted: isInserted, content: content)
     }
@@ -109,10 +93,6 @@ public extension MenuBarExtra where Label == SwiftUI.Label<Text, Image>, Content
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: ImageResource, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, content: content)
     }
@@ -124,10 +104,6 @@ public extension MenuBarExtra where Label == SwiftUI.Label<Text, Image>, Content
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: String, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, content: content)
     }
@@ -145,10 +121,6 @@ public extension MenuBarExtra where Label == Text, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, isInserted: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isInserted: isInserted, content: content)
     }
@@ -160,10 +132,6 @@ public extension MenuBarExtra where Label == Text, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

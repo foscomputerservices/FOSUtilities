@@ -30,35 +30,23 @@ struct DTTest: Codable {
             from: dateTime
         )
 
-        if comparisonDateComps.contains(.year) {
-            if dateComps.year != DTTest.dateYear {
-                throw DTTestError.error("years not equal")
-            }
+        if comparisonDateComps.contains(.year), dateComps.year != DTTest.dateYear {
+            throw DTTestError.error("years not equal")
         }
-        if comparisonDateComps.contains(.month) {
-            if dateComps.month != DTTest.dateMonth {
-                throw DTTestError.error("months not equal")
-            }
+        if comparisonDateComps.contains(.month), dateComps.month != DTTest.dateMonth {
+            throw DTTestError.error("months not equal")
         }
-        if comparisonDateComps.contains(.day) {
-            if dateComps.day != DTTest.dateDay {
-                throw DTTestError.error("days not equal")
-            }
+        if comparisonDateComps.contains(.day), dateComps.day != DTTest.dateDay {
+            throw DTTestError.error("days not equal")
         }
-        if comparisonDateComps.contains(.hour) {
-            if dateComps.hour != DTTest.dateHour {
-                throw DTTestError.error("hours not equal")
-            }
+        if comparisonDateComps.contains(.hour), dateComps.hour != DTTest.dateHour {
+            throw DTTestError.error("hours not equal")
         }
-        if comparisonDateComps.contains(.minute) {
-            if dateComps.minute != DTTest.dateMinute {
-                throw DTTestError.error("minutes not equal")
-            }
+        if comparisonDateComps.contains(.minute), dateComps.minute != DTTest.dateMinute {
+            throw DTTestError.error("minutes not equal")
         }
-        if comparisonDateComps.contains(.second) {
-            if dateComps.second != DTTest.dateSecond {
-                throw DTTestError.error("seconds not equal")
-            }
+        if comparisonDateComps.contains(.second), dateComps.second != DTTest.dateSecond {
+            throw DTTestError.error("seconds not equal")
         }
     }
 

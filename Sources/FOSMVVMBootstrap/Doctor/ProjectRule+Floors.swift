@@ -55,8 +55,7 @@ extension ProjectRule {
 
     private static func manifestFindings(_ declared: [TargetPlatform: String]) -> [Finding] {
         declared.keys.sorted { $0.rawValue < $1.rawValue }.compactMap { platform in
-            guard let asked = declared[platform], let floor = FOSPlatformFloor.floors[platform] else { return nil }
-            guard FOSPlatformFloor.compareVersions(asked, floor) == .orderedAscending else { return nil }
+            guard let asked = declared[platform], let floor = FOSPlatformFloor.floors[platform], FOSPlatformFloor.compareVersions(asked, floor) == .orderedAscending else { return nil }
             return Finding(
                 severity: .error,
                 summary: "Package.swift declares \(platform.rawValue) \(asked), below the FOSUtilities floor of \(floor).",

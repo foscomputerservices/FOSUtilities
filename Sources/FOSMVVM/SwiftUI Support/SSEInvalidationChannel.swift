@@ -171,8 +171,7 @@ struct SSEInvalidationChannel: InvalidationChannel {
                 // swiftlint:disable:next optional_data_string_conversion
                 let line = String(decoding: lineBytes, as: UTF8.self)
                 lineBytes.removeAll(keepingCapacity: true)
-                guard let payload = parser.consume(line) else { continue }
-                guard let identities = Self.decode(payload) else { continue }
+                guard let payload = parser.consume(line), let identities = Self.decode(payload) else { continue }
                 continuation.yield(.invalidated(identities))
             }
         }

@@ -48,10 +48,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init<B>(_ localizable: some Localizable, defaultValue: String? = nil, backgroundStyle: B = BackgroundStyle(), @ViewBuilder _ actions: () -> Actions = { DefaultDocumentGroupLaunchActions() }, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), backgroundStyle: backgroundStyle, actions, backgroundAccessoryView: backgroundAccessoryView, overlayAccessoryView: overlayAccessoryView)
     }
@@ -63,10 +59,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init<B>(_ localizable: some Localizable, defaultValue: String? = nil, backgroundStyle: B = BackgroundStyle(), @ViewBuilder _ actions: () -> Actions = { DefaultDocumentGroupLaunchActions() }, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), backgroundStyle: backgroundStyle, actions, backgroundAccessoryView: backgroundAccessoryView)
     }
@@ -78,10 +70,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init<B>(_ localizable: some Localizable, defaultValue: String? = nil, backgroundStyle: B = BackgroundStyle(), @ViewBuilder _ actions: () -> Actions = { DefaultDocumentGroupLaunchActions() }, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), backgroundStyle: backgroundStyle, actions, overlayAccessoryView: overlayAccessoryView)
     }
@@ -93,10 +81,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init<B>(_ localizable: some Localizable, defaultValue: String? = nil, backgroundStyle: B = BackgroundStyle(), @ViewBuilder _ actions: () -> Actions = { DefaultDocumentGroupLaunchActions() }) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), backgroundStyle: backgroundStyle, actions)
     }
@@ -108,10 +92,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder _ actions: () -> Actions, @ViewBuilder background: () -> some View, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), actions, background: background, backgroundAccessoryView: backgroundAccessoryView, overlayAccessoryView: overlayAccessoryView)
     }
@@ -123,10 +103,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder _ actions: () -> Actions, @ViewBuilder background: () -> some View, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), actions, background: background, backgroundAccessoryView: backgroundAccessoryView)
     }
@@ -138,10 +114,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder _ actions: () -> Actions, @ViewBuilder background: () -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), actions, background: background, overlayAccessoryView: overlayAccessoryView)
     }
@@ -153,10 +125,6 @@ public extension DocumentGroupLaunchScene where Actions: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, visionOS 2.0, *)
-    @available(macOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder _ actions: () -> Actions, @ViewBuilder background: () -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), actions, background: background)
     }

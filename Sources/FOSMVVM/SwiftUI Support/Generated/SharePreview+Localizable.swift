@@ -45,7 +45,6 @@ public extension SharePreview {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, image: Image, icon: Icon) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, icon: icon)
     }
@@ -60,7 +59,6 @@ public extension SharePreview where Image == Never, Icon == Never {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue))
     }
@@ -75,7 +73,6 @@ public extension SharePreview where Image == Never, Icon: Transferable {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, icon: Icon) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), icon: icon)
     }
@@ -90,7 +87,6 @@ public extension SharePreview where Image: Transferable, Icon == Never {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, image: Image) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image)
     }

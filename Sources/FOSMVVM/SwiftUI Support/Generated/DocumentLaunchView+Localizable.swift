@@ -52,12 +52,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init<B>(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], backgroundStyle: B, @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, backgroundStyle: backgroundStyle, actions, onDocumentOpen: onDocumentOpen, overlayAccessoryView: overlayAccessoryView)
     }
@@ -69,12 +63,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init<B>(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], backgroundStyle: B, @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, backgroundStyle: backgroundStyle, actions, onDocumentOpen: onDocumentOpen, backgroundAccessoryView: backgroundAccessoryView, overlayAccessoryView: overlayAccessoryView)
     }
@@ -86,12 +74,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init<B>(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], backgroundStyle: B, @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, backgroundStyle: backgroundStyle, actions, onDocumentOpen: onDocumentOpen, backgroundAccessoryView: backgroundAccessoryView)
     }
@@ -103,12 +85,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init<B>(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], backgroundStyle: B, @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView) where B: ShapeStyle {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, backgroundStyle: backgroundStyle, actions, onDocumentOpen: onDocumentOpen)
     }
@@ -120,12 +96,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, overlayAccessoryView: overlayAccessoryView)
     }
@@ -137,12 +107,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, backgroundAccessoryView: backgroundAccessoryView, overlayAccessoryView: overlayAccessoryView)
     }
@@ -154,12 +118,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, backgroundAccessoryView: backgroundAccessoryView)
     }
@@ -171,12 +129,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder background: () -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, background: background, overlayAccessoryView: overlayAccessoryView)
     }
@@ -188,12 +140,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder background: () -> some View, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View, @ViewBuilder overlayAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, background: background, backgroundAccessoryView: backgroundAccessoryView, overlayAccessoryView: overlayAccessoryView)
     }
@@ -205,12 +151,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder background: () -> some View, @ViewBuilder backgroundAccessoryView: @escaping (DocumentLaunchGeometryProxy) -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, background: background, backgroundAccessoryView: backgroundAccessoryView)
     }
@@ -222,12 +162,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView, @ViewBuilder background: () -> some View) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen, background: background)
     }
@@ -239,12 +173,6 @@ public extension DocumentLaunchView {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, *)
-    @available(macOS, unavailable)
-    @available(macCatalyst, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, for contentTypes: [UTType], @ViewBuilder _ actions: () -> Actions, @ViewBuilder onDocumentOpen: @escaping (URL) -> DocumentView) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)), for: contentTypes, actions, onDocumentOpen: onDocumentOpen)
     }

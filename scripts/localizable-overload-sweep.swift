@@ -1446,10 +1446,7 @@ func classifyPolicy(
     lskUSRs: Set<String>,
     textUSRs: Set<String>
 ) -> PolicyVerdict {
-    guard let slots = parseParameterSlots(api.declarationFragments) else {
-        return .rejected(.unrecognizedShape, lskReturnOnly: false)
-    }
-    guard !slots.contains(where: \.isVariadic) else {
+    guard let slots = parseParameterSlots(api.declarationFragments), !slots.contains(where: \.isVariadic) else {
         return .rejected(.unrecognizedShape, lskReturnOnly: false)
     }
     // LSK anywhere in a slot's type marks it an LSK position. Aggregates like
@@ -1511,12 +1508,12 @@ func classifyPolicy(
         let siblingConstraints =
             (sibling.swiftExtension?.constraints ?? []) + sibling.genericConstraints
         guard siblingConstraints.allSatisfy({ constraint in
-            candidateConstraints.contains(constraint)
-                || siblingOnlyParameters.contains(baseIdentifier(constraint.lhs))
-        }),
-            let siblingSlots = parseParameterSlots(sibling.declarationFragments),
-            siblingSlots.count == slots.count,
-            siblingSlots.map(\.label) == candidateLabels
+                  candidateConstraints.contains(constraint)
+                      || siblingOnlyParameters.contains(baseIdentifier(constraint.lhs))
+              }),
+              let siblingSlots = parseParameterSlots(sibling.declarationFragments),
+              siblingSlots.count == slots.count,
+              siblingSlots.map(\.label) == candidateLabels
         else { return nil }
         for index in slots.indices where !lskPositions.contains(index) {
             guard siblingSlots[index].typeText == slots[index].typeText else { return nil }

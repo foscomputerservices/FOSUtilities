@@ -49,11 +49,6 @@ public extension UtilityWindow {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(macOS 15.0, *)
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, id: String, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), id: id, content: content)
     }

@@ -44,7 +44,6 @@ public extension AccessibilityActionCategory {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil) {
         self.init(Text(verbatim: localizable.defaultedLocalizedString(defaultValue: defaultValue)))
     }

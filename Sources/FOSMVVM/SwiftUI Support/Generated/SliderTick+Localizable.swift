@@ -46,8 +46,6 @@ public extension SliderTick where V: BinaryFloatingPoint {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 26.0, macOS 26.0, watchOS 26.0, visionOS 26.0, *)
-    @available(tvOS, unavailable)
     init(_ localizable: some Localizable, defaultValue: String? = nil, _ value: V) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value)
     }

@@ -20,6 +20,7 @@ import Foundation
 #if canImport(SwiftUI)
 import SwiftUI
 
+@MainActor
 public extension View {
     /// Returns the view wrapped so that it can be tested with *ViewModelViewTestCase*
     ///
@@ -60,7 +61,7 @@ public extension View {
     ///
     /// - Parameters:
     ///   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
-    @MainActor @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
+    @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
         #if DEBUG
         decorator(
             ProcessInfo.processInfo.testConfiguration,
@@ -106,7 +107,7 @@ public extension View {
     /// Every view to be tested individually must be registered from the application's `init()`
     /// with ``MVVMEnvironment/registerTestView(_:designedFor:)``; this function resolves the view under test
     /// before the first render, and stops with a diagnostic if it is not registered by then.
-    @MainActor func testHost() -> some View {
+    func testHost() -> some View {
         testHost(decorator: { _, view in view })
     }
 }

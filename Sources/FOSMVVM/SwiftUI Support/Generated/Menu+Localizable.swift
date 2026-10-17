@@ -46,7 +46,6 @@ public extension Menu where Label == SwiftUI.Label<Text, Image>, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, systemImage: String, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), systemImage: systemImage, content: content)
     }
@@ -58,7 +57,6 @@ public extension Menu where Label == SwiftUI.Label<Text, Image>, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, image: ImageResource, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), image: image, content: content)
     }
@@ -73,7 +71,6 @@ public extension Menu where Label: View, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> Content, primaryAction: @escaping () -> Void) where Label == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content, primaryAction: primaryAction)
     }
@@ -85,7 +82,6 @@ public extension Menu where Label: View, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> Content) where Label == Text {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

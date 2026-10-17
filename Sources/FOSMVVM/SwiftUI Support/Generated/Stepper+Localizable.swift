@@ -46,7 +46,6 @@ public extension Stepper where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, onIncrement: (() -> Void)?, onDecrement: (() -> Void)?, onEditingChanged: @escaping (Bool) -> Void = { _ in }) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), onIncrement: onIncrement, onDecrement: onDecrement, onEditingChanged: onEditingChanged)
     }
@@ -58,7 +57,6 @@ public extension Stepper where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init<V>(_ localizable: some Localizable, defaultValue: String? = nil, value: Binding<V>, in bounds: ClosedRange<V>, step: V.Stride = 1, onEditingChanged: @escaping (Bool) -> Void = { _ in }) where V: Strideable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, in: bounds, step: step, onEditingChanged: onEditingChanged)
     }
@@ -70,7 +68,6 @@ public extension Stepper where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init<F>(_ localizable: some Localizable, defaultValue: String? = nil, value: Binding<F.FormatInput>, in bounds: ClosedRange<F.FormatInput>, step: F.FormatInput.Stride = 1, format: F, onEditingChanged: @escaping (Bool) -> Void = { _ in }) where F: ParseableFormatStyle, F.FormatInput: BinaryFloatingPoint, F.FormatOutput == String {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, in: bounds, step: step, format: format, onEditingChanged: onEditingChanged)
     }
@@ -82,7 +79,6 @@ public extension Stepper where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init<V>(_ localizable: some Localizable, defaultValue: String? = nil, value: Binding<V>, step: V.Stride = 1, onEditingChanged: @escaping (Bool) -> Void = { _ in }) where V: Strideable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, step: step, onEditingChanged: onEditingChanged)
     }
@@ -94,7 +90,6 @@ public extension Stepper where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init<F>(_ localizable: some Localizable, defaultValue: String? = nil, value: Binding<F.FormatInput>, step: F.FormatInput.Stride = 1, format: F, onEditingChanged: @escaping (Bool) -> Void = { _ in }) where F: ParseableFormatStyle, F.FormatInput: BinaryFloatingPoint, F.FormatOutput == String {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), value: value, step: step, format: format, onEditingChanged: onEditingChanged)
     }

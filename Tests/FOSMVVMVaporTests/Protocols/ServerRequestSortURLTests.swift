@@ -18,11 +18,11 @@ import FOSFoundation
 import FOSMVVM
 import FOSMVVMVapor
 import Foundation
+import Testing
+import Vapor
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-import Vapor
 
 /// Spec test group 9: sort rides the request URL as a reserved item; pre-C6 URLs
 /// round-trip byte-identically. These tests (not DocC) pin the reserved `sort=`

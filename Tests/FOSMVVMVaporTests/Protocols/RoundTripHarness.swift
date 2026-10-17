@@ -22,11 +22,11 @@ import FOSFoundation
 import FOSMVVM
 import FOSMVVMVapor
 import Foundation
+import Testing
+import Vapor
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-import Vapor
 
 /// Boots a real listening `Application` on an OS-assigned port (`127.0.0.1:0`), registers routes
 /// via `register`, yields the base URL (`http://127.0.0.1:<port>`) to `body`, then tears the

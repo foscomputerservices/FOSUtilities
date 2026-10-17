@@ -44,7 +44,6 @@ public extension TabSection where Content: TabContent, SelectionValue: Hashable 
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init(_ localizable: some Localizable, defaultValue: String? = nil, @TabContentBuilder<SelectionValue> content: () -> Content) where Header == Text, Footer == EmptyView {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }
@@ -54,7 +53,6 @@ public extension TabSection where Content: TabContent, SelectionValue: Hashable 
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     init<V>(_ localizable: some Localizable, defaultValue: String? = nil, @TabContentBuilder<V?> content: () -> Content) where Header == Text, Footer == EmptyView, SelectionValue == V?, V: Hashable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

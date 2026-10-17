@@ -46,8 +46,6 @@ public extension DisclosureGroup where Label == Text, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, isExpanded: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isExpanded: isExpanded, content: content)
     }
@@ -59,8 +57,6 @@ public extension DisclosureGroup where Label == Text, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: @escaping () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

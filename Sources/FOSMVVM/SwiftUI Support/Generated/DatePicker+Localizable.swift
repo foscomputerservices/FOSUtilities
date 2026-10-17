@@ -46,7 +46,6 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, displayedComponents: displayedComponents)
     }
@@ -58,7 +57,6 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, in range: ClosedRange<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: range, displayedComponents: displayedComponents)
     }
@@ -70,7 +68,6 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, in range: PartialRangeFrom<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: range, displayedComponents: displayedComponents)
     }
@@ -82,7 +79,6 @@ public extension DatePicker where Label == Text {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, selection: Binding<Date>, in range: PartialRangeThrough<Date>, displayedComponents: DatePicker<Label>.Components = [.hourAndMinute, .date]) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), selection: selection, in: range, displayedComponents: displayedComponents)
     }

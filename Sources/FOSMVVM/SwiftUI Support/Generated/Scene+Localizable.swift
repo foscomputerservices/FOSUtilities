@@ -25,6 +25,7 @@
 #if canImport(SwiftUI)
 import SwiftUI
 
+@available(macOS 15.0, *)
 @available(iOS, unavailable)
 @available(tvOS, unavailable)
 @available(watchOS, unavailable)
@@ -48,11 +49,6 @@ public extension Scene {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(macOS 15.0, *)
-    @available(iOS, unavailable)
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
-    @available(visionOS, unavailable)
     nonisolated func dialogSuppressionToggle(_ localizable: some Localizable, defaultValue: String? = nil, isSuppressed: Binding<Bool>) -> some Scene {
         dialogSuppressionToggle(localizable.defaultedLocalizedString(defaultValue: defaultValue), isSuppressed: isSuppressed)
     }

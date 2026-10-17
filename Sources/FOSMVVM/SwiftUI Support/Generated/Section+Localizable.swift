@@ -66,8 +66,6 @@ public extension Section where Parent: TableRowContent, Content: TableRowContent
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init<V>(_ localizable: some Localizable, defaultValue: String? = nil, isExpanded: Binding<Bool>, @TableRowBuilder<V> content: () -> Content) where Parent == TableHeaderRowContent<V, Text>, Footer == EmptyTableRowContent<V>, V == Content.TableRowValue {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), isExpanded: isExpanded, content: content)
     }
@@ -83,8 +81,6 @@ public extension Section where Parent: TableRowContent, Content: TableRowContent
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init<V>(_ localizable: some Localizable, defaultValue: String? = nil, @TableRowBuilder<V> content: () -> Content) where Parent == TableHeaderRowContent<V, Text>, Footer == EmptyTableRowContent<V>, V == Content.TableRowValue {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }

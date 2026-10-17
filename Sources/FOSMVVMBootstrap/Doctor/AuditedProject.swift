@@ -397,8 +397,7 @@ private extension AuditedProject {
             // a false R13 finding naming Package.swift itself).
             guard !url.lastPathComponent.hasPrefix("Package") else { continue }
             let components = relativePath.split(separator: "/").map(String.init)
-            guard !components.contains(where: { $0 == "Tests" || $0.hasSuffix("Tests") }) else { continue }
-            guard let contents = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            guard !components.contains(where: { $0 == "Tests" || $0.hasSuffix("Tests") }), let contents = try? String(contentsOf: url, encoding: .utf8) else { continue }
 
             let range = NSRange(contents.startIndex..., in: contents)
             let imports = importPattern.matches(in: contents, range: range).compactMap { match -> String? in

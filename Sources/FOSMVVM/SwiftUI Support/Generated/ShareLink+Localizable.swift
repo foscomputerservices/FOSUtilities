@@ -47,7 +47,6 @@ public extension ShareLink where Data: RandomAccessCollection, PreviewImage == N
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, items: Data, subject: Text? = nil, message: Text? = nil) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), items: items, subject: subject, message: message)
     }
@@ -62,7 +61,6 @@ public extension ShareLink where Data: RandomAccessCollection, PreviewImage == N
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, items: Data, subject: Text? = nil, message: Text? = nil) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), items: items, subject: subject, message: message)
     }
@@ -77,7 +75,6 @@ public extension ShareLink where Data: RandomAccessCollection, PreviewImage == N
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, item: URL, subject: Text? = nil, message: Text? = nil) where Data == CollectionOfOne<URL> {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), item: item, subject: subject, message: message)
     }
@@ -89,7 +86,6 @@ public extension ShareLink where Data: RandomAccessCollection, PreviewImage == N
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, item: String, subject: Text? = nil, message: Text? = nil) where Data == CollectionOfOne<String> {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), item: item, subject: subject, message: message)
     }
@@ -104,7 +100,6 @@ public extension ShareLink where Data: RandomAccessCollection, PreviewImage: Tra
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init<I>(_ localizable: some Localizable, defaultValue: String? = nil, item: I, subject: Text? = nil, message: Text? = nil, preview: SharePreview<PreviewImage, PreviewIcon>) where Data == CollectionOfOne<I>, I: Transferable {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), item: item, subject: subject, message: message, preview: preview)
     }
@@ -116,7 +111,6 @@ public extension ShareLink where Data: RandomAccessCollection, PreviewImage: Tra
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, items: Data, subject: Text? = nil, message: Text? = nil, preview: @escaping (Data.Element) -> SharePreview<PreviewImage, PreviewIcon>) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), items: items, subject: subject, message: message, preview: preview)
     }

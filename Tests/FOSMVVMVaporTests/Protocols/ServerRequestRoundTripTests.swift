@@ -26,12 +26,12 @@ import FOSFoundation
 import FOSMVVM
 import FOSMVVMVapor
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 import NIOCore
 import Testing
 import Vapor
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @Suite("ServerRequest round-trip (real processRequest ↔ running server)", .serialized)
 struct ServerRequestRoundTripTests {

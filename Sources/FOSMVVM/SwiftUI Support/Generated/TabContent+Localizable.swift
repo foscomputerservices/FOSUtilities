@@ -44,7 +44,6 @@ public extension TabContent {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated func accessibilityHint(_ localizable: some Localizable, defaultValue: String? = nil, isEnabled: Bool = true) -> some TabContent<Self.TabValue> {
         accessibilityHint(localizable.defaultedLocalizedString(defaultValue: defaultValue), isEnabled: isEnabled)
     }
@@ -54,7 +53,6 @@ public extension TabContent {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated func accessibilityLabel(_ localizable: some Localizable, defaultValue: String? = nil, isEnabled: Bool = true) -> some TabContent<Self.TabValue> {
         accessibilityLabel(localizable.defaultedLocalizedString(defaultValue: defaultValue), isEnabled: isEnabled)
     }
@@ -64,7 +62,6 @@ public extension TabContent {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     nonisolated func accessibilityValue(_ localizable: some Localizable, defaultValue: String? = nil, isEnabled: Bool = true) -> some TabContent<Self.TabValue> {
         accessibilityValue(localizable.defaultedLocalizedString(defaultValue: defaultValue), isEnabled: isEnabled)
     }

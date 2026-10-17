@@ -46,8 +46,6 @@ public extension GroupBox where Label == Text, Content: View {
     /// - Parameters:
     ///   - localizable: The ``Localizable`` to display.
     ///   - defaultValue: Fallback text used if localization did not complete.
-    @available(tvOS, unavailable)
-    @available(watchOS, unavailable)
     nonisolated init(_ localizable: some Localizable, defaultValue: String? = nil, @ViewBuilder content: () -> Content) {
         self.init(localizable.defaultedLocalizedString(defaultValue: defaultValue), content: content)
     }
