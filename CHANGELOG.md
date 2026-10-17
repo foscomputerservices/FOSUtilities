@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrading
+
+- **Linux clients now hold a live-invalidation connection open.** When `MVVMEnvironment`'s `invalidationChannel:` is left `nil`, a Linux app keeps one request open to the server, as Apple-platform apps already did. If the server never called `useLiveInvalidation`, the request fails and is retried with back-off, up to every 30 seconds, for as long as the app runs.
+
+### Added
+
+- **Live invalidation on Linux.** With `invalidationChannel:` left `nil`, `MVVMEnvironment` now opens the standard live-invalidation channel on Linux too, so a live screen refreshes after a server change instead of fetching once. WASI has no standard channel: supply your own `InvalidationChannel` to go live there.
+
+### Changed
+
+- **Opening the live-invalidation stream sends the same default headers as other requests,** including `Accept-Language`.
+
+### Fixed
+
+- **Live screens no longer re-fetch about once a second when the server's answer isn't an event stream** (a proxy's login page, say). The standard channel now treats such an answer as a failed connection and retries with growing back-off. A `Retry-After` answer counts as a failure too, and the channel waits at least as long as the server asked before it retries.
+
 ## [0.20.3] - 2026-10-14
 
 ### Upgrading

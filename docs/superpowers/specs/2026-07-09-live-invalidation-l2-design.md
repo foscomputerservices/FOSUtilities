@@ -437,7 +437,8 @@ change of decision.
   race window (a nudge emitted between a screen's first serve and its subscription would otherwise be
   lost), because the initial `.connected` sweep re-fetches every current registration. The cost is one
   extra gated fetch at first appearance, which the freshness gate absorbs as redundant.
-- **§3.2 — the default channel is Darwin-only.** swift-corelibs FoundationNetworking provides no
-  async `URLSession.bytes`, so Linux/WASI clients get no synthesized channel and degrade to
-  fetch-once — consistent with the v1 SwiftUI-native client scope; a custom `InvalidationChannel`
-  remains the door for those platforms.
+- **§3.2 — the default channel runs everywhere but WASI** (amended 2026-10-17; it shipped
+  Darwin-only). The channel opens its stream through `DataFetch.openStream`, which reads the body
+  through a session data delegate because swift-corelibs FoundationNetworking provides no async
+  `URLSession.bytes`. Apple platforms and Linux get the synthesized channel; WASI clients get none
+  and degrade to fetch-once, and a custom `InvalidationChannel` remains the hook for them.

@@ -110,8 +110,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     /// authentication, or conform your own ``ClientCredentialProvider``.
     public let clientCredentialProvider: (any ClientCredentialProvider)?
 
-    /// The transport that delivers server invalidation nudges, or `nil` when live
-    /// invalidation is not configured — see ``InvalidationChannel``
+    /// The transport that delivers server invalidation nudges, or `nil` for the
+    /// standard channel (none on WASI) — see ``InvalidationChannel``
     public let invalidationChannel: (any InvalidationChannel)?
 
     /// A function that is called when there is an error processing a ``ServerRequest``
@@ -351,7 +351,8 @@ public final class MVVMEnvironment: @unchecked Sendable {
     ///   - clientCredentialProvider: Supplies the authentication headers that accompany every
     ///     ``ServerRequest``; consulted per request — see ``ClientCredentialProvider`` (default: nil)
     ///   - invalidationChannel: The transport that delivers server invalidation nudges; supply one
-    ///     only to replace the standard transport — see ``InvalidationChannel`` (default: nil)
+    ///     to replace the standard transport, or on WASI, which has none, to go live at all — see
+    ///     ``InvalidationChannel`` (default: nil)
     ///   - deploymentURLs: The base URLs of the web service for the given ``Deployment``s
     ///   - requestErrorHandler: A function that can take action when an error occurs when resolving
     ///      ``ViewModel`` via a ``ViewModelRequest`` (default: nil). Surface rejections
@@ -642,15 +643,15 @@ extension MVVMEnvironment {
 
     /// The channel the live-invalidation dispatcher consumes: the app-supplied
     /// ``invalidationChannel`` if set, otherwise the lazily-synthesized default SSE channel over
-    /// ``invalidationBaseURL`` and ``clientCredentialProvider``. The default channel is
-    /// Darwin-only (FoundationNetworking lacks `URLSession.bytes`); on Linux/WASI this is `nil`
-    /// and the app degrades to fetch-once.
+    /// ``invalidationBaseURL`` and ``clientCredentialProvider``. There is no default channel on
+    /// WASI, whose `URLSession` cannot stream; there this is `nil` and the app degrades to
+    /// fetch-once.
     @MainActor
     var effectiveInvalidationChannel: (any InvalidationChannel)? {
         if let invalidationChannel {
             return invalidationChannel
         }
-        #if canImport(Darwin)
+        #if !os(WASI)
         if let cached = _defaultInvalidationChannel {
             return cached
         }

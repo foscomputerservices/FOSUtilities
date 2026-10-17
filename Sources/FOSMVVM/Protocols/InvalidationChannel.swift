@@ -29,8 +29,10 @@ public enum InvalidationEvent: Sendable {
 /// The transport that delivers server invalidation nudges to this client
 ///
 /// Most apps never touch this: leave ``MVVMEnvironment/invalidationChannel``
-/// `nil` and FOSMVVM synthesizes the standard channel over your deployment
-/// URLs. Conform your own type only to replace the transport wholesale:
+/// `nil` and, on Apple platforms and Linux, FOSMVVM synthesizes the standard
+/// channel over your deployment URLs. Conform your own type to replace the
+/// transport wholesale, or on WASI, which has no standard channel, to go live
+/// at all:
 ///
 /// ```swift
 /// struct MyChannel: InvalidationChannel {
