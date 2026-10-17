@@ -356,9 +356,10 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     /// standards first (such as ``DataFetchError/retryAfter(_:)``), then the
     /// call's `errorType:`.
     ///
-    /// > Note: The hook is called for every response, successful ones
-    /// > included, and not for a request that fails without one (such as
-    /// > when the network is offline).
+    /// > Note: The hook is called for every response to a request that
+    /// > returns its whole body, successful ones included, and not for a
+    /// > request that fails without one (such as when the network is
+    /// > offline) or for a response that streams.
     ///
     /// - Parameters:
     ///   - urlSession: The session that carries the requests
@@ -429,6 +430,43 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
     /// `package` (not public) so the wire concern never leaks onto FOSFoundation's public surface.
     /// - Throws: ``DataFetchError`` or **errorType**
     package func send<ResultValue: Decodable & Sendable>(data: Data? = nil, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?, checkReceivedMimeType: Bool = true, errorType: (some Decodable & Error).Type, capturingResponseHeader field: String?) async throws -> (value: ResultValue, headerValue: String?) {
+        let (urlRequest, expectedResponseMimeType) = Self.makeURLRequest(
+            data: data,
+            to: url,
+            httpMethod: httpMethod,
+            headers: headers,
+            locale: locale
+        )
+
+        let responseMimeType = checkReceivedMimeType ? expectedResponseMimeType : nil // Remove mutability
+        let errorForResponse = errorForResponse
+
+        return try await withCheckedThrowingContinuation { continuation in
+            urlSession
+                .dataTask(with: urlRequest) { data, response, e in
+                    do {
+                        let result: ResultValue = try Self.completionHandler(
+                            responseData: data,
+                            response: response,
+                            error: e,
+                            responseMimeType: responseMimeType,
+                            errorType: errorType,
+                            errorForResponse: errorForResponse
+                        )
+
+                        let headerValue = field.flatMap {
+                            (response as? HTTPURLResponse)?.value(forHTTPHeaderField: $0)
+                        }
+                        continuation.resume(returning: (value: result, headerValue: headerValue))
+                    } catch let e {
+                        continuation.resume(throwing: e)
+                    }
+                }
+                .resume()
+        }
+    }
+
+    private static func makeURLRequest(data: Data?, to url: URL, httpMethod: String, headers: [(field: String, value: String)]?, locale: Locale?) -> (request: URLRequest, expectedResponseMimeType: String?) {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = httpMethod
 
@@ -475,31 +513,18 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             urlRequest.httpBody = data
         }
 
-        let responseMimeType = checkReceivedMimeType ? expectedResponseMimeType : nil // Remove mutability
-        let errorForResponse = errorForResponse
+        return (urlRequest, expectedResponseMimeType)
+    }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            urlSession
-                .dataTask(with: urlRequest) { data, response, e in
-                    do {
-                        let result: ResultValue = try Self.completionHandler(
-                            responseData: data,
-                            response: response,
-                            error: e,
-                            responseMimeType: responseMimeType,
-                            errorType: errorType,
-                            errorForResponse: errorForResponse
-                        )
+    /// Retry-After (429/503), then status, then media type: `send`'s order, minus `errorForResponse`.
+    private static func checkStreamResponse(_ response: URLResponse, expectedMimeType: String?) throws {
+        try throwIfRetryAfter(response)
+        try checkResponse(response: response, error: nil, expectedMimeType: expectedMimeType)
+    }
 
-                        let headerValue = field.flatMap {
-                            (response as? HTTPURLResponse)?.value(forHTTPHeaderField: $0)
-                        }
-                        continuation.resume(returning: (value: result, headerValue: headerValue))
-                    } catch let e {
-                        continuation.resume(throwing: e)
-                    }
-                }
-                .resume()
+    private static func throwIfRetryAfter(_ response: URLResponse) throws {
+        if let httpResponse = response as? HTTPURLResponse, let wait = httpResponse.retryAfterWait(now: Date()) {
+            throw DataFetchError.retryAfter(wait)
         }
     }
 
@@ -509,9 +534,7 @@ public final class DataFetch<Session: URLSessionProtocol>: Sendable {
             if let callerError = errorForResponse?(httpResponse, responseData) {
                 throw callerError
             }
-            if let wait = httpResponse.retryAfterWait(now: Date()) {
-                throw DataFetchError.retryAfter(wait)
-            }
+            try throwIfRetryAfter(httpResponse)
         }
 
         do {
@@ -640,3 +663,78 @@ public extension DataFetch where Session == URLSession {
 private enum SharedURLSession {
     static let session = URLSession(configuration: DataFetch<URLSession>.urlSessionConfiguration())
 }
+
+#if !os(WASI)
+package extension DataFetch where Session == URLSession {
+    /// Opens a GET whose response stays open, and returns the body as it arrives.
+    ///
+    /// ```swift
+    /// let eventsURL = URL(string: "https://api.example.com/events")!
+    /// let chunks = try await DataFetch<URLSession>.default.openStream(
+    ///     from: eventsURL,
+    ///     headers: [(field: "Accept", value: "text/event-stream")],
+    ///     locale: nil
+    /// )
+    /// for try await chunk in chunks {
+    ///     // chunk is the next piece of the body
+    /// }
+    /// ```
+    ///
+    /// Returns once the server answers. The request carries the same default headers as
+    /// ``send(data:to:httpMethod:headers:locale:checkReceivedMimeType:)``: `Content-Type`,
+    /// `Accept-Encoding`, and a JSON `Accept` when `headers` has none. The answer must be a 2xx
+    /// of the `Accept`ed type.
+    ///
+    /// The request ends when you stop iterating, let the stream go, or cancel the task that
+    /// opens it. Invalidating the session does not end a stream that is already open.
+    /// Chunk boundaries are arbitrary: one chunk can hold part of a line or several
+    /// events, so reassemble lines yourself. Read the stream promptly: chunks you have not read
+    /// yet are held in memory.
+    ///
+    /// Works on Apple platforms and Linux, for HTTP(S) URLs only. The request uses this
+    /// `DataFetch`'s session configuration, including its request timeout, which applies between
+    /// chunks: a stream that stays quiet for longer ends with a timeout error unless the server
+    /// sends heartbeats. The session's delegate answers the request's authentication challenges,
+    /// so a session made with FOSNetworkSecurity's `URLSession.session(config:mutualTLS:)` keeps
+    /// enforcing its pins and client certificate on the stream.
+    ///
+    /// `package`, not public: FOSMVVM's live-invalidation channel is its only caller, and apps
+    /// stream through that channel rather than calling this.
+    ///
+    /// > Note: Reuse one `URLSession` for the streams you open. Every session that opens a
+    /// > stream is kept for the life of the process.
+    ///
+    /// > Note: A `DataFetch` created with an `errorForResponse` hook does not call it here;
+    /// > a stream has no complete body to show it.
+    ///
+    /// - Parameters:
+    ///   - url: The HTTP(S) URL to GET
+    ///   - headers: The headers to send. Include `Accept` naming the one media type you
+    ///     expect; without it, the answer must be JSON.
+    ///   - locale: Sent as `Accept-Language` when given
+    /// - Returns: The body's chunks, until the server closes the response. Iterating throws the
+    ///   transport error if the connection fails first.
+    /// - Throws: ``DataFetchError/retryAfter(_:)`` when the server asks to wait before
+    ///   trying again, ``DataFetchError/badStatus(httpStatusCode:)`` for any other non-2xx
+    ///   answer, ``DataFetchError/badResponseMimeType(_:)`` when the answer is not the
+    ///   `Accept`ed type, `CancellationError` when the opening task is cancelled, or the
+    ///   transport error.
+    func openStream(
+        from url: URL,
+        headers: [(field: String, value: String)]?,
+        locale: Locale?
+    ) async throws -> AsyncThrowingStream<Data, any Error> {
+        let (request, expectedResponseMimeType) = Self.makeURLRequest(
+            data: nil,
+            to: url,
+            httpMethod: "GET",
+            headers: headers,
+            locale: locale
+        )
+
+        return try await StreamingSession.shared(forwardingTo: urlSession).open(request) { response in
+            try Self.checkStreamResponse(response, expectedMimeType: expectedResponseMimeType)
+        }
+    }
+}
+#endif
