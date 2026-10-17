@@ -1,0 +1,33 @@
+---
+status: open
+last_updated: 2026-10-17
+origin: David, 2026-10-17, during the DataFetch streaming review (OQ20), on learning CI runs no package tests on macOS
+---
+
+CI runs the package's tests on Linux only. Every test that exists only on Apple platforms has only ever run on a developer's Mac, and one of those suites fails intermittently.
+
+## Goal
+
+Every package test target runs in CI on macOS, and the leg is reliable enough to gate a merge.
+
+Done means: `ServerBindHostedTests` no longer fails intermittently, and a macOS CI leg runs every package test target on each pull request.
+
+## Input
+
+**The gap:** `.github/workflows/ci.yml:285`, from `9bc21a9` (2025-01-06, "No idea why macOS hangs ... moving on for now"), only builds on macOS. Its comment says `swift test` hung on the runners. The only `swift test` in CI is the Linux leg, `ci.yml:213`.
+
+**Never run in CI:** `Tests/FOSMVVMTests/SwiftUI Support/` (11 files, `ServerBindHostedTests` among them), `FOSTestingUITests`, `FOSReportingTests`, the macro tests under `#if`, `MutualTLSSessionTests`, and the Apple-only tests in `DataFetchStreamTests`.
+
+**A sign it can work:** the scaffolder fast suite already runs `xcodebuild test -scheme FOSUtilities-Package -only-testing:FOSMVVMBootstrapTests` on `macos-26` (`ci.yml:497`).
+
+**The intermittent:** in full `FOSMVVMTests` runs, about one in twenty fails a `ServerBindHostedTests` test in `waitUntil` (`Tests/FOSMVVMTests/SwiftUI Support/ServerBindHostedTests.swift:342`, expectation at `:349`). The failing test varies: `clearingTheFailure_fetchesExactlyOnceMore` on `feat/datafetch-streaming`, `invalidationDuringALoad_fetchesAgain` on `origin/main` `8e0ada3`. Run alone 50 times, it passed every time. Unverified suspects: the 5 s budget (500 spins of 10 ms) under a parallel run, the shared `Harness.current` static (`:271`), and layout of a window that is not key.
+
+## Suggested actions
+
+1. Reproduce the intermittent under instrumentation, find its cause, and fix it.
+2. Try a macOS leg that runs all package test targets through `xcodebuild test` against `FOSUtilities-Package`, and see whether the 2025 hang remains.
+3. Bring the leg's design, its run time, and any targets that cannot run there to David; David rules before it gates merges.
+
+## History
+
+- 2026-10-17 — Opened at David's request (OQ20); not scheduled.
