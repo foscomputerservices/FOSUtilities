@@ -148,8 +148,7 @@ struct InvalidationRouteTests {
     /// next heartbeat, and Vapor never reports that the server stop took too long.
     @Test func shutdownEndsAConnectedClientsStream() async throws {
         let captured = CapturedWarnings()
-        let start = ContinuousClock.now
-        let chunks = try await withServedFluentTestApp { app in
+        let (chunks, stopStart) = try await withServedFluentTestApp { app in
             captureWarnings(of: app, into: captured)
             try configureLiveWorkspace(app, on: app.routes)
         } _: { _, baseURL in
@@ -158,9 +157,9 @@ struct InvalidationRouteTests {
                 try await firstLine(of: chunks, where: { $0.hasPrefix(": open") }) != nil
             }
             #expect(opened)
-            return chunks
+            return (chunks, ContinuousClock.now)
         }
-        #expect(ContinuousClock.now - start < .seconds(3))
+        #expect(ContinuousClock.now - stopStart < .seconds(3))
         #expect(!captured.contains(allOf: "Server stop took too long"))
 
         let endedCleanly = try await withTimeout(.seconds(5)) {
@@ -173,8 +172,7 @@ struct InvalidationRouteTests {
     /// Stopping the app is not held by a client that has already gone away.
     @Test func shutdownIsNotHeldByAGoneClient() async throws {
         let captured = CapturedWarnings()
-        let start = ContinuousClock.now
-        try await withServedFluentTestApp { app in
+        let stopStart = try await withServedFluentTestApp { app in
             captureWarnings(of: app, into: captured)
             try configureLiveWorkspace(app, on: app.routes)
         } _: { _, baseURL in
@@ -183,8 +181,9 @@ struct InvalidationRouteTests {
                 try await firstLine(of: chunks, where: { $0.hasPrefix(": open") }) != nil
             }
             #expect(opened)
+            return ContinuousClock.now
         }
-        #expect(ContinuousClock.now - start < .seconds(3))
+        #expect(ContinuousClock.now - stopStart < .seconds(3))
         #expect(!captured.contains(allOf: "Server stop took too long"))
     }
 
