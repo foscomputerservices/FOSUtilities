@@ -31,7 +31,7 @@ import Testing
 // which would need a version-stamped ViewModel response.
 
 @MainActor
-@Suite(.systemVersionAccess)
+@Suite(.processWideState)
 struct ServerBindHostedTests {
     @Test func bindLoadingView_takesPrecedenceOverTheEnvironments() async throws {
         let harness = try Harness()
@@ -267,7 +267,7 @@ private final class Harness {
     let shownCounts = LockedRecorder<Int>()
 
     /// The harness whose `CounterView` is on screen; one hosted test runs at a time per process
-    /// under `.systemVersionAccess`.
+    /// under `.processWideState`.
     private static var current: Harness?
 
     static func recordShown(_ count: Int) {

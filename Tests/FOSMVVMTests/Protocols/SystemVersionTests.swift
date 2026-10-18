@@ -34,7 +34,7 @@ import FoundationNetworking
 //       is absolutely required for the tests to function
 //       correctly.
 
-@Suite(.serialized, .systemVersionAccess)
+@Suite(.serialized, .processWideState)
 struct SystemVersionTests {
     // MARK: HTTPURLResponse Tests
 
