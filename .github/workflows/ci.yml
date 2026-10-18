@@ -259,6 +259,10 @@ jobs:
       matrix:
         ios_platform: ["macOS", "iOS", "watchOS", "tvOS", "visionOS"]
         configuration: ["Debug", "Release"]
+        # macos_package_tests builds the macOS package scheme in Debug before testing it.
+        exclude:
+          - ios_platform: macOS
+            configuration: Debug
       # Each platform's verdict is independent evidence — one red leg must
       # not cancel the others (default fail-fast hid exactly that).
       fail-fast: false
@@ -292,6 +296,47 @@ jobs:
             -scheme FOSUtilities-Package -configuration "${{ matrix.configuration }}" \
             -destination "platform=macOS,arch=arm64,name=My Mac" build | xcpretty
         if: matrix.ios_platform == 'macOS'
+
+  # Every package test target on macOS, against Apple's Foundation. Linux's
+  # `swift test` cannot reach the SwiftUI-side FOSMVVM tests, the macro tests
+  # (its XCTest bundles execute 0 tests), FOSTestingUI, FOSReporting or the
+  # pinned-certificate tests, and runs the rest on swift-corelibs Foundation only.
+  #
+  # xcodebuild, not `swift test`, which hangs on macOS runners. `build` before
+  # `test` also compiles the targets no test depends on (the bootstrap CLI and
+  # the doctor tool and plugin). No xcpretty: it drops Swift Testing's lines, so
+  # a failed Swift Testing case would show only "TEST FAILED". The result bundle
+  # is uploaded when the leg fails.
+  macos_package_tests:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    name: Test macOS packages
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.6"
+
+      - uses: actions/checkout@v7
+
+      - name: Run package tests
+        run: |
+          xcrun xcodebuild -IDEClonedSourcePackagesDirPathOverride="$PWD/.dependencies" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            -derivedDataPath "$PWD/.derivedData" \
+            -resultBundlePath "$RUNNER_TEMP/tests.xcresult" \
+            -scheme FOSUtilities-Package -configuration Debug \
+            -destination "platform=macOS,arch=arm64" build test
+
+      - name: Upload the result bundle
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-package-tests
+          path: ${{ runner.temp }}/tests.xcresult
+          if-no-files-found: ignore
 
   # Early warning that the framework still compiles against the NEXT major SDK,
   # before a consumer on that Xcode finds out for us.
@@ -729,6 +774,7 @@ jobs:
       - run_tests
       - run_release_build
       - run_xcodebuild_tests
+      - macos_package_tests
       - overload_sweep_staleness
       - bootstrap_fast_suite
       - bootstrap_skeletons
