@@ -36,7 +36,6 @@ struct ClientChannelRoundTripTests {
     /// real Fluent save — delivers `.invalidated` with the containment-derived set {Card, Board}.
     @Test func connectsThenReceivesInvalidation() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             try configureLiveWorkspace(app, on: app.routes)
         } _: { app, baseURL in
             let (dock1, _) = try await seedWorkspace(on: app.db)
@@ -78,7 +77,6 @@ struct ClientChannelRoundTripTests {
     @Test func attachesCredentialHeadersAtOpen() async throws {
         let capture = HeaderCapture()
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let secured = app.grouped(CapturingMiddleware(capture))
             try configureLiveWorkspace(app, on: secured)
         } _: { _, baseURL in
@@ -106,7 +104,6 @@ struct ClientChannelRoundTripTests {
     /// the open: the channel sends the system-version header every client request carries.
     @Test func connectsBehindVersionMiddleware() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let versioned = app.grouped(RequireVersionedAppMiddleware())
             try configureLiveWorkspace(app, on: versioned)
         } _: { _, baseURL in
@@ -133,7 +130,6 @@ struct ClientChannelRoundTripTests {
     /// resetting into a hot spin.
     @Test func non2xxOpenBacksOffWithoutConnected() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let denied = app.grouped(DenyAllMiddleware())
             try configureLiveWorkspace(app, on: denied)
         } _: { _, baseURL in
@@ -178,7 +174,6 @@ struct ClientChannelRoundTripTests {
     /// no `.connected` is emitted and back-off grows.
     @Test func wrongMediaTypeOpenBacksOffWithoutConnected() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let html = app.grouped(HTMLPageMiddleware())
             try configureLiveWorkspace(app, on: html)
         } _: { _, baseURL in
@@ -222,7 +217,6 @@ struct ClientChannelRoundTripTests {
     /// carries no credential state; the reconnect below re-consults `credentialHeaders()`.
     @Test func openRefusedWith401ConsultsCredentialSeam() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let denied = app.grouped(DenyAllMiddleware())
             try configureLiveWorkspace(app, on: denied)
         } _: { _, baseURL in
@@ -269,7 +263,6 @@ struct ClientChannelRoundTripTests {
     /// (back-off) but never consults the credential seam.
     @Test func openRefusedWith500DoesNotConsultCredentialSeam() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let denied = app.grouped(Deny500Middleware())
             try configureLiveWorkspace(app, on: denied)
         } _: { _, baseURL in

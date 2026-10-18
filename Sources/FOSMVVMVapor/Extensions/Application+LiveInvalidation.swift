@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import FluentKit
+import FOSFoundation
 import FOSMVVM
 import Foundation
 import Vapor
@@ -39,6 +40,7 @@ public extension Vapor.Application {
 
         let hub = InvalidationHub()
         storage[InvalidationHubStore.self] = hub
+        lifecycle.use(InvalidationHubShutdown(hub: hub))
 
         // Sweep registrations made BEFORE this call; register(_:migration:) covers the ones
         // made after (spec §3.1: either call order works).
@@ -98,6 +100,25 @@ private func emitMiddleware<M: DataModel>(
     registryReader: @escaping @Sendable () -> ModelTypeRegistry
 ) -> any AnyModelMiddleware {
     InvalidationEmitMiddleware<M>(hub: hub, registryReader: registryReader)
+}
+
+/// Ends the open streams before the server stops: `asyncShutdown()` runs lifecycle handlers before
+/// the storage teardown that stops a served app's server.
+private struct InvalidationHubShutdown: LifecycleHandler {
+    let hub: InvalidationHub
+
+    func shutdown(_ application: Application) {
+        // Blocking is safe for the reason PushServiceShutdown's is: app.shutdown() is never called
+        // from an event loop.
+        let hub = hub
+        try? Task.synchronous {
+            await hub.shutDown()
+        }
+    }
+
+    func shutdownAsync(_ application: Application) async {
+        await hub.shutDown()
+    }
 }
 
 private struct InvalidationHubStore: StorageKey {

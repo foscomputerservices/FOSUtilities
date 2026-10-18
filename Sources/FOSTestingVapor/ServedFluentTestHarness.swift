@@ -49,6 +49,9 @@ import Vapor
 /// `body` `http://127.0.0.1:<bound-port>`. Each call owns a private database, a bound port, and a
 /// full application lifecycle — server and application are always shut down — so tests stay isolated
 /// and run safely in parallel.
+///
+/// Teardown runs in a served app's order: the application's lifecycle handlers shut down before the
+/// server stops, so a handler that ends open streams (live invalidation does) keeps the stop prompt.
 public func withServedFluentTestApp<R: Sendable>(
     configure: @Sendable (Application) async throws -> Void,
     _ body: @Sendable (Application, URL) async throws -> R
@@ -56,8 +59,9 @@ public func withServedFluentTestApp<R: Sendable>(
     let app = try await Application.make(.testing)
     // Teardown discipline: the server is shut down only after a successful start, and each
     // shutdown runs at most once — a happy-path asyncShutdown() throw must not be retried by
-    // the catch (Vapor asserts on double shutdown).
-    var serverStarted = false
+    // the catch (Vapor asserts on double shutdown). The server is held here because
+    // asyncShutdown() clears the storage `app.server` reads.
+    var startedServer: (any Server)?
     var appShutDown = false
     do {
         app.databases.use(.sqlite(.memory), as: .sqlite)
@@ -70,8 +74,9 @@ public func withServedFluentTestApp<R: Sendable>(
         // asyncBoot (not startup()): async lifecycle handlers only run under async boot, and
         // startup()'s console parser chokes on test-runner arguments (see FluentTestHarness).
         try await app.asyncBoot()
-        try app.server.start()
-        serverStarted = true
+        let server = app.server
+        try server.start()
+        startedServer = server
 
         guard let port = app.http.server.shared.localAddress?.port,
               let baseURL = URL(string: "http://127.0.0.1:\(port)") else {
@@ -80,18 +85,25 @@ public func withServedFluentTestApp<R: Sendable>(
 
         let result = try await body(app, baseURL)
 
-        await app.server.shutdown()
-        serverStarted = false
         appShutDown = true
-        try await app.asyncShutdown()
+        let appShutdownError: (any Error)?
+        do {
+            try await app.asyncShutdown()
+            appShutdownError = nil
+        } catch {
+            appShutdownError = error
+        }
+        await server.shutdown()
+        startedServer = nil
+        if let appShutdownError {
+            throw appShutdownError
+        }
         return result
     } catch {
-        if serverStarted {
-            await app.server.shutdown()
-        }
         if !appShutDown {
             try? await app.asyncShutdown()
         }
+        await startedServer?.shutdown()
         throw error
     }
 }

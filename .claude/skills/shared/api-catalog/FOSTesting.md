@@ -390,6 +390,9 @@ Configure the application in `configure` (register routes and containers), then 
 open a real socket to it. The server binds to `127.0.0.1` on an ephemeral port;
 each call owns a private in-memory SQLite database, a bound port, and a full
 lifecycle (always shut down), so tests stay isolated and run in parallel.
+Teardown runs in a served app's order: lifecycle handlers shut down before the
+server stops, so a handler that ends open streams (live invalidation does) keeps
+the stop prompt.
 Don't reach for `app.test(...)` for a stream — it drives the request in-process
 and cannot keep a socket open.
 The example reads the stream with `URLSession.bytes(from:)`, which exists on Apple
