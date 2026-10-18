@@ -25,7 +25,9 @@
 ///
 /// Any view bound with `.bind()` then re-fetches whenever another actor mutates
 /// the data this ViewModel was served from — no polling, no manual invalidation,
-/// and nothing else to write. Where no live connection is configured the
-/// ViewModel behaves exactly like a non-live one (fetch once on appear), so
-/// adding `.live` to a shipped screen is purely additive.
+/// and nothing else to write. On Apple platforms and Linux the standard
+/// connection is made for you. On WASI there is none, so the ViewModel behaves
+/// exactly like a non-live one (fetch once on appear) unless you supply an
+/// ``InvalidationChannel``. Either way, adding `.live` to a shipped screen is
+/// purely additive.
 public protocol LiveViewModel: RequestableViewModel {}

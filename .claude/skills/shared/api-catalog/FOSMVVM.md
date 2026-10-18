@@ -772,10 +772,11 @@ Reach for this when: a bound screen must re-fetch automatically after another
 actor mutates the data it was served from — opt in with
 `@ViewModel(options: [.live])` (never conform `LiveViewModel` directly; the
 macro generates the conformance). Any view bound with `.bind()` then refreshes
-on each server change — no polling, no manual invalidation. Where no live
-connection is configured the ViewModel behaves exactly like a non-live one
-(fetch once on appear), so adding `.live` to a shipped screen is purely
-additive. The server half lives in `FOSMVVMVapor.md § Live Invalidation`.
+on each server change — no polling, no manual invalidation. On Apple platforms
+and Linux the standard connection is made for you; on WASI there is none, so the
+ViewModel behaves exactly like a non-live one (fetch once on appear) unless you
+supply an `InvalidationChannel`. Either way, adding `.live` to a shipped screen
+is purely additive. The server half lives in `FOSMVVMVapor.md § Live Invalidation`.
 
 ```swift
 @ViewModel(options: [.live])
@@ -789,8 +790,9 @@ push socket, a custom connection) and you must supply your own — conform a
 to `MVVMEnvironment(invalidationChannel:)`. Yield `.connected` each time your
 transport (re)establishes — FOSMVVM refreshes every live screen — and
 `.invalidated` with each identity set the server pushes. Most apps never conform
-this: leave `invalidationChannel` nil and FOSMVVM synthesizes the standard
-channel over the deployment URLs.
+this: leave `invalidationChannel` nil and, on Apple platforms and Linux, FOSMVVM
+synthesizes the standard channel over the deployment URLs. On WASI there is no
+standard channel; conform one here to go live at all.
 Don't hand-wire per-screen refresh — one channel feeds every
 `@ViewModel(options: [.live])` screen at once.
 

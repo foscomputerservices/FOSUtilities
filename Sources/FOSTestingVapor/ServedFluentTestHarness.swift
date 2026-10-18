@@ -30,14 +30,17 @@ import Vapor
 ///
 /// ```swift
 /// try await withServedFluentTestApp { app in
-///     try app.register(Board.self, migration: CreateBoard())
-///     try app.useLiveInvalidation(on: app.routes)
+///     app.get("ticks") { _ in
+///         Response(body: .init(asyncStream: { writer in
+///             try await writer.write(.buffer(ByteBuffer(string: "tick\n")))
+///             try await writer.write(.end)
+///         }))
+///     }
 /// } _: { app, baseURL in
-///     let url = baseURL.appending(path: "invalidations")
+///     let url = baseURL.appending(path: "ticks")
 ///     let (bytes, _) = try await URLSession(configuration: .ephemeral).bytes(from: url)
-///     for try await line in bytes.lines where line.hasPrefix("data:") {
-///         // decode the pushed identity set …
-///         break
+///     for try await line in bytes.lines {
+///         #expect(line == "tick")
 ///     }
 /// }
 /// ```

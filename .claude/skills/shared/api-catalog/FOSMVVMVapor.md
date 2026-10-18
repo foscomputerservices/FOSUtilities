@@ -484,8 +484,10 @@ Reach for this when: turning on live invalidation for the server — call once i
 registered container model (`register(_:migration:)`, see Extensions) then nudges
 connected clients to re-fetch after each committed change; registrations made
 before or after this call are both honored. Screens refresh only after a change
-commits, and a client with no live connection degrades to fetch-once — so enabling
-it is purely additive.
+commits. Apple-platform and Linux clients connect by default; a client with no
+live connection (WASI, unless it supplies an `InvalidationChannel`; see
+`FOSMVVM.md § Protocols`) degrades to fetch-once — so enabling it is
+purely additive.
 Limitation: fan-out is single-process — one server instance notifies the clients
 connected to it. Enable exactly once — a second call throws at boot.
 

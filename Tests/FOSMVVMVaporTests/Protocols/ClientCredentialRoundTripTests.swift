@@ -27,11 +27,11 @@ import FOSFoundation
 import FOSMVVM
 import FOSMVVMVapor
 import Foundation
+import Testing
+import Vapor
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-import Vapor
 
 @Suite("ClientCredentialProvider round-trip (processRequest(mvvmEnv:) ↔ running server)", .serialized)
 struct ClientCredentialRoundTripTests {

@@ -49,11 +49,11 @@ import FOSFoundation
 @testable import FOSMVVM
 import FOSMVVMVapor
 import Foundation
+import Testing
+import Vapor
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-import Vapor
 
 @Suite("ClientCredentialMiddleware (verifier ↔ running server)", .serialized)
 struct ClientCredentialMiddlewareTests {

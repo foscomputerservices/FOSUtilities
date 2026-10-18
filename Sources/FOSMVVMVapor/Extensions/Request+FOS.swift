@@ -16,10 +16,10 @@
 
 import FOSFoundation
 import FOSMVVM
+import Vapor
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Vapor
 
 public extension Vapor.Request {
     // MARK: ServerRequest Support
@@ -29,8 +29,7 @@ public extension Vapor.Request {
     /// - Parameter queryType: The concrete type of the *ServerRequestQuery*
     /// - Returns: The query from the Vapor Request's url, if any
     func serverRequestQuery<Q: ServerRequestQuery>(ofType queryType: Q.Type) throws -> Q? {
-        guard queryType != EmptyQuery.self else { return nil }
-        guard let rawQueryStr = serverRequestURLComponents.query else {
+        guard queryType != EmptyQuery.self, let rawQueryStr = serverRequestURLComponents.query else {
             return nil
         }
 
@@ -55,8 +54,7 @@ public extension Vapor.Request {
     /// - Parameter sortType: The concrete type of the *ServerRequestSort*
     /// - Returns: The sort from the Vapor Request's url, or `nil` if the request carries none
     func serverRequestSort<S: ServerRequestSort>(ofType sortType: S.Type) throws -> S? {
-        guard sortType != EmptySort.self else { return nil }
-        guard let rawSortStr = serverRequestURLComponents.sort else {
+        guard sortType != EmptySort.self, let rawSortStr = serverRequestURLComponents.sort else {
             return nil
         }
 

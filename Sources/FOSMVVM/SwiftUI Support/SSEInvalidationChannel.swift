@@ -14,14 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The default ``InvalidationChannel`` transport (spec §3.2/§6). Darwin-only: swift-corelibs
-// FoundationNetworking has no async `URLSession.bytes(for:)`. On every other platform
-// (Linux, WASI) `MVVMEnvironment.effectiveInvalidationChannel` degrades to `nil`
+// The default ``InvalidationChannel`` transport (spec §3.2/§6). Not on WASI, whose `URLSession`
+// cannot stream: there `MVVMEnvironment.effectiveInvalidationChannel` degrades to `nil`
 // (no channel ⇒ fetch-once semantics, the north-star promise); a custom
 // ``InvalidationChannel`` remains the door for those clients.
-#if canImport(Darwin)
+#if !os(WASI)
 import FOSFoundation
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 /// The default Server-Sent-Events transport for live invalidation.
 ///
@@ -60,8 +62,8 @@ struct SSEInvalidationChannel: InvalidationChannel {
         AsyncStream { continuation in
             // Structured under a single Task the stream owns: consumer cancellation (dispatcher
             // shutdown / last registration gone) fires onTermination, which cancels this task; the
-            // in-flight `URLSession.bytes` read and the back-off sleep are both cancellation points,
-            // so teardown is prompt.
+            // in-flight stream read and the back-off sleep are both cancellation points, so
+            // teardown is prompt.
             let task = Task {
                 await Self.runReconnectLoop(
                     yielding: continuation,
@@ -91,6 +93,7 @@ struct SSEInvalidationChannel: InvalidationChannel {
     ) async {
         var backoff = initialBackoff
         while !Task.isCancelled {
+            var serverWait = Duration.zero
             do {
                 try await streamOnce(continuation) {
                     backoff = initialBackoff
@@ -98,13 +101,16 @@ struct SSEInvalidationChannel: InvalidationChannel {
                 }
             } catch is CancellationError {
                 break
+            } catch DataFetchError.retryAfter(let wait) {
+                // The server asked for at least `wait`; never reconnect sooner.
+                serverWait = wait
             } catch {
                 // Any open/stream failure is a drop → reconnect after back-off.
             }
             if Task.isCancelled {
                 break
             }
-            await sleep(backoff)
+            await sleep(max(backoff, serverWait))
             backoff = min(backoff * 2, maxBackoff)
         }
         continuation.finish()
@@ -117,72 +123,58 @@ struct SSEInvalidationChannel: InvalidationChannel {
         onOpen: () -> Void
     ) async throws {
         let credentialHeaders = try await credentialProvider?.credentialHeaders() ?? []
-        let request = try await Self.makeRequest(
-            baseURL: baseURL(),
-            systemVersion: SystemVersion.current,
-            credentialHeaders: credentialHeaders
-        )
-        let session = session ?? .shared
-
-        let (bytes, response) = try await session.bytes(for: request)
-
-        // `bytes(for:)` throws only on transport failure — a 401/404/5xx arrives as a normal
-        // response. Signaling open on one would emit a false `.connected` (spurious dispatcher
-        // sweep) and reset back-off into a ~1 Hz hot spin against a misconfigured URL or expired
-        // credential. Treat non-2xx as a drop: back-off grows, and the next open re-consults the
-        // credential provider (rotation still self-heals).
-        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            // A 401 is the credential being refused. Tell the provider so it can refresh and
-            // persist; the return is discarded because the reconnect below re-consults
-            // `credentialHeaders()` — the channel carries no credential state of its own.
-            if http.statusCode == 401 {
-                _ = await credentialProvider?.credentialHeaders(
-                    afterRejection: CredentialRejectedError(reason: .invalid)
-                )
-            }
-
-            throw SSEStreamOpenError.badStatus(http.statusCode)
+        let dataFetch: DataFetch<URLSession> = if let session {
+            DataFetch(urlSession: session)
+        } else {
+            .default
         }
-        onOpen()
 
-        // Split on `\n` by hand rather than `bytes.lines`: Foundation's `AsyncLineSequence` swallows
-        // empty lines, and SSE's event terminator IS the blank line. The parser strips a trailing
-        // `\r`, so CRLF framing round-trips.
-        var parser = SSEEventParser()
-        var lineBytes = [UInt8]()
-        for try await byte in bytes {
-            try Task.checkCancellation()
-            guard byte == UInt8(ascii: "\n") else {
-                lineBytes.append(byte)
-                continue
-            }
-            // swiftlint:disable:next optional_data_string_conversion
-            let line = String(decoding: lineBytes, as: UTF8.self)
-            lineBytes.removeAll(keepingCapacity: true)
-            guard let payload = parser.consume(line) else { continue }
-            guard let identities = Self.decode(payload) else { continue }
-            continuation.yield(.invalidated(identities))
-        }
-    }
-
-    /// The stream-open request: the frozen §6 `invalidations` path with `Accept: text/event-stream`,
-    /// the system-version header every client request carries, and the provider's credential
-    /// headers. Factored out so header attachment is unit-testable.
-    static func makeRequest(
-        baseURL: URL,
-        systemVersion: SystemVersion,
-        credentialHeaders: [(field: String, value: String)]
-    ) -> URLRequest {
         // FROZEN §6 wire literal — the server keeps its own private copy in
         // FOSMVVMVapor/LiveInvalidation/InvalidationRoute.swift (`InvalidationRoute.pathComponent`).
         // Frozen contracts make this duplication safe; the FOSMVVMVaporTests round-trip locks it
         // end-to-end. Do NOT promote to shared public surface.
-        var request = URLRequest(url: baseURL.appending(path: "invalidations"))
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        for header in systemVersion.versioningHeaders + credentialHeaders {
-            request.setValue(header.value, forHTTPHeaderField: header.field)
+        let url = try await baseURL().appending(path: "invalidations")
+
+        // A non-2xx answer or one that is not an event stream throws, so it is a drop: back-off
+        // grows instead of a false `.connected` (spurious dispatcher sweep) resetting it into a
+        // ~1 Hz hot spin against a misconfigured URL or expired credential.
+        let chunks: AsyncThrowingStream<Data, any Error>
+        do {
+            chunks = try await dataFetch.openStream(
+                from: url,
+                headers: SystemVersion.current.versioningHeaders + credentialHeaders
+                    + [(field: "Accept", value: "text/event-stream")],
+                locale: .current
+            )
+        } catch DataFetchError.badStatus(httpStatusCode: 401) {
+            // A 401 is the credential being refused. Tell the provider so it can refresh and
+            // persist; the return is discarded because the reconnect re-consults
+            // `credentialHeaders()` — the channel carries no credential state of its own.
+            _ = await credentialProvider?.credentialHeaders(
+                afterRejection: CredentialRejectedError(reason: .invalid)
+            )
+            throw DataFetchError.badStatus(httpStatusCode: 401)
         }
-        return request
+        onOpen()
+
+        // Split on `\n` by hand: SSE's event terminator IS the blank line, which a line sequence
+        // would swallow. The parser strips a trailing `\r`, so CRLF framing round-trips.
+        var parser = SSEEventParser()
+        var lineBytes = [UInt8]()
+        for try await chunk in chunks {
+            try Task.checkCancellation()
+            for byte in chunk {
+                guard byte == UInt8(ascii: "\n") else {
+                    lineBytes.append(byte)
+                    continue
+                }
+                // swiftlint:disable:next optional_data_string_conversion
+                let line = String(decoding: lineBytes, as: UTF8.self)
+                lineBytes.removeAll(keepingCapacity: true)
+                guard let payload = parser.consume(line), let identities = Self.decode(payload) else { continue }
+                continuation.yield(.invalidated(identities))
+            }
+        }
     }
 
     /// Decodes one completed event's data payload. A malformed body is skipped (returns `nil`) so a
@@ -195,11 +187,6 @@ struct SSEInvalidationChannel: InvalidationChannel {
         }
         return Set(array)
     }
-}
-
-/// A stream-open that answered non-2xx — treated as a drop by the reconnect loop.
-enum SSEStreamOpenError: Error {
-    case badStatus(Int)
 }
 
 /// Line-oriented Server-Sent-Events reassembly (spec §6, frozen): joins one event's `data:` lines,
