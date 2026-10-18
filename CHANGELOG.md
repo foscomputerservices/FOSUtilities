@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-10-18
+
 ### Changed
 
 - **`withServedFluentTestApp` shuts down in a served app's order:** the application's lifecycle handlers run before the server stops, as they do when a served app stops.

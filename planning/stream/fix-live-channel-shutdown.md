@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 last_updated: 2026-10-18
 origin: fosline, relaying David ("close this issue"), 2026-10-18, after the 0.1.926 release stop
 ---
@@ -36,3 +36,4 @@ Done means: a served app with one open channel shuts down within about a second 
 
 - 2026-10-18 — Opened from fosline's report; David ruled OQ6 (heartbeat internal), OQ7 (before the macOS CI leg), OQ8 (this branch).
 - 2026-10-18 — Fixed on `fix/live-channel-shutdown`: the three new tests failed first (stop ~10 s, "Server stop took too long" logged; a post-shutdown subscription never ended) and pass after (stop ~37 ms). Nine teardown-only heartbeat overrides dropped; `FOSMVVMVaporTests` 449/449 green.
+- 2026-10-18 — PR #171 merged (CI fix `219577a`: the shutdown tests time only the stop, not the boot before it); released in 0.21.1; closed.
