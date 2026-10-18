@@ -40,8 +40,6 @@ struct InvalidationRouteTests {
     /// `defaultDecoder`) to the containment-derived set of a real save: {Card, owning Board}.
     @Test func framedEventRoundTrip() async throws {
         try await withServedFluentTestApp { app in
-            // Short heartbeat so the pump notices the client's disconnect promptly at teardown.
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             try configureLiveWorkspace(app, on: app.routes)
         } _: { app, baseURL in
             let (dock1, _) = try await seedWorkspace(on: app.db)
@@ -146,10 +144,66 @@ struct InvalidationRouteTests {
         }
     }
 
+    /// Stopping the app ends a connected client's stream at once: the stop does not wait for the
+    /// next heartbeat, and Vapor never reports that the server stop took too long.
+    @Test func shutdownEndsAConnectedClientsStream() async throws {
+        let captured = CapturedWarnings()
+        let start = ContinuousClock.now
+        let chunks = try await withServedFluentTestApp { app in
+            captureWarnings(of: app, into: captured)
+            try configureLiveWorkspace(app, on: app.routes)
+        } _: { _, baseURL in
+            let chunks = try await openInvalidations(at: baseURL.appending(path: "invalidations"))
+            let opened = try await withTimeout(.seconds(10)) {
+                try await firstLine(of: chunks, where: { $0.hasPrefix(": open") }) != nil
+            }
+            #expect(opened)
+            return chunks
+        }
+        #expect(ContinuousClock.now - start < .seconds(3))
+        #expect(!captured.contains(allOf: "Server stop took too long"))
+
+        let endedCleanly = try await withTimeout(.seconds(5)) {
+            for try await _ in chunks {}
+            return true
+        }
+        #expect(endedCleanly)
+    }
+
+    /// Stopping the app is not held by a client that has already gone away.
+    @Test func shutdownIsNotHeldByAGoneClient() async throws {
+        let captured = CapturedWarnings()
+        let start = ContinuousClock.now
+        try await withServedFluentTestApp { app in
+            captureWarnings(of: app, into: captured)
+            try configureLiveWorkspace(app, on: app.routes)
+        } _: { _, baseURL in
+            let chunks = try await openInvalidations(at: baseURL.appending(path: "invalidations"))
+            let opened = try await withTimeout(.seconds(10)) {
+                try await firstLine(of: chunks, where: { $0.hasPrefix(": open") }) != nil
+            }
+            #expect(opened)
+        }
+        #expect(ContinuousClock.now - start < .seconds(3))
+        #expect(!captured.contains(allOf: "Server stop took too long"))
+    }
+
+    /// A subscription made after the hub shut down ends at once, so a client that reconnects while
+    /// the app stops cannot hold the stop.
+    @Test func subscriptionAfterShutdownEndsAtOnce() async throws {
+        let hub = InvalidationHub()
+        await hub.shutDown()
+
+        let ended = try await withTimeout(.seconds(5)) {
+            for await _ in await hub.subscribe() {}
+            return true
+        }
+        #expect(ended)
+    }
+
     /// The endpoint answers on the passed group and NOT at the root.
     @Test func mountedGroupIsHonored() async throws {
         try await withServedFluentTestApp { app in
-            app.invalidationHeartbeatInterval = .milliseconds(200)
             let api = app.grouped("api")
             try configureLiveWorkspace(app, on: api)
         } _: { _, baseURL in

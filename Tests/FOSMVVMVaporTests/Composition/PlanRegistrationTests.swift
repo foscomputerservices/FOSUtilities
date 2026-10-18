@@ -25,7 +25,6 @@ import FOSMVVM
 @testable import FOSMVVMVapor
 import FOSTestingVapor
 import Foundation
-import NIOConcurrencyHelpers
 import Testing
 import Vapor
 
@@ -36,65 +35,6 @@ private func configureContainers(_ app: Application) throws {
     app.migrations.add(CreatePier()) // CreateBoard's DDL references piers
     try app.register(Board.self, migration: CreateBoard())
     try app.register(Checklist.self, migration: CreateChecklist())
-}
-
-// MARK: - Warning capture (the warn IS the spec §6 contract — assert it fires)
-
-/// Lock-guarded warning sink shared between the handler (inside the app) and the assertion.
-private final class CapturedWarnings: @unchecked Sendable {
-    private let lock = NIOLock()
-    private var messages: [String] = []
-
-    func append(_ message: String) {
-        lock.withLock { messages.append(message) }
-    }
-
-    var all: [String] {
-        lock.withLock { messages }
-    }
-
-    func contains(allOf fragments: String...) -> Bool {
-        all.contains { message in fragments.allSatisfy { message.contains($0) } }
-    }
-}
-
-/// Captures `.warning`+ messages; forwards nothing (tests stay quiet).
-private struct CapturingLogHandler: LogHandler {
-    let captured: CapturedWarnings
-
-    var metadata: Logger.Metadata = [:]
-    var logLevel: Logger.Level = .warning
-
-    subscript(metadataKey key: String) -> Logger.Metadata.Value? {
-        get { metadata[key] }
-        set { metadata[key] = newValue }
-    }
-
-    // swiftlint:disable:next function_parameter_count
-    func log(
-        level: Logger.Level,
-        message: Logger.Message,
-        metadata: Logger.Metadata?,
-        source: String,
-        file: String,
-        function: String,
-        line: UInt
-    ) {
-        guard level >= .warning else {
-            return
-        }
-        captured.append(message.description)
-    }
-}
-
-/// Rebinds the app's logger to the capturing sink — the boot checks warn through
-/// `Application.logger`, so this intercepts exactly what production would emit.
-private func captureWarnings(of app: Application) -> CapturedWarnings {
-    let captured = CapturedWarnings()
-    app.logger = Logger(label: "plan-registration-tests") { _ in
-        CapturingLogHandler(captured: captured)
-    }
-    return captured
 }
 
 /// A ModelIdentity for application-scope fixtures (id minted locally — no DB round-trip needed).
@@ -818,7 +758,8 @@ struct PlanRegistrationTests {
     /// and the warning FIRES (the warn is the spec §6 contract, not a courtesy).
     @Test func deadRefinementMarkerWarnsButDerives() async throws {
         try await withFluentTestApp { app in
-            let warnings = captureWarnings(of: app)
+            let warnings = CapturedWarnings()
+            captureWarnings(of: app, into: warnings)
             try app.registerRecordLoadPlan(for: DeadMarkerRequest.self)
             let plan = try #require(app.recordLoadPlan(for: DeadMarkerRequest.self))
             #expect(plan.tuples.contains { $0.isRefinedByRequest })
@@ -831,7 +772,8 @@ struct PlanRegistrationTests {
     @Test func guardsOffPathWarnsButDerives() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            let warnings = captureWarnings(of: app)
+            let warnings = CapturedWarnings()
+            captureWarnings(of: app, into: warnings)
             try app.registerRecordLoadPlan(for: GuardsOffPathRequest.self)
             #expect(app.recordLoadPlan(for: GuardsOffPathRequest.self) != nil)
             #expect(warnings.contains(allOf: "ChecklistItem", "Checklist", ".guards"))
@@ -845,7 +787,8 @@ struct PlanRegistrationTests {
     @Test func foreignSortOnRefinedPlanWarnsAtRegistration() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            let warnings = captureWarnings(of: app)
+            let warnings = CapturedWarnings()
+            captureWarnings(of: app, into: warnings)
             try app.registerRecordLoadPlan(for: ForeignSortRequest.self)
             #expect(app.recordLoadPlan(for: ForeignSortRequest.self) != nil)
             #expect(warnings.contains(allOf: "ForeignSortRequest", "ForeignSort", "zero sort terms"))
@@ -858,7 +801,8 @@ struct PlanRegistrationTests {
     @Test func emptySortAndSortCriteriaStaySilentOnTheSortBridge() async throws {
         try await withFluentTestApp { app in
             try configureContainers(app)
-            let warnings = captureWarnings(of: app)
+            let warnings = CapturedWarnings()
+            captureWarnings(of: app, into: warnings)
             try app.registerRecordLoadPlan(for: DeadMarkerRequest.self) // EmptySort + .refinedByRequest
             try app.registerRecordLoadPlan(for: CriteriaSortRequest.self) // SortCriteria + .refinedByRequest
             #expect(app.recordLoadPlan(for: CriteriaSortRequest.self) != nil)

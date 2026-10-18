@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`withServedFluentTestApp` shuts down in a served app's order:** the application's lifecycle handlers run before the server stops, as they do when a served app stops.
+
+### Fixed
+
+- **An app with open live-invalidation streams now stops promptly.** Shutting down the application ends every open stream at once, so stopping the server no longer waits up to 15 seconds for each stream's next heartbeat, and Vapor no longer logs "Server stop took too long". A client that connects while the app is stopping gets a stream that ends at once.
+
 ## [0.21.0] - 2026-10-18
 
 ### Upgrading

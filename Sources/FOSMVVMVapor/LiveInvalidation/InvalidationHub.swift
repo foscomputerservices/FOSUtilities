@@ -31,14 +31,19 @@ actor InvalidationHub {
 
     private var subscribers: [UUID: AsyncStream<Set<ModelIdentity>>.Continuation] = [:]
     private var suppressionWarnedTypes: Set<String> = []
+    private var isShutDown = false
 
     /// One subscriber's live feed of emitted identity sets. The stream ends when the hub
-    /// terminates it (buffer overflow) or the consumer cancels.
+    /// terminates it (buffer overflow), the hub shuts down, or the consumer cancels.
     func subscribe() -> AsyncStream<Set<ModelIdentity>> {
         let id = UUID()
         let (stream, continuation) = AsyncStream<Set<ModelIdentity>>.makeStream(
             bufferingPolicy: .bufferingOldest(Self.subscriberBufferLimit)
         )
+        guard !isShutDown else {
+            continuation.finish()
+            return stream
+        }
         continuation.onTermination = { [weak self] _ in
             Task {
                 await self?.removeSubscriber(id)
@@ -73,6 +78,16 @@ actor InvalidationHub {
     /// (spec §3.1: "suppresses the emit and logs one warning naming the model type").
     func shouldWarnSuppressedEmit(for modelType: String) -> Bool {
         suppressionWarnedTypes.insert(modelType).inserted
+    }
+
+    /// Ends every subscriber's stream and every later one, so each connected client's response
+    /// completes and the server's stop is not held open until a heartbeat write fails.
+    func shutDown() {
+        isShutDown = true
+        for continuation in subscribers.values {
+            continuation.finish()
+        }
+        subscribers.removeAll()
     }
 
     private func removeSubscriber(_ id: UUID) {
