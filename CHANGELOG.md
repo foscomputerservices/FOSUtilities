@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-18
+
 ### Upgrading
 
 - **Linux clients now hold a live-invalidation connection open.** When `MVVMEnvironment`'s `invalidationChannel:` is left `nil`, a Linux app keeps one request open to the server, as Apple-platform apps already did. If the server never called `useLiveInvalidation`, the request fails and is retried with back-off, up to every 30 seconds, for as long as the app runs.

@@ -1,6 +1,6 @@
 ---
-status: open
-last_updated: 2026-10-17
+status: closed
+last_updated: 2026-10-18
 origin: David's review of the SSE version-header fix (2026-10-14): the channel's hand-built request is "manual url manipulation"; ruled "A now with B as its own work item"
 ---
 
@@ -58,3 +58,4 @@ Done means: `SSEInvalidationChannel` passes a URL and its headers to `DataFetch`
   - OQ23: freeing a `URLSession` after an HTTPS request still aborts on Linux under Swift 6.4, even after invalidation; the process-wide registry stays, evidence in the `StreamingSession` comment.
   - OQ24: the channel waits at least as long as a Retry-After answer asks.
   - OQ20: CI runs no package tests on macOS, and `ServerBindHostedTests` fails about 1 in 20 full runs on main too; both moved to `chore-macos-ci-test-leg.md`.
+- 2026-10-18 — PR #170 merged (CI fix `f8c9da2`: the reconnect-loop test harnesses yield their thread, so a 4-vCPU runner cannot livelock); released in 0.21.0; closed.
