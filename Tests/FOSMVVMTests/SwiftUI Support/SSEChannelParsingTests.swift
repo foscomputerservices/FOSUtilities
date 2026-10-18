@@ -316,7 +316,10 @@ private func collectSleeps(
     let loop = Task {
         await SSEInvalidationChannel.runReconnectLoop(
             yielding: eventsCont,
-            sleep: { durationsCont.yield($0) },
+            sleep: {
+                durationsCont.yield($0)
+                await Task.yield()
+            },
             initialBackoff: initialBackoff,
             maxBackoff: maxBackoff
         ) { _, onOpen in
@@ -352,7 +355,7 @@ private func collectConnects(count: Int) async -> Int {
     let loop = Task {
         await SSEInvalidationChannel.runReconnectLoop(
             yielding: eventsCont,
-            sleep: { _ in },
+            sleep: { _ in await Task.yield() },
             initialBackoff: .milliseconds(1),
             maxBackoff: .milliseconds(8)
         ) { _, onOpen in
