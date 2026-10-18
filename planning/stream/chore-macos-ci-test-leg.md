@@ -1,6 +1,6 @@
 ---
 status: open
-last_updated: 2026-10-17
+last_updated: 2026-10-18
 origin: David, 2026-10-17, during the DataFetch streaming review (OQ20), on learning CI runs no package tests on macOS
 ---
 
@@ -31,3 +31,5 @@ Done means: `ServerBindHostedTests` no longer fails intermittently, and a macOS 
 ## History
 
 - 2026-10-17 — Opened at David's request (OQ20); not scheduled.
+- 2026-10-18 — Intermittent's cause found: `DeploymentTests` overrode the process-wide `Deployment.current` (and `FOS-DEPLOYMENT`) while a hosted test loaded, so the load failed with "Missing deployment configuration for production" (7 of 60 full `FOSMVVMTests` runs). Fixed by gating `DeploymentTests` under the shared trait, renamed `.processWideState` (OQ1, OQ2), which now restores the deployment after each test (OQ3): 0 of 60, and 10 of 10 full `xcodebuild test` runs green on fos-dev. The work item's three suspects were not the cause.
+- 2026-10-18 — On fos-dev (macOS 27.0.1, Xcode 27.0), `xcodebuild test -scheme FOSUtilities-Package` ran all 8 package test targets on unfixed `main` with no hang: 1,405 passed, 1 failed (the intermittent), 3 skipped (bootstrap `IntegrationTests`), 55 s of testing, 170 s cold.

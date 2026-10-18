@@ -20,7 +20,7 @@ import FOSFoundation
 import Foundation
 import Testing
 
-@Suite(.serialized) // Must be serialized due to Deployment.default, which is global state
+@Suite(.serialized, .processWideState)
 struct DeploymentTests {
     @Test func overriddenCurrent() async {
         await Deployment.overrideDeployment(to: .production)
