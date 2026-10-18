@@ -26,7 +26,7 @@ extension HTTPURLResponse {
     func retryAfterWait(now: Date) -> Duration? {
         guard statusCode == 429 || statusCode == 503,
               let value = value(forHTTPHeaderField: "Retry-After")?
-              .trimmingCharacters(in: .whitespaces),
+                  .trimmingCharacters(in: .whitespaces),
               !value.isEmpty
         else {
             return nil

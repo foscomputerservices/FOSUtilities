@@ -75,6 +75,7 @@ public protocol ViewModelView: View {
     init(viewModel: VM)
 }
 
+@MainActor
 public extension ViewModelView where VM: RequestableViewModel {
     /// Retrieves a ``RequestableViewModel`` locally and binds it to the
     /// [View](https://developer.apple.com/documentation/swiftui/view)
@@ -109,7 +110,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - fragment: *Future*
     ///
     /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
-    @MainActor static func bind(
+    static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil
     ) -> some View where
@@ -159,7 +160,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
-    @MainActor static func bind(
+    static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil
     ) -> some View where
@@ -225,7 +226,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
-    @MainActor static func bind(
+    static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil,
         error: Binding<Error?>
@@ -272,7 +273,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - fragment: *Future*
     ///   - error: Receives the failure of the latest fetch; set it to `nil` to fetch again (default: none)
     ///   - loadingView: The view shown while loading or after a failure
-    @MainActor static func bind(
+    static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil,
         error: Binding<Error?>? = nil,
@@ -341,7 +342,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - appState: Context transferred from one view to another ``ViewModel``
     ///
     /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
-    @MainActor static func bind(
+    static func bind(
         query: VM.Request.Query,
         fragment: VM.Request.Fragment? = nil,
         appState: VM.AppState
@@ -384,7 +385,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// ```
     ///
     /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
-    @MainActor static func bind() -> some View where
+    static func bind() -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
@@ -425,7 +426,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
-    @MainActor static func bind() -> some View where
+    static func bind() -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
@@ -488,7 +489,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   *Self* if the ``ViewModel`` has been successfully retrieved
     ///
     /// - See Also: ``MVVMEnvironment`` — its `loadingView` is the app-wide loading view
-    @MainActor static func bind(error: Binding<Error?>) -> some View where
+    static func bind(error: Binding<Error?>) -> some View where
         VM.Request.RequestBody == EmptyBody,
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
@@ -531,7 +532,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     /// - Parameters:
     ///   - error: Receives the failure of the latest fetch; set it to `nil` to fetch again (default: none)
     ///   - loadingView: The view shown while loading or after a failure
-    @MainActor static func bind(
+    static func bind(
         error: Binding<Error?>? = nil,
         @ViewBuilder loadingView: @escaping (Error?) -> some View
     ) -> some View where
@@ -597,7 +598,7 @@ public extension ViewModelView where VM: RequestableViewModel {
     ///   - appState: Context transferred from one view to another ``ViewModel``
     ///
     /// - Returns: An instance of *Self* bound to the locally built ``ViewModel``
-    @MainActor static func bind(appState: VM.AppState) -> some View where
+    static func bind(appState: VM.AppState) -> some View where
         VM.Request.ResponseBody == VM,
         VM.Request.Query == EmptyQuery,
         VM.Request.Fragment == EmptyFragment,

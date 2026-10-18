@@ -17,10 +17,10 @@
 @testable import FOSFoundation
 import FOSTesting
 import Foundation
+import Testing
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
 
 // NOTE: These tests must be serialized due to the shared
 //       global state SystemVersion.current.

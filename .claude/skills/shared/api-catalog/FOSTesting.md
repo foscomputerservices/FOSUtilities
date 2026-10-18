@@ -385,24 +385,29 @@ let cards = try await withFluentTestApp { app in
 
 ### Test a streaming / SSE endpoint over a real socket — `withServedFluentTestApp()`
 Reach for this when: a test must hold open a genuine HTTP connection that
-`app.test(...)` can't — a streaming response, a live-invalidation SSE feed.
-Configure the application in `configure` (register containers, enable live
-invalidation), then use the `Application` and the base `URL` handed to `body` to
+`app.test(...)` can't — a streaming response your application serves.
+Configure the application in `configure` (register routes and containers), then use the `Application` and the base `URL` handed to `body` to
 open a real socket to it. The server binds to `127.0.0.1` on an ephemeral port;
 each call owns a private in-memory SQLite database, a bound port, and a full
 lifecycle (always shut down), so tests stay isolated and run in parallel.
 Don't reach for `app.test(...)` for a stream — it drives the request in-process
 and cannot keep a socket open.
+The example reads the stream with `URLSession.bytes(from:)`, which exists on Apple
+platforms only; Linux's FoundationNetworking has no `bytes`.
 
 ```swift
 try await withServedFluentTestApp { app in
-    try app.register(Board.self, migration: CreateBoard())
-    try app.useLiveInvalidation(on: app.routes)
+    app.get("ticks") { _ in
+        Response(body: .init(asyncStream: { writer in
+            try await writer.write(.buffer(ByteBuffer(string: "tick\n")))
+            try await writer.write(.end)
+        }))
+    }
 } _: { app, baseURL in
-    let url = baseURL.appending(path: "invalidations")
+    let url = baseURL.appending(path: "ticks")
     let (bytes, _) = try await URLSession(configuration: .ephemeral).bytes(from: url)
-    for try await line in bytes.lines where line.hasPrefix("data:") {
-        break   // a connected client received a pushed nudge
+    for try await line in bytes.lines {
+        #expect(line == "tick")
     }
 }
 ```

@@ -24,12 +24,12 @@ import FOSMVVM
 import FOSMVVMVapor
 import FOSTestingVapor
 import Foundation
-#if canImport(FoundationNetworking)
-import FoundationNetworking
-#endif
 import Testing
 import Vapor
 import VaporTesting
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @Suite("TestingServerRequestResponse credential rejection", .serialized)
 struct TestingServerRequestResponseTests {

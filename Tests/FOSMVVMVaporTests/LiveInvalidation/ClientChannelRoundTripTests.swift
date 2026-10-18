@@ -16,7 +16,7 @@
 
 // End-to-end: the default SSE client channel (FOSMVVM) against the real served endpoint
 // (FOSMVVMVapor), locking the frozen §6 wire across the module boundary (spec §3.2, test group 6).
-#if canImport(Darwin)
+#if !os(WASI)
 import Fluent
 import FluentKit
 import FOSFoundation
@@ -24,6 +24,9 @@ import FOSFoundation
 @testable import FOSMVVMVapor
 import FOSTestingVapor
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 import Vapor
 
@@ -171,6 +174,49 @@ struct ClientChannelRoundTripTests {
         }
     }
 
+    /// A 200 that is not an event stream (a proxy's login page, say) is a drop, not a connection:
+    /// no `.connected` is emitted and back-off grows.
+    @Test func wrongMediaTypeOpenBacksOffWithoutConnected() async throws {
+        try await withServedFluentTestApp { app in
+            app.invalidationHeartbeatInterval = .milliseconds(200)
+            let html = app.grouped(HTMLPageMiddleware())
+            try configureLiveWorkspace(app, on: html)
+        } _: { _, baseURL in
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.invalidateAndCancel() }
+
+            let sleeps = SleepRecorder()
+            let channel = SSEInvalidationChannel(
+                baseURL: { baseURL },
+                credentialProvider: nil,
+                session: session,
+                sleep: { await sleeps.record($0) },
+                initialBackoff: .milliseconds(1),
+                maxBackoff: .milliseconds(8)
+            )
+
+            let log = EventLog()
+            let consumer = Task {
+                for await event in channel.events() {
+                    await log.record(event)
+                }
+            }
+
+            try await withTimeout(.seconds(15)) {
+                while await sleeps.durations.count < 3 {
+                    try await Task.sleep(for: .milliseconds(10))
+                }
+            }
+            consumer.cancel()
+
+            let durations = await sleeps.durations
+            #expect(Array(durations.prefix(3)) == [
+                .milliseconds(1), .milliseconds(2), .milliseconds(4)
+            ])
+            #expect(await log.events.isEmpty)
+        }
+    }
+
     /// A 401 open is the credential being refused: the channel consults the seam
     /// (`credentialHeaders(afterRejection:)`) so the provider can refresh and persist. The channel
     /// carries no credential state; the reconnect below re-consults `credentialHeaders()`.
@@ -304,6 +350,15 @@ private struct DenyAllMiddleware: AsyncMiddleware {
 private struct Deny500Middleware: AsyncMiddleware {
     func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         Response(status: .internalServerError)
+    }
+}
+
+/// Answers every request 200 with an HTML page — a captive-portal / proxy login stand-in.
+private struct HTMLPageMiddleware: AsyncMiddleware {
+    func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+        var headers = HTTPHeaders()
+        headers.contentType = .html
+        return Response(status: .ok, headers: headers, body: .init(string: "<html>sign in</html>"))
     }
 }
 

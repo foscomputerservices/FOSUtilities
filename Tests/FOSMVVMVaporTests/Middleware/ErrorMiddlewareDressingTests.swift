@@ -23,11 +23,11 @@ import FOSFoundation
 import FOSMVVM
 import FOSMVVMVapor
 import Foundation
+import Testing
+import Vapor
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-import Testing
-import Vapor
 
 private struct DressedError: ServerRequestError, AbortError {
     let errorCode: Int

@@ -109,6 +109,7 @@ public extension LabeledContent where Label == Text, Content == Text {
     }
 }
 
+@MainActor
 public extension Localizable {
     /// A view that resolves and displays this ``Localizable`` on the client
     ///
@@ -124,7 +125,7 @@ public extension Localizable {
     /// ```swift
     /// viewModel.pageTitle.text
     /// ```
-    @MainActor var text: some View {
+    var text: some View {
         LocalizableResolverView(localizable: self)
     }
 }

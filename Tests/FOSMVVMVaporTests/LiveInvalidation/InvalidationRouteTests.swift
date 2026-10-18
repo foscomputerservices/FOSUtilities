@@ -30,12 +30,12 @@ import Foundation
 import Testing
 import Vapor
 
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
 @Suite("Invalidation SSE endpoint (spec §3.2/§6, test group 4)")
 struct InvalidationRouteTests {
-    // The wire-consuming assertions are Darwin-only: they read the stream via `URLSession.bytes`,
-    // which swift-corelibs FoundationNetworking does not provide. The hub-level overflow proof
-    // stays unguarded (no HTTP client involved).
-    #if canImport(Darwin)
     /// A connected client receives one framed `data:` event whose JSON array round-trips (via
     /// `defaultDecoder`) to the containment-derived set of a real save: {Card, owning Board}.
     @Test func framedEventRoundTrip() async throws {
@@ -46,11 +46,8 @@ struct InvalidationRouteTests {
         } _: { app, baseURL in
             let (dock1, _) = try await seedWorkspace(on: app.db)
 
-            let url = baseURL.appending(path: "invalidations")
-            let session = URLSession(configuration: .ephemeral)
-            defer { session.invalidateAndCancel() } // close the held stream so server teardown is prompt
-            let (bytes, response) = try await session.bytes(from: url)
-            #expect((response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") == "text/event-stream")
+            // openStream throws unless the answer is text/event-stream.
+            let chunks = try await openInvalidations(at: baseURL.appending(path: "invalidations"))
 
             // Headers have arrived ⇒ the route handler already ran hub.subscribe(); the save below
             // therefore reaches a connected subscriber.
@@ -59,12 +56,11 @@ struct InvalidationRouteTests {
             let expected = try Set([card.modelIdentity, dock1.modelIdentity])
 
             let received = try await withTimeout(.seconds(10)) {
-                for try await line in bytes.lines where line.hasPrefix("data:") {
-                    let payload = line.dropFirst("data:".count).trimmingCharacters(in: .whitespaces)
-                    let data = Data(payload.utf8)
-                    return try JSONDecoder.defaultDecoder.decode([ModelIdentity].self, from: data)
+                guard let line = try await firstLine(of: chunks, where: { $0.hasPrefix("data:") }) else {
+                    return [ModelIdentity]()
                 }
-                return [ModelIdentity]()
+                let payload = line.dropFirst("data:".count).trimmingCharacters(in: .whitespaces)
+                return try JSONDecoder.defaultDecoder.decode([ModelIdentity].self, from: Data(payload.utf8))
             }
             #expect(Set(received) == expected)
         }
@@ -76,23 +72,16 @@ struct InvalidationRouteTests {
             app.invalidationHeartbeatInterval = .milliseconds(100)
             try configureLiveWorkspace(app, on: app.routes)
         } _: { _, baseURL in
-            let url = baseURL.appending(path: "invalidations")
-            let session = URLSession(configuration: .ephemeral)
-            defer { session.invalidateAndCancel() }
-            let (bytes, _) = try await session.bytes(from: url)
+            let chunks = try await openInvalidations(at: baseURL.appending(path: "invalidations"))
 
             // Match the periodic heartbeat specifically — NOT the one-shot `: open` preamble that
             // flushes the response head.
             let sawHeartbeat = try await withTimeout(.seconds(10)) {
-                for try await line in bytes.lines where line.contains("keep-alive") {
-                    return true
-                }
-                return false
+                try await firstLine(of: chunks, where: { $0.contains("keep-alive") }) != nil
             }
             #expect(sawHeartbeat)
         }
     }
-    #endif
 
     /// Overflow closes — proven at the internal hub-subscription seam (deterministic): emitting past
     /// the buffer limit without consuming terminates the subscriber's stream.
@@ -126,7 +115,6 @@ struct InvalidationRouteTests {
         }
     }
 
-    #if canImport(Darwin)
     /// Overflow closes — observed at the client: while the client reads nothing, a burst large
     /// enough to fill the OS socket buffer makes the server pump block, so the hub overflows and
     /// finishes the subscription. When the client then drains, it reaches a clean EOF (the line
@@ -141,10 +129,7 @@ struct InvalidationRouteTests {
             let (dock1, _) = try await seedWorkspace(on: app.db)
             let identity = try Set([dock1.modelIdentity])
 
-            let url = baseURL.appending(path: "invalidations")
-            let session = URLSession(configuration: .ephemeral)
-            defer { session.invalidateAndCancel() }
-            let (bytes, _) = try await session.bytes(from: url)
+            let chunks = try await openInvalidations(at: baseURL.appending(path: "invalidations"))
             let hub = try #require(app.invalidationHub)
 
             // Client reads nothing during the burst: the pump fills the socket buffer, blocks, and
@@ -154,8 +139,8 @@ struct InvalidationRouteTests {
             }
 
             let endedCleanly = try await withTimeout(.seconds(15)) {
-                for try await _ in bytes.lines {} // drain to EOF, unthrottled
-                return true // the line stream completed ⇒ server ended the response, no hang
+                for try await _ in chunks {} // drain to EOF, unthrottled
+                return true // the stream completed ⇒ server ended the response, no hang
             }
             #expect(endedCleanly)
         }
@@ -175,7 +160,6 @@ struct InvalidationRouteTests {
             #expect(root == 404)
         }
     }
-    #endif
 }
 
 // MARK: - Helpers
@@ -191,19 +175,49 @@ private func configureLiveWorkspace(_ app: Application, on routes: any RoutesBui
     try app.useLiveInvalidation(on: routes)
 }
 
-#if canImport(Darwin)
-/// Opens a bounded GET, reads only the status, and cancels the (possibly streaming) body so the
-/// server can tear down promptly.
+/// Opens the invalidation stream through `openStream`, as the client channel does, without its
+/// version and credential headers. Ending iteration of the returned stream closes the request, so
+/// server teardown is prompt.
+private func openInvalidations(at url: URL) async throws -> AsyncThrowingStream<Data, any Error> {
+    try await DataFetch<URLSession>.default.openStream(
+        from: url,
+        headers: [(field: "Accept", value: "text/event-stream")],
+        locale: nil
+    )
+}
+
+/// Returns 200 when the stream opens, or the non-2xx status it was refused with; other failures
+/// throw. The (possibly streaming) body is closed on return.
 private func status(of url: URL) async throws -> Int {
     try await withTimeout(.seconds(10)) {
-        let session = URLSession(configuration: .ephemeral)
-        let (_, response) = try await session.bytes(from: url)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        session.invalidateAndCancel()
-        return status
+        do {
+            _ = try await openInvalidations(at: url)
+            return 200
+        } catch DataFetchError.badStatus(let httpStatusCode) {
+            return httpStatusCode
+        }
     }
 }
-#endif
+
+/// The first complete line of `chunks` that satisfies `predicate`, or `nil` when the stream ends.
+private func firstLine(
+    of chunks: AsyncThrowingStream<Data, any Error>,
+    where predicate: (String) -> Bool
+) async throws -> String? {
+    var pending = Data()
+    for try await chunk in chunks {
+        pending.append(chunk)
+        while let newline = pending.firstIndex(of: UInt8(ascii: "\n")) {
+            // swiftlint:disable:next optional_data_string_conversion
+            let line = String(decoding: pending[pending.startIndex..<newline], as: UTF8.self)
+            pending = Data(pending[pending.index(after: newline)...])
+            if predicate(line) {
+                return line
+            }
+        }
+    }
+    return nil
+}
 
 private struct TimeoutError: Error {}
 
