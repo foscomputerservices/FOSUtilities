@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 last_updated: 2026-10-18
 origin: David, 2026-10-17, during the DataFetch streaming review (OQ20), on learning CI runs no package tests on macOS
 ---
@@ -35,3 +35,4 @@ Done means: `ServerBindHostedTests` no longer fails intermittently, and a macOS 
 - 2026-10-18 — On fos-dev (macOS 27.0.1, Xcode 27.0), `xcodebuild test -scheme FOSUtilities-Package` ran all 8 package test targets on unfixed `main` with no hang: 1,405 passed, 1 failed (the intermittent), 3 skipped (bootstrap `IntegrationTests`), 55 s of testing, 170 s cold.
 - 2026-10-18 — Trial on GitHub `macos-26` (Xcode 26.6), branch-only workflow `macos-test-trial.yml`, three jobs side by side (run 39131086173): all three green, 1,322 tests each (1,319 passed, 3 skipped bootstrap `IntegrationTests`), all 8 targets ran, no hang; the test step took 6 m 46 s, 9 m 9 s and 10 m 25 s, build included.
 - 2026-10-18 — Leg added to `ci.yml` as "Test macOS packages" (OQ17): `build test` of the package scheme on `macos-26`/Xcode 26.6, no xcpretty (OQ19), result bundle uploaded on failure, a `record_green` need; it replaces the "Build macOS (Debug)" leg (OQ18). No check is required on `main`, so it gates like every other leg (OQ20 withdrawn). Trial workflow removed.
+- 2026-10-18 — PR #172 merged: every package test target runs on macOS in CI (first run green, 28 of 28 jobs); closed.
