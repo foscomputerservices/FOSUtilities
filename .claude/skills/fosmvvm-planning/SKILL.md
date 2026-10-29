@@ -64,7 +64,7 @@ The "why this way", rejected alternatives, gotchas, and design context are *expe
 
 ### 5. Hand off decomposition
 
-Now hand the gated design to your task-decomposition process (e.g. `superpowers:writing-plans`) for bite-sized TDD tasks, exact file paths, and the review loop. The tasks carry the DocC and tests you drafted above; the plan prose carries the rationale.
+Now hand the gated design to your task-decomposition process for bite-sized TDD tasks, exact file paths, and the review loop. The tasks carry the DocC and tests you drafted above; the plan prose carries the rationale.
 
 ## What This Skill Produces
 
@@ -82,4 +82,3 @@ A plan whose **design and documentation are settled before decomposition** — m
 - Repo `CLAUDE.md` — *SOLID Is the Foundation*, *Encapsulation Is the Precondition*, *Documentation & Comments*
 - [Architecture Patterns](../shared/architecture-patterns.md) — Encapsulation, Derive on the Owner, Requirement + Default, Documentation Has Three Audiences
 - [Naming Dictionary](../shared/NAMES.md) — typed names over stringly-typing
-- `superpowers:writing-plans` (or your decomposition process) — the task breakdown this skill hands off to
