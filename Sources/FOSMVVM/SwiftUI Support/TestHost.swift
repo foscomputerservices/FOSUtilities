@@ -61,7 +61,7 @@ public extension View {
     ///
     /// - Parameters:
     ///   - decorator: A *ViewBuilder* that can be used to attach additional test-only information to the view under test
-    @ViewBuilder func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
+    func testHost(@ViewBuilder decorator: (String, AnyView) -> some View) -> some View {
         #if DEBUG
         decorator(
             ProcessInfo.processInfo.testConfiguration,

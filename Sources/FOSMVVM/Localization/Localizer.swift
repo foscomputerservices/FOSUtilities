@@ -56,17 +56,17 @@ extension Locale {
 
     func localizeLibraryValue(_ localizable: some Localizable, localizationStore: LocalizationStore) throws -> String? {
         if let string = localizable as? LocalizableString {
-            return localize(string, localizationStore: localizationStore)
+            localize(string, localizationStore: localizationStore)
         } else if let compound = localizable as? LocalizableCompoundValue<LocalizableString> {
-            return try localize(compound, localizationStore: localizationStore)
+            try localize(compound, localizationStore: localizationStore)
         } else if let subs = localizable as? LocalizableSubstitutions {
-            return try localize(subs, localizationStore: localizationStore)
+            try localize(subs, localizationStore: localizationStore)
         } else if let int = localizable as? LocalizableInt {
-            return localize(int)
+            localize(int)
         } else if let double = localizable as? LocalizableDouble {
-            return localize(double)
+            localize(double)
         } else if let date = localizable as? LocalizableDate {
-            return localize(date)
+            localize(date)
         } else {
             throw LocalizerError.unknownLocalizationType(
                 String(describing: localizable.self)

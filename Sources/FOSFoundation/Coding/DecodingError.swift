@@ -18,7 +18,7 @@ import Foundation
 
 public extension DecodingError {
     var localizedDescription: String {
-        return switch self {
+        switch self {
         case .dataCorrupted(let context):
             "Data Corrupted: \(context.codingPath) - \(context.debugDescription)"
         case .keyNotFound(let key, let context):
