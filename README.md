@@ -177,6 +177,12 @@ This repository includes [Claude Code](https://claude.ai/code) skills for genera
 | `fosmvvm-viewmodel-test-generator` | Generate ViewModel tests with multi-locale verification |
 | `fosmvvm-ui-tests-generator` | Generate UI tests for ViewModelViews |
 | `fosmvvm-swiftui-app-setup` | Set up the main App struct for SwiftUI applications |
+| `fosmvvm-behavioral-test-generator` | Generate behavioral tests from requirements and design, without seeing the implementation |
+| `fosmvvm-planning` | Settle design, DocC, and tests before decomposing FOSMVVM work into tasks |
+| `fosmvvm-orientation` | Articulate the forward-projection rules before editing ViewModels, Views, or Ops; optionally required by a project gate ([setup](.claude/skills/fosmvvm-orientation/gate-hook.md)) |
+| `fosmvvm-review` | Review FOSMVVM code: structural audit, then per-area checks |
+| `fosutilities-api-catalog` | Find an existing FOSUtilities API before writing a helper |
+| `fosutilities-api-catalog-update` | Maintain the API catalog after public API changes |
 | `skill-generator` | Generate new Claude Code skills |
 
 ### Installation
