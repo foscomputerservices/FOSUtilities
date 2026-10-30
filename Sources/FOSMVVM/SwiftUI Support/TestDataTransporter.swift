@@ -159,7 +159,7 @@ public struct TestDataTransporter: View {
 }
 
 public extension View {
-    @ViewBuilder func testDataTransporter(viewModelOps: any ViewModelOperations, repaintToggle: Binding<Bool>) -> some View {
+    func testDataTransporter(viewModelOps: any ViewModelOperations, repaintToggle: Binding<Bool>) -> some View {
         #if DEBUG
         ZStack {
             self

@@ -141,10 +141,10 @@ public extension LocalizableString {
         get throws {
             switch self {
             case .empty:
-                return ""
+                ""
 
             case .constant(let string):
-                return string
+                string
 
             case .localized:
                 throw LocalizerError.localizationUnbound
