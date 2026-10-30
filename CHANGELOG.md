@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`fosmvvm-orientation` skill.** A session articulates the forward-projection rules and walks six failure scenarios before its first edit to ViewModels, Views, or client-hosted Ops. A project can require it with the `PreToolUse` gate in `gate-hook.md`, and maps the scenario names to its own types with `project-mappings-template.md`. Plugin 2.81.0.
+
 ## [0.21.1] - 2026-10-18
 
 ### Changed
