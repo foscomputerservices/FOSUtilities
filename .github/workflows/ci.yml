@@ -63,7 +63,7 @@ jobs:
       code: ${{ steps.decide.outputs.code }}
       patch_id: ${{ steps.filter.outputs.patch_id }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -117,7 +117,7 @@ jobs:
       # A hit restores the marker the green run wrote, so the summary can name it.
       - id: green
         if: steps.filter.outputs.code_paths == 'true' && steps.filter.outputs.patch_id != ''
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ci-green
           key: ci-green-${{ steps.filter.outputs.patch_id }}
@@ -151,7 +151,7 @@ jobs:
     name: Format and lint
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The latest release binaries, straight from each project. Not Homebrew: the
       # runner image pool has carried two SwiftFormat versions at once, and making
@@ -207,7 +207,7 @@ jobs:
         swift: ["6.4.0"] # match the dev/release toolchain; 6.2.1 crashed under parallel-test load (runtime bug fixed upstream)
       fail-fast: false
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run Tests
         run: swift test --traits APNs
@@ -231,7 +231,7 @@ jobs:
         swift: ["6.4.0"]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build (Release)
         run: swift build -c release
@@ -268,11 +268,11 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install xcpretty
         run: gem install xcpretty
@@ -315,11 +315,11 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run package tests
         run: |
@@ -332,7 +332,7 @@ jobs:
 
       - name: Upload the result bundle
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: macos-package-tests
           path: ${{ runner.temp }}/tests.xcresult
@@ -391,11 +391,11 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.3"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Printed, not assumed. The Xcode-to-SDK pairing is what this leg is about, and the
       # Swift version is the other half of the floor the README does not currently state.
@@ -444,7 +444,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Record the toolchain this leg actually got
         run: |
@@ -491,11 +491,11 @@ jobs:
     name: Generated overloads staleness gate
     runs-on: macos-26
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Staleness gate
         run: swift scripts/localizable-overload-sweep.swift --check
@@ -522,11 +522,11 @@ jobs:
     name: Scaffolder fast suite
     runs-on: macos-26
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -557,11 +557,11 @@ jobs:
     name: Scaffolder walking skeletons
     runs-on: macos-26
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -609,11 +609,11 @@ jobs:
             xcode_destination: "platform=macOS,arch=arm64,name=My Mac"
             signing: "CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= CODE_SIGN_STYLE=Manual"
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -694,11 +694,11 @@ jobs:
             signing: "CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= CODE_SIGN_STYLE=Manual"
 
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.6"
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -788,7 +788,7 @@ jobs:
           mkdir -p .ci-green
           echo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" > .ci-green/run
 
-      - uses: actions/cache/save@v6
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .ci-green
           key: ci-green-${{ needs.changes.outputs.patch_id }}
