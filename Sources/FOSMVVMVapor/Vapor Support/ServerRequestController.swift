@@ -24,26 +24,27 @@ import Vapor
 /// binding are derived for you, once.
 ///
 /// ```swift
-/// final class ReplaceCardController: ServerRequestController {
-///     typealias TRequest = ReplaceCardRequest
+/// // The member's token lives in the app's token service, not in a model row.
+/// final class RotateMemberTokenController: ServerRequestController {
+///     typealias TRequest = MemberTokenRotateRequest
 ///
 ///     let actions: [ServerRequestAction: ActionProcessor] = [
-///         .replace: { req, bound in
-///             let body = try req.content.decode(ReplaceCardRequest.RequestBody.self)
-///             return try await CardPage(replacing: body, on: req.db)
+///         .update: { req, bound in
+///             let token = try await req.tokenService.rotateToken(of: bound.query)
+///             return MemberTokenVM(token: token)
 ///         }
 ///     ]
 /// }
 ///
 /// // boot:
-/// try app.routes.register(collection: ReplaceCardController())
+/// try app.routes.register(collection: RotateMemberTokenController())
 /// ```
 ///
 /// Prefer ``Vapor/RoutesBuilder/register(request:app:)`` — it instantiates this mechanism
 /// pre-specialized with the framework's guarded pipelines (declared loads, write
 /// gates, the refresh fall-through). Reach for a hand-written controller when an
-/// operation falls outside the guarded verbs (e.g. `ReplaceRequest`, multi-record
-/// operations): the same general mechanism serves both.
+/// operation falls outside what registration serves (a write with no model row behind
+/// it, multi-record operations): the same general mechanism serves both.
 public protocol ServerRequestController: AnyObject, ControllerRouting, RouteCollection, SendableMetatype {
     associatedtype TRequest: ServerRequest
 

@@ -47,12 +47,11 @@ public extension RoutesBuilder {
     /// `app`'s registered containers. Every door derives the plan: where a request mounts is
     /// your decision; that its plan is derived is not.
     ///
-    /// A write request (Create/Update/Archive/Destroy) has its own overload; register it the same
-    /// way (`try authed.register(request: CardUpdateRequest.self, app: app)`), and Swift picks
-    /// the write door. A write request that reaches *this* read door — because its
-    /// Query/RequestBody miss the write overload's constraints, or because its protocol
-    /// (Replace) is not yet supported — fails fast at boot rather than registering
-    /// GET-only (which would silently drop the write).
+    /// A write request (Create/Update/Replace/Archive/Destroy) has its own overload; register it
+    /// the same way (`try authed.register(request: CardUpdateRequest.self, app: app)`), and Swift
+    /// picks the write door. A write request that reaches *this* read door — because its
+    /// Query/RequestBody miss the write overload's constraints — fails fast at boot rather than
+    /// registering GET-only (which would silently drop the write).
     ///
     /// - Parameters:
     ///   - request: A *ServerRequest* whose *ResponseBody* is a ``VaporResponseBodyFactory``
@@ -155,6 +154,50 @@ public extension RoutesBuilder {
         }
     }
 
+    /// Registers a replace request's route (PUT) on this route group, plus the request's own read
+    /// plan for the response.
+    ///
+    /// ```swift
+    /// func routes(_ app: Application) throws {
+    ///     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
+    ///     try authed.register(request: CardReplaceRequest.self, app: app)
+    /// }
+    /// ```
+    ///
+    /// Swift picks this overload when the replace request's Query names a target and its
+    /// RequestBody is a ``DataModelWriter``. Declare the candidate set with
+    /// `loadingPlan(.write, within:)`, as an update does.
+    ///
+    /// Mount on **middleware-only** groups: a path-prefixing group is rejected at boot, because
+    /// clients derive the served URL from the request type.
+    ///
+    /// Register the app's containers and the request's response dependencies **before** calling
+    /// this. After the replace commits, the server re-serves the request itself to build its
+    /// `ResponseBody`.
+    ///
+    /// > Note: A target that does not exist, or that the caller may not write, answers not-found.
+    ///
+    /// - Parameters:
+    ///   - request: A *ReplaceRequest* whose *ResponseBody* is a ``VaporResponseBodyFactory``
+    ///   - app: The application this route serves — the request's candidate and response load plans
+    ///     are derived into and validated against it
+    func register<SR: ReplaceRequest>(request _: SR.Type, app: Vapor.Application) throws
+        where SR.RequestBody: DataModelWriter,
+        SR.Query: TargetedQuery,
+        SR.ResponseBody: VaporResponseBodyFactory {
+        try app.requireAppStateBuilder(appStateType: SR.ResponseBody.AppState.self, request: SR.self)
+        try app.registerRecordLoadPlan(for: SR.self)
+        try app.deriveCandidatePlan(for: SR.self, writer: SR.RequestBody.self, expectedOperation: .writeRecords)
+        try mountVerifyingPath(SR.self, app: app) {
+            try register(collection: GuardedRequestController<SR>(actions: [
+                .replace: { req, bound in
+                    let body = try req.content.decode(SR.RequestBody.self)
+                    return try await req.serveReplace(bound, body: body)
+                }
+            ]))
+        }
+    }
+
     /// Registers an archive request's route (DELETE) on this route group, plus the request's own
     /// read plan for the response. An archive body declares its candidate set only
     /// (``WriteTargetProviding``); archiving is framework-owned.
@@ -243,20 +286,16 @@ public extension RoutesBuilder {
 }
 
 // swiftformat:disable docComments
-// Overload resolution sends a write-protocol conformer that misses the write doors' constraints
-// to the base read door. Reject it there: Create/Update/Archive/Destroy conformers name unmet
-// write constraints; Replace names the not-yet-supported protocol.
+// Overload resolution sends a write-protocol conformer that misses the write overloads'
+// constraints to the base read overload. Reject it there.
 // swiftformat:enable docComments
 private func rejectWriteProtocolAtReadRoute<SR: ServerRequest>(_: SR.Type) throws {
-    let name = String(describing: SR.self)
-    if SR.self is any ReplaceRequest.Type {
-        throw ContainmentError.unsupportedWriteProtocol(request: name)
-    }
     if SR.self is any UpdateRequest.Type
+        || SR.self is any ReplaceRequest.Type
         || SR.self is any CreateRequest.Type
         || SR.self is any ArchiveRequest.Type
         || SR.self is any DestroyRequest.Type {
-        throw ContainmentError.writeRequestAtReadDoor(request: name)
+        throw ContainmentError.writeRequestAtReadDoor(request: String(describing: SR.self))
     }
 }
 

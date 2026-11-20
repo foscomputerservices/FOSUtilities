@@ -80,7 +80,7 @@ struct CardListVM: RequestableViewModel, ComposableFactory, VaporResponseBodyFac
 }
 
 /// The refresh body doubles as the write requests' ResponseBody — it adopts the write markers.
-extension CardListVM: UpdateResponseBody, CreateResponseBody, ArchiveResponseBody {}
+extension CardListVM: UpdateResponseBody, ReplaceResponseBody, CreateResponseBody, ArchiveResponseBody {}
 
 final class CardListRequest: ViewModelRequest, @unchecked Sendable {
     typealias Query = BoardRootQuery
@@ -138,6 +138,56 @@ final class UpdateCardRequest: UpdateRequest, @unchecked Sendable {
     var responseBody: CardListVM?
 
     init(query: CardTargetQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: UpdateCardBody?, responseBody: CardListVM?) {
+        self.id = .random(length: 10)
+        self.query = query
+        self.requestBody = requestBody
+        self.responseBody = responseBody
+    }
+
+    static func stub() -> Self {
+        .init(query: nil, sort: nil, fragment: nil, requestBody: nil, responseBody: nil)
+    }
+}
+
+// MARK: - Replace
+
+/// Carries the card's number only: `apply` assigns nothing else, so a test can watch `boardName`
+/// keep its stored value.
+struct ReplaceCardBody: ServerRequestBody, ValidatableModel {
+    var number: Int
+
+    func validate(fields _: [any FormFieldBase]?, validations: FOSMVVM.Validations) -> FOSMVVM.ValidationResult.Status? {
+        guard number >= 0 else {
+            validations.append(
+                .init(status: .error, fieldId: #fieldId(\Self.number), message: .constant("number must be non-negative"))
+            )
+            return .error
+        }
+        return nil
+    }
+}
+
+extension ReplaceCardBody: DataModelWriter {
+    static let candidates = Card.loadingPlan(.write, within: .parent)
+
+    func apply(to card: Card) throws {
+        card.number = number
+    }
+}
+
+final class ReplaceCardRequest: ReplaceRequest, @unchecked Sendable {
+    typealias Query = CardTargetQuery
+    typealias RequestBody = ReplaceCardBody
+    typealias Fragment = EmptyFragment
+    typealias ResponseError = ValidationError
+    typealias ResponseBody = CardListVM
+
+    let id: String
+    let query: CardTargetQuery?
+    let requestBody: ReplaceCardBody?
+    var responseBody: CardListVM?
+
+    init(query: CardTargetQuery?, sort: EmptySort?, fragment: EmptyFragment?, requestBody: ReplaceCardBody?, responseBody: CardListVM?) {
         self.id = .random(length: 10)
         self.query = query
         self.requestBody = requestBody
@@ -233,7 +283,7 @@ final class ArchiveCardRequest: ArchiveRequest, @unchecked Sendable {
 // These are deliberately misconfigured; each exists to prove one boot-time rejection.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 
-// MARK: A ReplaceRequest — a not-yet-supported write protocol, reaches the read door.
+// MARK: A ReplaceRequest whose RequestBody is NOT a DataModelWriter — it misses the write door.
 
 struct ReplaceEchoBody: ServerRequestBody, VaporResponseBodyFactory, ReplaceResponseBody {
     typealias Request = EchoReplaceRequest

@@ -325,6 +325,135 @@ struct WriteRouteUpdateTests {
 
 // MARK: - Group 6: create
 
+@Suite("Write route: replace")
+struct WriteRouteReplaceTests {
+    private func replaceRequest(scope: Board, target: Card, number: Int) throws -> ReplaceCardRequest {
+        try ReplaceCardRequest(
+            query: .init(scopeIdentity: scope.modelIdentity, target: target.modelIdentity),
+            sort: nil, fragment: nil,
+            requestBody: ReplaceCardBody(number: number),
+            responseBody: nil
+        )
+    }
+
+    /// End-to-end through the real route: the PUT method routes, the handler decodes the JSON body,
+    /// and the response is the refreshed records.
+    @Test func putRoutesThroughRealPipeline() async throws {
+        try await withFluentTestApp { app in
+            try app.initYamlLocalization(bundle: Bundle.module, resourceDirectoryName: "TestYAML")
+            try configureWriteContainers(app)
+            try app.register(request: ReplaceCardRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+
+            let vmRequest = try ReplaceCardRequest(
+                query: .init(scopeIdentity: dock1.modelIdentity, target: card.modelIdentity),
+                sort: nil, fragment: nil, requestBody: nil, responseBody: nil
+            )
+            let base = try #require(URL(string: "http://localhost"))
+            let url = try #require(try base.appending(serverRequest: vmRequest))
+
+            var buffer = ByteBufferAllocator().buffer(capacity: 0)
+            try buffer.writeBytes(ReplaceCardBody(number: 88).toJSONData())
+            var headers = HTTPHeaders([(HTTPHeaders.Name.acceptLanguage.description, "en")])
+            headers.contentType = .json
+            let httpReq = Request(
+                application: app, method: .PUT, url: URI(string: url.absoluteString),
+                headers: headers, collectedBody: buffer, on: app.eventLoopGroup.next()
+            )
+
+            let response = try await app.responder.respond(to: httpReq).get()
+            #expect(response.status == .ok)
+            let data = try #require(response.body.data)
+            let refreshed: CardListVM = try data.fromJSON()
+            #expect(refreshed.cardNumbers.contains(88))
+        }
+    }
+
+    /// The response reflects the saved row, and a field `apply` does not assign keeps its value.
+    @Test func replaceSavesWhatApplyAssignsAndLeavesTheRest() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: ReplaceCardRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let originalName = card.boardName
+
+            let vmRequest = try replaceRequest(scope: dock1, target: card, number: 99)
+            let result = try await makeRequest(on: app).serveReplace(vmRequest, body: #require(vmRequest.requestBody))
+
+            #expect(result.cardNumbers.contains(99))
+            let reloaded = try #require(try await Card.find(card.requireId(), on: db))
+            #expect(reloaded.number == 99)
+            #expect(reloaded.boardName == originalName)
+        }
+    }
+
+    /// A target that no longer exists is not-found: a replace never creates the row.
+    @Test func missingTargetIsNotFoundAndCreatesNothing() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: ReplaceCardRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let vmRequest = try replaceRequest(scope: dock1, target: card, number: 7)
+            try await card.delete(force: true, on: db)
+            let countBefore = try await cards(of: dock1, on: db).count
+
+            await #expect(throws: Abort.self) {
+                _ = try await makeRequest(on: app).serveReplace(vmRequest, body: #require(vmRequest.requestBody))
+            }
+            #expect(try await cards(of: dock1, on: db).count == countBefore)
+        }
+    }
+
+    /// A target outside the caller's write grants is not-found.
+    @Test func targetWithoutWriteGrantIsNotFound() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: ReplaceCardRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let originalNumber = card.number
+
+            let vmRequest = try replaceRequest(scope: dock1, target: card, number: 7)
+            await #expect(throws: Abort.self) {
+                _ = try await makeRequest(on: app).serveReplace(vmRequest, body: #require(vmRequest.requestBody))
+            }
+            let reloaded = try #require(try await Card.find(card.requireId(), on: db))
+            #expect(reloaded.number == originalNumber)
+        }
+    }
+
+    /// A failing validation answers the request's own error and writes nothing.
+    @Test func failingValidationWritesNothing() async throws {
+        try await withFluentTestApp { app in
+            try configureWriteContainers(app)
+            try app.register(request: ReplaceCardRequest.self, app: app)
+        } _: { app, db in
+            let (dock1, _) = try await seedWorkspace(on: db)
+            try setGrants(app, [cardGrant(dock1, [.readRecords, .writeRecords])])
+            let card = try #require(try await cards(of: dock1, on: db).first)
+            let originalNumber = card.number
+
+            let vmRequest = try replaceRequest(scope: dock1, target: card, number: -1)
+            await #expect(throws: ValidationError.self) {
+                _ = try await makeRequest(on: app).serveReplace(vmRequest, body: #require(vmRequest.requestBody))
+            }
+            let reloaded = try #require(try await Card.find(card.requireId(), on: db))
+            #expect(reloaded.number == originalNumber)
+        }
+    }
+}
+
 @Suite("Write route: create")
 struct WriteRouteCreateTests {
     /// Fresh Target() + same apply; the framework sets the container FK from the candidate scope;
@@ -826,8 +955,8 @@ struct WriteRouteBootTests {
         }
     }
 
-    /// A ReplaceRequest reaches the read door (no write overload) and fails fast: not yet supported.
-    @Test func replaceRequestNotYetSupported() async throws {
+    /// A ReplaceRequest that misses the write constraints fails fast rather than registering GET-only.
+    @Test func replaceConformerAtReadDoorFailsFast() async throws {
         await #expect(throws: ContainmentError.self) {
             try await withFluentTestApp { app in
                 try app.register(request: EchoReplaceRequest.self, app: app)

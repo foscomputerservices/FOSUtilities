@@ -274,7 +274,7 @@ Choose based on the operation:
 | Read ViewModel | `ViewModelRequest` | GET | No |
 | Create entity | `CreateRequest` | POST | Yes (ValidatableModel) |
 | Update entity | `UpdateRequest` | PATCH | Yes (ValidatableModel) |
-| Replace entity | (use `.replace` action) | PUT | Yes |
+| Replace entity (whole desired state) | `ReplaceRequest` | PUT | Yes (ValidatableModel) |
 | Archive (row stays, marked deleted) | `ArchiveRequest` | DELETE | No |
 | Destroy (row removed) | `DestroyRequest` | DELETE | No |
 
@@ -521,14 +521,15 @@ private extension {Action}Request {
 ### Registration — one call
 
 `register(request:app:)` registers every request. Swift picks the overload from the
-request's protocol, so the same call serves a read, a create, an update, an archive
-or a destroy:
+request's protocol, so the same call serves a read, a create, an update, a replace,
+an archive or a destroy:
 
 ```swift
 func routes(_ app: Application) throws {
     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
     try authed.register(request: BoardPageRequest.self, app: app)   // guarded read (GET)
     try authed.register(request: CardUpdateRequest.self, app: app) // write (PATCH)
+    try authed.register(request: CardReplaceRequest.self, app: app) // write (PUT)
     try authed.register(request: CardArchiveRequest.self, app: app) // write (DELETE)
     try app.register(request: LandingPageRequest.self, app: app)   // public — Application is a RoutesBuilder
 }
@@ -545,8 +546,16 @@ read overload fails fast at boot rather than silently registering GET-only, and 
 
 **Route collections are the exception, not the pattern.** Reach for
 `ServerRequestController` and `register(collection:)` only for operations
-`register(request:app:)` does not cover — a `ReplaceRequest`, or a multi-record
-operation.
+`register(request:app:)` does not cover — a write with no model row behind it, or a
+multi-record operation.
+
+**Replace is update on PUT.** A `ReplaceRequest` body is a `DataModelWriter` with
+`loadingPlan(.write, within:)` candidates, exactly as an update body is. The target
+must already exist — a replace never creates one — and a field `apply(to:)` does not
+assign keeps its stored value. Its `ResponseError` is a
+`ValidatableViewModelRequestError`; `ValidationError` is the ready-made choice. This
+keeps **SRP**: one write pipeline serves both verbs, so a hand-written PUT controller
+is a second pipeline that skips the candidate load, the grant check and the refresh.
 
 ### Client Invocation
 

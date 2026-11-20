@@ -33,7 +33,7 @@ import Foundation
 /// with not-found semantics (not-yours is indistinguishable from not-found).
 ///
 /// An `ArchiveRequest` body conforms to this protocol **alone** — archiving is framework-owned,
-/// so there is nothing to apply. An update or create body adds ``DataModelWriter``.
+/// so there is nothing to apply. An update, replace or create body adds ``DataModelWriter``.
 public protocol WriteTargetProviding: Sendable {
     /// The persisted model this request writes.
     associatedtype Target: DataModel
@@ -44,7 +44,7 @@ public protocol WriteTargetProviding: Sendable {
     static var candidates: LoadingPlan<Target> { get }
 }
 
-/// The write half of an update or create request: applies the submitted, validated body onto
+/// The write half of an update, replace or create request: applies the submitted, validated body onto
 /// the target model. Adopt it on the write request's `RequestBody` in the server target:
 ///
 /// ```swift

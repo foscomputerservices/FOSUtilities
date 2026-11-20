@@ -28,7 +28,7 @@ final class TestReplaceRequest: ReplaceRequest, @unchecked Sendable {
     typealias Fragment = EmptyFragment
     typealias RequestBody = EmptyBody
     typealias ResponseBody = EmptyBody
-    typealias ResponseError = EmptyError
+    typealias ResponseError = ValidationError
 
     required init(
         query: EmptyQuery? = nil,
