@@ -1,5 +1,5 @@
 ---
-status: open
+status: closed
 last_updated: 2026-11-20
 branch: feat/replace-request-write-route
 origin: a consumer session asked whether FOS serves a replace request (2026-11-19); David ruled that FOS adds it first and the consumer then uses it
@@ -47,3 +47,4 @@ David, 2026-11-19:
 - 2026-11-19 — David ruled OQ1–OQ8. OQ4: the protocol gains the `ResponseError` constraint. OQ5: `ContainmentError.unsupportedWriteProtocol` stays, for a future action. OQ6: candidates use `.write`. OQ8: the `ServerRequestController` example becomes a token rotation.
 - 2026-11-19 — Built on `feat/replace-request-write-route`, uncommitted: overload, `serveReplace`/`commitReplace`, protocol constraint, DocC, tests, generator and test-generator skills, catalog, review check, CHANGELOG, plugin 2.82.0. Catalog audit: 0 stale. Open: the consumer has not been told.
 - 2026-11-20 — David ruled no lifecycle-hook test for replace: the shared save already runs the hooks. The `DataModelAction` DocC example no longer sets `createdAt` by hand, which Fluent does itself. Two test files' header years corrected for the current SwiftFormat.
+- 2026-11-20 — PR #177 merged; released in 0.22.0; the consumer was told; closed.
