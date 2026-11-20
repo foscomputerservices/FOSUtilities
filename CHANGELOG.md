@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-20
+
 ### Upgrading
 
 - **`ReplaceRequest` now requires a validation-carrying `ResponseError`.** Its `ResponseError` must be a `ValidatableViewModelRequestError`, as `UpdateRequest`'s already is. A replace request declaring another error type stops compiling; `ValidationError` is the ready-made choice.
