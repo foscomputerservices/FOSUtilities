@@ -433,7 +433,7 @@ Reach for this when: a hook applies to some writes and not others — read `cont
 
 ```swift
 func willWrite(in context: DataModelWriteContext) async throws {
-    if context.action == .create { createdAt = Date() }
+    if context.action == .create { slug = title.slugified() }   // set once; a rename keeps it
 }
 ```
 
@@ -827,21 +827,24 @@ middleware-only groups — a path-prefixing group (`app.grouped("admin")`) is re
 at boot, because the client derives the served URL from the request type.
 An `ArchiveRequest`'s model must declare a delete timestamp (`@Timestamp(key: "deleted_at", on: .delete)`) — archiving marks the model deleted through it, so a model without one throws `ServerRequestControllerError.archiveUnsupported(request:model:)` at boot; serve a `DestroyRequest` instead when the model is meant to be removed.
 Don't reach for a removed `register(viewModel:)` — there is one `register(request:app:)`
-route-registration call; a `ReplaceRequest`, or a write request that
-reaches the read registration, fails fast at boot rather than registering GET-only.
+route-registration call; a write request that reaches the read registration fails
+fast at boot rather than registering GET-only. A `ReplaceRequest` (PUT) registers
+like an update: its body is a `DataModelWriter` with `loadingPlan(.write, within:)`
+candidates, and a target that does not exist answers not-found.
 
 ```swift
 func routes(_ app: Application) throws {
     let authed = app.grouped(ClientCredentialMiddleware(verifier: myVerifier))
     try authed.register(request: BoardPageRequest.self, app: app)   // guarded read (GET)
     try authed.register(request: UpdateCardRequest.self, app: app) // write route, overload picked by Swift
+    try authed.register(request: CardReplaceRequest.self, app: app) // write route (PUT)
     try app.register(request: LandingPageRequest.self, app: app)   // public (Application is a RoutesBuilder)
 }
 ```
 
 ### General request dispatch — `ServerRequestController` / `ServerRequestControllerError`
 Reach for this when: an operation falls outside the guarded verbs
-`register(request:app:)` covers (e.g. a `ReplaceRequest`, multi-record operations) —
+`register(request:app:)` covers (a write with no model row behind it, multi-record operations) —
 conform, supply one processor per `ServerRequestAction`, and register the controller
 as a route collection. Grouping, HTTP-method mapping (`.show` GET · `.create` POST ·
 `.replace` PUT · `.update` PATCH · `.archive`/`.destroy` DELETE), body decoding
@@ -857,14 +860,15 @@ with the framework's guarded pipelines (declared loads, write gates, refresh
 fall-through). Scaffolded by `fosmvvm-serverrequest-generator`.
 
 ```swift
-final class ReplaceCardController: ServerRequestController {
-    typealias TRequest = ReplaceCardRequest
+// The member's token lives in the app's token service, not in a model row.
+final class RotateMemberTokenController: ServerRequestController {
+    typealias TRequest = MemberTokenRotateRequest
     let actions: [ServerRequestAction: ActionProcessor] = [
-        .replace: { req, bound in
-            let body = try req.content.decode(ReplaceCardRequest.RequestBody.self)
-            return try await CardListVM(replacing: body, on: req.db)
+        .update: { req, bound in
+            let token = try await req.tokenService.rotateToken(of: bound.query)
+            return MemberTokenVM(token: token)
         }
     ]
 }
-// in routes(_:): try app.routes.register(collection: ReplaceCardController())
+// in routes(_:): try app.routes.register(collection: RotateMemberTokenController())
 ```

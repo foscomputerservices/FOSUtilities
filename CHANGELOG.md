@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Upgrading
+
+- **`ReplaceRequest` now requires a validation-carrying `ResponseError`.** Its `ResponseError` must be a `ValidatableViewModelRequestError`, as `UpdateRequest`'s already is. A replace request declaring another error type stops compiling; `ValidationError` is the ready-made choice.
+- **A `ReplaceRequest` served by a hand-written `ServerRequestController` can move to `register(request:app:)`.** Give its body a `DataModelWriter` conformance and its query a target, register it, and delete the controller.
+
 ### Added
+
+- **`register(request:app:)` serves a `ReplaceRequest` (PUT).** A replace registers with one line and runs the same write pipeline as an update: the body is a `DataModelWriter` with `loadingPlan(.write, within:)` candidates, the target resolves from the query, and the response is built from the refreshed records. The target must already exist, and a field `apply(to:)` does not assign keeps its stored value. Plugin 2.82.0.
 
 - **`fosmvvm-orientation` skill.** A session articulates the forward-projection rules and walks six failure scenarios before its first edit to ViewModels, Views, or client-hosted Ops. A project can require it with the `PreToolUse` gate in `gate-hook.md`, and maps the scenario names to its own types with `project-mappings-template.md`. Plugin 2.81.0.
 

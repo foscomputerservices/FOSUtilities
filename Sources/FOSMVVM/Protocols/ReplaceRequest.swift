@@ -16,15 +16,30 @@
 
 import FOSFoundation
 
-/// A ``ServerRequest`` that requests that the server **replace** a resource
+/// A ``ServerRequest`` that asks the server to **replace** a resource with the state its body carries.
 ///
-/// `ReplaceRequest` is the PUT verb of the write-protocol family: unlike
-/// ``UpdateRequest`` (PATCH, a partial modification of an existing resource),
-/// a replace supplies the resource's full desired state. It mirrors
-/// ``ReplaceRequest``'s contract — its ``ServerRequest/RequestBody`` is a
-/// ``ValidatableModel`` so the same ``Fields`` validation applies at every layer.
+/// ```swift
+/// final class CardReplaceRequest: ReplaceRequest {
+///     typealias RequestBody = CardReplaceBody   // a DataModelWriter
+///     typealias ResponseBody = CardListVM       // the container's children
+///     typealias ResponseError = ValidationError
+///     // …query, init…
+/// }
+/// ```
+///
+/// Reach for a replace when the client sends the resource's whole desired state (HTTP PUT).
+/// Reach for ``UpdateRequest`` when it sends a change to part of it (HTTP PATCH).
+///
+/// The server serves both the same way: it loads the writer's candidate scope, resolves the
+/// target, applies the body, saves, then builds the response from the refreshed records.
+/// The target must already exist. A replace never creates one.
+///
+/// > Important: The body's `apply(to:)` decides what is written. A field it does not assign
+/// > keeps its stored value.
 public protocol ReplaceRequest: ServerRequest, Stubbable
-    where RequestBody: ValidatableModel, ResponseBody: ReplaceResponseBody {}
+    where RequestBody: ValidatableModel,
+    ResponseBody: ReplaceResponseBody,
+    ResponseError: ValidatableViewModelRequestError {}
 
 public extension ReplaceRequest {
     static var baseTypeName: String {

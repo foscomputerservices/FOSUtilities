@@ -22,7 +22,7 @@ import Foundation
 ///
 /// ```swift
 /// public func willWrite(in context: DataModelWriteContext) async throws {
-///     if context.action == .create { createdAt = Date() }
+///     if context.action == .create { slug = title.slugified() }   // set once; a rename keeps it
 /// }
 /// ```
 ///

@@ -1,6 +1,6 @@
 ---
 name: fosmvvm-serverrequest-test-generator
-description: Generate ServerRequest tests using VaporTesting. Covers typed request/response validation for Show, Create, Update, and Archive operations.
+description: Generate ServerRequest tests using VaporTesting. Covers typed request/response validation for Show, Create, Update, Replace, and Archive operations.
 homepage: https://github.com/foscomputerservices/FOSUtilities
 metadata: {"clawdbot": {"emoji": "🧪", "os": ["darwin", "linux"]}}
 ---
@@ -250,6 +250,7 @@ private func withTestApp(_ test: (Application) async throws -> Void) async throw
 | `ViewModelRequest` | GET | ViewModel population, all localized fields |
 | `CreateRequest` | POST | RequestBody validation, created entity, ID response |
 | `UpdateRequest` | PATCH | RequestBody validation, updated entity, response |
+| `ReplaceRequest` | PUT | RequestBody validation, replaced entity, missing target is not-found, response |
 | `ArchiveRequest` | DELETE | Entity archived, status code |
 
 ---
@@ -390,6 +391,44 @@ Skill references information from:
         try await app.testing().test(updateRequest, locale: en) { response in
             #expect(response.status == .ok)
             #expect(response.body?.viewModel.content == "Updated content")
+        }
+    }
+}
+```
+
+### Testing ReplaceRequest
+
+A replace is served like an update, on PUT. Two behaviors are its own to prove: the target
+must already exist, and a field the body's `apply(to:)` does not assign keeps its value.
+
+```swift
+@Test func replaceRequest_success() async throws {
+    try await withTestApp { app in
+        let card = try await seedCard(on: app.db)
+
+        let replaceRequest = try CardReplaceRequest(
+            query: .init(target: card.modelIdentity),
+            requestBody: .init(title: "Replaced title", summary: "Replaced summary")
+        )
+
+        try await app.testing().test(replaceRequest, locale: en) { response in
+            #expect(response.status == .ok)
+            #expect(response.body?.cardTitles.contains("Replaced title") == true)
+        }
+    }
+}
+
+@Test func replaceRequest_missingTargetIsNotFound() async throws {
+    try await withTestApp { app in
+        let card = try await seedCard(on: app.db)
+        let replaceRequest = try CardReplaceRequest(
+            query: .init(target: card.modelIdentity),
+            requestBody: .init(title: "Replaced title", summary: "Replaced summary")
+        )
+        try await card.delete(force: true, on: app.db)
+
+        try await app.testing().test(replaceRequest, locale: en) { response in
+            #expect(response.status == .notFound)
         }
     }
 }

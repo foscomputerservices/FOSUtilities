@@ -37,6 +37,16 @@ extension Vapor.Request {
         return try await serve(boundRequest)
     }
 
+    /// PUT: the update flow, answered on the replace verb.
+    func serveReplace<SR: ReplaceRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> SR.ResponseBody
+        where SR.RequestBody: DataModelWriter,
+        SR.Query: TargetedQuery,
+        SR.ResponseBody: VaporResponseBodyFactory {
+        let context = try await commitReplace(boundRequest, body: body)
+        invalidateWrittenContainers(context)
+        return try await serve(boundRequest)
+    }
+
     /// POST: validate → load candidate scope → fresh `Target()` → `apply` → create into scope →
     /// invalidate → refresh. No target resolution — the candidate scope is the destination.
     func serveCreate<SR: CreateRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> SR.ResponseBody
@@ -78,6 +88,19 @@ extension Vapor.Request {
     @discardableResult
     func commitUpdate<SR: UpdateRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> WriteCandidateContext
         where SR.RequestBody: DataModelWriter, SR.Query: TargetedQuery {
+        try await commitWriteToTarget(boundRequest, body: body)
+    }
+
+    @discardableResult
+    func commitReplace<SR: ReplaceRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> WriteCandidateContext
+        where SR.RequestBody: DataModelWriter, SR.Query: TargetedQuery {
+        try await commitWriteToTarget(boundRequest, body: body)
+    }
+
+    private func commitWriteToTarget<SR: ServerRequest>(_ boundRequest: SR, body: SR.RequestBody) async throws -> WriteCandidateContext
+        where SR.RequestBody: DataModelWriter & ValidatableModel,
+        SR.Query: TargetedQuery,
+        SR.ResponseError: ValidatableViewModelRequestError {
         // 2. Structural gate: a failing validation never reaches apply.
         if let error = body.validate() {
             throw SR.ResponseError(validations: error.validations)
